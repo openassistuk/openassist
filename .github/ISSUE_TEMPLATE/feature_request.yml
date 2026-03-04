@@ -1,0 +1,59 @@
+name: Feature Request
+description: Propose an operator-facing enhancement for OpenAssist.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please focus on real operator outcomes and concrete acceptance criteria.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What operator workflow is currently hard, risky, or missing?
+      placeholder: As an operator, I need...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the expected behavior and UX.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you evaluate?
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List clear testable outcomes.
+      placeholder: |
+        - Given ...
+        - When ...
+        - Then ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact area
+      options:
+        - Runtime reliability
+        - Security/policy
+        - Setup/service lifecycle
+        - Provider/channel integrations
+        - Tooling/developer workflow
+        - Documentation
+    validations:
+      required: true

@@ -1,0 +1,128 @@
+# Threat Model
+
+This document covers OpenAssist local-first single-operator deployments.
+
+## Scope
+
+In scope:
+
+- daemon and CLI command surfaces
+- local HTTP API
+- provider, channel, tool, skill modules
+- scheduler and clock-health subsystems
+- local durability and logs
+
+Out of scope:
+
+- multi-tenant hosted control plane
+- WebUI/browser attack surface
+- plugin sandbox guarantees
+
+## Protected Assets
+
+- provider API keys and OAuth tokens
+- channel credentials
+- local filesystem integrity
+- conversation and scheduler run history
+- global assistant profile memory (`system_settings` / `assistant.globalProfile`) plus per-session host bootstrap context (`session_bootstrap`)
+- policy profile assignments
+
+## Threats and Controls
+
+### Privileged host action misuse
+
+Controls:
+
+- policy profiles gate tool boundaries
+- explicit elevation to `full-root`
+- autonomous chat tool execution only in `full-root` sessions
+- audit logs for tool activity (`tool.call.*`, `audit.exec`, `audit.fs.*`, `audit.pkg.install`)
+- minimal exec guardrails enabled by default
+
+### Secret leakage
+
+Controls:
+
+- centralized deep redaction in logs and error paths
+- encrypted OAuth token storage
+- encrypted OAuth PKCE flow verifier storage (`enc:` payloads; plaintext fallback read only for legacy rows)
+- env-file secret pattern with `env:VAR_NAME` references in config
+- schema-level rejection of plaintext secret-like channel settings
+- strict `clientSecretEnv` env-var format validation for provider OAuth config
+- `security.secretsBackend` pinned to `encrypted-file` (unsupported legacy backend values fail fast)
+- strict 32-byte base64 `OPENASSIST_SECRET_KEY` handling (no weak passphrase fallback)
+- Unix owner-only permission checks for secret-bearing paths (env file, key material, data/db paths)
+- strict onboarding (`setup quickstart`) validates unresolved secret references before save by default
+- runtime diagnostic chat replies are sanitized and use categorized error summaries (no raw secret-bearing exception dumps)
+
+### Duplicate side effects after restart
+
+Controls:
+
+- durable idempotency keys
+- replay queue semantics
+- scheduler keys `scheduler:<taskId>:<scheduledFor>`
+
+### Reasoning/internal-trace leakage to channels
+
+Controls:
+
+- outbound sanitization strips known internal-trace markers
+
+### Profile-memory misuse
+
+Controls:
+
+- global profile memory updates are explicit (`/profile` command) and auditable through message/event persistence
+- first-boot lock-in guard requires explicit force confirmation (`/profile force=true; ...`) before profile updates are applied
+- first-contact profile prompt is configurable (`runtime.assistant.promptOnFirstContact`) and does not execute host tools
+- global profile + per-session host context are injected as bounded system context only; no secret env values are injected into profile memory payloads
+
+### Clock drift and scheduling errors
+
+Controls:
+
+- durable clock health checks
+- operator-visible time status
+- configurable NTP policy (`off`, `warn-degrade`, `hard-fail`)
+- timezone confirmation gate (when enabled)
+
+### Scheduler abuse
+
+Controls:
+
+- no first-class scheduled shell action in current release
+- scheduler action scope limited to prompt and skill actions
+- scheduler actor identity in logs (`scheduler:<taskId>`)
+
+### Autonomous tool loop abuse
+
+Controls:
+
+- bounded tool loop rounds (default `8`)
+- unknown/invalid tool arguments return structured failures
+- tool execution is sequential and durably audited
+- blocked actions are visible as `blocked` status (not silent failure)
+- unsolicited provider tool calls are ignored when session autonomy is not enabled
+- `pkg.install` elevation behavior is explicit (`sudo -n` non-interactive on Unix when required)
+
+## Additional Hardening
+
+- loopback bind default
+- no WebUI in V1
+- service hardening in systemd template
+
+## Residual Risks
+
+- skill scripts run as trusted local code
+- `full-root` profile intentionally permits unrestricted host impact
+- clock-check dependencies (OS utilities / HTTP date sources) may be constrained on hardened hosts
+- Windows filesystems do not enforce Unix mode semantics; runtime logs explicit permission-check skip diagnostics there
+
+## Operational Security Notes
+
+- use `openassist setup quickstart` for first-time setup to enforce strict validation gates
+- keep `~/.config/openassist/openassistd.env` at mode `0600` on Unix hosts
+- use `openassist policy-set --session <channel>:<conversationKey> --profile full-root` only for sessions that require autonomous host actions
+- review `openassist tools invocations` during incident triage and after privileged automation runs
+- use in-channel `/status` for quick local diagnostics; avoid pasting raw service logs containing secrets into public channels

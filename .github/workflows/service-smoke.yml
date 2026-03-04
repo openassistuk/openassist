@@ -1,0 +1,50 @@
+name: Service Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1,4"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: service-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lifecycle-dry-run:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm -r build
+
+      - name: Service and upgrade dry-run smoke
+        run: |
+          pnpm --filter @openassist/openassist-cli exec node dist/index.js service install --dry-run --install-dir "$PWD" --config "$PWD/openassist.toml"
+          pnpm --filter @openassist/openassist-cli exec node dist/index.js service status || true
+          pnpm --filter @openassist/openassist-cli exec node dist/index.js upgrade --dry-run --install-dir "$PWD"

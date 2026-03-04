@@ -1,0 +1,55 @@
+{
+  "name": "openassist",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lean, modular, restart-safe AI gateway",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.26.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "clean": "pnpm -r clean",
+    "ci:strict": "pnpm lint:workflows && pnpm -r build && pnpm lint && pnpm typecheck && pnpm test:vitest && pnpm test:node && pnpm test:coverage:vitest && pnpm test:coverage:node",
+    "dev": "pnpm --filter @openassist/openassistd dev",
+    "healthcheck": "bash scripts/ops/healthcheck.sh",
+    "install:bootstrap": "bash scripts/install/bootstrap.sh",
+    "lint": "pnpm -r lint",
+    "lint:workflows": "node scripts/dev/lint-workflows.mjs",
+    "service:install:linux": "bash scripts/ops/install-systemd.sh",
+    "service:install:macos": "bash scripts/ops/install-launchd.sh",
+    "service:uninstall:linux": "bash scripts/ops/uninstall-systemd.sh",
+    "service:uninstall:macos": "bash scripts/ops/uninstall-launchd.sh",
+    "test": "pnpm -r build && pnpm test:vitest && pnpm test:node",
+    "test:coverage": "pnpm -r build && pnpm test:coverage:vitest && pnpm test:coverage:node",
+    "test:coverage:node": "c8 --all --exclude \"**/dist/**\" --src apps/openassist-cli/src/commands --src apps/openassist-cli/src/lib --src apps/openassistd/src/channel-settings.ts --reporter=text-summary --reporter=lcov --report-dir coverage/node --check-coverage --lines 79 --functions 80 --branches 70 --statements 79 tsx --test tests/node/cli-*.test.ts tests/node/install-bootstrap-idempotence.test.ts tests/node/bootstrap-interactive-contract.test.ts",
+    "test:coverage:vitest": "vitest run --coverage",
+    "test:node": "tsx --test tests/node/*.test.ts",
+    "test:vitest": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r typecheck",
+    "verify:all": "pnpm ci:strict"
+  },
+  "pnpm": {
+    "overrides": {
+      "minimatch@<3.1.4": "3.1.4",
+      "minimatch@>=9.0.0 <9.0.7": "9.0.7",
+      "minimatch@>=10.0.0 <10.2.3": "10.2.4",
+      "undici@<6.23.0": "6.23.0",
+      "esbuild@<=0.24.2": "0.25.0"
+    }
+  },
+  "devDependencies": {
+    "@tktco/node-actionlint": "^1.6.0",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "c8": "^10.1.3",
+    "cron-parser": "^5.5.0",
+    "luxon": "^3.7.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^2.1.9"
+  }
+}

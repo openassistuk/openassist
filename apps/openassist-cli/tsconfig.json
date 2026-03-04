@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "tsconfig.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/config"
+    },
+    {
+      "path": "../../packages/migration-openclaw"
+    },
+    {
+      "path": "../../packages/storage-sqlite"
+    },
+    {
+      "path": "../../packages/core-runtime"
+    },
+    {
+      "path": "../../packages/observability"
+    }
+  ]
+}

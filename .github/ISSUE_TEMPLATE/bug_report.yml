@@ -1,0 +1,92 @@
+name: Bug Report
+description: Report a reproducible defect in OpenAssist runtime, CLI, setup, or integrations.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please include concrete reproduction steps.
+        Do not include secrets, tokens, or private credentials.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One clear sentence describing the problem.
+      placeholder: openassist setup quickstart exits with validation error when...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - CLI (openassist)
+        - Daemon (openassistd)
+        - Setup / install / service lifecycle
+        - Provider adapter
+        - Channel adapter
+        - Scheduler / time
+        - Tool loop / policy
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Node version, pnpm version, and install mode.
+      placeholder: |
+        OS: Ubuntu 24.04
+        Node: 22.x
+        pnpm: 10.x
+        Install: bootstrap script / source checkout
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Provide exact commands and inputs.
+      placeholder: |
+        1. Run ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs/output
+      description: Paste minimal sanitized logs or command output.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submit checks
+      options:
+        - label: I searched for existing issues before opening this report.
+          required: true
+        - label: I removed/redacted secrets, tokens, and personal data from logs.
+          required: true

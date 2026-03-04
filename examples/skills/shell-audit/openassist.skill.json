@@ -1,0 +1,12 @@
+{
+  "id": "shell-audit",
+  "version": "1.0.0",
+  "description": "Log and summarize shell command outputs for operations triage.",
+  "triggers": ["audit shell", "summarize command output", "triage logs"],
+  "requiredCapabilities": ["tool.exec", "tool.fs.read"],
+  "resources": {
+    "promptFiles": ["SKILL.md"],
+    "referenceFiles": [],
+    "scriptEntrypoints": ["scripts/summarize.mjs"]
+  }
+}

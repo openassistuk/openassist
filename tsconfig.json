@@ -1,0 +1,24 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core-types" },
+    { "path": "packages/observability" },
+    { "path": "packages/config" },
+    { "path": "packages/storage-sqlite" },
+    { "path": "packages/recovery" },
+    { "path": "packages/tools-exec" },
+    { "path": "packages/tools-fs" },
+    { "path": "packages/tools-package" },
+    { "path": "packages/skills-engine" },
+    { "path": "packages/providers-openai" },
+    { "path": "packages/providers-anthropic" },
+    { "path": "packages/providers-openai-compatible" },
+    { "path": "packages/channels-telegram" },
+    { "path": "packages/channels-discord" },
+    { "path": "packages/channels-whatsapp-md" },
+    { "path": "packages/migration-openclaw" },
+    { "path": "packages/core-runtime" },
+    { "path": "apps/openassistd" },
+    { "path": "apps/openassist-cli" }
+  ]
+}

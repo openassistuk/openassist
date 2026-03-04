@@ -1,0 +1,46 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "tsconfig.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/core-types"
+    },
+    {
+      "path": "../../packages/core-runtime"
+    },
+    {
+      "path": "../../packages/config"
+    },
+    {
+      "path": "../../packages/storage-sqlite"
+    },
+    {
+      "path": "../../packages/observability"
+    },
+    {
+      "path": "../../packages/providers-openai"
+    },
+    {
+      "path": "../../packages/providers-anthropic"
+    },
+    {
+      "path": "../../packages/providers-openai-compatible"
+    },
+    {
+      "path": "../../packages/channels-telegram"
+    },
+    {
+      "path": "../../packages/channels-discord"
+    },
+    {
+      "path": "../../packages/channels-whatsapp-md"
+    }
+  ]
+}

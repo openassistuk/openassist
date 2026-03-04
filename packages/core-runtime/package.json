@@ -1,0 +1,33 @@
+{
+  "name": "@openassist/core-runtime",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "node -e \"import fs from \\\"node:fs\\\"; fs.rmSync(\\\"dist\\\", { recursive: true, force: true }); fs.rmSync(\\\"tsconfig.tsbuildinfo\\\", { force: true });\"",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@openassist/config": "workspace:*",
+    "@openassist/core-types": "workspace:*",
+    "@openassist/observability": "workspace:*",
+    "@openassist/recovery": "workspace:*",
+    "@openassist/skills-engine": "workspace:*",
+    "@openassist/storage-sqlite": "workspace:*",
+    "@openassist/tools-exec": "workspace:*",
+    "@openassist/tools-fs": "workspace:*",
+    "@openassist/tools-package": "workspace:*",
+    "cron-parser": "^5.5.0",
+    "luxon": "^3.7.2"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.7.1"
+  }
+}

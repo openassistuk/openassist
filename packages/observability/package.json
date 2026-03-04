@@ -1,0 +1,20 @@
+{
+  "name": "@openassist/observability",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "node -e \"import fs from \\\"node:fs\\\"; fs.rmSync(\\\"dist\\\", { recursive: true, force: true }); fs.rmSync(\\\"tsconfig.tsbuildinfo\\\", { force: true });\"",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "pino": "^9.3.2"
+  }
+}

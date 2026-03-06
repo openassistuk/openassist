@@ -191,6 +191,8 @@ describe("cli setup validation and summary coverage", () => {
     });
     assert.equal(failedServiceSummary.some((line) => line.includes("Backup: /tmp/openassist.toml.bak")), true);
     assert.equal(failedServiceSummary.some((line) => line.includes("Service status: needs attention")), true);
+    assert.equal(failedServiceSummary.some((line) => line.startsWith("- Timezone: ")), true);
+    assert.equal(failedServiceSummary.some((line) => line.startsWith("- Timezone confirmed: ")), false);
     assert.equal(
       failedServiceSummary.some(
         (line) =>

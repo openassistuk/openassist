@@ -545,7 +545,6 @@ describe("setup quickstart branch behavior", () => {
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
-    const bindPort = await getFreePort();
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
     const prompts = new ScriptedPromptAdapter([

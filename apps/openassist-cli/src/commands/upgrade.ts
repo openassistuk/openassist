@@ -64,6 +64,10 @@ function printLines(lines: string[]): void {
   }
 }
 
+function quoteForDisplay(value: string): string {
+  return `"${value.replace(/"/g, '\\"')}"`;
+}
+
 function printUpgradeNextSteps(baseUrl: string, skipRestart: boolean): void {
   console.log("Next checks:");
   if (skipRestart) {
@@ -184,7 +188,9 @@ export function registerUpgradeCommand(program: Command): void {
               "- This install is currently detached. Dry-run resolved the target ref explicitly to keep updates predictable."
             );
           }
-          console.log(`- Upgrade command: openassist upgrade --install-dir "${installDir}" --ref ${context.targetRef}`);
+          console.log(
+            `- Upgrade command: openassist upgrade --install-dir ${quoteForDisplay(installDir)} --ref ${quoteForDisplay(context.targetRef)}`
+          );
           printUpgradeNextSteps(baseUrl, skipRestart);
           return;
         }

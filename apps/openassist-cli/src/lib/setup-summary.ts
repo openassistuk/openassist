@@ -63,7 +63,7 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   }
   lines.push(`- Primary provider: ${input.config.runtime.defaultProviderId}`);
   lines.push(`- Primary channel: ${primaryChannel ? `${primaryChannel.id} (${primaryChannel.type})` : "(not configured)"}`);
-  lines.push(`- Timezone confirmed: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
+  lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
   lines.push(
     `- Service status: ${
       input.skippedService ? "not checked yet (--skip-service)" : input.healthOk ? "healthy" : "needs attention"

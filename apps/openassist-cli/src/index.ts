@@ -13,6 +13,7 @@ import { registerServiceCommands } from "./commands/service.js";
 import { registerUpgradeCommand } from "./commands/upgrade.js";
 import { SpawnCommandRunner } from "./lib/command-runner.js";
 import { detectInstallStateFromRepo, loadInstallState } from "./lib/install-state.js";
+import { detectDefaultDaemonBaseUrl } from "./lib/runtime-context.js";
 import { createServiceManager, detectServiceManagerKind } from "./lib/service-manager.js";
 
 const logger = createLogger({ service: "openassist-cli" });
@@ -34,20 +35,6 @@ function resolveDbPath(dbPath?: string): string {
 
 function defaultInstallDir(): string {
   return path.join(os.homedir(), "openassist");
-}
-
-function detectDefaultDaemonBaseUrl(configPath = "openassist.toml"): string {
-  try {
-    const resolvedConfigPath = resolveFromWorkspace(configPath);
-    const configDir = path.dirname(resolvedConfigPath);
-    const { config } = loadConfig({
-      baseFile: resolvedConfigPath,
-      overlaysDir: path.join(configDir, "config.d")
-    });
-    return `http://${config.runtime.bindAddress}:${config.runtime.bindPort}`;
-  } catch {
-    return "http://127.0.0.1:3344";
-  }
 }
 
 function defaultEnvFilePath(): string {
@@ -207,7 +194,7 @@ program
 
     try {
       const serviceKind = detectServiceManagerKind();
-      let installedDetail: string = serviceKind;
+      let installedDetail: string;
       let installedOk = false;
       try {
         const service = createServiceManager(new SpawnCommandRunner());

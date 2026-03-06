@@ -49,6 +49,7 @@ Choose one elevation path:
 ```bash
 openassist policy-set --session telegram-main:ops-room --sender-id 123456789 --profile full-root
 openassist policy-get --session telegram-main:ops-room --sender-id 123456789
+openassist policy-get --session telegram-main:ops-room --sender-id 123456789 --json
 openassist tools status --session telegram-main:ops-room --sender-id 123456789
 ```
 
@@ -57,6 +58,7 @@ openassist tools status --session telegram-main:ops-room --sender-id 123456789
 ```bash
 openassist policy-set --session telegram-main:ops-room --profile full-root
 openassist policy-get --session telegram-main:ops-room
+openassist policy-get --session telegram-main:ops-room --json
 openassist tools status --session telegram-main:ops-room
 ```
 

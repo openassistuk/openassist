@@ -22,6 +22,8 @@ The visible proof is straightforward. `openassist setup quickstart` will default
   Evidence: updated docs include `README.md`, `docs/README.md`, `docs/interfaces/channel-adapter.md`, `docs/interfaces/provider-adapter.md`, `docs/interfaces/tool-calling.md`, `docs/operations/quickstart-linux-macos.md`, `docs/operations/install-linux.md`, `docs/operations/install-macos.md`, `docs/operations/setup-wizard.md`, `docs/operations/upgrade-and-rollback.md`, `docs/operations/restart-recovery.md`, `docs/operations/e2e-autonomy-validation.md`, `docs/security/policy-profiles.md`, `docs/security/threat-model.md`, `docs/architecture/overview.md`, `docs/architecture/runtime-and-modules.md`, `docs/testing/chaos-and-soak.md`, `CHANGELOG.md`, and `AGENTS.md`. `pnpm verify:all` passed locally on 2026-03-06 after build, lint, typecheck, Vitest, Node tests, and both coverage gates completed successfully.
 - [x] (2026-03-06 22:16Z) Cleared the post-push GitHub Advanced Security review note in quickstart and reran `pnpm verify:all` before updating the PR branch.
   Evidence: `apps/openassist-cli/src/lib/setup-quickstart.ts` no longer carries the dead `allowEmpty` branch in `promptOperatorIdsForChannel(...)`, and the full local verification gate passed again after the cleanup.
+- [x] (2026-03-06 22:25Z) Addressed the follow-up Copilot review notes and reran `pnpm verify:all`.
+  Evidence: `packages/config/src/schema.ts` now rejects reserved delimiters in channel IDs, `apps/openassist-cli/src/index.ts` restored plain `policy-get` output by default with optional `--json` for source detail, `packages/storage-sqlite/src/index.ts` now indexes `messages(session_id, id DESC)` for recent-message replay, and the full local verification gate passed again after those fixes.
 
 ## Surprises & Discoveries
 
@@ -57,6 +59,10 @@ The visible proof is straightforward. `openassist setup quickstart` will default
 
 - Decision: keep legacy session-wide overrides and add compatibility lookup for old `<channelType>:<conversationKey>` session IDs when the channel mapping is unambiguous.
   Rationale: upgraded installs may already have persisted session-wide policy rows keyed by channel type, and this PR must not strand those operators while moving new writes and docs to `<channelId>:<conversationKey>`.
+  Date/Author: 2026-03-06 / Codex
+
+- Decision: keep `policy-get` shell-friendly by default and expose richer resolution detail through an explicit `--json` flag.
+  Rationale: the PR needed actor-aware truthfulness, but changing the default output from a single profile string to JSON would silently break existing shell usage. The explicit flag preserves compatibility without losing the new `source` detail.
   Date/Author: 2026-03-06 / Codex
 
 ## Outcomes & Retrospective

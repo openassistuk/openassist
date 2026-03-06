@@ -87,6 +87,7 @@ openassist policy-set --session <channelId>:<conversationKey> --profile operator
 openassist policy-set --session <channelId>:<conversationKey> --profile full-root
 openassist policy-set --session <channelId>:<conversationKey> --sender-id <sender-id> --profile full-root
 openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id>
+openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id> --json
 openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>
 openassist tools invocations --session <channelId>:<conversationKey> --limit 20
 ```

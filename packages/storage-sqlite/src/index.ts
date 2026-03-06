@@ -394,6 +394,9 @@ export class OpenAssistDatabase {
       CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
       ON messages(conversation_key, created_at);
 
+      CREATE INDEX IF NOT EXISTS idx_messages_session_id_desc
+      ON messages(session_id, id DESC);
+
       CREATE INDEX IF NOT EXISTS idx_jobs_status_run_after
       ON jobs(status, run_after);
 

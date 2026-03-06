@@ -850,6 +850,7 @@ program
   .description("Get the effective policy profile for a chat or one sender inside a chat")
   .requiredOption("--session <id>", "Session ID (<channelId>:<conversationKey>)")
   .option("--sender-id <id>", "Sender ID for actor-specific access resolution")
+  .option("--json", "Print full resolution JSON (profile + source)")
   .option("--config <path>", "Path to openassist.toml")
   .option("--db <path>", "Path to SQLite DB")
   .action(async (options) => {
@@ -873,7 +874,11 @@ program
       sessionId: options.session,
       actorId: options.senderId
     });
-    console.log(JSON.stringify(resolution, null, 2));
+    if (options.json) {
+      console.log(JSON.stringify(resolution, null, 2));
+    } else {
+      console.log(resolution.profile);
+    }
     db.close();
   });
 

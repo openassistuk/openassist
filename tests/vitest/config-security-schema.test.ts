@@ -198,4 +198,20 @@ describe("config schema security validation", () => {
 
     expect(() => parseConfig(input)).not.toThrow();
   });
+
+  it("rejects channel IDs that use reserved session delimiters", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).channels = [
+      {
+        id: "telegram:main",
+        type: "telegram",
+        enabled: true,
+        settings: {
+          botToken: "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN"
+        }
+      }
+    ];
+
+    expect(() => parseConfig(input)).toThrow(/Channel IDs must use letters, numbers, dot, dash, or underscore/);
+  });
 });

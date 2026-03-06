@@ -168,8 +168,21 @@ describe("cli root command coverage", () => {
       dbPath
     ]);
     assert.equal(actorPolicyGet.code, 0, actorPolicyGet.stderr || actorPolicyGet.stdout);
-    assert.match(actorPolicyGet.stdout, /"profile": "full-root"/);
-    assert.match(actorPolicyGet.stdout, /"source": "actor-override"/);
+    assert.match(actorPolicyGet.stdout, /(?:^|\r?\n)full-root\r?\n?$/);
+
+    const actorPolicyGetJson = await runCli([
+      "policy-get",
+      "--session",
+      "telegram-main:ops-room",
+      "--sender-id",
+      "123456789",
+      "--json",
+      "--db",
+      dbPath
+    ]);
+    assert.equal(actorPolicyGetJson.code, 0, actorPolicyGetJson.stderr || actorPolicyGetJson.stdout);
+    assert.match(actorPolicyGetJson.stdout, /"profile": "full-root"/);
+    assert.match(actorPolicyGetJson.stdout, /"source": "actor-override"/);
   });
 
   it("uses a loopback health probe when doctor sees a wildcard bind address", async () => {

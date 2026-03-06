@@ -11,6 +11,7 @@ function isValidIanaTimezone(value: string): boolean {
 }
 
 const ENV_VAR_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const CONFIG_IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SECRET_LIKE_CHANNEL_SETTING_KEY_PATTERN =
   /(token|secret|api[_-]?key|password|passphrase|credential|authorization|auth)/i;
 
@@ -69,7 +70,10 @@ const providerSchema = z.object({
 
 const scheduledOutputSchema = z
   .object({
-    channelId: z.string().min(1).optional(),
+    channelId: z
+      .string()
+      .regex(CONFIG_IDENTIFIER_PATTERN, "Channel IDs must use letters, numbers, dot, dash, or underscore")
+      .optional(),
     conversationKey: z.string().min(1).optional(),
     messageTemplate: z.string().min(1).optional()
   })
@@ -133,7 +137,9 @@ const scheduledTaskSchema = z
   });
 
 const channelSchema = z.object({
-  id: z.string().min(1),
+  id: z
+    .string()
+    .regex(CONFIG_IDENTIFIER_PATTERN, "Channel IDs must use letters, numbers, dot, dash, or underscore"),
   type: z.enum(["telegram", "discord", "whatsapp-md"]),
   enabled: z.boolean().default(true),
   settings: z

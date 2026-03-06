@@ -225,6 +225,7 @@ Actor-aware access checks:
 
 ```bash
 openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id>
+openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id> --json
 openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>
 ```
 

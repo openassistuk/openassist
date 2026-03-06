@@ -37,12 +37,12 @@ For non-trivial changes, follow `.agents/PLANS.md`.
 ## Module Boundaries
 
 - `packages/core-types`: contracts only
-- `packages/core-runtime`: orchestration, scheduler/time, policy
+- `packages/core-runtime`: orchestration, scheduler/time, policy, runtime awareness
 - `packages/storage-sqlite`: schema and durable data operations
 - `packages/recovery`: replay worker
 - `packages/providers-*`: provider adapters
 - `packages/channels-*`: channel adapters
-- `packages/tools-*`: host tools
+- `packages/tools-*`: runtime-owned tools (host + web/network)
 - `packages/skills-engine`: skill runtime
 - `apps/openassistd`: daemon API/entrypoint
 - `apps/openassist-cli`: operator lifecycle commands
@@ -89,6 +89,14 @@ When touching chat/runtime/provider/tool code:
 7. preserve runtime chat diagnostics path:
    - `/status` in channel chat must return local diagnostics without provider dependency
    - provider/auth/runtime failures during chat must emit channel-visible operational diagnostics (sanitized, no secret leakage)
+8. preserve the bounded runtime-awareness snapshot on every turn:
+   - it must truthfully identify OpenAssist, the local host/runtime context, the active policy profile, and the currently callable tools
+   - it must state negative capability explicitly when autonomy or native web tooling is unavailable/not callable
+   - it must not introduce unbounded prompt/context growth
+9. keep native web tooling runtime-owned, profile-gated, and bounded:
+   - `tools.web` remains callable only in `full-root`
+   - search/fetch behavior must stay bounded by configured redirects/bytes/results/pages
+   - do not add browser automation or JS-rendered web execution without an explicit approved plan and docs/security updates
 
 ## Security Rules
 

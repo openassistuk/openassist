@@ -69,29 +69,24 @@ class ScriptedPromptAdapter implements PromptAdapter {
   }
 }
 
-function setTty(value: boolean): () => void {
-  const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
-  const stdoutDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
-  Object.defineProperty(process.stdin, "isTTY", {
-    configurable: true,
-    value
-  });
-  Object.defineProperty(process.stdout, "isTTY", {
-    configurable: true,
-    value
-  });
-  return () => {
-    if (stdinDescriptor) {
-      Object.defineProperty(process.stdin, "isTTY", stdinDescriptor);
-    } else {
-      delete (process.stdin as Record<string, unknown>).isTTY;
-    }
-    if (stdoutDescriptor) {
-      Object.defineProperty(process.stdout, "isTTY", stdoutDescriptor);
-    } else {
-      delete (process.stdout as Record<string, unknown>).isTTY;
-    }
-  };
+function minimalQuickstartAnswers(bindPort: number): string[] {
+  return [
+    "false",
+    "127.0.0.1",
+    String(bindPort),
+    "openai",
+    "openai-main",
+    "gpt-5.2",
+    "",
+    "openai-key",
+    "telegram",
+    "telegram-main",
+    "telegram-token",
+    "123,456",
+    "Europe",
+    "Europe/London",
+    "true"
+  ];
 }
 
 describe("cli native web setup coverage", () => {
@@ -113,7 +108,8 @@ describe("cli native web setup coverage", () => {
       envFilePath: path.join(root, "openassistd.env"),
       installDir: root,
       skipService: true,
-      timezoneConfirmed: true
+      timezoneConfirmed: true,
+      requireEnabledChannel: false
     });
     assert.equal(missingKey.errors.some((issue) => issue.code === "tools.web_brave_api_key_missing"), true);
 
@@ -127,7 +123,8 @@ describe("cli native web setup coverage", () => {
       envFilePath: path.join(root, "openassistd.env"),
       installDir: root,
       skipService: true,
-      timezoneConfirmed: true
+      timezoneConfirmed: true,
+      requireEnabledChannel: false
     });
     assert.equal(hybrid.warnings.some((issue) => issue.code === "tools.web_hybrid_fallback_only"), true);
 
@@ -140,8 +137,9 @@ describe("cli native web setup coverage", () => {
       skippedService: true,
       healthOk: false
     });
-    assert.equal(summary.some((line) => line.includes("Native web tools: hybrid mode")), true);
-    assert.equal(summary.some((line) => line.includes(braveVar)), true);
+    assert.equal(summary.some((line) => line.includes(`Env keys updated: ${braveVar}`)), true);
+    assert.equal(summary.some((line) => line.includes("Secret refs in config:")), true);
+    assert.equal(summary.some((line) => line.includes("Validation warnings:")), true);
 
     config.tools.web.enabled = false;
     const disabledSummary = buildSetupSummary({
@@ -153,79 +151,43 @@ describe("cli native web setup coverage", () => {
       skippedService: true,
       healthOk: false
     });
-    assert.equal(disabledSummary.some((line) => line.includes("Native web tools: disabled")), true);
+    assert.equal(disabledSummary.some((line) => line.includes("First reply checklist:")), true);
   });
 
-  it("captures Brave API credentials during interactive quickstart", async () => {
+  it("keeps advanced native web settings for wizard instead of quickstart prompts", async () => {
     const root = tempDir("openassist-node-web-quickstart-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
     const bindPort = await getFreePort();
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
-    const restoreTty = setTty(true);
-    try {
-      const prompts = new ScriptedPromptAdapter([
-        "127.0.0.1",
-        String(bindPort),
-        "operator",
-        ".openassist/data",
-        ".openassist/skills",
-        ".openassist/logs",
-        "OpenAssist",
-        "Grounded local operator",
-        "Keep replies terse",
-        "true",
-        "openai",
-        "openai-main",
-        "gpt-5.2",
-        "",
-        "api-key-only",
-        "openai-key",
-        "false",
-        "openai-main",
-        "false",
-        "Europe/London",
-        "warn-degrade",
-        "300",
-        "10000",
-        "true",
-        "Europe/London",
-        "true",
-        "1000",
-        "30",
-        "catch-up-once",
-        "false",
-        "true",
-        "api-only",
-        "true",
-        "brave-secret"
-      ]);
+    const braveVar = toWebBraveApiKeyEnvVar();
 
-      const result = await runSetupQuickstart(
-        state,
-        {
-          configPath,
-          envFilePath: envPath,
-          installDir,
-          allowIncomplete: false,
-          skipService: true,
-          requireTty: true,
-          preflightCommandChecks: false
-        },
-        prompts
-      );
+    state.config.tools.web.enabled = true;
+    state.config.tools.web.searchMode = "hybrid";
+    state.env[braveVar] = "brave-secret";
 
-      const braveVar = toWebBraveApiKeyEnvVar();
-      assert.equal(result.saved, true);
-      assert.equal(state.config.tools.web.enabled, true);
-      assert.equal(state.config.tools.web.searchMode, "api-only");
-      assert.equal(state.env[braveVar], "brave-secret");
-      assert.equal(result.summary.some((line) => line.includes("Native web tools: api-only mode")), true);
-      assert.equal(fs.readFileSync(envPath, "utf8").includes(`${braveVar}=brave-secret`), true);
-    } finally {
-      restoreTty();
-    }
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      new ScriptedPromptAdapter(minimalQuickstartAnswers(bindPort))
+    );
+
+    assert.equal(result.saved, true);
+    assert.equal(result.validationWarnings, 0);
+    assert.equal(state.config.tools.web.enabled, true);
+    assert.equal(state.config.tools.web.searchMode, "hybrid");
+    assert.equal(state.env[braveVar], "brave-secret");
+    assert.equal(result.summary.some((line) => line.includes(braveVar)), true);
+    assert.equal(fs.readFileSync(envPath, "utf8").includes(`${braveVar}=brave-secret`), true);
   });
 
   it("edits native web tool limits and Brave key in setup wizard", async () => {

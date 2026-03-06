@@ -17,7 +17,7 @@ The format follows Keep a Changelog conventions and this project currently track
   - Brave Search API primary backend via `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY`
   - DuckDuckGo HTML fallback in `tools.web.searchMode="hybrid"`
   - bounded HTTP-only extraction with redirect/byte/result/page limits, citations, and final-URL metadata
-- Setup quickstart and setup wizard native web onboarding:
+- Setup wizard native web onboarding:
   - edit `tools.web.enabled` and `tools.web.searchMode`
   - optional env-file capture for `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY`
   - strict validation blocks `api-only` mode when Brave API credentials are absent
@@ -65,6 +65,15 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Lifecycle UX overhaul for install, setup, and update:
+  - bootstrap now prints an operator-first lifecycle plan and readiness summary instead of ending with a loose path dump
+  - install-state persistence is now normalized across bootstrap, service install, and upgrade so tracked ref, repo metadata, config/env paths, service manager, and last known good commit do not drift
+  - `openassist doctor` now reports lifecycle readiness, install-state presence, tracked ref, repo path details, service-manager state, and upgrade readiness in operator language
+  - `openassist setup quickstart` now stays focused on first success: one provider, one channel, simple guided timezone confirmation, service health, and a first-reply checklist
+  - `openassist setup wizard` now presents clearer advanced sections for runtime defaults, providers, channels, scheduling, and advanced tools/security
+  - `openassist upgrade --dry-run` and live upgrade now print the resolved target plan before mutation, including update method, restart behavior, and rollback target
+  - lifecycle docs were rewritten around the canonical flow: install -> quickstart -> wizard -> upgrade
+  - install and upgrade runbooks now explicitly cover repo-backed checkouts, tracked refs, detached-checkout guidance, first-reply checklists, service-manager behavior, and rerun-bootstrap cases for missing `.git` or missing build output
 - CodeQL workflow actions upgraded from `github/codeql-action@v3` to `@v4` to remove deprecation risk while preserving existing required-check job names.
 - Dev/test dependency hardening:
   - enforced patched `esbuild` resolution via pnpm override (`esbuild@<=0.24.2 -> 0.25.0`) to close the Vitest/Vite advisory path

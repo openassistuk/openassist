@@ -15,6 +15,12 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /--no-auto-install-prereqs/);
     assert.match(script, /\[\[ -t 0 && -t 1 \]\]/);
     assert.match(script, /exec <\/dev\/tty/);
+    assert.match(script, /OpenAssist lifecycle plan/);
+    assert.match(script, /install model: repo-backed checkout/);
+    assert.match(script, /bootstrap mode: \$\(bootstrap_mode\)/);
+    assert.match(script, /quickstart after build: \$\{quickstart_mode\}/);
+    assert.match(script, /service install\/restart: \$\{service_mode\}/);
+    assert.match(script, /persist_install_state/);
     assert.match(script, /OPENASSIST_DEFAULT_REPO_URL/);
     assert.match(script, /Missing prerequisites detected:/);
     assert.match(script, /Attempting prerequisite installation using/);
@@ -42,8 +48,13 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /append_path_snippet/);
     assert.match(script, /# >>> openassist path >>>/);
     assert.match(script, /PATH profile updated for OpenAssist wrappers:/);
-    assert.match(script, /CLI wrappers \(local\):/);
-    assert.match(script, /If 'openassist' is not found in this shell, run:/);
+    assert.match(script, /Ready now:/);
+    assert.match(script, /local wrappers available at \$\{LOCAL_BIN_DIR\}\/openassist and \$\{LOCAL_BIN_DIR\}\/openassistd/);
+    assert.match(script, /global wrappers linked at \$\{GLOBAL_BIN_DIR\}\/openassist and \$\{GLOBAL_BIN_DIR\}\/openassistd/);
+    assert.match(script, /Next step:/);
+    assert.match(script, /finish first-run onboarding: openassist setup quickstart/);
+    assert.match(script, /verify daemon health: openassist service health/);
+    assert.match(script, /if 'openassist' is not found in this shell, run:/i);
     assert.match(script, /elif \[\[ "\$\{SKIP_SERVICE\}" -ne 1 \]\]/);
     assert.match(script, /SERVICE_KIND="systemd-system"/);
   });

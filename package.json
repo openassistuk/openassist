@@ -24,7 +24,7 @@
     "test": "pnpm -r build && pnpm test:vitest && pnpm test:node",
     "test:coverage": "pnpm -r build && pnpm test:coverage:vitest && pnpm test:coverage:node",
     "test:coverage:node": "c8 --all --exclude \"**/dist/**\" --src apps/openassist-cli/src/commands --src apps/openassist-cli/src/lib --src apps/openassistd/src/channel-settings.ts --reporter=text-summary --reporter=lcov --report-dir coverage/node --check-coverage --lines 79 --functions 80 --branches 70 --statements 79 tsx --test tests/node/cli-*.test.ts tests/node/install-bootstrap-idempotence.test.ts tests/node/bootstrap-interactive-contract.test.ts",
-    "test:coverage:vitest": "vitest run --coverage",
+    "test:coverage:vitest": "node scripts/dev/ensure-vitest-coverage-dir.mjs && vitest run --coverage",
     "test:node": "tsx --test tests/node/*.test.ts",
     "test:vitest": "vitest run",
     "test:watch": "vitest",

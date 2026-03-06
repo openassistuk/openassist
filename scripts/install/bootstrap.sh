@@ -116,6 +116,99 @@ if [[ "${AUTO_INSTALL_PREREQS}" -eq 0 ]]; then
   echo "Prerequisite auto-install disabled."
 fi
 
+bootstrap_mode() {
+  if [[ "${INTERACTIVE}" -eq 1 ]]; then
+    echo "interactive"
+    return
+  fi
+  echo "non-interactive"
+}
+
+print_bootstrap_plan() {
+  local quickstart_mode="yes"
+  local service_mode="yes"
+  if [[ "${INTERACTIVE}" -ne 1 ]]; then
+    quickstart_mode="no"
+  fi
+  if [[ "${SKIP_SERVICE}" -eq 1 ]]; then
+    service_mode="no"
+  fi
+
+  echo "OpenAssist lifecycle plan"
+  echo "  install model: repo-backed checkout"
+  echo "  bootstrap mode: $(bootstrap_mode)"
+  echo "  install dir: ${INSTALL_DIR}"
+  echo "  requested ref: ${REF:-auto}"
+  echo "  quickstart after build: ${quickstart_mode}"
+  echo "  service install/restart: ${service_mode}"
+}
+
+persist_install_state() {
+  OPENASSIST_STATE_FILE="${STATE_FILE}" \
+  OPENASSIST_INSTALL_DIR="${INSTALL_DIR}" \
+  OPENASSIST_REPO_URL="${REPO_URL}" \
+  OPENASSIST_TRACKED_REF="${TRACKED_REF}" \
+  OPENASSIST_SERVICE_KIND="${SERVICE_KIND}" \
+  OPENASSIST_CONFIG_PATH="${CONFIG_PATH}" \
+  OPENASSIST_ENV_FILE="${ENV_FILE}" \
+  OPENASSIST_COMMIT="${COMMIT}" \
+  node <<'EOF'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const statePath = process.env.OPENASSIST_STATE_FILE;
+let existing = {};
+if (statePath && fs.existsSync(statePath)) {
+  try {
+    existing = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  } catch {
+    existing = {};
+  }
+}
+
+const merged = {
+  ...existing,
+  installDir: process.env.OPENASSIST_INSTALL_DIR,
+  repoUrl: process.env.OPENASSIST_REPO_URL || existing.repoUrl || "",
+  trackedRef: process.env.OPENASSIST_TRACKED_REF || existing.trackedRef || "main",
+  serviceManager: process.env.OPENASSIST_SERVICE_KIND || existing.serviceManager || "systemd-user",
+  configPath: process.env.OPENASSIST_CONFIG_PATH || existing.configPath,
+  envFilePath: process.env.OPENASSIST_ENV_FILE || existing.envFilePath,
+  lastKnownGoodCommit: process.env.OPENASSIST_COMMIT || existing.lastKnownGoodCommit || "",
+  updatedAt: new Date().toISOString()
+};
+
+fs.mkdirSync(path.dirname(statePath), { recursive: true });
+fs.writeFileSync(statePath, JSON.stringify(merged, null, 2), "utf8");
+EOF
+}
+
+print_bootstrap_summary() {
+  echo ""
+  echo "Bootstrap complete."
+  echo "Ready now:"
+  echo "  - repo checkout built at ${INSTALL_DIR}"
+  echo "  - config file available at ${CONFIG_PATH}"
+  echo "  - env file available at ${ENV_FILE}"
+  echo "  - install record written to ${STATE_FILE}"
+  echo "  - local wrappers available at ${LOCAL_BIN_DIR}/openassist and ${LOCAL_BIN_DIR}/openassistd"
+  if [[ "${GLOBAL_WRAPPERS_INSTALLED}" -eq 1 ]]; then
+    echo "  - global wrappers linked at ${GLOBAL_BIN_DIR}/openassist and ${GLOBAL_BIN_DIR}/openassistd"
+  fi
+
+  echo "Next step:"
+  if [[ "${INTERACTIVE}" -eq 1 && "${SKIP_SERVICE}" -eq 1 ]]; then
+    echo "  - install and start the service: openassist service install --install-dir \"${INSTALL_DIR}\" --config \"${CONFIG_PATH}\" --env-file \"${ENV_FILE}\""
+  elif [[ "${INTERACTIVE}" -ne 1 ]]; then
+    echo "  - finish first-run onboarding: openassist setup quickstart --install-dir \"${INSTALL_DIR}\" --config \"${CONFIG_PATH}\" --env-file \"${ENV_FILE}\""
+  else
+    echo "  - verify daemon health: openassist service health"
+  fi
+  echo "  - if 'openassist' is not found in this shell, run: ${LOCAL_BIN_DIR}/openassist --help"
+}
+
+print_bootstrap_plan
+
 require_cmd() {
   local cmd="$1"
   if ! command -v "${cmd}" >/dev/null 2>&1; then
@@ -865,29 +958,7 @@ if [[ -z "${TRACKED_REF}" ]]; then
   TRACKED_REF="$(git -C "${INSTALL_DIR}" rev-parse --abbrev-ref HEAD || echo main)"
 fi
 
-cat > "${STATE_FILE}" <<EOF
-{
-  "installDir": "${INSTALL_DIR}",
-  "repoUrl": "${REPO_URL}",
-  "trackedRef": "${TRACKED_REF}",
-  "serviceManager": "${SERVICE_KIND}",
-  "configPath": "${CONFIG_PATH}",
-  "envFilePath": "${ENV_FILE}",
-  "lastKnownGoodCommit": "${COMMIT}",
-  "updatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
-
-echo ""
-echo "Bootstrap complete."
-echo "Install directory: ${INSTALL_DIR}"
-echo "Config path: ${CONFIG_PATH}"
-echo "Env file: ${ENV_FILE}"
-echo "Install state: ${STATE_FILE}"
-echo "CLI wrappers (local): ${LOCAL_BIN_DIR}/openassist and ${LOCAL_BIN_DIR}/openassistd"
-if [[ "${GLOBAL_WRAPPERS_INSTALLED}" -eq 1 ]]; then
-  echo "CLI wrappers (global): ${GLOBAL_BIN_DIR}/openassist and ${GLOBAL_BIN_DIR}/openassistd"
-fi
-echo "If 'openassist' is not found in this shell, run: ${LOCAL_BIN_DIR}/openassist --help"
-echo ""
+persist_install_state
+print_bootstrap_summary
+echo "Resolved tracked ref: ${TRACKED_REF}"
 echo "If this shell does not see openassist yet, start a new shell session or source your shell profile."

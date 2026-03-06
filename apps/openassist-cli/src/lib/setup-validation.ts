@@ -5,10 +5,8 @@ import type { OpenAssistConfig } from "@openassist/config";
 import { parseConfig } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
 import { toProviderApiKeyEnvVar, toWebBraveApiKeyEnvVar } from "./config-edit.js";
-import { isValidBindAddress, isValidIanaTimezone } from "./prompt-validation.js";
+import { isValidBindAddress } from "./prompt-validation.js";
 import { createServiceManager } from "./service-manager.js";
-
-const ENV_VAR_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export interface SetupValidationIssue {
   code: string;
@@ -24,6 +22,7 @@ export interface SetupValidationInput {
   installDir: string;
   skipService: boolean;
   timezoneConfirmed: boolean;
+  requireEnabledChannel?: boolean;
 }
 
 export interface SetupValidationResult {
@@ -49,10 +48,6 @@ function hasEnvValue(env: Record<string, string>, varName: string): boolean {
 
   const current = process.env[varName];
   return typeof current === "string" && current.trim().length > 0;
-}
-
-function isValidEnvVarName(varName: string): boolean {
-  return ENV_VAR_NAME_PATTERN.test(varName);
 }
 
 function forEachEnvReference(
@@ -145,24 +140,14 @@ function validateProviderRequirements(
     pushIssue(
       errors,
       "provider.default_auth_missing",
-      `Default provider '${config.runtime.defaultProviderId}' has no API key in env var ${defaultApiKeyVar}.`,
-      "Set the API key in setup quickstart or setup env, then re-run validation."
+      `The primary provider '${config.runtime.defaultProviderId}' still needs an API key in ${defaultApiKeyVar}.`,
+      "Set the API key in quickstart or setup env, then re-run validation."
     );
   }
 
   for (const provider of config.runtime.providers) {
     const oauth = provider.oauth;
     if (!oauth?.clientSecretEnv) {
-      continue;
-    }
-
-    if (!isValidEnvVarName(oauth.clientSecretEnv)) {
-      pushIssue(
-        errors,
-        "provider.oauth_client_secret_env_invalid",
-        `Provider '${provider.id}' has invalid OAuth clientSecretEnv '${oauth.clientSecretEnv}'.`,
-        "Use env-var names like OPENASSIST_PROVIDER_OPENAI_MAIN_OAUTH_CLIENT_SECRET."
-      );
       continue;
     }
 
@@ -198,23 +183,6 @@ function validateChannelRequirements(
           `Channel '${channel.id}' is enabled but telegram botToken is missing.`,
           "Set botToken to env:VAR and provide VAR in the env file."
         );
-      } else if (!token.trim().startsWith("env:")) {
-        pushIssue(
-          errors,
-          "channel.telegram_token_plaintext",
-          `Channel '${channel.id}' has plaintext telegram botToken. Use env indirection.`,
-          "Set botToken to env:VAR and provide VAR in the env file."
-        );
-      } else {
-        const varName = token.slice(4).trim();
-        if (!isValidEnvVarName(varName)) {
-          pushIssue(
-            errors,
-            "channel.telegram_token_env_invalid",
-            `Channel '${channel.id}' botToken env var name '${varName}' is invalid.`,
-            "Use env-var names like OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN."
-          );
-        }
       }
     }
 
@@ -227,23 +195,6 @@ function validateChannelRequirements(
           `Channel '${channel.id}' is enabled but discord botToken is missing.`,
           "Set botToken to env:VAR and provide VAR in the env file."
         );
-      } else if (!token.trim().startsWith("env:")) {
-        pushIssue(
-          errors,
-          "channel.discord_token_plaintext",
-          `Channel '${channel.id}' has plaintext discord botToken. Use env indirection.`,
-          "Set botToken to env:VAR and provide VAR in the env file."
-        );
-      } else {
-        const varName = token.slice(4).trim();
-        if (!isValidEnvVarName(varName)) {
-          pushIssue(
-            errors,
-            "channel.discord_token_env_invalid",
-            `Channel '${channel.id}' botToken env var name '${varName}' is invalid.`,
-            "Use env-var names like OPENASSIST_CHANNEL_DISCORD_MAIN_BOT_TOKEN."
-          );
-        }
       }
     }
 
@@ -257,26 +208,6 @@ function validateChannelRequirements(
     }
 
     forEachEnvReference(settings, (varName, keyPath) => {
-      if (!varName) {
-        pushIssue(
-          errors,
-          "channel.env_ref_invalid",
-          `Channel '${channel.id}' has empty env reference at settings.${keyPath}.`,
-          "Use values in the form env:YOUR_VAR_NAME."
-        );
-        return;
-      }
-
-      if (!isValidEnvVarName(varName)) {
-        pushIssue(
-          errors,
-          "channel.env_ref_invalid",
-          `Channel '${channel.id}' has invalid env var name '${varName}' at settings.${keyPath}.`,
-          "Use values in the form env:YOUR_VAR_NAME."
-        );
-        return;
-      }
-
       if (!hasEnvValue(env, varName)) {
         pushIssue(
           errors,
@@ -287,6 +218,20 @@ function validateChannelRequirements(
       }
     });
   }
+
+}
+
+function validateChannelPresence(config: OpenAssistConfig, errors: SetupValidationIssue[]): void {
+  const enabledChannels = config.runtime.channels.filter((channel) => channel.enabled);
+  if (enabledChannels.length > 0) {
+    return;
+  }
+  pushIssue(
+    errors,
+    "channel.enabled_required",
+    "Quickstart needs one enabled chat channel so OpenAssist can deliver the first reply.",
+    "Configure one Telegram, Discord, or WhatsApp channel before saving."
+  );
 }
 
 function validateWebToolRequirements(
@@ -327,32 +272,12 @@ function validateTimezoneConfirmation(
   timezoneConfirmed: boolean,
   errors: SetupValidationIssue[]
 ): void {
-  if (config.runtime.time.defaultTimezone && !isValidIanaTimezone(config.runtime.time.defaultTimezone)) {
-    pushIssue(
-      errors,
-      "time.timezone_invalid",
-      `Default timezone '${config.runtime.time.defaultTimezone}' is not a valid IANA timezone.`,
-      "Set runtime.time.defaultTimezone to a valid IANA timezone (for example UTC or America/New_York)."
-    );
-  }
-
-  for (const task of config.runtime.scheduler.tasks) {
-    if (task.timezone && !isValidIanaTimezone(task.timezone)) {
-      pushIssue(
-        errors,
-        "scheduler.task_timezone_invalid",
-        `Task '${task.id}' has invalid timezone '${task.timezone}'.`,
-        "Use a valid IANA timezone or omit task timezone to use runtime default."
-      );
-    }
-  }
-
   if (config.runtime.time.requireTimezoneConfirmation && !timezoneConfirmed) {
     pushIssue(
       errors,
       "time.timezone_unconfirmed",
       "Timezone confirmation is required, but onboarding confirmation has not been completed.",
-      "Re-run the Time stage and confirm the timezone exactly as prompted."
+      "Re-run the Time stage and confirm the selected timezone when asked."
     );
   }
 }
@@ -433,9 +358,9 @@ async function validateServiceReadiness(
 export function renderValidationIssues(issues: SetupValidationIssue[]): string[] {
   return issues.map((issue) => {
     if (!issue.hint) {
-      return `${issue.code}: ${issue.message}`;
+      return issue.message;
     }
-    return `${issue.code}: ${issue.message} (${issue.hint})`;
+    return `${issue.message} Next step: ${issue.hint}`;
   });
 }
 
@@ -453,6 +378,9 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
 
   validateProviderRequirements(input.config, input.env, errors, warnings);
   validateChannelRequirements(input.config, input.env, errors, warnings);
+  if (input.requireEnabledChannel) {
+    validateChannelPresence(input.config, errors);
+  }
   validateWebToolRequirements(input.config, input.env, errors, warnings);
   validateTimezoneConfirmation(input.config, input.timezoneConfirmed, errors);
   validatePaths(input.config, input.configPath, input.envFilePath, input.installDir, errors);

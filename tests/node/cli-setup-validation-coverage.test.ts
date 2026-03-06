@@ -158,7 +158,7 @@ describe("cli setup validation and summary coverage", () => {
         hint: "take action"
       }
     ]);
-    assert.equal(withHint[0], "x.with_hint: with hint (take action)");
+    assert.equal(withHint[0], "with hint Next step: take action");
 
     const withoutHint = renderValidationIssues([
       {
@@ -166,7 +166,7 @@ describe("cli setup validation and summary coverage", () => {
         message: "without hint"
       }
     ]);
-    assert.equal(withoutHint[0], "x.no_hint: without hint");
+    assert.equal(withoutHint[0], "without hint");
 
     const config = createDefaultConfigObject();
     config.runtime.channels.push({
@@ -190,7 +190,9 @@ describe("cli setup validation and summary coverage", () => {
       healthOk: false
     });
     assert.equal(failedServiceSummary.some((line) => line.includes("Backup: /tmp/openassist.toml.bak")), true);
-    assert.equal(failedServiceSummary.some((line) => line.includes("Service and health step: failed")), true);
+    assert.equal(failedServiceSummary.some((line) => line.includes("Service status: needs attention")), true);
+    assert.equal(failedServiceSummary.some((line) => line.startsWith("- Timezone: ")), true);
+    assert.equal(failedServiceSummary.some((line) => line.startsWith("- Timezone confirmed: ")), false);
     assert.equal(
       failedServiceSummary.some(
         (line) =>
@@ -210,6 +212,6 @@ describe("cli setup validation and summary coverage", () => {
       skippedService: true,
       healthOk: false
     });
-    assert.equal(skippedServiceSummary.some((line) => line.includes("Service and health step: skipped by option")), true);
+    assert.equal(skippedServiceSummary.some((line) => line.includes("Service status: not checked yet (--skip-service)")), true);
   });
 });

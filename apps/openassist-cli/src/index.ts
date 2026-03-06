@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { spawn } from "node:child_process";
 import { Command } from "commander";
 import { loadConfig, parseConfig, writeDefaultConfig } from "@openassist/config";
@@ -10,6 +11,10 @@ import { createLogger } from "@openassist/observability";
 import { registerSetupCommands } from "./commands/setup.js";
 import { registerServiceCommands } from "./commands/service.js";
 import { registerUpgradeCommand } from "./commands/upgrade.js";
+import { SpawnCommandRunner } from "./lib/command-runner.js";
+import { detectInstallStateFromRepo, loadInstallState } from "./lib/install-state.js";
+import { detectDefaultDaemonBaseUrl } from "./lib/runtime-context.js";
+import { createServiceManager, detectServiceManagerKind } from "./lib/service-manager.js";
 
 const logger = createLogger({ service: "openassist-cli" });
 const workspaceCwd = process.env.INIT_CWD ? path.resolve(process.env.INIT_CWD) : process.cwd();
@@ -28,18 +33,8 @@ function resolveDbPath(dbPath?: string): string {
   return resolveFromWorkspace(".openassist/data/openassist.db");
 }
 
-function detectDefaultDaemonBaseUrl(): string {
-  try {
-    const configPath = resolveFromWorkspace("openassist.toml");
-    const configDir = path.dirname(configPath);
-    const { config } = loadConfig({
-      baseFile: configPath,
-      overlaysDir: path.join(configDir, "config.d")
-    });
-    return `http://${config.runtime.bindAddress}:${config.runtime.bindPort}`;
-  } catch {
-    return "http://127.0.0.1:3344";
-  }
+function defaultInstallDir(): string {
+  return path.join(os.homedir(), "openassist");
 }
 
 function defaultEnvFilePath(): string {
@@ -97,6 +92,18 @@ function openUrlInBrowser(url: string): void {
   spawn("xdg-open", [safeUrl], { detached: true, stdio: "ignore", shell: false }).unref();
 }
 
+function defaultInstallStatePath(): string {
+  return path.join(os.homedir(), ".config", "openassist", "install-state.json");
+}
+
+function commandAvailable(command: string): boolean {
+  const result = spawnSync(command, ["--version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "ignore", "ignore"]
+  });
+  return result.status === 0;
+}
+
 const program = new Command();
 program.name("openassist").description("OpenAssist CLI").version("0.1.0");
 registerSetupCommands(program);
@@ -105,9 +112,23 @@ registerUpgradeCommand(program);
 
 program
   .command("doctor")
-  .description("Check local OpenAssist setup")
+  .description("Check install, setup, and upgrade readiness")
   .action(async () => {
+    console.log("OpenAssist lifecycle doctor");
     const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const installStatePath = defaultInstallStatePath();
+    const installState = loadInstallState();
+    const installDir = installState?.installDir ?? defaultInstallDir();
+    const configPath = installState?.configPath ?? resolveFromWorkspace("openassist.toml");
+    const envFilePath = installState?.envFilePath ?? defaultEnvFilePath();
+    const repoMetadata = detectInstallStateFromRepo(installDir);
+    const trackedRef = installState?.trackedRef ?? repoMetadata.trackedRef ?? "main";
+    const repoUrl = installState?.repoUrl ?? repoMetadata.repoUrl ?? "(not recorded)";
+    const currentCommit = repoMetadata.lastKnownGoodCommit ?? installState?.lastKnownGoodCommit ?? "(unknown)";
+    const daemonBaseUrl = detectDefaultDaemonBaseUrl(configPath);
+    const hasGit = commandAvailable("git");
+    const hasPnpm = commandAvailable("pnpm");
+    const repoBacked = fs.existsSync(path.join(installDir, ".git"));
     const checks = [
       {
         name: "Node version",
@@ -116,15 +137,45 @@ program
         required: true
       },
       {
-        name: "Workspace config",
-        ok: fs.existsSync(resolveFromWorkspace("openassist.toml")),
-        detail: "openassist.toml",
+        name: "Install record",
+        ok: Boolean(installState),
+        detail: installState ? installStatePath : `${installStatePath} (missing)`,
+        required: false
+      },
+      {
+        name: "Repo-backed install",
+        ok: repoBacked,
+        detail: installDir,
         required: true
       },
       {
-        name: "Data directory",
-        ok: fs.existsSync(resolveFromWorkspace(".openassist/data")),
-        detail: ".openassist/data (created on first daemon start)",
+        name: "Config file",
+        ok: fs.existsSync(configPath),
+        detail: configPath,
+        required: true
+      },
+      {
+        name: "Env file",
+        ok: fs.existsSync(envFilePath),
+        detail: envFilePath,
+        required: false
+      },
+      {
+        name: "Tracked ref",
+        ok: trackedRef.length > 0,
+        detail: trackedRef,
+        required: false
+      },
+      {
+        name: "Repo URL",
+        ok: repoUrl !== "(not recorded)",
+        detail: repoUrl,
+        required: false
+      },
+      {
+        name: "Current commit",
+        ok: currentCommit !== "(unknown)",
+        detail: currentCommit,
         required: false
       },
       {
@@ -132,10 +183,42 @@ program
         ok: typeof detectedTimezone === "string" && detectedTimezone.length > 0,
         detail: detectedTimezone || "unknown",
         required: false
+      },
+      {
+        name: "Upgrade prerequisites",
+        ok: hasGit && hasPnpm,
+        detail: `git=${hasGit ? "ok" : "missing"}, pnpm=${hasPnpm ? "ok" : "missing"}`,
+        required: true
       }
     ];
 
-    const daemonBaseUrl = detectDefaultDaemonBaseUrl();
+    try {
+      const serviceKind = detectServiceManagerKind();
+      let installedDetail: string;
+      let installedOk = false;
+      try {
+        const service = createServiceManager(new SpawnCommandRunner());
+        installedOk = await service.isInstalled();
+        installedDetail = `${serviceKind} / installed=${installedOk ? "yes" : "no"}`;
+      } catch {
+        installedDetail = `${serviceKind} / install state unavailable`;
+      }
+      checks.push({
+        name: "Service manager",
+        ok: true,
+        detail: installedDetail,
+        required: false
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      checks.push({
+        name: "Service manager",
+        ok: false,
+        detail: message,
+        required: false
+      });
+    }
+
     try {
       const result = await requestJson("GET", `${daemonBaseUrl}/v1/time/status`);
       if (result.status < 400) {
@@ -167,9 +250,33 @@ program
       });
     }
 
+    const upgradeReady =
+      checks.find((check) => check.name === "Node version")?.ok === true &&
+      checks.find((check) => check.name === "Repo-backed install")?.ok === true &&
+      checks.find((check) => check.name === "Config file")?.ok === true &&
+      checks.find((check) => check.name === "Upgrade prerequisites")?.ok === true;
+
+    checks.push({
+      name: "Upgrade readiness",
+      ok: upgradeReady,
+      detail: upgradeReady
+        ? `run openassist upgrade --dry-run --install-dir "${installDir}"`
+        : "fix the failed checks above before upgrading",
+      required: false
+    });
+
     for (const check of checks) {
       const prefix = check.ok ? "PASS" : check.required ? "FAIL" : "WARN";
       console.log(`${prefix}  ${check.name} (${check.detail})`);
+    }
+
+    console.log("Next step:");
+    if (!fs.existsSync(configPath)) {
+      console.log(`- Run setup quickstart: openassist setup quickstart --install-dir "${installDir}" --config "${configPath}" --env-file "${envFilePath}"`);
+    } else if (!upgradeReady) {
+      console.log("- Repair the failed lifecycle checks, then rerun: openassist doctor");
+    } else {
+      console.log(`- Validate the next update safely: openassist upgrade --dry-run --install-dir "${installDir}"`);
     }
 
     const failures = checks.filter((check) => check.required && !check.ok);

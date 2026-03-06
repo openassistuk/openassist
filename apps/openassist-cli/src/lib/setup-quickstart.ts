@@ -7,9 +7,7 @@ import {
   loadWizardState,
   saveWizardState,
   toChannelSecretEnvVar,
-  toProviderApiKeyEnvVar,
-  toProviderOAuthClientSecretEnvVar,
-  toWebBraveApiKeyEnvVar
+  toProviderApiKeyEnvVar
 } from "./config-edit.js";
 import {
   deriveHealthProbeBaseUrls,
@@ -25,19 +23,12 @@ import {
   isCountryCityTimezone,
   promptBindAddress,
   promptGeneratedIdentifier,
-  promptIdentifier,
   promptInteger,
-  promptOptionalInteger,
-  promptOptionalTimezone,
   promptRequiredText,
   promptTimezone
 } from "./prompt-validation.js";
 
-type PolicyProfile = OpenAssistConfig["runtime"]["defaultPolicyProfile"];
 type ProviderType = OpenAssistConfig["runtime"]["providers"][number]["type"];
-type NtpPolicy = OpenAssistConfig["runtime"]["time"]["ntpPolicy"];
-type MisfirePolicy = OpenAssistConfig["runtime"]["scheduler"]["defaultMisfirePolicy"];
-type ProviderAuthMode = "api-key-only" | "oauth-only" | "api-key-and-oauth";
 
 export interface SetupQuickstartOptions {
   configPath: string;
@@ -120,8 +111,6 @@ function providerSupportsOAuth(type: ProviderType): boolean {
   return type === "openai" || type === "anthropic";
 }
 
-const ENV_VAR_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
 function hasNonEmptyEnvValue(env: Record<string, string>, key: string): boolean {
   const local = env[key];
   if (typeof local === "string" && local.trim().length > 0) {
@@ -129,73 +118,6 @@ function hasNonEmptyEnvValue(env: Record<string, string>, key: string): boolean 
   }
   const inherited = process.env[key];
   return typeof inherited === "string" && inherited.trim().length > 0;
-}
-
-function parseCsvOptional(value: string): string[] | undefined {
-  const values = parseCsv(value);
-  return values.length > 0 ? values : undefined;
-}
-
-async function promptProviderOAuthConfig(
-  prompts: PromptAdapter,
-  provider: OpenAssistConfig["runtime"]["providers"][number],
-  env: Record<string, string>
-): Promise<OpenAssistConfig["runtime"]["providers"][number]["oauth"]> {
-  const existing = provider.oauth;
-  const secretEnvVarDefault = existing?.clientSecretEnv ?? toProviderOAuthClientSecretEnvVar(provider.id);
-
-  console.log("");
-  console.log("OAuth client setup (from provider developer app):");
-  const authorizeUrl = await promptRequiredText(
-    prompts,
-    "OAuth authorize URL",
-    existing?.authorizeUrl ?? ""
-  );
-  const tokenUrl = await promptRequiredText(prompts, "OAuth token URL", existing?.tokenUrl ?? "");
-  const clientId = await promptRequiredText(prompts, "OAuth client ID", existing?.clientId ?? "");
-  let clientSecretEnv = "";
-  while (true) {
-    const raw = await prompts.input(
-      "OAuth client secret env var (blank = no client secret)",
-      secretEnvVarDefault
-    );
-    const trimmed = raw.trim();
-    if (trimmed.length === 0 || ENV_VAR_NAME_PATTERN.test(trimmed)) {
-      clientSecretEnv = trimmed;
-      break;
-    }
-    console.error("OAuth client secret env var must match [A-Za-z_][A-Za-z0-9_]*.");
-  }
-  const scopesInput = await prompts.input(
-    "OAuth scopes (comma-separated, blank = provider default)",
-    existing?.scopes?.join(",") ?? ""
-  );
-  const audienceInput = await prompts.input("OAuth audience (optional)", existing?.audience ?? "");
-
-  const trimmedSecretEnv = clientSecretEnv.trim();
-  if (trimmedSecretEnv.length > 0) {
-    console.log(`Secret env var: ${trimmedSecretEnv}`);
-    const setSecret = await prompts.confirm("Set OAuth client secret now?", false);
-    if (setSecret) {
-      const secretValue = await prompts.password(
-        "OAuth client secret value (blank keeps current value)"
-      );
-      if (secretValue.trim().length > 0) {
-        env[trimmedSecretEnv] = secretValue.trim();
-      }
-    }
-  }
-
-  const scopes = parseCsvOptional(scopesInput);
-
-  return {
-    authorizeUrl,
-    tokenUrl,
-    clientId,
-    ...(trimmedSecretEnv.length > 0 ? { clientSecretEnv: trimmedSecretEnv } : {}),
-    ...(scopes ? { scopes } : {}),
-    ...(audienceInput.trim().length > 0 ? { audience: audienceInput.trim() } : {})
-  };
 }
 
 function validateCsvIds(
@@ -243,18 +165,6 @@ function upsertChannel(config: OpenAssistConfig, channel: OpenAssistConfig["runt
     return;
   }
   config.runtime.channels.push(channel);
-}
-
-function upsertTask(
-  config: OpenAssistConfig,
-  task: OpenAssistConfig["runtime"]["scheduler"]["tasks"][number]
-): void {
-  const index = config.runtime.scheduler.tasks.findIndex((item) => item.id === task.id);
-  if (index >= 0) {
-    config.runtime.scheduler.tasks[index] = task;
-    return;
-  }
-  config.runtime.scheduler.tasks.push(task);
 }
 
 function envDiff(before: Record<string, string>, after: Record<string, string>): string[] {
@@ -325,46 +235,28 @@ async function runPreflight(
 }
 
 async function configureRuntimeBase(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
-  stage("Runtime", "Configure daemon bind address, policy profile, and local paths.");
+  stage("Runtime", "Confirm the local runtime defaults used for the first reply.");
   const runtime = state.config.runtime;
+  console.log(`Current bind address: ${runtime.bindAddress}`);
+  console.log(`Current bind port: ${runtime.bindPort}`);
+  console.log(`Policy profile kept for quickstart: ${runtime.defaultPolicyProfile}`);
+  console.log(`Data directory: ${runtime.paths.dataDir}`);
+  console.log(`Logs directory: ${runtime.paths.logsDir}`);
+  console.log(`Skills directory: ${runtime.paths.skillsDir}`);
+  const keepDefaults = await prompts.confirm(
+    "Use these runtime defaults for quickstart?",
+    true
+  );
+  if (keepDefaults) {
+    return;
+  }
+
   runtime.bindAddress = await promptBindAddress(prompts, "Bind address", runtime.bindAddress);
   runtime.bindPort = await promptInteger(prompts, "Bind port", runtime.bindPort, {
     min: 1,
     max: 65535
   });
-  runtime.defaultPolicyProfile = await prompts.select<PolicyProfile>(
-    "Default policy profile",
-    [
-      { name: "restricted", value: "restricted" },
-      { name: "operator", value: "operator" },
-      { name: "full-root", value: "full-root" }
-    ],
-    runtime.defaultPolicyProfile
-  );
-  runtime.paths.dataDir = await promptRequiredText(prompts, "Data directory", runtime.paths.dataDir);
-  runtime.paths.skillsDir = await promptRequiredText(prompts, "Skills directory", runtime.paths.skillsDir);
-  runtime.paths.logsDir = await promptRequiredText(prompts, "Logs directory", runtime.paths.logsDir);
-}
-
-async function configureAssistantProfile(
-  state: SetupQuickstartState,
-  prompts: PromptAdapter
-): Promise<void> {
-  stage(
-    "Assistant Profile",
-    "Set assistant name, persona, and operator preferences for global main-agent memory."
-  );
-  const assistant = state.config.runtime.assistant;
-  assistant.name = await promptRequiredText(prompts, "Assistant display name", assistant.name);
-  assistant.persona = await promptRequiredText(prompts, "Assistant persona guidance", assistant.persona);
-  assistant.operatorPreferences = await prompts.input(
-    "Operator preferences memory (optional)",
-    assistant.operatorPreferences ?? ""
-  );
-  assistant.promptOnFirstContact = await prompts.confirm(
-    "Prompt first chat users with profile customization tips?",
-    assistant.promptOnFirstContact
-  );
+  console.log("Advanced policy, path, assistant, scheduler, and native web settings stay in setup wizard.");
 }
 
 async function promptProvider(
@@ -412,50 +304,10 @@ async function configureProviderAuthentication(
   provider: OpenAssistConfig["runtime"]["providers"][number]
 ): Promise<void> {
   const apiKeyVar = toProviderApiKeyEnvVar(provider.id);
-  const hasApiKey = hasNonEmptyEnvValue(state.env, apiKeyVar);
   const supportsOAuth = providerSupportsOAuth(provider.type);
-  const canPromptInteractiveAuth = process.stdin.isTTY && process.stdout.isTTY;
-
-  let authMode: ProviderAuthMode = "api-key-only";
-  if (supportsOAuth && canPromptInteractiveAuth) {
-    const defaultMode: ProviderAuthMode = provider.oauth
-      ? hasApiKey
-        ? "api-key-and-oauth"
-        : "oauth-only"
-      : "api-key-only";
-    authMode = await prompts.select<ProviderAuthMode>(
-      "Authentication mode",
-      [
-        { name: "API key only", value: "api-key-only" },
-        { name: "OAuth account only", value: "oauth-only" },
-        { name: "API key + OAuth account", value: "api-key-and-oauth" }
-      ],
-      defaultMode
-    );
-  } else if (supportsOAuth && provider.oauth) {
-    authMode = hasApiKey ? "api-key-and-oauth" : "oauth-only";
-  }
-
-  if (supportsOAuth && authMode !== "api-key-only") {
-    provider.oauth = await promptProviderOAuthConfig(prompts, provider, state.env);
-    console.log(
-      `OAuth can be linked after daemon startup with: openassist auth start --provider ${provider.id} --account default --open-browser`
-    );
-  } else {
-    delete provider.oauth;
-  }
-
-  if (authMode === "oauth-only") {
-    if (canPromptInteractiveAuth) {
-      const clearApiKey = await prompts.confirm("Remove existing API key env var for this provider?", false);
-      if (clearApiKey) {
-        delete state.env[apiKeyVar];
-      }
-    }
-    return;
-  }
 
   console.log(`Secret env var: ${apiKeyVar}`);
+  console.log("API key is the recommended quickstart auth path because it gets to a first reply fastest.");
   console.log("Paste full key then press Enter (masked input accepts long values).");
   const apiKey = await prompts.password(
     `Provider API key for ${provider.id} (blank keeps current value)`
@@ -463,12 +315,17 @@ async function configureProviderAuthentication(
   if (apiKey.trim().length > 0) {
     state.env[apiKeyVar] = apiKey.trim();
   }
+  if (supportsOAuth) {
+    console.log(
+      `If you configure OAuth later in setup wizard, start account linking with: openassist auth start --provider ${provider.id} --account default --open-browser`
+    );
+  }
 }
 
 async function configureProviders(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
   stage(
-    "Providers",
-    "Configure model providers and authentication. Secrets are stored in the env file."
+    "Primary Provider",
+    "Choose the model provider that will answer the first chat reply."
   );
   const existingDefault = state.config.runtime.providers.find(
     (provider) => provider.id === state.config.runtime.defaultProviderId
@@ -477,21 +334,7 @@ async function configureProviders(state: SetupQuickstartState, prompts: PromptAd
   await configureProviderAuthentication(state, prompts, configuredDefault);
   upsertProvider(state.config, configuredDefault);
   state.config.runtime.defaultProviderId = configuredDefault.id;
-
-  while (await prompts.confirm("Add or update another provider?", false)) {
-    const provider = await promptProvider(prompts);
-    await configureProviderAuthentication(state, prompts, provider);
-    upsertProvider(state.config, provider);
-  }
-
-  state.config.runtime.defaultProviderId = await prompts.select(
-    "Choose default provider",
-    state.config.runtime.providers.map((provider) => ({
-      name: `${provider.id} (${provider.type})`,
-      value: provider.id
-    })),
-    state.config.runtime.defaultProviderId
-  );
+  console.log("Add extra providers later with: openassist setup wizard");
 }
 
 function normalizeChannelSettings(
@@ -529,6 +372,9 @@ function printChannelGuidance(type: OpenAssistConfig["runtime"]["channels"][numb
 }
 
 async function configureSingleChannel(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
+  const existingPrimary =
+    state.config.runtime.channels.find((channel) => channel.enabled) ??
+    state.config.runtime.channels[0];
   const type = await prompts.select<OpenAssistConfig["runtime"]["channels"][number]["type"]>(
     "Channel type",
     [
@@ -536,11 +382,14 @@ async function configureSingleChannel(state: SetupQuickstartState, prompts: Prom
       { name: "Discord (Bot token + channel IDs)", value: "discord" },
       { name: "WhatsApp MD (experimental)", value: "whatsapp-md" }
     ],
-    "telegram"
+    existingPrimary?.type ?? "telegram"
   );
   printChannelGuidance(type);
 
-  const defaultId = `${type.replace(/[^a-z0-9-]/g, "")}-main`;
+  const defaultId =
+    existingPrimary?.type === type && existingPrimary.id
+      ? existingPrimary.id
+      : `${type.replace(/[^a-z0-9-]/g, "")}-main`;
   const id = await promptGeneratedIdentifier(
     prompts,
     "Channel name (friendly label, e.g. Telegram Main)",
@@ -549,23 +398,16 @@ async function configureSingleChannel(state: SetupQuickstartState, prompts: Prom
   console.log(`System channel ID (auto-generated): ${id}`);
   const existing = state.config.runtime.channels.find((channel) => channel.id === id);
   const existingSettings = normalizeChannelSettings(existing?.settings);
-  const enabled = await prompts.confirm("Enable this channel?", existing?.enabled ?? true);
   const settings: Record<string, string | number | boolean | string[]> = { ...existingSettings };
 
   if (type === "telegram" || type === "discord") {
     const tokenEnv = toChannelSecretEnvVar(id, "bot_token");
     const tokenLabel = type === "telegram" ? "Telegram bot token" : "Discord bot token";
-    const shouldSetToken = await prompts.confirm(`Set or update ${tokenLabel.toLowerCase()} now?`, true);
-    if (shouldSetToken) {
-      console.log("Paste full token then press Enter (masked input accepts long values).");
-      const token = await prompts.password(`${tokenLabel} value (blank removes current token)`);
-      if (token.trim().length > 0) {
-        state.env[tokenEnv] = token.trim();
-        settings.botToken = `env:${tokenEnv}`;
-      } else {
-        delete state.env[tokenEnv];
-        delete settings.botToken;
-      }
+    console.log("Paste full token then press Enter (masked input accepts long values).");
+    const token = await prompts.password(`${tokenLabel} value (blank keeps current value)`);
+    if (token.trim().length > 0) {
+      state.env[tokenEnv] = token.trim();
+      settings.botToken = `env:${tokenEnv}`;
     }
 
     if (type === "telegram") {
@@ -578,37 +420,14 @@ async function configureSingleChannel(state: SetupQuickstartState, prompts: Prom
         "Telegram chat IDs must be numeric (for example 123456789 or -1001234567890)"
       );
       settings.allowedChatIds = allowed;
-      if (process.stdin.isTTY && process.stdout.isTTY) {
-        settings.conversationMode = await prompts.select<"chat" | "chat-thread">(
-          "Telegram conversation memory mode",
-          [
-            { name: "Inline per chat/group (recommended)", value: "chat" },
-            { name: "Threaded by Telegram topic", value: "chat-thread" }
-          ],
-          typeof settings.conversationMode === "string" && settings.conversationMode === "chat-thread"
-            ? "chat-thread"
-            : "chat"
-        );
-        settings.responseMode = await prompts.select<"inline" | "reply-threaded">(
-          "Telegram response style",
-          [
-            { name: "Inline bot replies (recommended)", value: "inline" },
-            { name: "Reply to each incoming message", value: "reply-threaded" }
-          ],
-          typeof settings.responseMode === "string" && settings.responseMode === "reply-threaded"
-            ? "reply-threaded"
-            : "inline"
-        );
-      } else {
-        settings.conversationMode =
-          typeof settings.conversationMode === "string" && settings.conversationMode === "chat-thread"
-            ? "chat-thread"
-            : "chat";
-        settings.responseMode =
-          typeof settings.responseMode === "string" && settings.responseMode === "reply-threaded"
-            ? "reply-threaded"
-            : "inline";
-      }
+      settings.conversationMode =
+        typeof settings.conversationMode === "string" && settings.conversationMode === "chat-thread"
+          ? "chat-thread"
+          : "chat";
+      settings.responseMode =
+        typeof settings.responseMode === "string" && settings.responseMode === "reply-threaded"
+          ? "reply-threaded"
+          : "inline";
       delete settings.allowedChannelIds;
     } else {
       console.log("Leave channel IDs blank to allow all channels the bot can read.");
@@ -623,209 +442,36 @@ async function configureSingleChannel(state: SetupQuickstartState, prompts: Prom
       delete settings.allowedChatIds;
     }
   } else {
-    settings.mode = (
-      await prompts.select(
-        "WhatsApp mode",
-        [
-          { name: "production", value: "production" },
-          { name: "experimental", value: "experimental" }
-        ],
-        (typeof settings.mode === "string" ? settings.mode : "production") as "production" | "experimental"
-      )
-    ) as string;
+    settings.mode = typeof settings.mode === "string" ? settings.mode : "production";
     settings.printQrInTerminal = await prompts.confirm(
       "Print QR code in terminal?",
       settings.printQrInTerminal !== false
     );
-    settings.syncFullHistory = await prompts.confirm(
-      "Sync full history?",
-      settings.syncFullHistory === true
-    );
-    settings.maxReconnectAttempts = await promptInteger(
-      prompts,
-      "Max reconnect attempts",
-      typeof settings.maxReconnectAttempts === "number" ? settings.maxReconnectAttempts : 10,
-      { min: 0, max: 10_000 }
-    );
-    settings.reconnectDelayMs = await promptInteger(
-      prompts,
-      "Reconnect delay ms",
-      typeof settings.reconnectDelayMs === "number" ? settings.reconnectDelayMs : 5000,
-      { min: 100, max: 3_600_000 }
-    );
+    settings.syncFullHistory =
+      typeof settings.syncFullHistory === "boolean" ? settings.syncFullHistory : false;
+    settings.maxReconnectAttempts =
+      typeof settings.maxReconnectAttempts === "number" ? settings.maxReconnectAttempts : 10;
+    settings.reconnectDelayMs =
+      typeof settings.reconnectDelayMs === "number" ? settings.reconnectDelayMs : 5000;
   }
 
   upsertChannel(state.config, {
     id,
     type,
-    enabled,
+    enabled: true,
     settings
   });
 }
 
 async function configureChannels(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
-  stage("Channels", "Configure Telegram/Discord/WhatsApp channels and access scopes.");
-  const shouldConfigure = await prompts.confirm(
-    "Configure messaging channels now?",
-    state.config.runtime.channels.length > 0
-  );
-  if (!shouldConfigure) {
-    return;
-  }
-
-  while (true) {
-    const action = await prompts.select(
-      "Channel setup",
-      [
-        { name: "Add or update channel", value: "upsert" },
-        { name: "Remove channel", value: "remove" },
-        { name: "Continue", value: "done" }
-      ],
-      "done"
-    );
-
-    if (action === "done") {
-      return;
-    }
-
-    if (action === "upsert") {
-      await configureSingleChannel(state, prompts);
-      continue;
-    }
-
-    if (state.config.runtime.channels.length === 0) {
-      console.log("No channels to remove.");
-      continue;
-    }
-    const removeId = await prompts.select(
-      "Select channel to remove",
-      state.config.runtime.channels.map((channel) => ({ name: channel.id, value: channel.id }))
-    );
-    state.config.runtime.channels = state.config.runtime.channels.filter((channel) => channel.id !== removeId);
-  }
-}
-
-async function maybeConfigureFirstTask(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
-  const shouldCreate = await prompts.confirm(
-    state.config.runtime.scheduler.tasks.length === 0
-      ? "Create first scheduler task now?"
-      : "Add or update a scheduler task now?",
-    false
-  );
-  if (!shouldCreate) {
-    return;
-  }
-
-  const taskId = await promptIdentifier(prompts, "Task ID", "ops-summary");
-
-  const scheduleKind = await prompts.select<"cron" | "interval">(
-    "Schedule kind",
-    [
-      { name: "cron", value: "cron" },
-      { name: "interval", value: "interval" }
-    ],
-    "interval"
-  );
-  const misfirePolicy = await prompts.select<MisfirePolicy>(
-    "Misfire policy",
-    [
-      { name: "catch-up-once", value: "catch-up-once" },
-      { name: "skip", value: "skip" },
-      { name: "backfill", value: "backfill" }
-    ],
-    state.config.runtime.scheduler.defaultMisfirePolicy
-  );
-  const timezone = await promptOptionalTimezone(
-    prompts,
-    "Task timezone override (blank for runtime default)",
-    ""
-  );
-  const maxRuntimeSec = await promptOptionalInteger(prompts, "Max runtime seconds (blank for none)", {
-    min: 1,
-    max: 86_400
-  });
-
-  const actionType = await prompts.select<"prompt" | "skill">(
-    "Task action type",
-    [
-      { name: "prompt", value: "prompt" },
-      { name: "skill", value: "skill" }
-    ],
-    "prompt"
-  );
-
-  let action: OpenAssistConfig["runtime"]["scheduler"]["tasks"][number]["action"];
-  if (actionType === "prompt") {
-    const providerId = await prompts.input("Provider ID (blank = runtime default)", "");
-    const model = await prompts.input("Model (blank = provider default)", "");
-    const promptTemplate = await promptRequiredText(
-      prompts,
-      "Prompt template",
-      "Provide a concise health and operations summary."
-    );
-    action = {
-      type: "prompt",
-      promptTemplate,
-      ...(providerId.trim() ? { providerId: providerId.trim() } : {}),
-      ...(model.trim() ? { model: model.trim() } : {})
-    };
-  } else {
-    const skillId = await promptIdentifier(prompts, "Skill ID", "ops-audit");
-    const entrypoint = await promptRequiredText(prompts, "Skill entrypoint", "scripts/run.mjs");
-    action = {
-      type: "skill",
-      skillId,
-      entrypoint
-    };
-  }
-
-  const sendOutput = await prompts.confirm("Send task output to a channel?", false);
-  const output = sendOutput
-    ? {
-        channelId: await prompts.input("Output channel ID"),
-        conversationKey: await prompts.input("Output conversation key"),
-        messageTemplate: await prompts.input(
-          "Message template (blank uses raw result)",
-          "Scheduled task {{taskId}} at {{scheduledFor}}:\n{{result}}"
-        )
-      }
-    : undefined;
-
-  const sharedFields = {
-    id: taskId.trim(),
-    enabled: true,
-    action,
-    misfirePolicy,
-    ...(timezone ? { timezone } : {}),
-    ...(typeof maxRuntimeSec === "number" && maxRuntimeSec > 0 ? { maxRuntimeSec } : {}),
-    ...(output ? { output } : {})
-  } as const;
-
-  if (scheduleKind === "cron") {
-    const cron = await promptRequiredText(prompts, "Cron expression", "0 */15 * * * *");
-    upsertTask(state.config, {
-      ...sharedFields,
-      scheduleKind: "cron",
-      cron
-    });
-    return;
-  }
-
-  const intervalSec = await promptInteger(prompts, "Interval seconds", 900, {
-    min: 1,
-    max: 31_536_000
-  });
-  upsertTask(state.config, {
-    ...sharedFields,
-    scheduleKind: "interval",
-    intervalSec
-  });
+  stage("Primary Channel", "Configure the first chat destination that should receive replies.");
+  await configureSingleChannel(state, prompts);
+  console.log("Add extra channels or advanced channel behavior later with: openassist setup wizard");
 }
 
 async function configureTimeAndScheduler(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
-  stage("Time + Scheduler", "Set timezone, NTP policy, and scheduler defaults.");
+  stage("Timezone", "Confirm the scheduler timezone used by this install.");
   const runtimeTime = state.config.runtime.time;
-  const runtimeScheduler = state.config.runtime.scheduler;
 
   const timezone = await promptTimezone(
     prompts,
@@ -833,107 +479,19 @@ async function configureTimeAndScheduler(state: SetupQuickstartState, prompts: P
     runtimeTime.defaultTimezone ?? state.timezoneCandidate
   );
   runtimeTime.defaultTimezone = timezone;
-  runtimeTime.ntpPolicy = await prompts.select<NtpPolicy>(
-    "NTP policy",
-    [
-      { name: "warn-degrade", value: "warn-degrade" },
-      { name: "hard-fail", value: "hard-fail" },
-      { name: "off", value: "off" }
-    ],
-    runtimeTime.ntpPolicy
-  );
-  runtimeTime.ntpCheckIntervalSec = await promptInteger(
-    prompts,
-    "NTP check interval seconds",
-    runtimeTime.ntpCheckIntervalSec,
-    { min: 5, max: 86_400 }
-  );
-  runtimeTime.ntpMaxSkewMs = await promptInteger(prompts, "Max clock skew ms", runtimeTime.ntpMaxSkewMs, {
-    min: 100,
-    max: 3_600_000
-  });
-  runtimeTime.requireTimezoneConfirmation = await prompts.confirm(
-    "Require timezone confirmation before scheduler starts?",
-    runtimeTime.requireTimezoneConfirmation
-  );
+  console.log(`Scheduler defaults kept for quickstart: enabled=${state.config.runtime.scheduler.enabled}, NTP policy=${runtimeTime.ntpPolicy}.`);
 
-  const typed = await prompts.input(`Type '${timezone}' to confirm timezone (Country/City)`, "");
-  state.timezoneConfirmed = typed.trim() === timezone;
-  state.confirmedTimezone = state.timezoneConfirmed ? timezone : undefined;
-
-  runtimeScheduler.enabled = await prompts.confirm("Enable scheduler?", runtimeScheduler.enabled);
-  runtimeScheduler.tickIntervalMs = await promptInteger(
-    prompts,
-    "Scheduler tick interval ms",
-    runtimeScheduler.tickIntervalMs,
-    { min: 100, max: 60_000 }
-  );
-  runtimeScheduler.heartbeatIntervalSec = await promptInteger(
-    prompts,
-    "Scheduler heartbeat interval sec",
-    runtimeScheduler.heartbeatIntervalSec,
-    { min: 1, max: 3_600 }
-  );
-  runtimeScheduler.defaultMisfirePolicy = await prompts.select<MisfirePolicy>(
-    "Default misfire policy",
-    [
-      { name: "catch-up-once", value: "catch-up-once" },
-      { name: "skip", value: "skip" },
-      { name: "backfill", value: "backfill" }
-    ],
-    runtimeScheduler.defaultMisfirePolicy
-  );
-
-  await maybeConfigureFirstTask(state, prompts);
-}
-
-async function configureToolsAndWeb(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
-  stage(
-    "Tools",
-    "Configure autonomous tool defaults and native web search behavior for full-root sessions."
-  );
-  const web = state.config.tools.web;
-  web.enabled = await prompts.confirm(
-    "Enable native web tools for full-root sessions?",
-    web.enabled
-  );
-  if (web.enabled) {
-    web.searchMode = await prompts.select<typeof web.searchMode>(
-      "Native web search mode",
-      [
-        {
-          name: "hybrid (Brave API when configured, otherwise DuckDuckGo fallback)",
-          value: "hybrid"
-        },
-        {
-          name: "api-only (Brave API required)",
-          value: "api-only"
-        },
-        {
-          name: "fallback-only (DuckDuckGo HTML fallback only)",
-          value: "fallback-only"
-        }
-      ],
-      web.searchMode
-    );
-
-    const braveVar = toWebBraveApiKeyEnvVar();
-    if (web.searchMode !== "fallback-only") {
-      console.log(`Brave Search API env var: ${braveVar}`);
-      const storeNow = await prompts.confirm(
-        "Store Brave Search API key in env file now?",
-        hasNonEmptyEnvValue(state.env, braveVar)
-      );
-      if (storeNow) {
-        const key = await prompts.password(
-          `Brave Search API key for ${braveVar} (blank keeps current value)`
-        );
-        if (key.trim().length > 0) {
-          state.env[braveVar] = key.trim();
-        }
-      }
-    }
+  if (!runtimeTime.requireTimezoneConfirmation) {
+    state.timezoneConfirmed = true;
+    state.confirmedTimezone = timezone;
+    return;
   }
+
+  state.timezoneConfirmed = await prompts.confirm(
+    `Confirm timezone '${timezone}' before scheduler starts?`,
+    true
+  );
+  state.confirmedTimezone = state.timezoneConfirmed ? timezone : undefined;
 }
 
 async function runValidationGate(
@@ -942,6 +500,10 @@ async function runValidationGate(
   options: SetupQuickstartOptions
 ): Promise<{ errors: number; warnings: number; aborted: boolean }> {
   stage("Validate", "Running schema and readiness checks.");
+  const suppressedWarningCodes = new Set<string>([
+    "tools.web_hybrid_fallback_only",
+    "provider.oauth_client_secret_unset"
+  ]);
   while (true) {
     const validation = await validateSetupReadiness({
       config: state.config,
@@ -950,19 +512,23 @@ async function runValidationGate(
       envFilePath: state.envFilePath,
       installDir: state.installDir,
       skipService: options.skipService,
-      timezoneConfirmed: state.timezoneConfirmed
+      timezoneConfirmed: state.timezoneConfirmed,
+      requireEnabledChannel: true
     });
+    const visibleWarnings = validation.warnings.filter(
+      (issue) => !suppressedWarningCodes.has(issue.code)
+    );
 
-    if (validation.warnings.length > 0) {
+    if (visibleWarnings.length > 0) {
       console.log("Warnings:");
-      for (const line of renderValidationIssues(validation.warnings)) {
+      for (const line of renderValidationIssues(visibleWarnings)) {
         console.log(`- ${line}`);
       }
     }
 
     if (validation.errors.length === 0) {
       console.log("Validation gate passed.");
-      return { errors: 0, warnings: validation.warnings.length, aborted: false };
+      return { errors: 0, warnings: visibleWarnings.length, aborted: false };
     }
 
     console.error("Validation gate failed:");
@@ -978,7 +544,7 @@ async function runValidationGate(
       if (proceed) {
         return {
           errors: validation.errors.length,
-          warnings: validation.warnings.length,
+          warnings: visibleWarnings.length,
           aborted: false
         };
       }
@@ -987,11 +553,10 @@ async function runValidationGate(
     const action = await prompts.select(
       "Choose a section to fix before re-validating",
       [
-        { name: "Runtime", value: "runtime" },
-        { name: "Providers", value: "providers" },
-        { name: "Channels", value: "channels" },
-        { name: "Time + Scheduler", value: "time" },
-        { name: "Tools", value: "tools" },
+        { name: "Runtime basics", value: "runtime" },
+        { name: "Primary provider", value: "providers" },
+        { name: "Primary channel", value: "channels" },
+        { name: "Timezone", value: "time" },
         { name: "Re-run validation", value: "retry" },
         { name: "Abort setup", value: "abort" }
       ],
@@ -1019,10 +584,6 @@ async function runValidationGate(
     }
     if (action === "time") {
       await configureTimeAndScheduler(state, prompts);
-      continue;
-    }
-    if (action === "tools") {
-      await configureToolsAndWeb(state, prompts);
       continue;
     }
   }
@@ -1277,15 +838,9 @@ export async function runSetupQuickstart(
 
   await runPreflight(state, options, dependencies);
   await configureRuntimeBase(state, prompts);
-  if (options.requireTty !== false) {
-    await configureAssistantProfile(state, prompts);
-  }
   await configureProviders(state, prompts);
   await configureChannels(state, prompts);
   await configureTimeAndScheduler(state, prompts);
-  if (options.requireTty !== false) {
-    await configureToolsAndWeb(state, prompts);
-  }
 
   const validationGate = await runValidationGate(state, prompts, options);
   if (validationGate.aborted || (validationGate.errors > 0 && !options.allowIncomplete)) {

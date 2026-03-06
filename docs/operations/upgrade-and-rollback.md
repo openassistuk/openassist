@@ -1,62 +1,150 @@
 # Upgrade and Rollback
 
-OpenAssist upgrades are designed to be safe by default: restart and health checks are part of the flow, and rollback is automatic when post-upgrade health fails.
+`openassist upgrade` is the supported in-place update path for an installed OpenAssist checkout.
 
-## Command
+OpenAssist upgrades stay repo-backed. The command updates a Git checkout, rebuilds it, restarts the service unless you skip restart, and rolls back automatically when a live upgrade fails after the previous commit has been captured.
 
-Installed command path:
+The install record keeps a tracked ref for operator visibility, but target selection still follows the currently checked-out branch unless you pass `--ref`. Detached installs should usually use an explicit `--ref`.
 
-```bash
-openassist upgrade [--ref <git-ref>] [--install-dir <path>] [--skip-restart] [--dry-run]
-```
+## Commands
 
-Source checkout alternative:
+Dry-run first:
 
 ```bash
-pnpm --filter @openassist/openassist-cli dev -- upgrade [--ref <git-ref>] [--install-dir <path>] [--skip-restart] [--dry-run]
+openassist upgrade --dry-run --install-dir "$HOME/openassist"
 ```
 
-## Default Behavior
+Live upgrade:
 
-Upgrade sequence:
+```bash
+openassist upgrade --install-dir "$HOME/openassist"
+```
 
-1. verify prerequisites (`git`, `node`, `pnpm`)
-2. reject dirty working tree
-3. fetch/pull target ref
-4. run `pnpm install --frozen-lockfile`
-5. run `pnpm -r build`
-6. restart service unless `--skip-restart`
-7. poll daemon health (`/v1/health`) for 60s
-8. record new known-good commit in install state
+Pin an explicit ref:
+
+```bash
+openassist upgrade --install-dir "$HOME/openassist" --ref main
+```
+
+Skip restart only when you have a deliberate maintenance plan:
+
+```bash
+openassist upgrade --install-dir "$HOME/openassist" --skip-restart
+```
+
+## What Dry-Run Shows
+
+Dry-run prints the resolved plan before any mutation:
+
+- install directory
+- current branch or detached state
+- current commit
+- tracked ref from install state or repo metadata
+- target ref that will be used
+- execution mode:
+  - pull on the current branch
+  - checkout by ref
+  - detached update when the current checkout is detached
+- whether restart and health checks will run
+- rollback target
+
+It then tells you the exact live command and the next validation commands to run.
+
+Detached checkout note:
+
+- if dry-run shows `Current branch: HEAD`, the repo is detached
+- without `--ref`, the upgrade path resolves a default target ref instead of following a named branch
+- for public operator use, prefer `openassist upgrade --dry-run --ref <branch-or-tag> --install-dir "$HOME/openassist"` before the live run
+
+## Use Upgrade When
+
+`openassist upgrade` is the right tool when all of these are true:
+
+- the install directory is still a repo-backed checkout
+- the working tree is clean
+- you want to stay on the current install directory
+- you want the CLI to manage fetch, build, restart, health, and rollback
+
+Check readiness first:
+
+```bash
+openassist doctor
+openassist upgrade --dry-run --install-dir "$HOME/openassist"
+```
+
+## Re-Run Bootstrap Instead When
+
+Use `install.sh` or `scripts/install/bootstrap.sh` again when:
+
+- the install directory is missing `.git`
+- the checkout is damaged or untrusted
+- wrappers are missing or badly broken
+- build output is missing under `apps/openassist-cli/dist` or `apps/openassistd/dist`
+- you want to move a detached install back onto a known branch through the installer flow
+- you want a fresh install directory
+- the repo metadata is no longer coherent enough for a safe in-place update
+
+## Dirty Working Trees
+
+Upgrade now refuses to continue on a dirty checkout.
+
+The operator guidance is explicit:
+
+- commit or stash local changes first
+- if the checkout is no longer trustworthy, rerun bootstrap in a fresh install directory
+
+There is no dirty-tree override in the public lifecycle flow. The installer's `--allow-dirty` flag applies to bootstrap only and is not the supported in-place upgrade path.
+
+## Live Upgrade Sequence
+
+Live upgrade performs this sequence:
+
+1. verify `git`, `pnpm`, and `node`
+2. confirm the install is repo-backed
+3. capture repo metadata and current commit
+4. print the resolved plan
+5. require a clean working tree
+6. fetch the target ref
+7. update the checkout
+8. run `pnpm install --frozen-lockfile`
+9. run `pnpm -r build`
+10. restart the service unless `--skip-restart`
+11. run the daemon health gate
+12. persist the new known-good commit in install state
 
 ## Rollback Behavior
 
-If upgrade fails after commit capture:
+If the upgrade fails after the previous commit is known, OpenAssist:
 
-1. checkout previous commit
-2. reinstall and rebuild
-3. restart service (unless skipped)
-4. run health gate again
-5. keep previous commit as known-good and return non-zero exit
+1. checks out the rollback target
+2. reinstalls dependencies
+3. rebuilds the repo
+4. restarts the service, unless restart was skipped
+5. reruns the health gate
 
-## Dry Run
+The command prints rollback status and the immediate validation commands to run next.
 
-Use dry run before production upgrades:
+## After a Successful Upgrade
+
+Run the next checks that the command prints, or run them directly:
 
 ```bash
-openassist upgrade --dry-run
+openassist service health
+openassist channel status
+openassist doctor
 ```
 
-Dry run validates plan and prerequisites without mutating local checkout or service state.
+If you skipped restart, restart explicitly before treating the upgrade as complete:
 
-## Operational Notes
+```bash
+openassist service restart
+openassist service health
+```
 
-- Keep env file and config backups in place before major version upgrades.
-- If rollback health check also fails, inspect service logs and restore from repository backups manually.
-- After major config-schema shifts, run `openassist setup quickstart --skip-service` or `openassist config validate` before restart.
-- After upgrading into the native web tooling release, confirm `openassist tools status --session <channel>:<conversationKey>` shows the expected native web mode and awareness summary for a representative session.
-- If `tools.web.searchMode` is `api-only` or `hybrid`, confirm the env file still contains `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` where intended.
-- Security baseline checks during upgrade:
-  - unsupported `security.secretsBackend` values now fail fast (only `encrypted-file` is supported)
-  - plaintext secret-like channel settings are rejected by config validation
-  - invalid provider OAuth `clientSecretEnv` naming now fails validation
+## Source-Checkout Alternative
+
+Installed commands are the primary operator path. For contributor workflows:
+
+```bash
+pnpm --filter @openassist/openassist-cli dev -- upgrade --dry-run --install-dir "$PWD"
+```

@@ -3,7 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  detectInstallStateFromRepo,
   loadInstallState,
+  mergeInstallState,
   saveInstallState
 } from "../../apps/openassist-cli/src/lib/install-state.js";
 
@@ -34,5 +36,31 @@ describe("install-state", () => {
     fs.writeFileSync(statePath, "{ not-json", "utf8");
 
     expect(loadInstallState(statePath)).toBeUndefined();
+  });
+
+  it("preserves existing fields when saving a partial update", () => {
+    const existing = mergeInstallState(undefined, {
+      installDir: "/srv/openassist",
+      repoUrl: "https://github.com/openassistuk/openassist.git",
+      trackedRef: "main",
+      configPath: "/srv/openassist/openassist.toml",
+      envFilePath: "/home/test/.config/openassist/openassistd.env",
+      lastKnownGoodCommit: "abc123"
+    });
+
+    const merged = mergeInstallState(existing, {
+      serviceManager: "systemd-user",
+      lastKnownGoodCommit: "def456"
+    });
+
+    expect(merged.repoUrl).toBe("https://github.com/openassistuk/openassist.git");
+    expect(merged.trackedRef).toBe("main");
+    expect(merged.serviceManager).toBe("systemd-user");
+    expect(merged.lastKnownGoodCommit).toBe("def456");
+  });
+
+  it("returns empty repo metadata for non-git directories", () => {
+    const root = tempDir("openassist-install-state-repo-");
+    expect(detectInstallStateFromRepo(root)).toEqual({});
   });
 });

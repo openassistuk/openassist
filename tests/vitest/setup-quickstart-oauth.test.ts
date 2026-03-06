@@ -93,8 +93,47 @@ function setTty(value: boolean): () => void {
   };
 }
 
+function createFakeService(): ServiceManagerAdapter {
+  return {
+    kind: process.platform === "darwin" ? "launchd" : "systemd-user",
+    async install(): Promise<void> {},
+    async uninstall(): Promise<void> {},
+    async start(): Promise<void> {},
+    async stop(): Promise<void> {},
+    async restart(): Promise<void> {},
+    async status(): Promise<void> {},
+    async logs(): Promise<void> {},
+    async enable(): Promise<void> {},
+    async disable(): Promise<void> {},
+    async isInstalled(): Promise<boolean> {
+      return true;
+    }
+  };
+}
+
+function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[] {
+  return [
+    "false",
+    "127.0.0.1",
+    String(bindPort),
+    "openai",
+    "openai-main",
+    "gpt-5.2",
+    "",
+    "openai-api-key",
+    "telegram",
+    "telegram-main",
+    "telegram-token",
+    "123,456",
+    "Europe",
+    "Europe/London",
+    "true",
+    ...extra
+  ];
+}
+
 describe("setup quickstart oauth path", () => {
-  it("supports oauth configuration and interactive oauth start after health", async () => {
+  it("keeps API-key-first onboarding while allowing post-health oauth account linking", async () => {
     const root = tempDir("openassist-quickstart-oauth-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -103,84 +142,27 @@ describe("setup quickstart oauth path", () => {
     fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
 
-    const fakeService: ServiceManagerAdapter = {
-      kind: process.platform === "darwin" ? "launchd" : "systemd-user",
-      async install(): Promise<void> {
-        // no-op
-      },
-      async uninstall(): Promise<void> {
-        // no-op
-      },
-      async start(): Promise<void> {
-        // no-op
-      },
-      async stop(): Promise<void> {
-        // no-op
-      },
-      async restart(): Promise<void> {
-        // no-op
-      },
-      async status(): Promise<void> {
-        // no-op
-      },
-      async logs(): Promise<void> {
-        // no-op
-      },
-      async enable(): Promise<void> {
-        // no-op
-      },
-      async disable(): Promise<void> {
-        // no-op
-      },
-      async isInstalled(): Promise<boolean> {
-        return true;
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.providers = [
+      {
+        id: "openai-main",
+        type: "openai",
+        defaultModel: "gpt-5.2",
+        oauth: {
+          authorizeUrl: "https://example.test/oauth/authorize",
+          tokenUrl: "https://example.test/oauth/token",
+          clientId: "client-123",
+          clientSecretEnv: "OPENASSIST_PROVIDER_OPENAI_MAIN_OAUTH_CLIENT_SECRET",
+          scopes: ["openid", "profile"]
+        }
       }
-    };
+    ];
+    state.config.runtime.defaultProviderId = "openai-main";
 
     const requestCalls: Array<{ method: string; url: string }> = [];
-    const windowsValidationContinuation = process.platform === "win32" ? ["true"] : [];
-    const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      path.join(root, "data"),
-      path.join(root, "skills"),
-      path.join(root, "logs"),
-      "openai",
-      "openai-main",
-      "gpt-5.2",
-      "",
-      "api-key-and-oauth",
-      "https://example.test/oauth/authorize",
-      "https://example.test/oauth/token",
-      "client-123",
-      "OPENASSIST_PROVIDER_OPENAI_MAIN_OAUTH_CLIENT_SECRET",
-      "openid,profile",
-      "",
-      "true",
-      "oauth-client-secret-value",
-      "openai-api-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "false",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      ...windowsValidationContinuation,
-      "true",
-      "true"
-    ]);
-
-    const state = loadSetupQuickstartState(configPath, envPath, installDir);
     const restoreTty = setTty(true);
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
+
     try {
       const result = await runSetupQuickstart(
         state,
@@ -193,9 +175,9 @@ describe("setup quickstart oauth path", () => {
           requireTty: false,
           preflightCommandChecks: false
         },
-        prompts,
+        new ScriptedPromptAdapter(validQuickstartAnswers(bindPort, [...validationContinuationAnswers, "true", "true"])),
         {
-          createServiceManagerFn: () => fakeService,
+          createServiceManagerFn: () => createFakeService(),
           waitForHealthyFn: async (baseUrl) => ({
             ok: true,
             status: 200,
@@ -204,13 +186,11 @@ describe("setup quickstart oauth path", () => {
           }),
           requestJsonFn: async (method, url) => {
             requestCalls.push({ method, url });
-            if (url.includes("/v1/oauth/") && url.endsWith("/start")) {
+            if (url.endsWith("/start")) {
               return {
                 status: 200,
                 data: {
-                  authorizationUrl: "https://example.test/oauth/start",
-                  state: "state-1",
-                  accountId: "default"
+                  authorizationUrl: "https://example.test/oauth/start"
                 }
               };
             }
@@ -223,12 +203,8 @@ describe("setup quickstart oauth path", () => {
       );
 
       expect(result.saved).toBe(true);
-      expect(state.config.runtime.providers[0]?.oauth?.clientId).toBe("client-123");
-      expect(state.config.runtime.providers[0]?.oauth?.scopes).toEqual(["openid", "profile"]);
       expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY).toBe("openai-api-key");
-      expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_OAUTH_CLIENT_SECRET).toBe(
-        "oauth-client-secret-value"
-      );
+      expect(state.config.runtime.providers[0]?.oauth?.clientId).toBe("client-123");
       expect(
         requestCalls.some(
           (entry) => entry.method === "POST" && entry.url.includes("/v1/time/timezone/confirm")
@@ -244,4 +220,3 @@ describe("setup quickstart oauth path", () => {
     }
   });
 });
-

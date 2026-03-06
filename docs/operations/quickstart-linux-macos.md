@@ -1,58 +1,79 @@
-# Quickstart (Linux + macOS)
+# Quickstart on Linux and macOS
 
-This guide is the fastest path to a working OpenAssist deployment and first end-user chat reply.
+This is the canonical operator runbook for a public OpenAssist install.
 
-## Audience Tracks
+The goal is one clean path:
 
-- Operator track: install, configure, run service, validate health.
-- End-user track: send a chat message in Telegram/Discord/WhatsApp and receive a reply.
+1. install OpenAssist
+2. complete `openassist setup quickstart`
+3. confirm service health
+4. send the first real chat reply
+5. use the wizard only for advanced changes
 
-## Platform Scope
+## Before You Start
 
-- Linux: primary release target.
-- macOS: supported operational path.
+Supported runtime baseline:
 
-## Operator Track (10 minutes)
+- Node `>=22`
+- pnpm `>=10`
+- Git
 
-### 1) Install from GitHub
+Platform notes:
 
-Linux/macOS interactive install:
+- Linux is the primary release target
+- macOS is supported with `launchd`
+- Windows has CI coverage, but service lifecycle parity is not the operator target yet
+
+## 1. Install OpenAssist
+
+Interactive GitHub install:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
 ```
 
-Notes:
+Non-interactive example:
 
-- Linux bootstrap can auto-install missing `git`, `node >= 22`, `pnpm >= 10`.
-- On Debian/Ubuntu, bootstrap installs Node 22 from NodeSource when needed.
-- If NodeSource still leaves Node below minimum, bootstrap attempts a secondary `npm+n` fallback install for Node 22.
-- macOS bootstrap uses Homebrew for missing prerequisites; install Homebrew first if absent.
-- If prerequisite auto-install fails, bootstrap prints manual remediation commands and (interactive mode) offers retry before exiting.
-- For GitHub HTTPS auth failures, bootstrap now offers recovery choices (`retry`, `clear cached GitHub HTTPS credentials and retry`, `abort`) instead of immediate hard-exit.
-- Workspace build-script policy is pre-approved for required postinstall packages (`esbuild`, `protobufjs`), so bootstrap should not require `pnpm approve-builds` during normal install.
-- Linux service manager selection is automatic:
-  - non-root shell: `systemd --user`
-  - root shell: system-level `systemd`
+```bash
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --non-interactive --skip-service
+```
 
-### 2) Verify direct commands
+Bootstrap behavior:
+
+- uses a repo-backed checkout at `$HOME/openassist` by default
+- is interactive on a TTY and non-interactive otherwise
+- prints a lifecycle plan before it mutates anything
+- writes install state to `~/.config/openassist/install-state.json`
+- prints a short readiness summary with the exact next command when it stops early
+- interactive bootstrap runs quickstart after the build
+- non-interactive bootstrap does not run quickstart for you
+- non-interactive bootstrap still installs the service unless you pass `--skip-service`
+
+If you are installing from a local checkout instead of GitHub:
+
+```bash
+bash scripts/install/bootstrap.sh
+```
+
+## 2. Verify the wrappers
 
 ```bash
 openassist --help
 openassistd --help
 ```
 
-Bootstrap writes PATH profile snippets automatically. If commands are not available in the current shell session:
+If the current shell does not see the wrappers yet:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 $HOME/.local/bin/openassist --help
-$HOME/.local/bin/openassistd --help
 ```
 
-### 3) Run strict onboarding if needed
+## 3. Complete first-run onboarding
 
-If installer already ran onboarding, skip this step.
+If bootstrap already ran quickstart successfully, skip to the next section.
+
+Otherwise run:
 
 ```bash
 openassist setup quickstart \
@@ -61,54 +82,86 @@ openassist setup quickstart \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Quickstart post-save service checks are recoverable:
+Quickstart is the default onboarding path. It is intentionally minimal.
 
-- strict mode: retry or abort
-- `--allow-incomplete`: retry, skip, or abort
-- health probes automatically fall back to loopback when bind address is wildcard (`0.0.0.0` / `::`)
-- prompt fields are validated and re-prompted (no silent numeric/timezone coercion); timezone uses guided `country/region -> city` selection
-- quickstart includes assistant profile defaults (name/persona/preferences) for global main-agent memory plus per-session host bootstrap context
-- quickstart also configures native web tooling (`tools.web.enabled`, `tools.web.searchMode`)
-- `hybrid` search mode is the recommended default: Brave Search API when `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is set, DuckDuckGo HTML fallback otherwise
-- `api-only` search mode is blocked unless `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is present
+What quickstart configures:
 
-Secret baseline enforced during setup/runtime:
+- runtime defaults for the first reply
+- one primary provider
+- one primary channel
+- timezone confirmation
+- service install, restart, and health checks unless `--skip-service`
 
-- backend is fixed to `security.secretsBackend="encrypted-file"`
-- channel secret-like fields must be `env:VAR_NAME` references (plaintext secret values are rejected)
-- provider OAuth `clientSecretEnv` must be a valid env-var name
-- Unix secret files (`openassistd.env`, generated key file) are written and checked as owner-only
+What quickstart does not try to do:
 
-### 4) Confirm service is healthy
+- advanced runtime path tuning
+- extra providers or extra channels
+- scheduler task authoring
+- native web tuning
+- advanced tools and security changes
+- persona or profile editing
+
+Those belong to `openassist setup wizard`.
+
+Quickstart rules:
+
+- strict validation blocks incomplete first-reply state by default
+- `--allow-incomplete` adds an explicit degraded-save path
+- prompts re-ask on invalid numeric, identifier, bind-address, and timezone input
+- timezone onboarding stays guided as `country or region -> city`
+- timezone confirmation now shows the selected zone and asks for a simple `Y/n` confirmation
+- wildcard bind addresses still probe health through loopback fallbacks
+- Linux service manager selection stays automatic: non-root uses `systemd --user`, root uses system-level `systemd`
+
+Provider and channel guidance:
+
+- quickstart is API-key-first because it is the fastest path to the first reply
+- provider OAuth client configuration stays in `openassist setup wizard`
+- after OAuth is configured, use `openassist auth start --provider <provider-id> --account default --open-browser`
+- Telegram defaults remain inline chat memory and inline responses unless you change them later
+
+## 4. Validate lifecycle readiness
 
 ```bash
+openassist doctor
 openassist service status
 openassist service health
+openassist channel status
 openassist time status
 ```
 
-### 5) Connect auth and channels
+`openassist doctor` reports:
 
-Open provider auth flow:
+- whether install state exists
+- whether the install is repo-backed
+- tracked ref and current commit
+- config and env paths
+- detected service manager
+- whether upgrade prerequisites are satisfied
+- the next command you should run
+
+## 5. Send the first reply
+
+After quickstart completes:
+
+1. Open the configured Telegram, Discord, or WhatsApp destination.
+2. Send a simple message.
+3. Confirm the bot replies.
+4. Send `/status` if you need local diagnostics without provider dependency.
+
+First-reply checklist:
+
+- provider saved in config and API key saved in env file
+- one enabled channel saved in config
+- `openassist service health` succeeds, unless you intentionally skipped service checks
+- `openassist doctor` reports upgrade-ready or tells you the next lifecycle fix to make
+
+If the bot does not reply:
 
 ```bash
-openassist auth start --provider openai-main --account default --open-browser
-openassist auth status
-```
-
-`openassist auth status` confirms status endpoint reachability; OAuth/API-key details are intentionally redacted in CLI output.
-
-OAuth account linking requires provider OAuth client settings in `runtime.providers[].oauth`.
-
-Recommended provider model baselines during onboarding:
-
-- OpenAI: `gpt-5.2` (adapter auto-routes GPT-5/codex-class requests through OpenAI Responses API).
-- Anthropic: `claude-sonnet-4-5` (or newer Sonnet 4.x model).
-
-Check channel health:
-
-```bash
+openassist service logs --lines 200 --follow
 openassist channel status
+openassist auth status
 ```
 
 WhatsApp only:
@@ -117,61 +170,88 @@ WhatsApp only:
 openassist channel qr --id whatsapp-main
 ```
 
-## End-User Track (First Message)
+## 6. Move to advanced configuration
 
-After operator setup is complete:
-
-1. Open the configured chat destination:
-- Telegram chat / group with bot
-- Discord channel with bot
-- WhatsApp chat linked via QR
-2. Send a plain message (for example: `hello, are you online?`).
-3. Confirm the bot replies.
-4. If provider/auth/runtime is broken, bot returns an operational diagnostic message.
-5. Send `/status` in chat for local runtime diagnostics without LLM/provider dependency.
-6. Confirm `/status` shows the correct session profile, callable tools, and native web mode for that session.
-7. Send `/profile` to view persistent global assistant profile memory, or update it with:
-   - `/profile force=true; name=<name>; persona=<style>; prefs=<preferences>`
-   - note: first-boot lock-in guard requires explicit `force=true` for profile changes
-
-If no reply:
+Use the wizard when you need deeper changes:
 
 ```bash
-openassist service logs --lines 200 --follow
-openassist channel status
-openassist auth status
+openassist setup wizard \
+  --config "$HOME/openassist/openassist.toml" \
+  --env-file "$HOME/.config/openassist/openassistd.env" \
+  --install-dir "$HOME/openassist"
 ```
 
-## Optional: Enable Autonomous Tool Use for One Session
+Wizard sections are labeled by operator task:
 
-Default is non-autonomous (`operator` profile). Only elevate when needed.
+- basic runtime and defaults
+- providers and model access
+- channels and chat destinations
+- scheduling and time
+- advanced tools and security
+
+Wizard runs post-save service and health checks by default. Use `--skip-post-checks` only when you intentionally want to defer validation.
+
+## 7. Upgrade safely
+
+Always start with dry-run:
 
 ```bash
-openassist policy-set --session <channel>:<conversationKey> --profile full-root
-openassist tools status --session <channel>:<conversationKey>
-openassist tools invocations --session <channel>:<conversationKey> --limit 20
+openassist upgrade --dry-run --install-dir "$HOME/openassist"
 ```
 
-In `full-root`, OpenAssist may use host tools and native web tools (`web.search`, `web.fetch`, `web.run`). `openassist tools status` now shows both callable tools and native web backend state for the session.
+Then run the live upgrade:
 
-## Quick Troubleshooting
+```bash
+openassist upgrade --install-dir "$HOME/openassist"
+```
 
-- Service not running: `openassist service restart` then `openassist service health`.
-- Service health OK but bot not responding: `openassist channel status` (channel startup is non-blocking; degraded connectors do not block daemon health).
-- Timezone gate blocking scheduler: `openassist time status` then `openassist time confirm --timezone <Country/City>` (for example `America/New_York`).
-- Upgrade safely: `openassist upgrade --dry-run` then `openassist upgrade --ref main`.
+Dry-run tells you:
 
-## Source-Checkout Alternative (Contributor Mode)
+- current commit
+- tracked ref
+- resolved target ref
+- update mode (`git pull` on the current branch versus checkout or detached update)
+- restart behavior
+- rollback target
+
+If dry-run shows `Current branch: HEAD`, the checkout is detached. Prefer `openassist upgrade --ref <branch-or-tag> --install-dir "$HOME/openassist"` so the update target is explicit instead of inheriting the detached default behavior.
+
+If the checkout is damaged, missing `.git`, missing build output under `apps/openassist-cli/dist` or `apps/openassistd/dist`, or no longer trustworthy, rerun bootstrap instead of forcing `openassist upgrade`.
+
+## Troubleshooting
+
+Bootstrap stopped before quickstart:
+
+```bash
+openassist setup quickstart --install-dir "$HOME/openassist" --config "$HOME/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
+```
+
+Quickstart saved config but service checks were skipped or aborted:
+
+```bash
+openassist service install --install-dir "$HOME/openassist" --config "$HOME/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
+openassist service health
+```
+
+You want to inspect the install record before upgrading:
+
+```bash
+openassist doctor
+```
+
+Dry-run reports a detached checkout or missing build output:
+
+```bash
+bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist"
+```
+
+## Source-Checkout Alternative
+
+Installed commands are the primary operator path. For contributor workflows:
 
 ```bash
 pnpm install
 pnpm -r build
 pnpm verify:all
-```
-
-Run directly from source:
-
-```bash
-pnpm --filter @openassist/openassistd dev -- run --config openassist.toml
 pnpm --filter @openassist/openassist-cli dev -- setup quickstart --config openassist.toml --env-file ~/.config/openassist/openassistd.env --skip-service
 ```

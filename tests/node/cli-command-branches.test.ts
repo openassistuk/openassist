@@ -222,7 +222,8 @@ describe("cli command branch coverage", () => {
 
     const dirty = await runCli(["upgrade", "--dry-run", "--install-dir", gitRepo]);
     assert.equal(dirty.code, 1, dirty.stderr || dirty.stdout);
-    assert.match(dirty.stderr, /git working tree is dirty/);
+    assert.match(dirty.stderr, /clean repo-backed checkout/i);
+    assert.match(dirty.stderr, /Commit or stash local changes first/i);
 
     const missing = await runCli([
       "upgrade",

@@ -97,41 +97,44 @@ function setTty(value: boolean): () => void {
 function createFakeService(): ServiceManagerAdapter {
   return {
     kind: process.platform === "darwin" ? "launchd" : "systemd-user",
-    async install(): Promise<void> {
-      // no-op
-    },
-    async uninstall(): Promise<void> {
-      // no-op
-    },
-    async start(): Promise<void> {
-      // no-op
-    },
-    async stop(): Promise<void> {
-      // no-op
-    },
-    async restart(): Promise<void> {
-      // no-op
-    },
-    async status(): Promise<void> {
-      // no-op
-    },
-    async logs(): Promise<void> {
-      // no-op
-    },
-    async enable(): Promise<void> {
-      // no-op
-    },
-    async disable(): Promise<void> {
-      // no-op
-    },
+    async install(): Promise<void> {},
+    async uninstall(): Promise<void> {},
+    async start(): Promise<void> {},
+    async stop(): Promise<void> {},
+    async restart(): Promise<void> {},
+    async status(): Promise<void> {},
+    async logs(): Promise<void> {},
+    async enable(): Promise<void> {},
+    async disable(): Promise<void> {},
     async isInstalled(): Promise<boolean> {
       return true;
     }
   };
 }
 
+function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[] {
+  return [
+    "false",
+    "127.0.0.1",
+    String(bindPort),
+    "openai",
+    "openai-main",
+    "gpt-5.2",
+    "",
+    "openai-api-key",
+    "telegram",
+    "telegram-main",
+    "telegram-token",
+    "123,456",
+    "Europe",
+    "Europe/London",
+    "true",
+    ...extra
+  ];
+}
+
 describe("cli setup quickstart oauth coverage", () => {
-  it("covers oauth onboarding and post-health oauth start flow", async () => {
+  it("keeps API-key-first onboarding while allowing post-health oauth account linking", async () => {
     const root = tempDir("openassist-node-quickstart-oauth-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -140,50 +143,27 @@ describe("cli setup quickstart oauth coverage", () => {
     fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
 
-    const requestCalls: Array<{ method: string; url: string }> = [];
-    const windowsValidationContinuation = process.platform === "win32" ? ["true"] : [];
-    const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      path.join(root, "data"),
-      path.join(root, "skills"),
-      path.join(root, "logs"),
-      "openai",
-      "openai-main",
-      "gpt-5.2",
-      "",
-      "api-key-and-oauth",
-      "https://example.test/oauth/authorize",
-      "https://example.test/oauth/token",
-      "client-123",
-      "OPENASSIST_PROVIDER_OPENAI_MAIN_OAUTH_CLIENT_SECRET",
-      "openid,profile",
-      "",
-      "true",
-      "oauth-client-secret-value",
-      "openai-api-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "false",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      ...windowsValidationContinuation,
-      "true",
-      "true"
-    ]);
-
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.providers = [
+      {
+        id: "openai-main",
+        type: "openai",
+        defaultModel: "gpt-5.2",
+        oauth: {
+          authorizeUrl: "https://example.test/oauth/authorize",
+          tokenUrl: "https://example.test/oauth/token",
+          clientId: "client-123",
+          clientSecretEnv: "OPENASSIST_PROVIDER_OPENAI_MAIN_OAUTH_CLIENT_SECRET",
+          scopes: ["openid", "profile"]
+        }
+      }
+    ];
+    state.config.runtime.defaultProviderId = "openai-main";
+
+    const requestCalls: Array<{ method: string; url: string }> = [];
     const restoreTty = setTty(true);
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
+
     try {
       const result = await runSetupQuickstart(
         state,
@@ -196,7 +176,7 @@ describe("cli setup quickstart oauth coverage", () => {
           requireTty: false,
           preflightCommandChecks: false
         },
-        prompts,
+        new ScriptedPromptAdapter(validQuickstartAnswers(bindPort, [...validationContinuationAnswers, "true", "true"])),
         {
           createServiceManagerFn: () => createFakeService(),
           waitForHealthyFn: async (baseUrl) => ({
@@ -207,13 +187,11 @@ describe("cli setup quickstart oauth coverage", () => {
           }),
           requestJsonFn: async (method, url) => {
             requestCalls.push({ method, url });
-            if (url.includes("/v1/oauth/") && url.endsWith("/start")) {
+            if (url.endsWith("/start")) {
               return {
                 status: 200,
                 data: {
-                  authorizationUrl: "https://example.test/oauth/start",
-                  state: "state-1",
-                  accountId: "default"
+                  authorizationUrl: "https://example.test/oauth/start"
                 }
               };
             }
@@ -226,13 +204,8 @@ describe("cli setup quickstart oauth coverage", () => {
       );
 
       assert.equal(result.saved, true);
-      assert.equal(state.config.runtime.providers[0]?.oauth?.clientId, "client-123");
-      assert.equal(state.config.runtime.providers[0]?.oauth?.scopes?.join(","), "openid,profile");
       assert.equal(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY, "openai-api-key");
-      assert.equal(
-        state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_OAUTH_CLIENT_SECRET,
-        "oauth-client-secret-value"
-      );
+      assert.equal(state.config.runtime.providers[0]?.oauth?.clientId, "client-123");
       assert.equal(
         requestCalls.some(
           (entry) => entry.method === "POST" && entry.url.includes("/v1/time/timezone/confirm")

@@ -67,6 +67,64 @@ class ScriptedPromptAdapter implements PromptAdapter {
   }
 }
 
+function minimalTelegramAnswers(bindPort: number, extra: string[] = []): string[] {
+  return [
+    "false",
+    "127.0.0.1",
+    String(bindPort),
+    "openai",
+    "openai-main",
+    "gpt-5.2",
+    "",
+    "openai-key",
+    "telegram",
+    "telegram-main",
+    "telegram-token",
+    "123,456",
+    "Europe",
+    "Europe/London",
+    "true",
+    ...extra
+  ];
+}
+
+function minimalDiscordCompatAnswers(extra: string[] = []): string[] {
+  return [
+    "true",
+    "openai-compatible",
+    "compat-main",
+    "gpt-5.2",
+    "http://127.0.0.1:11434/v1",
+    "compat-key",
+    "discord",
+    "discord-main",
+    "discord-token",
+    "not-a-snowflake",
+    "123456789012345678,987654321098765432",
+    "Europe",
+    "Europe/London",
+    "true",
+    ...extra
+  ];
+}
+
+function minimalWhatsAppAnthropicAnswers(extra: string[] = []): string[] {
+  return [
+    "true",
+    "anthropic",
+    "anthropic-main",
+    "claude-sonnet-4-5",
+    "",
+    "anthropic-key",
+    "whatsapp-md",
+    "whatsapp-main",
+    "false",
+    "Europe",
+    "Europe/London",
+    ...extra
+  ];
+}
+
 describe("setup quickstart flow", () => {
   it("requires TTY by default for interactive quickstart", async () => {
     const root = tempDir("openassist-quickstart-flow-tty-required-");
@@ -108,8 +166,8 @@ describe("setup quickstart flow", () => {
     }
   });
 
-  it("runs assistant profile stage in TTY mode", async () => {
-    const root = tempDir("openassist-quickstart-flow-assistant-");
+  it("keeps confirmed runtime defaults in the minimal flow", async () => {
+    const root = tempDir("openassist-quickstart-flow-defaults-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
@@ -118,80 +176,41 @@ describe("setup quickstart flow", () => {
 
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
     const bindPort = await getFreePort();
+    state.config.runtime.bindAddress = "127.0.0.1";
+    state.config.runtime.bindPort = bindPort;
     const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      path.join(root, "data"),
-      path.join(root, "skills"),
-      path.join(root, "logs"),
-      "OpsBot",
-      "Be concise and operationally precise.",
-      "Prefer actionable diagnostics first.",
       "true",
       "openai",
       "openai-main",
       "gpt-5.2",
       "",
-      "api-key-only",
       "openai-key",
-      "false",
-      "openai-main",
-      "false",
+      "telegram",
+      "telegram-main",
+      "telegram-token",
+      "123,456",
+      "Europe",
       "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      "true",
-      "hybrid",
-      "false"
+      "true"
     ]);
 
-    const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
-    const stdoutDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
-    Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: true });
-    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
-    try {
-      const result = await runSetupQuickstart(
-        state,
-        {
-          configPath,
-          envFilePath: envPath,
-          installDir,
-          allowIncomplete: false,
-          skipService: true,
-          requireTty: true,
-          preflightCommandChecks: false
-        },
-        prompts
-      );
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
 
-      expect(result.saved).toBe(true);
-      expect(state.config.runtime.assistant.name).toBe("OpsBot");
-      expect(state.config.runtime.assistant.persona).toBe("Be concise and operationally precise.");
-      expect(state.config.runtime.assistant.operatorPreferences).toBe(
-        "Prefer actionable diagnostics first."
-      );
-      expect(state.config.runtime.assistant.promptOnFirstContact).toBe(true);
-    } finally {
-      if (stdinDescriptor) {
-        Object.defineProperty(process.stdin, "isTTY", stdinDescriptor);
-      } else {
-        Reflect.deleteProperty(process.stdin, "isTTY");
-      }
-      if (stdoutDescriptor) {
-        Object.defineProperty(process.stdout, "isTTY", stdoutDescriptor);
-      } else {
-        Reflect.deleteProperty(process.stdout, "isTTY");
-      }
-    }
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.bindAddress).toBe("127.0.0.1");
+    expect(state.config.runtime.bindPort).toBe(bindPort);
   });
 
   it("creates a backup when config already exists", async () => {
@@ -204,33 +223,7 @@ describe("setup quickstart flow", () => {
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
     fs.writeFileSync(configPath, "# existing config to trigger backup\n", "utf8");
     const bindPort = await getFreePort();
-    const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      path.join(root, "data"),
-      path.join(root, "skills"),
-      path.join(root, "logs"),
-      "openai",
-      "openai-main",
-      "gpt-5.2",
-      "",
-      "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false"
-    ]);
+    const prompts = new ScriptedPromptAdapter(minimalTelegramAnswers(bindPort));
 
     const result = await runSetupQuickstart(
       state,
@@ -251,7 +244,7 @@ describe("setup quickstart flow", () => {
     expect(result.backupPath && fs.existsSync(result.backupPath)).toBe(true);
   });
 
-  it("runs strict onboarding path and persists config/env", async () => {
+  it("runs strict first-reply onboarding and persists config/env", async () => {
     const root = tempDir("openassist-quickstart-flow-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -261,41 +254,7 @@ describe("setup quickstart flow", () => {
 
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
     const bindPort = await getFreePort();
-    const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      path.join(root, "data"),
-      path.join(root, "skills"),
-      path.join(root, "logs"),
-      "openai",
-      "openai-main",
-      "gpt-5.2",
-      "",
-      "openai-key",
-      "false",
-      "openai-main",
-      "true",
-      "upsert",
-      "telegram",
-      "telegram-main",
-      "true",
-      "true",
-      "telegram-token",
-      "123,456",
-      "done",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false"
-    ]);
+    const prompts = new ScriptedPromptAdapter(minimalTelegramAnswers(bindPort));
 
     const result = await runSetupQuickstart(
       state,
@@ -315,12 +274,14 @@ describe("setup quickstart flow", () => {
     expect(result.validationErrors).toBe(0);
     expect(fs.existsSync(configPath)).toBe(true);
     expect(fs.existsSync(envPath)).toBe(true);
-    expect(result.summary.some((line) => line.includes("Quickstart summary"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Quickstart complete"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("First reply checklist:"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Primary channel: telegram-main"))).toBe(true);
     expect(result.summary.some((line) => line.includes("PATH fallback:"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Direct Node fallback:"))).toBe(true);
   });
 
-  it("re-prompts invalid numeric and timezone inputs instead of silently accepting", async () => {
+  it("re-prompts invalid numeric, timezone, and Telegram chat ID inputs", async () => {
     const root = tempDir("openassist-quickstart-flow-reprompt-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -331,35 +292,24 @@ describe("setup quickstart flow", () => {
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
     const bindPort = await getFreePort();
     const prompts = new ScriptedPromptAdapter([
+      "false",
       "127.0.0.1",
       "not-a-port",
       String(bindPort),
-      "operator",
-      path.join(root, "data"),
-      path.join(root, "skills"),
-      path.join(root, "logs"),
       "openai",
       "openai-main",
       "gpt-5.2",
       "",
       "openai-key",
-      "false",
-      "openai-main",
-      "false",
+      "telegram",
+      "telegram-main",
+      "telegram-token",
+      "abc,123",
+      "123,-100999888777",
       "Frederick",
+      "Europe",
       "Europe/London",
-      "warn-degrade",
-      "abc",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "oops",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false"
+      "true"
     ]);
 
     const result = await runSetupQuickstart(
@@ -380,74 +330,6 @@ describe("setup quickstart flow", () => {
     expect(result.validationErrors).toBe(0);
     expect(state.config.runtime.bindPort).toBe(bindPort);
     expect(state.config.runtime.time.defaultTimezone).toBe("Europe/London");
-    expect(state.config.runtime.time.ntpCheckIntervalSec).toBe(300);
-    expect(state.config.runtime.scheduler.tickIntervalMs).toBe(1000);
-  });
-
-  it("re-prompts invalid Telegram chat IDs during quickstart channel onboarding", async () => {
-    const root = tempDir("openassist-quickstart-flow-chat-ids-");
-    const configPath = path.join(root, "openassist.toml");
-    const envPath = path.join(root, "openassistd.env");
-    const installDir = root;
-    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
-    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
-
-    const state = loadSetupQuickstartState(configPath, envPath, installDir);
-    const bindPort = await getFreePort();
-    const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      path.join(root, "data"),
-      path.join(root, "skills"),
-      path.join(root, "logs"),
-      "openai",
-      "openai-main",
-      "gpt-5.2",
-      "",
-      "openai-key",
-      "false",
-      "openai-main",
-      "true",
-      "upsert",
-      "telegram",
-      "telegram-main",
-      "true",
-      "true",
-      "telegram-token",
-      "abc,123",
-      "123,-100999888777",
-      "done",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false"
-    ]);
-
-    const result = await runSetupQuickstart(
-      state,
-      {
-        configPath,
-        envFilePath: envPath,
-        installDir,
-        allowIncomplete: false,
-        skipService: true,
-        requireTty: false,
-        preflightCommandChecks: false
-      },
-      prompts
-    );
-
-    expect(result.saved).toBe(true);
-    expect(state.config.runtime.channels).toHaveLength(1);
-    expect(state.config.runtime.channels[0]?.id).toBe("telegram-main");
     expect(state.config.runtime.channels[0]?.settings.allowedChatIds).toEqual([
       "123",
       "-100999888777"
@@ -466,31 +348,21 @@ describe("setup quickstart flow", () => {
     const bindPort = await getFreePort();
     const longApiKey = `sk-${"x".repeat(240)}`;
     const prompts = new ScriptedPromptAdapter([
+      "false",
       "127.0.0.1",
       String(bindPort),
-      "operator",
-      path.join(root, "data"),
-      path.join(root, "skills"),
-      path.join(root, "logs"),
       "openai",
       "openai-main",
       "gpt-5.2",
       "",
       longApiKey,
-      "false",
-      "openai-main",
-      "false",
+      "telegram",
+      "telegram-main",
+      "telegram-token",
+      "123,456",
+      "Europe",
       "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false"
+      "true"
     ]);
 
     const result = await runSetupQuickstart(
@@ -510,5 +382,87 @@ describe("setup quickstart flow", () => {
     expect(result.saved).toBe(true);
     expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY).toBe(longApiKey);
     expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY.length).toBe(longApiKey.length);
+  });
+
+  it("supports openai-compatible provider quickstart with Discord allow-list validation", async () => {
+    const root = tempDir("openassist-quickstart-flow-discord-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    const prompts = new ScriptedPromptAdapter(minimalDiscordCompatAnswers());
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    const provider = state.config.runtime.providers.find((entry) => entry.id === "compat-main");
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.defaultProviderId).toBe("compat-main");
+    expect(provider?.type).toBe("openai-compatible");
+    expect(provider?.baseUrl).toBe("http://127.0.0.1:11434/v1");
+    expect(state.config.runtime.channels[0]?.type).toBe("discord");
+    expect(state.config.runtime.channels[0]?.settings.allowedChannelIds).toEqual([
+      "123456789012345678",
+      "987654321098765432"
+    ]);
+    expect(state.env.OPENASSIST_CHANNEL_DISCORD_MAIN_BOT_TOKEN).toBe("discord-token");
+    expect(result.summary.some((line) => line.includes("Primary channel: discord-main (discord)"))).toBe(true);
+  });
+
+  it("supports anthropic quickstart with WhatsApp and auto-confirms timezone when confirmation is disabled", async () => {
+    const root = tempDir("openassist-quickstart-flow-whatsapp-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.time.requireTimezoneConfirmation = false;
+    state.config.runtime.bindPort = await getFreePort();
+    const prompts = new ScriptedPromptAdapter(minimalWhatsAppAnthropicAnswers());
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    const provider = state.config.runtime.providers.find((entry) => entry.id === "anthropic-main");
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.defaultProviderId).toBe("anthropic-main");
+    expect(provider?.type).toBe("anthropic");
+    expect(state.config.runtime.channels[0]?.type).toBe("whatsapp-md");
+    expect(state.config.runtime.channels[0]?.settings).toMatchObject({
+      mode: "production",
+      printQrInTerminal: false,
+      syncFullHistory: false,
+      maxReconnectAttempts: 10,
+      reconnectDelayMs: 5000
+    });
+    expect(state.config.runtime.time.defaultTimezone).toBe("Europe/London");
+    expect(result.summary.some((line) => line.includes("openassist channel qr --id whatsapp-main"))).toBe(true);
   });
 });

@@ -69,6 +69,13 @@ describe("cli command integration", () => {
     );
     assert.equal(result.code, 0, result.stderr || result.stdout);
     assert.ok(result.stdout.includes("Upgrade dry-run checks passed"), result.stdout);
+    assert.ok(result.stdout.includes("- Target ref: HEAD"), result.stdout);
+    assert.ok(
+      result.stdout.includes(
+        "rerun openassist upgrade with the install directory and target ref shown above"
+      ),
+      result.stdout
+    );
   });
 
   it("runs service install dry-run on supported platforms", async (t) => {

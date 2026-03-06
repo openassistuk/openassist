@@ -64,10 +64,6 @@ function printLines(lines: string[]): void {
   }
 }
 
-function quoteForDisplay(value: string): string {
-  return `"${value.replace(/"/g, '\\"')}"`;
-}
-
 function printUpgradeNextSteps(baseUrl: string, skipRestart: boolean): void {
   console.log("Next checks:");
   if (skipRestart) {
@@ -189,7 +185,7 @@ export function registerUpgradeCommand(program: Command): void {
             );
           }
           console.log(
-            `- Upgrade command: openassist upgrade --install-dir ${quoteForDisplay(installDir)} --ref ${quoteForDisplay(context.targetRef)}`
+            "- When ready to apply the update, rerun openassist upgrade with the install directory and target ref shown above."
           );
           printUpgradeNextSteps(baseUrl, skipRestart);
           return;

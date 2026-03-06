@@ -172,6 +172,8 @@ export function writeEnvTemplateIfMissing(filePath: string): void {
     "# Provider API keys:",
     "# OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY=replace-me",
     "# OPENASSIST_PROVIDER_ANTHROPIC_MAIN_API_KEY=replace-me",
+    "# Optional Brave Search API key for native web.search:",
+    "# OPENASSIST_TOOLS_WEB_BRAVE_API_KEY=replace-me",
     "# Optional secret key for encrypted OAuth token storage:",
     "# OPENASSIST_SECRET_KEY=base64:<32-byte-key-base64>",
     ""

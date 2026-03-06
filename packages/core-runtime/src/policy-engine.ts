@@ -13,6 +13,9 @@ const FULL_ROOT_ALLOWED_ACTIONS: ToolAction[] = [
   "fs.write",
   "fs.delete",
   "pkg.install",
+  "web.search",
+  "web.fetch",
+  "web.run",
   "provider.oauth.start",
   "provider.oauth.complete"
 ];

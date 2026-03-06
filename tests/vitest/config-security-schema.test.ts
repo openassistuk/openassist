@@ -55,6 +55,15 @@ function baseConfigInput(): Record<string, unknown> {
         allowExecFallback: true,
         sudoNonInteractive: true,
         allowedManagers: []
+      },
+      web: {
+        enabled: true,
+        searchMode: "hybrid",
+        requestTimeoutMs: 15_000,
+        maxRedirects: 5,
+        maxFetchBytes: 1_000_000,
+        maxSearchResults: 8,
+        maxPagesPerRun: 4
       }
     },
     security: {
@@ -114,5 +123,20 @@ describe("config schema security validation", () => {
     ];
 
     expect(() => parseConfig(input)).toThrow(/clientSecretEnv/);
+  });
+
+  it("accepts explicit native web tool configuration", () => {
+    const input = baseConfigInput();
+    (input.tools as any).web = {
+      enabled: true,
+      searchMode: "api-only",
+      requestTimeoutMs: 20_000,
+      maxRedirects: 4,
+      maxFetchBytes: 750_000,
+      maxSearchResults: 5,
+      maxPagesPerRun: 3
+    };
+
+    expect(() => parseConfig(input)).not.toThrow();
   });
 });

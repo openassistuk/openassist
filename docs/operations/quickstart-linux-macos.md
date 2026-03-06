@@ -68,6 +68,9 @@ Quickstart post-save service checks are recoverable:
 - health probes automatically fall back to loopback when bind address is wildcard (`0.0.0.0` / `::`)
 - prompt fields are validated and re-prompted (no silent numeric/timezone coercion); timezone uses guided `country/region -> city` selection
 - quickstart includes assistant profile defaults (name/persona/preferences) for global main-agent memory plus per-session host bootstrap context
+- quickstart also configures native web tooling (`tools.web.enabled`, `tools.web.searchMode`)
+- `hybrid` search mode is the recommended default: Brave Search API when `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is set, DuckDuckGo HTML fallback otherwise
+- `api-only` search mode is blocked unless `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is present
 
 Secret baseline enforced during setup/runtime:
 
@@ -126,7 +129,8 @@ After operator setup is complete:
 3. Confirm the bot replies.
 4. If provider/auth/runtime is broken, bot returns an operational diagnostic message.
 5. Send `/status` in chat for local runtime diagnostics without LLM/provider dependency.
-6. Send `/profile` to view persistent global assistant profile memory, or update it with:
+6. Confirm `/status` shows the correct session profile, callable tools, and native web mode for that session.
+7. Send `/profile` to view persistent global assistant profile memory, or update it with:
    - `/profile force=true; name=<name>; persona=<style>; prefs=<preferences>`
    - note: first-boot lock-in guard requires explicit `force=true` for profile changes
 
@@ -147,6 +151,8 @@ openassist policy-set --session <channel>:<conversationKey> --profile full-root
 openassist tools status --session <channel>:<conversationKey>
 openassist tools invocations --session <channel>:<conversationKey> --limit 20
 ```
+
+In `full-root`, OpenAssist may use host tools and native web tools (`web.search`, `web.fetch`, `web.run`). `openassist tools status` now shows both callable tools and native web backend state for the session.
 
 ## Quick Troubleshooting
 

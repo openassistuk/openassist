@@ -54,6 +54,8 @@ Dry run validates plan and prerequisites without mutating local checkout or serv
 - Keep env file and config backups in place before major version upgrades.
 - If rollback health check also fails, inspect service logs and restore from repository backups manually.
 - After major config-schema shifts, run `openassist setup quickstart --skip-service` or `openassist config validate` before restart.
+- After upgrading into the native web tooling release, confirm `openassist tools status --session <channel>:<conversationKey>` shows the expected native web mode and awareness summary for a representative session.
+- If `tools.web.searchMode` is `api-only` or `hybrid`, confirm the env file still contains `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` where intended.
 - Security baseline checks during upgrade:
   - unsupported `security.secretsBackend` values now fail fast (only `encrypted-file` is supported)
   - plaintext secret-like channel settings are rejected by config validation

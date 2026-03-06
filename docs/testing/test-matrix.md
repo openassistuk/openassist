@@ -75,6 +75,7 @@ Current suite files under `tests/vitest/`:
 - `fs-tool-delete.test.ts`
 - `fs-tool-write.test.ts`
 - `pkg-install-tool.test.ts`
+- `web-tool.test.ts`
 - `tool-loop-runtime.test.ts`
 - `runtime-config-tools-wiring.test.ts`
 - `observability-redaction.test.ts`
@@ -102,6 +103,7 @@ Current suite files under `tests/node/`:
 - `cli-setup-quickstart-runtime.test.ts`
 - `cli-setup-post-save-recovery.test.ts`
 - `cli-setup-wizard.test.ts`
+- `cli-setup-web-coverage.test.ts`
 - `cli-service-lifecycle.test.ts`
 - `cli-service-manager-coverage.test.ts`
 - `cli-upgrade-rollback.test.ts`
@@ -165,8 +167,10 @@ Current suite files under `tests/node/`:
 18. Chat-driven tool loop executes end-to-end in `full-root` sessions and remains disabled in `operator/restricted`.
 19. Tool invocation audit rows persist complete lifecycle (`running -> succeeded/failed/blocked`).
 20. Guardrail blocks are visible and deterministic for destructive command patterns.
-21. Provider tool-call mapping contracts (OpenAI/Anthropic/OpenAI-compatible) remain interoperable.
-22. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
+21. `/status` and `openassist tools status` show the same awareness boundary the model receives, including callable tools and native web backend state.
+22. Native web tools remain bounded: `web.search`/`web.fetch`/`web.run` work only in `full-root`, stay within HTTP/redirect/byte/result caps, and return structured unavailable guidance when no backend is configured.
+23. Provider tool-call mapping contracts (OpenAI/Anthropic/OpenAI-compatible) remain interoperable.
+24. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
 
 ## Remaining Gaps
 

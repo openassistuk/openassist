@@ -1,3 +1,4 @@
+export * from "./awareness.js";
 export * from "./context.js";
 export * from "./clock-health.js";
 export * from "./policy-engine.js";

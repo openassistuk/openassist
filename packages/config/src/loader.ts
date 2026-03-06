@@ -165,6 +165,15 @@ export function writeDefaultConfig(filePath: string): void {
         allowExecFallback: true,
         sudoNonInteractive: true,
         allowedManagers: []
+      },
+      web: {
+        enabled: true,
+        searchMode: "hybrid",
+        requestTimeoutMs: 15000,
+        maxRedirects: 5,
+        maxFetchBytes: 1000000,
+        maxSearchResults: 8,
+        maxPagesPerRun: 4
       }
     },
     security: {

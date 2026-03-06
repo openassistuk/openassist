@@ -3,7 +3,11 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createDefaultConfigObject, toProviderApiKeyEnvVar } from "../../apps/openassist-cli/src/lib/config-edit.js";
+import {
+  createDefaultConfigObject,
+  toProviderApiKeyEnvVar,
+  toWebBraveApiKeyEnvVar
+} from "../../apps/openassist-cli/src/lib/config-edit.js";
 import { validateSetupReadiness } from "../../apps/openassist-cli/src/lib/setup-validation.js";
 
 function tempDir(prefix: string): string {
@@ -148,5 +152,49 @@ describe("setup quickstart validation", () => {
 
     expect(result.errors.some((item) => item.code === "provider.default_auth_missing")).toBe(false);
     expect(result.warnings.some((item) => item.code === "provider.default_oauth_pending")).toBe(true);
+  });
+
+  it("requires Brave API configuration in api-only web mode", async () => {
+    const root = tempDir("openassist-quickstart-validation-web-api-only-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.tools.web.searchMode = "api-only";
+    const apiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {
+        [apiKeyVar]: "test-key"
+      },
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(result.errors.some((item) => item.code === "tools.web_brave_api_key_missing")).toBe(true);
+  });
+
+  it("warns when hybrid web mode will run in fallback only", async () => {
+    const root = tempDir("openassist-quickstart-validation-web-hybrid-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    const apiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {
+        [apiKeyVar]: "test-key",
+        [toWebBraveApiKeyEnvVar()]: ""
+      },
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(result.warnings.some((item) => item.code === "tools.web_hybrid_fallback_only")).toBe(true);
   });
 });

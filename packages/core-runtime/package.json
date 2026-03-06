@@ -24,6 +24,7 @@
     "@openassist/tools-exec": "workspace:*",
     "@openassist/tools-fs": "workspace:*",
     "@openassist/tools-package": "workspace:*",
+    "@openassist/tools-web": "workspace:*",
     "cron-parser": "^5.5.0",
     "luxon": "^3.7.2"
   },

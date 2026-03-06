@@ -201,6 +201,15 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
         allowExecFallback: true,
         sudoNonInteractive: true,
         allowedManagers: []
+      },
+      web: {
+        enabled: true,
+        searchMode: "hybrid",
+        requestTimeoutMs: 15_000,
+        maxRedirects: 5,
+        maxFetchBytes: 1_000_000,
+        maxSearchResults: 8,
+        maxPagesPerRun: 4
       }
     },
     security: {

@@ -10,6 +10,8 @@ It runs as a single daemon (`openassistd`) with a CLI control plane (`openassist
 - connect LLM providers to real chat channels
 - run scheduled AI tasks with durable replay
 - gate host-impacting actions behind explicit policy profiles
+- ground every chat turn with runtime self-awareness about the current host, profile, tool boundary, and native web availability
+- expose native web search/fetch/research tools for `full-root` sessions
 - operate and debug everything from terminal and chat diagnostics
 
 `Service Smoke` is a supplemental lifecycle workflow (manual + schedule at Mon/Thu 06:00 UTC), not a required push/PR gate.
@@ -23,6 +25,7 @@ It runs as a single daemon (`openassistd`) with a CLI control plane (`openassist
 - Restart-safe behavior: durable queue replay + idempotent scheduler execution.
 - Practical onboarding: strict `setup quickstart` path plus advanced `setup wizard`.
 - Operator diagnostics by default: `/status` works from chat even when provider auth fails.
+- Runtime grounding by default: every provider turn includes a bounded awareness snapshot so the model knows what OpenAssist is, where it is running, and what tools are actually callable.
 
 ## Supported Today
 
@@ -90,6 +93,8 @@ Key behavior:
 - guided timezone onboarding uses `country/region -> city`
 - health probes fall back to loopback when bind address is wildcard (`0.0.0.0` / `::`)
 - Linux service manager auto-selection: non-root -> `systemd --user`, root -> system-level `systemd`
+- quickstart and wizard can enable native web tooling and set `tools.web.searchMode` (`hybrid` recommended)
+- `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` enables Brave Search API; without it, `hybrid` mode falls back to DuckDuckGo HTML search
 
 ### 4) Verify daemon and runtime health
 
@@ -233,6 +238,7 @@ openassist tools invocations --session <channel>:<conversationKey> --limit 20
 ## In-Chat Diagnostics and Profile Memory
 
 - `/status`: returns local runtime diagnostics without provider dependency.
+- `/status` includes the same awareness boundary the model sees: session profile, callable tools, configured tool families, and native web mode/status.
 - `/profile`: shows persisted global assistant profile memory.
 - `/profile force=true; name=<name>; persona=<style>; prefs=<preferences>`: updates global profile memory with explicit force semantics.
 
@@ -241,12 +247,13 @@ openassist tools invocations --session <channel>:<conversationKey> --limit 20
 Default profile is `operator`.
 
 - `restricted` and `operator`: no autonomous tool loop
-- `full-root`: autonomous tool execution enabled for that session
+- `full-root`: autonomous tool execution enabled for that session, including `exec.run`, `fs.*`, optional `pkg.install`, and native web tools (`web.search`, `web.fetch`, `web.run`)
 
 Safety defaults include:
 
 - bounded tool-call rounds per model turn
 - guardrails for catastrophic command patterns
+- HTTP-first native web tooling only (`http`/`https`, no browser automation or JS execution)
 - durable audit rows for every tool invocation lifecycle state
 - redacted tool request/result payload storage
 
@@ -265,6 +272,7 @@ Safety defaults include:
 - `apps/openassistd`: daemon process + HTTP API
 - `apps/openassist-cli`: operator lifecycle and diagnostics CLI
 - `packages/core-runtime`: orchestration, policy engine, scheduler/time, tool loop
+- `packages/tools-web`: native web search/fetch/research tools with bounded HTTP extraction
 - `packages/storage-sqlite`: durable runtime state and audit persistence
 - `packages/providers-*`: provider adapters
 - `packages/channels-*`: channel adapters

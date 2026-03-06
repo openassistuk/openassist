@@ -28,6 +28,7 @@ import { createLogger } from "../../packages/observability/src/index.js";
 class MockProvider implements ProviderAdapter {
   public chatCalls = 0;
   public lastOAuthCodeVerifier: string | undefined;
+  public requests: ChatRequest[] = [];
 
   id(): string {
     return "mock-provider";
@@ -66,8 +67,9 @@ class MockProvider implements ProviderAdapter {
     };
   }
 
-  async chat(): Promise<any> {
+  async chat(req: ChatRequest): Promise<any> {
     this.chatCalls += 1;
+    this.requests.push(req);
     return {
       output: { role: "assistant", content: "hello from mock <think>secret</think>" },
       usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }
@@ -1059,6 +1061,109 @@ describe("OpenAssistRuntime", () => {
     assert.equal(channel.sent.length, 1);
     assert.match(channel.sent[0]?.text ?? "", /openassist local status/i);
     assert.match(channel.sent[0]?.text ?? "", /default provider: mock-provider/i);
+    assert.match(channel.sent[0]?.text ?? "", /native web:/i);
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("injects layered awareness snapshots and refreshes callable tool visibility by profile", async () => {
+    const root = tempDir("openassist-runtime-awareness-");
+    roots.push(root);
+
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const provider = new MockProvider();
+    const channel = new MockChannel();
+    const runtimeConfig: RuntimeConfig = {
+      bindAddress: "127.0.0.1",
+      bindPort: 3344,
+      defaultProviderId: "mock-provider",
+      providers: [
+        {
+          id: "mock-provider",
+          type: "openai-compatible",
+          defaultModel: "x"
+        }
+      ],
+      channels: [
+        {
+          id: "telegram-mock",
+          type: "telegram",
+          enabled: true,
+          settings: {}
+        }
+      ],
+      defaultPolicyProfile: "operator",
+      paths: {
+        dataDir: root,
+        skillsDir: path.join(root, "skills"),
+        logsDir: path.join(root, "logs")
+      },
+      time: {
+        ntpPolicy: "off",
+        ntpCheckIntervalSec: 300,
+        ntpMaxSkewMs: 10_000,
+        ntpHttpSources: [],
+        requireTimezoneConfirmation: false
+      },
+      scheduler: {
+        enabled: false,
+        tickIntervalMs: 1000,
+        heartbeatIntervalSec: 30,
+        defaultMisfirePolicy: "catch-up-once",
+        tasks: []
+      }
+    };
+
+    const runtime = new OpenAssistRuntime(
+      runtimeConfig,
+      { db, logger },
+      { providers: [provider], channels: [channel] }
+    );
+    runtime.setProviderApiKey("mock-provider", "key");
+    await runtime.start();
+
+    await channel.emit({
+      channel: "telegram",
+      transportMessageId: "m-awareness-1",
+      conversationKey: "c-awareness",
+      senderId: "u1",
+      text: "what are you",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "awareness-1"
+    });
+
+    assert.equal(provider.requests.length, 1);
+    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /runtime awareness snapshot/i);
+    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /profile=operator/i);
+    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /callable tools now: none/i);
+
+    const bootstrap = db.getSessionBootstrap("telegram:c-awareness");
+    assert.ok(bootstrap);
+    assert.equal(
+      ((bootstrap?.systemProfile.awareness as any)?.policy?.profile ?? ""),
+      "operator"
+    );
+
+    await runtime.setPolicyProfile("telegram:c-awareness", "full-root");
+    await channel.emit({
+      channel: "telegram",
+      transportMessageId: "m-awareness-2",
+      conversationKey: "c-awareness",
+      senderId: "u1",
+      text: "what can you do now",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "awareness-2"
+    });
+
+    assert.equal(provider.requests.length, 2);
+    assert.match(provider.requests[1]?.messages[1]?.content ?? "", /profile=full-root/i);
+    assert.match(provider.requests[1]?.messages[1]?.content ?? "", /exec\.run/i);
+    assert.match(provider.requests[1]?.messages[1]?.content ?? "", /web\.search/i);
+    assert.ok(provider.requests[1]?.tools.some((item) => item.name === "web.run"));
 
     await runtime.stop();
     db.close();

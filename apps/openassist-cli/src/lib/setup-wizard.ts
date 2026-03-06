@@ -5,7 +5,8 @@ import {
   loadWizardState,
   saveWizardState,
   toChannelSecretEnvVar,
-  toProviderApiKeyEnvVar
+  toProviderApiKeyEnvVar,
+  toWebBraveApiKeyEnvVar
 } from "./config-edit.js";
 import {
   promptBindAddress,
@@ -73,6 +74,10 @@ export function createInquirerPromptAdapter(): PromptAdapter {
 
 function providerSupportsOAuth(type: OpenAssistConfig["runtime"]["providers"][number]["type"]): boolean {
   return type === "openai" || type === "anthropic";
+}
+
+function hasEnvValue(env: Record<string, string>, key: string): boolean {
+  return typeof env[key] === "string" && env[key].trim().length > 0;
 }
 
 function parseCsv(value: string): string[] {
@@ -777,6 +782,74 @@ async function editToolsAndSecurity(state: SetupWizardState, prompts: PromptAdap
     "Enable audit logging?",
     state.config.security.auditLogEnabled
   );
+  state.config.tools.web.enabled = await prompts.confirm(
+    "Enable native web tools?",
+    state.config.tools.web.enabled
+  );
+  if (state.config.tools.web.enabled) {
+    state.config.tools.web.searchMode = await prompts.select(
+      "Native web search mode",
+      [
+        {
+          name: "hybrid (Brave API when configured, otherwise DuckDuckGo fallback)",
+          value: "hybrid"
+        },
+        {
+          name: "api-only (Brave API required)",
+          value: "api-only"
+        },
+        {
+          name: "fallback-only (DuckDuckGo HTML fallback only)",
+          value: "fallback-only"
+        }
+      ],
+      state.config.tools.web.searchMode
+    );
+    state.config.tools.web.requestTimeoutMs = await promptInteger(
+      prompts,
+      "Web tool request timeout (ms)",
+      state.config.tools.web.requestTimeoutMs,
+      { min: 1000, max: 120_000 }
+    );
+    state.config.tools.web.maxRedirects = await promptInteger(
+      prompts,
+      "Web fetch max redirects",
+      state.config.tools.web.maxRedirects,
+      { min: 0, max: 10 }
+    );
+    state.config.tools.web.maxFetchBytes = await promptInteger(
+      prompts,
+      "Web fetch max bytes",
+      state.config.tools.web.maxFetchBytes,
+      { min: 1024, max: 5_000_000 }
+    );
+    state.config.tools.web.maxSearchResults = await promptInteger(
+      prompts,
+      "Web search max results",
+      state.config.tools.web.maxSearchResults,
+      { min: 1, max: 20 }
+    );
+    state.config.tools.web.maxPagesPerRun = await promptInteger(
+      prompts,
+      "Web run max pages",
+      state.config.tools.web.maxPagesPerRun,
+      { min: 1, max: 10 }
+    );
+
+    if (state.config.tools.web.searchMode !== "fallback-only") {
+      const braveVar = toWebBraveApiKeyEnvVar();
+      const updateKey = await prompts.confirm(
+        `Update ${braveVar} in env file?`,
+        hasEnvValue(state.env, braveVar)
+      );
+      if (updateKey) {
+        const key = await prompts.password("Brave Search API key (blank keeps current value)");
+        if (key.trim().length > 0) {
+          state.env[braveVar] = key.trim();
+        }
+      }
+    }
+  }
   state.config.security.secretsBackend = "encrypted-file";
   console.log("Secrets backend is fixed to encrypted-file for secure cross-platform behavior.");
 }

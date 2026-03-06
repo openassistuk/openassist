@@ -56,6 +56,15 @@ describe("runtime config tools wiring", () => {
           allowExecFallback: true,
           sudoNonInteractive: true,
           allowedManagers: ["npm"]
+        },
+        web: {
+          enabled: true,
+          searchMode: "api-only",
+          requestTimeoutMs: 20_000,
+          maxRedirects: 4,
+          maxFetchBytes: 500_000,
+          maxSearchResults: 6,
+          maxPagesPerRun: 3
         }
       },
       security: {
@@ -69,6 +78,8 @@ describe("runtime config tools wiring", () => {
     expect(runtimeConfig.tools?.exec.defaultTimeoutMs).toBe(45_000);
     expect(runtimeConfig.tools?.exec.guardrails.mode).toBe("strict");
     expect(runtimeConfig.tools?.pkg.enabled).toBe(false);
+    expect(runtimeConfig.tools?.web.searchMode).toBe("api-only");
+    expect(runtimeConfig.tools?.web.maxPagesPerRun).toBe(3);
     expect(runtimeConfig.security?.auditLogEnabled).toBe(true);
   });
 });

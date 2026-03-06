@@ -121,6 +121,15 @@ allowExecFallback = true
 sudoNonInteractive = true
 allowedManagers = []
 
+[tools.web]
+enabled = true
+searchMode = "hybrid"
+requestTimeoutMs = 15000
+maxRedirects = 5
+maxFetchBytes = 1000000
+maxSearchResults = 8
+maxPagesPerRun = 4
+
 [security]
 auditLogEnabled = true
 secretsBackend = "encrypted-file"

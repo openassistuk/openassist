@@ -16,6 +16,8 @@ V1.4 adds a chat-driven autonomous tool loop:
 3. tool results are fed back to provider
 4. provider returns final assistant output for channel delivery
 
+Each provider turn also carries a bounded runtime-awareness system message so the model knows what OpenAssist is, which host/runtime boundary applies to the current session, which tools are configured, which tools are callable, and whether native web search is available.
+
 ## Core Types
 
 `ToolCall`:
@@ -63,6 +65,28 @@ Current runtime-exposed tool names:
 - `fs.write`
 - `fs.delete`
 - `pkg.install` (omitted from schema list when disabled in config)
+- `web.search`
+- `web.fetch`
+- `web.run`
+
+`web.*` schemas are exposed only when both are true:
+
+- session policy profile is `full-root`
+- `tools.web.enabled=true`
+
+`GET /v1/tools/status` and `openassist tools status` now report both configured tool families and currently callable tools, plus native web backend mode and an awareness summary.
+
+## Runtime Awareness Contract
+
+Runtime persists a normalized awareness snapshot in the existing `session_bootstrap.systemProfile` payload and refreshes it whenever policy profile, runtime tool enablement, or other key runtime state changes.
+
+The awareness snapshot includes:
+
+- software identity (`OpenAssist`, local-first gateway role)
+- host summary (platform, release, arch, hostname, Node version, workspace root when known)
+- runtime/session state (session ID, provider IDs, channel IDs, timezone, runtime modules)
+- policy/autonomy state (profile, callable tools, configured tools, negative capability text)
+- native web state (`enabled`, `searchMode`, `searchStatus`, callable `web.*` tools)
 
 ## Tool Loop Behavior
 
@@ -140,3 +164,11 @@ CLI commands:
 - policy action: `pkg.install`
 - manager detection + optional manager pin
 - optional non-interactive elevation via `sudo -n` on Unix
+
+`web.search` / `web.fetch` / `web.run`:
+
+- policy actions: `web.search`, `web.fetch`, `web.run`
+- exposed only in `full-root`
+- HTTP-first only (`http` and `https`)
+- redirect count, response bytes, result counts, and pages-per-run are bounded
+- no browser automation and no JavaScript page execution in this release

@@ -56,10 +56,13 @@ pnpm --filter @openassist/openassist-cli dev -- setup env --env-file ~/.config/o
      - `responseMode=inline` (no forced reply-thread behavior)
    - Optional threaded behavior can be enabled with `conversationMode=chat-thread` and `responseMode=reply-threaded`.
 6. Time/scheduler onboarding: timezone, NTP policy, scheduler defaults, optional first task.
-7. Validation gate: strict blocking by default.
-8. Save + backup: config backup and env write.
-9. Service + health: install/restart/health checks unless `--skip-service`.
-10. Prompt-level validation re-prompts invalid values (no silent coercion):
+7. Tool defaults and native web onboarding: autonomous tool defaults, `tools.web.enabled`, `tools.web.searchMode`, and optional Brave API key env capture.
+   - `hybrid` is the recommended default: Brave Search API when `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is set, DuckDuckGo HTML fallback otherwise.
+   - `api-only` is blocked at validation time when `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is missing.
+8. Validation gate: strict blocking by default.
+9. Save + backup: config backup and env write.
+10. Service + health: install/restart/health checks unless `--skip-service`.
+11. Prompt-level validation re-prompts invalid values (no silent coercion):
    - numeric/range checks for port/time/scheduler/tool timeout fields
    - guided timezone picker (`country/region -> city`) using DST-aware Country/City IANA zones
    - provider/channel prompts accept friendly names and auto-generate internal IDs
@@ -80,6 +83,7 @@ Strict default behavior:
 - blocks plaintext secret-like channel settings (`token`, `secret`, `apiKey`, `password`, etc.) unless values are `env:VAR_NAME`
 - blocks invalid provider OAuth `clientSecretEnv` names
 - blocks missing timezone confirmation when required
+- blocks `tools.web.searchMode="api-only"` when `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is not configured
 - blocks service-readiness issues when service step is enabled
 
 Override path:
@@ -102,6 +106,11 @@ Security section behavior:
 
 - backend selection is fixed to `encrypted-file` (no `os-keyring` option)
 - runtime rejects unsupported legacy backend values at startup
+- tools/security editing also covers native web settings:
+  - `tools.web.enabled`
+  - `tools.web.searchMode`
+  - request timeout, redirect limit, fetch byte limit, search-result limit, and page limit
+  - optional env-file update for `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY`
 
 Use wizard when you need focused edits instead of linear onboarding.
 
@@ -151,6 +160,13 @@ Example:
 botToken = "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN"
 ```
 
+Native web search credential example:
+
+```toml
+# in openassistd.env
+OPENASSIST_TOOLS_WEB_BRAVE_API_KEY=...
+```
+
 Provider OAuth example:
 
 ```toml
@@ -178,6 +194,7 @@ openassist tools invocations --session <channel>:<conversationKey> --limit 20
 Channel diagnostics without provider dependency:
 
 - send `/status` in Telegram/Discord/WhatsApp to get local runtime/time/scheduler/channel profile status
+- `/status` now includes awareness summary, callable tools, configured tool families, and native web backend state for the current session
 - if provider/auth/runtime errors occur during normal chat, runtime returns an operational diagnostic reply instead of silent failure
 
 Global assistant profile memory commands (shared across chats for the main agent):

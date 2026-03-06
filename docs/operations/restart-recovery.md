@@ -41,6 +41,8 @@ Assistant profile memory and host context are also durable:
 - `/profile` reads persisted global assistant profile memory
 - `/profile force=true; ...` updates persisted global assistant profile memory (first-boot lock-in guard blocks non-force updates)
 - first-contact profile bootstrap prompt state and host profile context persist per session in `session_bootstrap`
+- per-session host context now includes a layered runtime awareness snapshot (software identity, host summary, session profile, configured/callable tools, native web state)
+- runtime refreshes the stored awareness snapshot when session policy or runtime tool configuration changes, keeping restarts deterministic without unbounded transcript growth
 
 Autonomous tool calls are executed inline but audited durably:
 
@@ -80,6 +82,7 @@ openassist service health
 In-channel diagnostic command:
 
 - send `/status` to receive runtime/time/scheduler/channel profile status without provider dependency
+- `/status` now exposes the same awareness boundary the model sees, including callable tools and native web backend state
 - send `/profile` to view memory and `/profile force=true; ...` to update persistent global assistant profile memory
 
 ## Setup/Service Interaction

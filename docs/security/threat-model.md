@@ -39,6 +39,15 @@ Controls:
 - audit logs for tool activity (`tool.call.*`, `audit.exec`, `audit.fs.*`, `audit.pkg.install`)
 - minimal exec guardrails enabled by default
 
+### Capability confusion and tool overclaiming
+
+Controls:
+
+- runtime injects a bounded awareness snapshot on every provider turn
+- the same awareness boundary is exposed to operators via `/status` and `openassist tools status`
+- awareness snapshot includes explicit negative capability text when autonomy is disabled or native web search is unavailable
+- awareness snapshots are persisted in `session_bootstrap` without raw secrets and refreshed when policy/tool state changes
+
 ### Secret leakage
 
 Controls:
@@ -77,6 +86,7 @@ Controls:
 - first-boot lock-in guard requires explicit force confirmation (`/profile force=true; ...`) before profile updates are applied
 - first-contact profile prompt is configurable (`runtime.assistant.promptOnFirstContact`) and does not execute host tools
 - global profile + per-session host context are injected as bounded system context only; no secret env values are injected into profile memory payloads
+- per-session host context now includes layered runtime awareness state, but only normalized host/runtime/policy/tool metadata is stored
 
 ### Clock drift and scheduling errors
 
@@ -106,6 +116,17 @@ Controls:
 - unsolicited provider tool calls are ignored when session autonomy is not enabled
 - `pkg.install` elevation behavior is explicit (`sudo -n` non-interactive on Unix when required)
 
+### Native web retrieval misuse
+
+Controls:
+
+- `web.search`, `web.fetch`, and `web.run` are gated to `full-root`
+- web tooling supports only `http` and `https`; local file and browser schemes are rejected
+- redirects, response bytes, result counts, and pages-per-run are capped
+- extraction is deterministic HTTP fetch plus HTML/text parsing only; there is no headless browser or JavaScript execution path in this release
+- Brave Search API is used only when `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is configured; otherwise hybrid mode uses DuckDuckGo HTML fallback or returns structured unavailable guidance
+- web fetch/search audit events record backend and URL metadata without storing raw secrets
+
 ## Additional Hardening
 
 - loopback bind default
@@ -125,4 +146,5 @@ Controls:
 - keep `~/.config/openassist/openassistd.env` at mode `0600` on Unix hosts
 - use `openassist policy-set --session <channel>:<conversationKey> --profile full-root` only for sessions that require autonomous host actions
 - review `openassist tools invocations` during incident triage and after privileged automation runs
+- use `openassist tools status --session <channel>:<conversationKey>` to confirm callable tools and native web mode before enabling sensitive sessions
 - use in-channel `/status` for quick local diagnostics; avoid pasting raw service logs containing secrets into public channels

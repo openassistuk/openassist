@@ -65,6 +65,15 @@ function defaultConfigObjectRaw(): Record<string, unknown> {
       },
       exec: {
         defaultTimeoutMs: 60_000
+      },
+      web: {
+        enabled: true,
+        searchMode: "hybrid",
+        requestTimeoutMs: 15_000,
+        maxRedirects: 5,
+        maxFetchBytes: 1_000_000,
+        maxSearchResults: 8,
+        maxPagesPerRun: 4
       }
     },
     security: {
@@ -135,6 +144,10 @@ export function saveWizardState(
 
 export function toProviderApiKeyEnvVar(providerId: string): string {
   return `OPENASSIST_PROVIDER_${providerId.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_API_KEY`;
+}
+
+export function toWebBraveApiKeyEnvVar(): string {
+  return "OPENASSIST_TOOLS_WEB_BRAVE_API_KEY";
 }
 
 export function toProviderOAuthClientSecretEnvVar(providerId: string): string {

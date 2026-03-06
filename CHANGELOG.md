@@ -8,6 +8,19 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Layered runtime-awareness contract on every provider turn:
+  - bounded awareness snapshot covers OpenAssist software identity, host summary, runtime/session state, session policy/autonomy state, configured vs callable tools, and native web status
+  - normalized awareness snapshot is persisted in `session_bootstrap.systemProfile` and refreshed when session profile or runtime tool configuration changes
+  - `/status` and `openassist tools status` now expose the same awareness boundary the model sees
+- First-class native web tooling owned by the runtime:
+  - new `packages/tools-web` package with `web.search`, `web.fetch`, and `web.run`
+  - Brave Search API primary backend via `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY`
+  - DuckDuckGo HTML fallback in `tools.web.searchMode="hybrid"`
+  - bounded HTTP-only extraction with redirect/byte/result/page limits, citations, and final-URL metadata
+- Setup quickstart and setup wizard native web onboarding:
+  - edit `tools.web.enabled` and `tools.web.searchMode`
+  - optional env-file capture for `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY`
+  - strict validation blocks `api-only` mode when Brave API credentials are absent
 - Public governance baseline for open-source release readiness:
   - `SECURITY.md` (private vulnerability reporting workflow via GitHub Security Advisories)
   - `CONTRIBUTING.md` (PR-only contribution flow, verification gates, and engineering discipline)
@@ -18,6 +31,8 @@ The format follows Keep a Changelog conventions and this project currently track
 - Additional node integration coverage suite for timezone/setup prompt validation branches: `tests/node/cli-prompt-validation-coverage.test.ts`.
 - Runtime hardening for autonomous tool loop: unsolicited provider tool calls are ignored when session autonomy is not enabled.
 - Regression test coverage for non-`full-root` unsolicited tool-call behavior.
+- Runtime tool schema exposure and status reporting now distinguish configured tool families from currently callable tools, which makes `operator`/`restricted` negative capability explicit for both host tools and native web tools.
+- Provider requests now include a bounded runtime-awareness system message instead of the previous small host-profile dump.
 - Setup-wizard post-save operational validation flow (`service restart` + daemon health + time status + scheduler status checks, with optional service install prompt).
 - Bootstrap PATH profile integration for direct wrapper commands (`openassist`, `openassistd`) in shell startup files.
 - Setup quickstart and setup wizard post-save recovery actions for failed service/health checks (`retry`, `skip`, `abort`) instead of hard-stop behavior.
@@ -61,6 +76,7 @@ The format follows Keep a Changelog conventions and this project currently track
   - upgrade runbook no longer mentions a non-existent dirty-tree override
   - test-matrix inventory now matches current on-disk test suites
 - Security/interface/operations docs synchronized to reflect runtime-side unsolicited tool-call rejection semantics.
+- Interface/security/operations docs now describe layered awareness snapshots, native web tool contracts, setup validation for web search mode, and `/status` capability reporting.
 - Linux/macOS install and quickstart runbooks now describe automatic PATH profile updates and wizard post-save checks.
 - Wizard post-save checks now skip cleanly (with explicit messaging) on unsupported service-manager platforms.
 - Ubuntu/Debian bootstrap now installs Node 22 via NodeSource instead of relying on distro `nodejs` versions that can be below minimum.

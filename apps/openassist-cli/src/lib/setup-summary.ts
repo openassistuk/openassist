@@ -1,5 +1,5 @@
 import type { OpenAssistConfig } from "@openassist/config";
-import { toProviderApiKeyEnvVar } from "./config-edit.js";
+import { toProviderApiKeyEnvVar, toWebBraveApiKeyEnvVar } from "./config-edit.js";
 
 function collectChannelEnvRefs(
   settings: Record<string, string | number | boolean | string[]>,
@@ -37,6 +37,9 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   for (const provider of input.config.runtime.providers) {
     envRefs.add(toProviderApiKeyEnvVar(provider.id));
   }
+  if (input.config.tools.web.searchMode !== "fallback-only") {
+    envRefs.add(toWebBraveApiKeyEnvVar());
+  }
   for (const channel of input.config.runtime.channels) {
     collectChannelEnvRefs(channel.settings, envRefs);
   }
@@ -54,6 +57,13 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   lines.push(`- Channels: ${input.config.runtime.channels.map((item) => item.id).join(", ") || "(none)"}`);
   lines.push(`- Scheduler tasks: ${input.config.runtime.scheduler.tasks.length}`);
   lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
+  lines.push(
+    `- Native web tools: ${
+      input.config.tools.web.enabled
+        ? `${input.config.tools.web.searchMode} mode`
+        : "disabled"
+    }`
+  );
   lines.push(`- Secret refs in config: ${Array.from(envRefs).sort().join(", ") || "(none)"}`);
   lines.push(`- Env keys changed in this run: ${input.changedEnvKeys.join(", ") || "(none)"}`);
   lines.push(`- Validation warnings: ${input.warningCount}`);

@@ -124,6 +124,7 @@ describe("cli setup wizard", () => {
       "true",
       "60000",
       "true",
+      "false",
       // Save
       "save"
     ]);

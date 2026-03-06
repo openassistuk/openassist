@@ -12,6 +12,7 @@ import type {
   ProviderAdapter,
   ProviderAuthHandle,
   RuntimeConfig,
+  RuntimeAwarenessSnapshot,
   RuntimeStatus,
   ScheduledTaskConfig,
   ToolCall,
@@ -24,7 +25,13 @@ import { FileSkillRuntime } from "@openassist/skills-engine";
 import { ExecTool } from "@openassist/tools-exec";
 import { FsTool } from "@openassist/tools-fs";
 import { PackageInstallTool } from "@openassist/tools-package";
+import { WebTool } from "@openassist/tools-web";
 import { redactSensitiveData, type OpenAssistLogger } from "@openassist/observability";
+import {
+  buildRuntimeAwarenessSnapshot,
+  buildRuntimeAwarenessSystemMessage,
+  summarizeRuntimeAwareness
+} from "./awareness.js";
 import { ContextPlanner, sanitizeUserOutput } from "./context.js";
 import {
   ClockHealthMonitor,
@@ -53,7 +60,8 @@ export interface RuntimeAuthMap {
 
 function defaultSystemPrompt(): string {
   return [
-    "You are OpenAssist, a modular local AI gateway assistant.",
+    "You are OpenAssist, a modular local-first AI gateway assistant.",
+    "Use the runtime awareness snapshot to stay grounded in what OpenAssist is, where it is running, and what it can and cannot do right now.",
     "Never expose internal reasoning metadata to messaging channels.",
     "Use concise, actionable responses and report errors clearly."
   ].join("\n");
@@ -214,6 +222,16 @@ const DEFAULT_PKG_TOOLS = {
   allowedManagers: [] as string[]
 };
 
+const DEFAULT_WEB_TOOLS = {
+  enabled: true,
+  searchMode: "hybrid" as const,
+  requestTimeoutMs: 15_000,
+  maxRedirects: 5,
+  maxFetchBytes: 1_000_000,
+  maxSearchResults: 8,
+  maxPagesPerRun: 4
+};
+
 const DEFAULT_ASSISTANT_CONFIG = {
   name: "OpenAssist",
   persona: "Pragmatic, concise, and execution-focused local AI assistant.",
@@ -247,10 +265,11 @@ export class OpenAssistRuntime {
   private readonly contextPlanner = new ContextPlanner();
   private readonly recoveryWorker: RecoveryWorker;
   private readonly skillRuntime: FileSkillRuntime;
-  private readonly execTool: ExecTool;
-  private readonly fsTool: FsTool;
-  private readonly pkgTool: PackageInstallTool;
-  private readonly toolRouter: RuntimeToolRouter;
+  private execTool!: ExecTool;
+  private fsTool!: FsTool;
+  private pkgTool!: PackageInstallTool;
+  private webTool!: WebTool;
+  private toolRouter!: RuntimeToolRouter;
   private readonly secretBox: SecretBox;
   private readonly clockHealthMonitor: ClockHealthMonitor;
   private readonly schedulerWorker: SchedulerWorker;
@@ -290,46 +309,6 @@ export class OpenAssistRuntime {
       defaultProfile: config.defaultPolicyProfile
     });
 
-    const fsToolsConfig = config.tools?.fs ?? DEFAULT_FS_TOOLS;
-    const execToolsConfig = config.tools?.exec ?? DEFAULT_EXEC_TOOLS;
-    const pkgToolsConfig = config.tools?.pkg ?? DEFAULT_PKG_TOOLS;
-
-    this.execTool = new ExecTool({
-      policyEngine: this.policyEngine,
-      logger: this.logger,
-      defaultTimeoutMs: execToolsConfig.defaultTimeoutMs,
-      guardrails: {
-        mode: execToolsConfig.guardrails.mode,
-        extraBlockedPatterns: execToolsConfig.guardrails.extraBlockedPatterns
-      }
-    });
-
-    this.fsTool = new FsTool({
-      policyEngine: this.policyEngine,
-      logger: this.logger,
-      workspaceRoot: config.workspaceRoot,
-      workspaceOnly: fsToolsConfig.workspaceOnly,
-      allowedReadPaths: fsToolsConfig.allowedReadPaths,
-      allowedWritePaths: fsToolsConfig.allowedWritePaths
-    });
-
-    this.pkgTool = new PackageInstallTool({
-      policyEngine: this.policyEngine,
-      logger: this.logger,
-      enabled: pkgToolsConfig.enabled,
-      preferStructuredInstall: pkgToolsConfig.preferStructuredInstall,
-      allowExecFallback: pkgToolsConfig.allowExecFallback,
-      sudoNonInteractive: pkgToolsConfig.sudoNonInteractive,
-      allowedManagers: pkgToolsConfig.allowedManagers
-    });
-
-    this.toolRouter = new RuntimeToolRouter({
-      execTool: this.execTool,
-      fsTool: this.fsTool,
-      pkgTool: this.pkgTool,
-      logger: this.logger
-    });
-
     this.skillRuntime = new FileSkillRuntime({
       skillsRoot: config.paths.skillsDir
     });
@@ -342,8 +321,10 @@ export class OpenAssistRuntime {
       release: os.release(),
       arch: os.arch(),
       hostname: os.hostname(),
-      nodeVersion: process.version
+      nodeVersion: process.version,
+      ...(config.workspaceRoot ? { workspaceRoot: config.workspaceRoot } : {})
     };
+    this.rebuildRuntimeTools();
 
     this.recoveryWorker = new RecoveryWorker({
       db: this.db,
@@ -660,6 +641,56 @@ export class OpenAssistRuntime {
     };
   }
 
+  private rebuildRuntimeTools(): void {
+    const fsToolsConfig = this.config.tools?.fs ?? DEFAULT_FS_TOOLS;
+    const execToolsConfig = this.config.tools?.exec ?? DEFAULT_EXEC_TOOLS;
+    const pkgToolsConfig = this.config.tools?.pkg ?? DEFAULT_PKG_TOOLS;
+    const webToolsConfig = this.config.tools?.web ?? DEFAULT_WEB_TOOLS;
+
+    this.execTool = new ExecTool({
+      policyEngine: this.policyEngine,
+      logger: this.logger,
+      defaultTimeoutMs: execToolsConfig.defaultTimeoutMs,
+      guardrails: {
+        mode: execToolsConfig.guardrails.mode,
+        extraBlockedPatterns: execToolsConfig.guardrails.extraBlockedPatterns
+      }
+    });
+
+    this.fsTool = new FsTool({
+      policyEngine: this.policyEngine,
+      logger: this.logger,
+      workspaceRoot: this.config.workspaceRoot,
+      workspaceOnly: fsToolsConfig.workspaceOnly,
+      allowedReadPaths: fsToolsConfig.allowedReadPaths,
+      allowedWritePaths: fsToolsConfig.allowedWritePaths
+    });
+
+    this.pkgTool = new PackageInstallTool({
+      policyEngine: this.policyEngine,
+      logger: this.logger,
+      enabled: pkgToolsConfig.enabled,
+      preferStructuredInstall: pkgToolsConfig.preferStructuredInstall,
+      allowExecFallback: pkgToolsConfig.allowExecFallback,
+      sudoNonInteractive: pkgToolsConfig.sudoNonInteractive,
+      allowedManagers: pkgToolsConfig.allowedManagers
+    });
+
+    this.webTool = new WebTool({
+      policyEngine: this.policyEngine,
+      logger: this.logger,
+      config: webToolsConfig
+    });
+
+    this.toolRouter = new RuntimeToolRouter({
+      execTool: this.execTool,
+      fsTool: this.fsTool,
+      pkgTool: this.pkgTool,
+      webTool: this.webTool,
+      logger: this.logger
+    });
+  }
+
   private getGlobalAssistantProfile(): GlobalAssistantProfile {
     const defaults = {
       ...DEFAULT_ASSISTANT_CONFIG,
@@ -712,19 +743,30 @@ export class OpenAssistRuntime {
 
   getToolsStatus(sessionId?: string): Promise<{
     enabledTools: string[];
+    configuredTools: string[];
     autonomyMode: "full-root-auto";
     guardrailsMode: "minimal" | "off" | "strict";
     profile: PolicyProfile;
     packageTool: ReturnType<PackageInstallTool["getStatus"]>;
+    webTool: ReturnType<WebTool["getStatus"]>;
+    awareness: string;
   }> {
     return this.policyEngine.currentProfile(sessionId ?? "__default__").then((profile) => {
       const enabled = this.enabledToolSchemas();
+      const callableTools = profile === "full-root" ? enabled.map((item) => item.name) : [];
+      const conversationKey = sessionId?.includes(":") ? sessionId.split(":").slice(1).join(":") : "__status__";
+      const awareness = summarizeRuntimeAwareness(
+        this.buildAwarenessSnapshot(sessionId ?? "__default__", conversationKey, profile)
+      );
       return {
-        enabledTools: profile === "full-root" ? enabled.map((item) => item.name) : [],
+        enabledTools: callableTools,
+        configuredTools: enabled.map((item) => item.name),
         autonomyMode: "full-root-auto",
         guardrailsMode: this.config.tools?.exec.guardrails.mode ?? "minimal",
         profile,
-        packageTool: this.pkgTool.getStatus()
+        packageTool: this.pkgTool.getStatus(),
+        webTool: this.webTool.getStatus(),
+        awareness
       };
     });
   }
@@ -901,10 +943,12 @@ export class OpenAssistRuntime {
 
       this.config = nextConfig;
       this.refreshEffectiveTimezone();
+      this.hostSystemProfile.workspaceRoot = nextConfig.workspaceRoot;
       this.channelTypes.clear();
       for (const channelConfig of nextConfig.channels) {
         this.channelTypes.set(channelConfig.id, channelConfig.type);
       }
+      this.rebuildRuntimeTools();
 
       if (!nextConfig.scheduler.enabled) {
         this.schedulerWorker.stop();
@@ -962,7 +1006,12 @@ export class OpenAssistRuntime {
         return;
       }
 
-      const sessionBootstrap = this.ensureSessionBootstrap(sessionId, envelope.conversationKey);
+      const sessionProfile = await this.policyEngine.currentProfile(sessionId);
+      const sessionBootstrap = this.ensureSessionBootstrap(
+        sessionId,
+        envelope.conversationKey,
+        sessionProfile
+      );
       if (this.shouldSendFirstContactPrompt(envelope.text, sessionBootstrap)) {
         const prompt = sanitizeUserOutput(this.buildFirstContactPrompt(sessionBootstrap));
         this.db.recordAssistantMessage(
@@ -1266,9 +1315,68 @@ export class OpenAssistRuntime {
     return normalized === SESSION_PROFILE_COMMAND_PREFIX || normalized.startsWith(`${SESSION_PROFILE_COMMAND_PREFIX} `);
   }
 
+  private buildAwarenessSnapshot(
+    sessionId: string,
+    conversationKey: string,
+    profile: PolicyProfile
+  ): RuntimeAwarenessSnapshot {
+    const runtimeStatus = this.getStatus();
+    const modules = Object.entries(runtimeStatus.modules).map(
+      ([moduleId, status]) => `${moduleId}=${status}`
+    );
+    const configuredToolNames = this.enabledToolSchemas().map((item) => item.name);
+    const callableToolNames = profile === "full-root" ? configuredToolNames : [];
+    return buildRuntimeAwarenessSnapshot({
+      sessionId,
+      conversationKey,
+      startedAt: this.startedAt,
+      defaultProviderId: this.config.defaultProviderId,
+      providerIds: Array.from(this.providers.keys()),
+      channelIds: Array.from(this.channels.keys()),
+      timezone: this.getEffectiveTimezone(),
+      modules,
+      host: {
+        platform: String(this.hostSystemProfile.platform ?? ""),
+        release: String(this.hostSystemProfile.release ?? ""),
+        arch: String(this.hostSystemProfile.arch ?? ""),
+        hostname: String(this.hostSystemProfile.hostname ?? ""),
+        nodeVersion: String(this.hostSystemProfile.nodeVersion ?? ""),
+        workspaceRoot:
+          typeof this.hostSystemProfile.workspaceRoot === "string"
+            ? this.hostSystemProfile.workspaceRoot
+            : undefined
+      },
+      profile,
+      configuredToolNames,
+      callableToolNames,
+      webStatus: this.webTool.getStatus()
+    });
+  }
+
+  private awarenessFromSystemProfile(systemProfile: Record<string, unknown>): RuntimeAwarenessSnapshot | null {
+    const awareness = systemProfile.awareness;
+    if (!awareness || typeof awareness !== "object" || Array.isArray(awareness)) {
+      return null;
+    }
+    return awareness as RuntimeAwarenessSnapshot;
+  }
+
+  private summarizeStoredSystemProfile(systemProfile: Record<string, unknown>): string {
+    const awareness = this.awarenessFromSystemProfile(systemProfile);
+    if (awareness) {
+      return [
+        `host=${awareness.host.platform}/${awareness.host.arch}`,
+        `provider=${awareness.runtime.defaultProviderId}`,
+        summarizeRuntimeAwareness(awareness)
+      ].join(", ");
+    }
+    return JSON.stringify(systemProfile);
+  }
+
   private ensureSessionBootstrap(
     sessionId: string,
-    conversationKey: string
+    conversationKey: string,
+    profile: PolicyProfile
   ): {
     sessionId: string;
     assistantName: string;
@@ -1280,11 +1388,20 @@ export class OpenAssistRuntime {
   } {
     const assistant = this.getGlobalAssistantProfile();
     const existing = this.db.getSessionBootstrap(sessionId);
+    const awareness = this.buildAwarenessSnapshot(sessionId, conversationKey, profile);
+    const initializedAt = existing?.createdAt ?? new Date().toISOString();
+    const systemProfile = {
+      ...this.hostSystemProfile,
+      conversationKey,
+      initializedAt,
+      awareness
+    };
     if (existing) {
       if (
         existing.assistantName !== assistant.name ||
         existing.persona !== assistant.persona ||
-        existing.operatorPreferences !== assistant.operatorPreferences
+        existing.operatorPreferences !== assistant.operatorPreferences ||
+        JSON.stringify(existing.systemProfile) !== JSON.stringify(systemProfile)
       ) {
         return this.db.upsertSessionBootstrap({
           sessionId,
@@ -1292,7 +1409,7 @@ export class OpenAssistRuntime {
           persona: assistant.persona,
           operatorPreferences: assistant.operatorPreferences,
           coreIdentity: existing.coreIdentity,
-          systemProfile: existing.systemProfile,
+          systemProfile,
           firstContactPrompted: existing.firstContactPrompted
         });
       }
@@ -1305,11 +1422,7 @@ export class OpenAssistRuntime {
       persona: assistant.persona,
       operatorPreferences: assistant.operatorPreferences,
       coreIdentity: SESSION_BOOTSTRAP_CORE_IDENTITY,
-      systemProfile: {
-        ...this.hostSystemProfile,
-        conversationKey,
-        initializedAt: new Date().toISOString()
-      },
+      systemProfile,
       firstContactPrompted: false
     });
     return created;
@@ -1320,6 +1433,7 @@ export class OpenAssistRuntime {
     systemProfile: Record<string, unknown>;
   }): NormalizedMessage {
     const assistant = this.getGlobalAssistantProfile();
+    const awareness = this.awarenessFromSystemProfile(bootstrap.systemProfile);
     return {
       role: "system",
       content: [
@@ -1327,7 +1441,9 @@ export class OpenAssistRuntime {
         `Core identity: ${bootstrap.coreIdentity}`,
         `Persona guidance: ${assistant.persona}`,
         `Operator preferences: ${assistant.operatorPreferences || "(none configured)"}`,
-        `Runtime system profile: ${JSON.stringify(bootstrap.systemProfile)}`
+        awareness
+          ? buildRuntimeAwarenessSystemMessage(awareness)
+          : `Runtime system profile: ${this.summarizeStoredSystemProfile(bootstrap.systemProfile)}`
       ].join("\n")
     };
   }
@@ -1367,13 +1483,15 @@ export class OpenAssistRuntime {
     systemProfile: Record<string, unknown>;
   }): string {
     const lock = this.getGlobalAssistantProfileLock();
+    const awareness = this.awarenessFromSystemProfile(bootstrap.systemProfile);
     return [
       "OpenAssist global profile memory",
       `- name: ${bootstrap.assistantName}`,
       `- persona: ${bootstrap.persona}`,
       `- preferences: ${bootstrap.operatorPreferences || "(none yet)"}`,
       `- lock: ${lock.locked ? "enabled (first-boot lock-in; force required for updates)" : "disabled"}`,
-      `- system: ${JSON.stringify(bootstrap.systemProfile)}`,
+      `- system: ${this.summarizeStoredSystemProfile(bootstrap.systemProfile)}`,
+      ...(awareness ? [`- awareness: ${summarizeRuntimeAwareness(awareness)}`] : []),
       "Update command: /profile force=true; name=<name>; persona=<style>; prefs=<preferences>"
     ].join("\n");
   }
@@ -1383,7 +1501,12 @@ export class OpenAssistRuntime {
     envelope: InboundEnvelope,
     sessionId: string
   ): Promise<void> {
-    const bootstrap = this.ensureSessionBootstrap(sessionId, envelope.conversationKey);
+    const sessionProfile = await this.policyEngine.currentProfile(sessionId);
+    const bootstrap = this.ensureSessionBootstrap(
+      sessionId,
+      envelope.conversationKey,
+      sessionProfile
+    );
     const global = this.getGlobalAssistantProfile();
     const profileCommand = parseProfileCommand(envelope.text ?? "");
     const updates = profileCommand;
@@ -1492,12 +1615,18 @@ export class OpenAssistRuntime {
         : `not running${scheduler.blockedReason ? ` (${scheduler.blockedReason})` : ""}`
       : "disabled";
     const assistant = this.assistantConfig();
+    const conversationKey = sessionId.includes(":") ? sessionId.split(":").slice(1).join(":") : "__status__";
+    const awareness = this.buildAwarenessSnapshot(sessionId, conversationKey, toolsStatus.profile);
 
     return [
       "OpenAssist local status",
       `- default provider: ${this.config.defaultProviderId}`,
       `- assistant: ${assistant.name}`,
       `- session profile: ${toolsStatus.profile} (autonomous tools ${toolsStatus.profile === "full-root" ? "enabled" : "disabled"})`,
+      `- awareness: ${summarizeRuntimeAwareness(awareness)}`,
+      `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
+      `- configured tool families: ${toolsStatus.configuredTools.join(", ") || "none"}`,
+      `- native web: ${toolsStatus.webTool.searchStatus} (mode=${toolsStatus.webTool.searchMode}, braveConfigured=${toolsStatus.webTool.braveApiConfigured})`,
       `- modules: ${moduleSummary}`,
       `- channels: ${channelSummary}`,
       `- time: ${time.clockHealth}, timezone=${time.timezone}, confirmed=${time.timezoneConfirmed}`,
@@ -1515,12 +1644,10 @@ export class OpenAssistRuntime {
   }
 
   private enabledToolSchemas(): ToolSchema[] {
-    const schemas = runtimeToolSchemas();
-    const pkgEnabled = this.config.tools?.pkg.enabled ?? true;
-    if (!pkgEnabled) {
-      return schemas.filter((item) => item.name !== "pkg.install");
-    }
-    return schemas;
+    return runtimeToolSchemas({
+      enablePackageTool: this.config.tools?.pkg.enabled ?? true,
+      enableWebTools: this.config.tools?.web?.enabled ?? DEFAULT_WEB_TOOLS.enabled
+    });
   }
 
   private reconcileToolConversationForProvider(
@@ -1857,11 +1984,12 @@ export class OpenAssistRuntime {
     return undefined;
   }
 
-  getTools(): { execTool: ExecTool; fsTool: FsTool; pkgTool: PackageInstallTool } {
+  getTools(): { execTool: ExecTool; fsTool: FsTool; pkgTool: PackageInstallTool; webTool: WebTool } {
     return {
       execTool: this.execTool,
       fsTool: this.fsTool,
-      pkgTool: this.pkgTool
+      pkgTool: this.pkgTool,
+      webTool: this.webTool
     };
   }
 

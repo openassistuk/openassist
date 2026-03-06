@@ -13,8 +13,9 @@ Runtime is built from:
 Runtime-owned components:
 
 - `ContextPlanner`
+- layered runtime-awareness builder/system-message generator
 - `DatabasePolicyEngine`
-- `ExecTool`, `FsTool`, and `PackageInstallTool`
+- `ExecTool`, `FsTool`, `PackageInstallTool`, and `WebTool`
 - `RuntimeToolRouter` and runtime tool schema registry
 - `FileSkillRuntime`
 - `RecoveryWorker`
@@ -104,6 +105,14 @@ Runtime methods consumed by daemon API:
 
 Daemon HTTP endpoints map directly to these methods in `apps/openassistd/src/index.ts`.
 
+`getToolsStatus()` now returns:
+
+- currently callable tool names for the session
+- configured tool families even when they are not callable
+- package-tool status
+- native web-tool status (`enabled`, `searchMode`, `searchStatus`, limits, Brave API availability)
+- a compact awareness summary string
+
 ## Chat Tool Loop
 
 `handleInbound()` now runs a bounded multi-round provider loop:
@@ -129,9 +138,9 @@ Context planner input now includes a second runtime system message containing:
 
 - global assistant profile memory (name/persona/preferences)
 - OpenAssist core identity statement
-- per-session host runtime profile snapshot (platform/arch/node/hostname)
+- per-session layered runtime awareness snapshot (host/runtime/profile/tool/web state)
 
-Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per session and reused deterministically for future turns.
+Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per session and reused deterministically for future turns. The runtime awareness snapshot is stored inside the existing `session_bootstrap.systemProfile` payload and refreshed when the session profile or runtime tool state changes.
 
 ## Config Apply Behavior
 
@@ -141,6 +150,7 @@ Current behavior:
 
 - runtime swaps active config in-memory on successful apply
 - scheduler/time workers refresh against new config
+- tool implementations and router bindings rebuild against new config, including `tools.web`
 - candidate failures are marked rolled back and active generation remains unchanged
 
 ## Current Runtime Limits

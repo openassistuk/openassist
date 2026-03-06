@@ -33,15 +33,50 @@ function createRouter() {
       durationMs: 2
     }))
   };
+  const webTool = {
+    search: vi.fn(async ({ query }: { query: string }) => ({
+      available: true,
+      backend: "duckduckgo-html",
+      searchMode: "hybrid",
+      query,
+      results: [
+        {
+          title: "Result",
+          url: "https://example.test",
+          snippet: "Snippet",
+          domain: "example.test"
+        }
+      ]
+    })),
+    fetchUrl: vi.fn(async ({ url }: { url: string }) => ({
+      available: true,
+      requestedUrl: url,
+      finalUrl: url,
+      redirects: [],
+      content: "hello web",
+      excerpt: "hello web",
+      fetchedAt: "2026-03-06T00:00:00.000Z",
+      citations: [{ id: "[1]", title: url, url }]
+    })),
+    run: vi.fn(async ({ objective }: { objective: string }) => ({
+      available: true,
+      objective,
+      backend: "duckduckgo-html",
+      sources: [],
+      citations: [],
+      synthesis: `objective=${objective}`
+    }))
+  };
 
   const router = new RuntimeToolRouter({
     execTool: execTool as any,
     fsTool: fsTool as any,
     pkgTool: pkgTool as any,
+    webTool: webTool as any,
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any
   });
 
-  return { router, execTool, fsTool, pkgTool, writes };
+  return { router, execTool, fsTool, pkgTool, webTool, writes };
 }
 
 async function runLoop(
@@ -122,5 +157,24 @@ describe("tool loop runtime helpers", () => {
 
     expect(result.status).toBe("failed");
     expect(result.errorText).toContain("Invalid tool arguments JSON");
+  });
+
+  it("routes native web tool calls through the web tool adapter", async () => {
+    const { router, webTool } = createRouter();
+
+    const result = await router.execute(
+      {
+        id: "web-1",
+        name: "web.search",
+        argumentsJson: JSON.stringify({
+          query: "openassist runtime"
+        })
+      },
+      { sessionId: "telegram:c1", actorId: "telegram:u1" }
+    );
+
+    expect(result.status).toBe("succeeded");
+    expect(webTool.search).toHaveBeenCalledTimes(1);
+    expect(result.message.content).toContain("duckduckgo-html");
   });
 });

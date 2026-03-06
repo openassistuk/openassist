@@ -4,7 +4,7 @@ import path from "node:path";
 import type { OpenAssistConfig } from "@openassist/config";
 import { parseConfig } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
-import { toProviderApiKeyEnvVar } from "./config-edit.js";
+import { toProviderApiKeyEnvVar, toWebBraveApiKeyEnvVar } from "./config-edit.js";
 import { isValidBindAddress, isValidIanaTimezone } from "./prompt-validation.js";
 import { createServiceManager } from "./service-manager.js";
 
@@ -289,6 +289,39 @@ function validateChannelRequirements(
   }
 }
 
+function validateWebToolRequirements(
+  config: OpenAssistConfig,
+  env: Record<string, string>,
+  errors: SetupValidationIssue[],
+  warnings: SetupValidationIssue[]
+): void {
+  const web = config.tools.web;
+  if (!web.enabled) {
+    return;
+  }
+
+  const braveVar = toWebBraveApiKeyEnvVar();
+  const braveConfigured = hasEnvValue(env, braveVar);
+  if (web.searchMode === "api-only" && !braveConfigured) {
+    pushIssue(
+      errors,
+      "tools.web_brave_api_key_missing",
+      `tools.web.searchMode is 'api-only' but ${braveVar} is not set.`,
+      `Set ${braveVar} in the env file or switch tools.web.searchMode to hybrid or fallback-only.`
+    );
+    return;
+  }
+
+  if (web.searchMode === "hybrid" && !braveConfigured) {
+    pushIssue(
+      warnings,
+      "tools.web_hybrid_fallback_only",
+      `tools.web.searchMode is 'hybrid' but ${braveVar} is not set, so web.search will use fallback mode.`,
+      `Set ${braveVar} to enable Brave Search API while keeping fallback behavior available.`
+    );
+  }
+}
+
 function validateTimezoneConfirmation(
   config: OpenAssistConfig,
   timezoneConfirmed: boolean,
@@ -420,6 +453,7 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
 
   validateProviderRequirements(input.config, input.env, errors, warnings);
   validateChannelRequirements(input.config, input.env, errors, warnings);
+  validateWebToolRequirements(input.config, input.env, errors, warnings);
   validateTimezoneConfirmation(input.config, input.timezoneConfirmed, errors);
   validatePaths(input.config, input.configPath, input.envFilePath, input.installDir, errors);
   if (!isValidBindAddress(input.config.runtime.bindAddress)) {

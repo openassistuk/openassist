@@ -1,7 +1,10 @@
 import type { ToolSchema } from "@openassist/core-types";
 
-export function runtimeToolSchemas(): ToolSchema[] {
-  return [
+export function runtimeToolSchemas(options?: {
+  enablePackageTool?: boolean;
+  enableWebTools?: boolean;
+}): ToolSchema[] {
+  const schemas: ToolSchema[] = [
     {
       name: "exec.run",
       description: "Run a shell command on the local machine.",
@@ -57,8 +60,11 @@ export function runtimeToolSchemas(): ToolSchema[] {
           recursive: { type: "boolean" }
         }
       }
-    },
-    {
+    }
+  ];
+
+  if (options?.enablePackageTool !== false) {
+    schemas.push({
       name: "pkg.install",
       description:
         "Install packages using the local OS/package manager (apt, brew, dnf, npm, pnpm, pip, etc.).",
@@ -82,6 +88,73 @@ export function runtimeToolSchemas(): ToolSchema[] {
           useSudo: { type: "boolean" }
         }
       }
-    }
-  ];
+    });
+  }
+
+  if (options?.enableWebTools !== false) {
+    schemas.push(
+      {
+        name: "web.search",
+        description:
+          "Search the web using the configured runtime backend and return structured search results.",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["query"],
+          properties: {
+            query: { type: "string" },
+            limit: { type: "number" },
+            domains: {
+              type: "array",
+              items: { type: "string" }
+            }
+          }
+        }
+      },
+      {
+        name: "web.fetch",
+        description:
+          "Fetch one HTTP or HTTPS page and return normalized extracted text with citations.",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["url"],
+          properties: {
+            url: { type: "string" },
+            format: {
+              type: "string",
+              enum: ["text", "excerpt"]
+            },
+            maxBytes: { type: "number" }
+          }
+        }
+      },
+      {
+        name: "web.run",
+        description:
+          "Run a bounded web research pass using search and fetch, then return consolidated cited source material.",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["objective"],
+          properties: {
+            objective: { type: "string" },
+            query: { type: "string" },
+            urls: {
+              type: "array",
+              items: { type: "string" }
+            },
+            searchLimit: { type: "number" },
+            pageLimit: { type: "number" },
+            domains: {
+              type: "array",
+              items: { type: "string" }
+            }
+          }
+        }
+      }
+    );
+  }
+
+  return schemas;
 }

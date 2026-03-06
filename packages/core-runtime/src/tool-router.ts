@@ -3,6 +3,7 @@ import { redactSensitiveData, type OpenAssistLogger } from "@openassist/observab
 import type { ExecTool } from "@openassist/tools-exec";
 import type { FsTool } from "@openassist/tools-fs";
 import type { PackageInstallTool } from "@openassist/tools-package";
+import type { WebTool } from "@openassist/tools-web";
 
 export interface ToolExecutionContext {
   sessionId: string;
@@ -101,17 +102,20 @@ export class RuntimeToolRouter {
   private readonly execTool: ExecTool;
   private readonly fsTool: FsTool;
   private readonly pkgTool: PackageInstallTool;
+  private readonly webTool: WebTool;
   private readonly logger: OpenAssistLogger;
 
   constructor(options: {
     execTool: ExecTool;
     fsTool: FsTool;
     pkgTool: PackageInstallTool;
+    webTool: WebTool;
     logger: OpenAssistLogger;
   }) {
     this.execTool = options.execTool;
     this.fsTool = options.fsTool;
     this.pkgTool = options.pkgTool;
+    this.webTool = options.webTool;
     this.logger = options.logger;
   }
 
@@ -250,6 +254,85 @@ export class RuntimeToolRouter {
             ...result
           },
           status: isError ? "failed" : "succeeded"
+        };
+      }
+
+      if (toolCall.name === "web.search") {
+        const query = asString(argsValue.query, "query");
+        const result = await this.webTool.search({
+          sessionId: context.sessionId,
+          actorId: context.actorId,
+          query,
+          limit: asOptionalNumber(argsValue.limit),
+          domains: asOptionalStringArray(argsValue.domains)
+        });
+        return {
+          message: {
+            toolCallId: toolCall.id,
+            name: toolCall.name,
+            content: JSON.stringify(result, null, 2),
+            isError: false
+          },
+          request: argsValue,
+          result: {
+            ...result
+          },
+          status: "succeeded"
+        };
+      }
+
+      if (toolCall.name === "web.fetch") {
+        const url = asString(argsValue.url, "url");
+        const format =
+          argsValue.format === undefined ? undefined : asString(argsValue.format, "format");
+        const result = await this.webTool.fetchUrl({
+          sessionId: context.sessionId,
+          actorId: context.actorId,
+          url,
+          format: format as "text" | "excerpt" | undefined,
+          maxBytes: asOptionalNumber(argsValue.maxBytes)
+        });
+        return {
+          message: {
+            toolCallId: toolCall.id,
+            name: toolCall.name,
+            content: JSON.stringify(result, null, 2),
+            isError: false
+          },
+          request: argsValue,
+          result: {
+            ...result
+          },
+          status: "succeeded"
+        };
+      }
+
+      if (toolCall.name === "web.run") {
+        const objective = asString(argsValue.objective, "objective");
+        const query =
+          argsValue.query === undefined ? undefined : asString(argsValue.query, "query");
+        const result = await this.webTool.run({
+          sessionId: context.sessionId,
+          actorId: context.actorId,
+          objective,
+          query,
+          urls: asOptionalStringArray(argsValue.urls),
+          searchLimit: asOptionalNumber(argsValue.searchLimit),
+          pageLimit: asOptionalNumber(argsValue.pageLimit),
+          domains: asOptionalStringArray(argsValue.domains)
+        });
+        return {
+          message: {
+            toolCallId: toolCall.id,
+            name: toolCall.name,
+            content: JSON.stringify(result, null, 2),
+            isError: false
+          },
+          request: argsValue,
+          result: {
+            ...result
+          },
+          status: "succeeded"
         };
       }
 

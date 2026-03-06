@@ -165,6 +165,7 @@ describe("setup-wizard branch coverage", () => {
       "not-a-number",
       "65000",
       "true",
+      "false",
       "save"
     ]);
 

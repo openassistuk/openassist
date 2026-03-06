@@ -17,16 +17,23 @@ Current policy behavior:
 
 - `restricted`: OAuth flows only
 - `operator`: adds controlled `exec.run`, `fs.read`, `fs.write`
-- `full-root`: adds `fs.delete` and `pkg.install` with autonomous chat tool execution eligibility
+- `full-root`: adds `fs.delete`, `pkg.install`, `web.search`, `web.fetch`, and `web.run` with autonomous chat tool execution eligibility
 
 Autonomous chat tool loop gate:
 
 - `restricted` and `operator`: provider tool schemas are not exposed
 - `full-root`: provider tool schemas are exposed and tool calls are executed automatically
 - if provider responses include unsolicited tool calls while schemas are not exposed, runtime ignores those calls and does not execute tools
-- chat diagnostic command `/status` is provider-independent and available regardless of profile (no autonomous tool execution)
+- chat diagnostic command `/status` is provider-independent and available regardless of profile (no autonomous tool execution) and now reports awareness summary, callable tools, configured tool families, and native web backend state
 - global profile-memory command `/profile` is provider-independent and available regardless of profile
 - global profile updates require explicit force confirmation (`/profile force=true; ...`) because first-boot lock-in guard is enabled by default
+
+Native web tools default to enabled in config, but that does not change the autonomy gate:
+
+- `restricted` and `operator`: native web tools are not callable from chat
+- `full-root`: native web tools become callable if `tools.web.enabled=true`
+- `tools.web.searchMode=api-only` requires `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY`
+- `tools.web.searchMode=hybrid` uses Brave Search API when configured and DuckDuckGo HTML fallback otherwise
 
 ## Scheduler Interaction
 
@@ -43,6 +50,7 @@ If scheduled shell or direct FS actions are introduced later, policy action cont
 - profile assignment state lives in `policy_profiles`
 - tool actions are auditable in `tool_invocations` (request/result payloads are redacted before persistence/retrieval)
 - scheduler and clock events are auditable (`scheduler.*`, `clock.check`)
+- `/status` and `openassist tools status` expose the same capability boundary the model sees, which helps operators confirm whether `web.*` tools are callable before granting `full-root`
 
 ## Operational Guidance
 

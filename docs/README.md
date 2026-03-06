@@ -7,7 +7,7 @@ Use this page as the operator starting point. Links are grouped by real operatio
 - Fastest Linux/macOS path (operator + end-user): `docs/operations/quickstart-linux-macos.md`
 - Linux install runbook: `docs/operations/install-linux.md`
 - macOS install runbook: `docs/operations/install-macos.md`
-- Strict onboarding quickstart + advanced wizard: `docs/operations/setup-wizard.md`
+- Strict onboarding quickstart + advanced wizard, including native web tool setup: `docs/operations/setup-wizard.md`
 - Global assistant profile memory (`/profile`) + restart persistence notes: `docs/operations/restart-recovery.md`
 - Root quick start and command reference: `README.md`
 
@@ -40,7 +40,7 @@ Use this page as the operator starting point. Links are grouped by real operatio
 
 - Threat model: `docs/security/threat-model.md`
 - Policy profiles: `docs/security/policy-profiles.md`
-- Tool-calling contract and audit model: `docs/interfaces/tool-calling.md`
+- Tool-calling contract and audit model, including native web tools and awareness status: `docs/interfaces/tool-calling.md`
 - Secret-hardening execution plan: `docs/execplans/open-source-secrets-hardening.md`
 
 ## Skills and Extensibility
@@ -51,7 +51,7 @@ Use this page as the operator starting point. Links are grouped by real operatio
 ## Architecture Deep Dive
 
 - System overview: `docs/architecture/overview.md`
-- Runtime module details: `docs/architecture/runtime-and-modules.md`
+- Runtime module details, including layered runtime awareness and native web tools: `docs/architecture/runtime-and-modules.md`
 - Context engine details: `docs/architecture/context-engine.md`
 
 ## Testing and Release Readiness
@@ -64,6 +64,8 @@ Use this page as the operator starting point. Links are grouped by real operatio
 ## Planning and Change History
 
 - Living ExecPlan: `docs/execplans/openassist-v1.md`
+- Runtime awareness ExecPlan: `docs/execplans/runtime-self-awareness.md`
+- Native web tools ExecPlan: `docs/execplans/native-web-tools.md`
 - Security hardening ExecPlan: `docs/execplans/open-source-secrets-hardening.md`
 - ExecPlan process rules: `.agents/PLANS.md`
 - Changelog: `CHANGELOG.md`

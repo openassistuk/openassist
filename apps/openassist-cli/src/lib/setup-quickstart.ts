@@ -8,7 +8,8 @@ import {
   saveWizardState,
   toChannelSecretEnvVar,
   toProviderApiKeyEnvVar,
-  toProviderOAuthClientSecretEnvVar
+  toProviderOAuthClientSecretEnvVar,
+  toWebBraveApiKeyEnvVar
 } from "./config-edit.js";
 import {
   deriveHealthProbeBaseUrls,
@@ -886,6 +887,55 @@ async function configureTimeAndScheduler(state: SetupQuickstartState, prompts: P
   await maybeConfigureFirstTask(state, prompts);
 }
 
+async function configureToolsAndWeb(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
+  stage(
+    "Tools",
+    "Configure autonomous tool defaults and native web search behavior for full-root sessions."
+  );
+  const web = state.config.tools.web;
+  web.enabled = await prompts.confirm(
+    "Enable native web tools for full-root sessions?",
+    web.enabled
+  );
+  if (web.enabled) {
+    web.searchMode = await prompts.select<typeof web.searchMode>(
+      "Native web search mode",
+      [
+        {
+          name: "hybrid (Brave API when configured, otherwise DuckDuckGo fallback)",
+          value: "hybrid"
+        },
+        {
+          name: "api-only (Brave API required)",
+          value: "api-only"
+        },
+        {
+          name: "fallback-only (DuckDuckGo HTML fallback only)",
+          value: "fallback-only"
+        }
+      ],
+      web.searchMode
+    );
+
+    const braveVar = toWebBraveApiKeyEnvVar();
+    if (web.searchMode !== "fallback-only") {
+      console.log(`Brave Search API env var: ${braveVar}`);
+      const storeNow = await prompts.confirm(
+        "Store Brave Search API key in env file now?",
+        hasNonEmptyEnvValue(state.env, braveVar)
+      );
+      if (storeNow) {
+        const key = await prompts.password(
+          `Brave Search API key for ${braveVar} (blank keeps current value)`
+        );
+        if (key.trim().length > 0) {
+          state.env[braveVar] = key.trim();
+        }
+      }
+    }
+  }
+}
+
 async function runValidationGate(
   state: SetupQuickstartState,
   prompts: PromptAdapter,
@@ -941,6 +991,7 @@ async function runValidationGate(
         { name: "Providers", value: "providers" },
         { name: "Channels", value: "channels" },
         { name: "Time + Scheduler", value: "time" },
+        { name: "Tools", value: "tools" },
         { name: "Re-run validation", value: "retry" },
         { name: "Abort setup", value: "abort" }
       ],
@@ -968,6 +1019,10 @@ async function runValidationGate(
     }
     if (action === "time") {
       await configureTimeAndScheduler(state, prompts);
+      continue;
+    }
+    if (action === "tools") {
+      await configureToolsAndWeb(state, prompts);
       continue;
     }
   }
@@ -1228,6 +1283,9 @@ export async function runSetupQuickstart(
   await configureProviders(state, prompts);
   await configureChannels(state, prompts);
   await configureTimeAndScheduler(state, prompts);
+  if (options.requireTty !== false) {
+    await configureToolsAndWeb(state, prompts);
+  }
 
   const validationGate = await runValidationGate(state, prompts, options);
   if (validationGate.aborted || (validationGate.errors > 0 && !options.allowIncomplete)) {

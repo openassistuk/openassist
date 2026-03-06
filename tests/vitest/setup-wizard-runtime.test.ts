@@ -108,6 +108,7 @@ describe("setup wizard runtime flow", () => {
       "true",
       "65000",
       "true",
+      "false",
       "save"
     ]);
 
@@ -119,6 +120,7 @@ describe("setup wizard runtime flow", () => {
     expect(state.config.runtime.providers.some((provider) => provider.id === "openai-compat-main")).toBe(true);
     expect(state.config.runtime.channels[0]?.enabled).toBe(false);
     expect(state.config.runtime.scheduler.tasks).toHaveLength(1);
+    expect(state.config.tools.web.enabled).toBe(false);
     expect(fs.existsSync(configPath)).toBe(true);
     expect(fs.existsSync(envPath)).toBe(true);
   });

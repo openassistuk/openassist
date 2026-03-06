@@ -44,11 +44,13 @@ Provider OAuth config requirements:
 - generation parameters
 - metadata map
 
+Runtime now prepends a bounded runtime-awareness system message on every provider turn. Adapters must preserve system-message order and content exactly; they must not collapse or drop the awareness message because it tells the model what OpenAssist is, what host it is running on, what session profile is active, and which tools are callable right now.
+
 Scheduler prompt actions use the same `chat()` path with metadata that identifies scheduler context (`source`, `taskId`, `scheduledFor`).
 
 Tool-calling request requirements:
 
-- when runtime autonomy is enabled for the session (`full-root`), `req.tools` contains the authoritative tool schema list
+- when runtime autonomy is enabled for the session (`full-root`), `req.tools` contains the authoritative tool schema list for host tools and enabled native web tools
 - adapters must preserve assistant tool-call turns and tool-result turns in provider-native formats
 - tool-result messages are represented as normalized `role="tool"` messages with `toolCallId`
 - when `req.tools` is empty, adapters should not emit tool calls; runtime treats unsolicited tool calls as non-executable
@@ -73,7 +75,7 @@ Tool-turn contract:
 `toolCalls` item shape:
 
 - `id`: provider/tool-call identifier
-- `name`: normalized tool name (`exec.run`, `fs.read`, `fs.write`, `fs.delete`, `pkg.install`)
+- `name`: normalized tool name (`exec.run`, `fs.read`, `fs.write`, `fs.delete`, `pkg.install`, `web.search`, `web.fetch`, `web.run`)
 - `argumentsJson`: JSON string payload consumed by runtime tool router
 
 ## Failure Behavior

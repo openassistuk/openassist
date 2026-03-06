@@ -148,6 +148,9 @@ describe("setup quickstart flow", () => {
       "1000",
       "30",
       "catch-up-once",
+      "false",
+      "true",
+      "hybrid",
       "false"
     ]);
 

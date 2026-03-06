@@ -192,6 +192,9 @@ importers:
       '@openassist/tools-package':
         specifier: workspace:*
         version: link:../tools-package
+      '@openassist/tools-web':
+        specifier: workspace:*
+        version: link:../tools-web
       cron-parser:
         specifier: ^5.5.0
         version: 5.5.0
@@ -311,6 +314,15 @@ importers:
         version: link:../observability
 
   packages/tools-package:
+    dependencies:
+      '@openassist/core-types':
+        specifier: workspace:*
+        version: link:../core-types
+      '@openassist/observability':
+        specifier: workspace:*
+        version: link:../observability
+
+  packages/tools-web:
     dependencies:
       '@openassist/core-types':
         specifier: workspace:*

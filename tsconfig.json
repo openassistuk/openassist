@@ -9,6 +9,7 @@
     { "path": "packages/tools-exec" },
     { "path": "packages/tools-fs" },
     { "path": "packages/tools-package" },
+    { "path": "packages/tools-web" },
     { "path": "packages/skills-engine" },
     { "path": "packages/providers-openai" },
     { "path": "packages/providers-anthropic" },

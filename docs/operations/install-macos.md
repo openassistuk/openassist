@@ -112,6 +112,9 @@ Quickstart service checks also include recovery prompts:
 - quickstart/wizard prompt inputs are validated and re-prompted for invalid numeric/identifier/bind-address values, and timezone is selected via guided `country/region -> city` picker
 - provider setup includes explicit OAuth account-link guidance for OpenAI/Anthropic when OAuth client config is present
 - quickstart captures assistant profile defaults (name/persona/preferences) for global main-agent memory; per-session host bootstrap context is still persisted separately
+- quickstart and wizard also configure native web tooling (`tools.web.enabled`, `tools.web.searchMode`)
+- `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is the primary API-backed search credential; `hybrid` mode falls back to DuckDuckGo HTML when the key is absent
+- `api-only` mode is rejected during setup validation if `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is missing
 
 Secret handling defaults:
 
@@ -127,6 +130,8 @@ openassist time status
 openassist scheduler status
 openassist tools status --session <channel>:<conversationKey>
 ```
+
+`openassist tools status` now reports callable tools, configured tool families, awareness summary, and native web backend state for the selected session.
 
 ## launchd Service Lifecycle
 

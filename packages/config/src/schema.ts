@@ -267,6 +267,16 @@ const packageToolSchema = z.object({
   allowedManagers: z.array(z.string()).default([])
 });
 
+const webToolSchema = z.object({
+  enabled: z.boolean().default(true),
+  searchMode: z.enum(["hybrid", "api-only", "fallback-only"]).default("hybrid"),
+  requestTimeoutMs: z.number().int().positive().default(15_000),
+  maxRedirects: z.number().int().min(0).max(10).default(5),
+  maxFetchBytes: z.number().int().positive().max(5_000_000).default(1_000_000),
+  maxSearchResults: z.number().int().positive().max(20).default(8),
+  maxPagesPerRun: z.number().int().positive().max(10).default(4)
+});
+
 const securitySchema = z.object({
   auditLogEnabled: z.boolean().default(true),
   secretsBackend: z.enum(["encrypted-file"]).default("encrypted-file")
@@ -278,7 +288,8 @@ export const openAssistConfigSchema = z.object({
     .object({
       fs: toolPoliciesSchema.default({}),
       exec: execToolSchema.default({}),
-      pkg: packageToolSchema.default({})
+      pkg: packageToolSchema.default({}),
+      web: webToolSchema.default({})
     })
     .default({}),
   security: securitySchema.default({})

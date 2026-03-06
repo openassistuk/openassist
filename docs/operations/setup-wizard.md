@@ -1,217 +1,159 @@
-# Setup Quickstart and Wizard
+# Setup Quickstart and Setup Wizard
 
-OpenAssist provides two interactive setup modes.
+OpenAssist has two setup paths on purpose.
 
-- `setup quickstart`: strict onboarding flow (recommended)
-- `setup wizard`: advanced section editor for targeted changes
+- `openassist setup quickstart`: minimal first-reply onboarding
+- `openassist setup wizard`: advanced section editor
 
-When bootstrap runs in interactive mode (default on TTY), it launches `setup quickstart` automatically before service actions.
+They are not interchangeable.
 
-## Command Surface
+## Quickstart
 
-Installed command path:
+Run quickstart when the goal is to get from install to a real reply with the least possible operator decision load.
 
-```bash
-openassist setup quickstart [--config <path>] [--env-file <path>] [--install-dir <path>] [--allow-incomplete] [--skip-service]
-openassist setup wizard --config <path-to-openassist.toml> --env-file <path-to-openassistd.env> [--install-dir <path>] [--base-url <url>] [--skip-post-checks]
-openassist setup show --config <path-to-openassist.toml>
-openassist setup env --env-file <path-to-openassistd.env>
-```
-
-If `openassist` is not available yet in the current shell `PATH`, run via:
+Command:
 
 ```bash
-$HOME/.local/bin/openassist setup quickstart ...
+openassist setup quickstart \
+  --install-dir "$HOME/openassist" \
+  --config "$HOME/openassist/openassist.toml" \
+  --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Source checkout alternatives:
+Quickstart owns only the essentials:
+
+- confirm safe runtime defaults
+- choose one primary provider
+- capture API-key auth
+- configure one primary channel
+- confirm timezone
+- run service install, restart, and health checks unless `--skip-service`
+
+Quickstart success should leave you with:
+
+- one provider configured
+- one channel configured
+- a healthy service, unless you explicitly skipped checks
+- a first-reply checklist in the summary
+
+Quickstart rules:
+
+- strict validation blocks incomplete first-reply setup by default
+- `--allow-incomplete` adds an explicit degraded-save path
+- recovery flows remain retry-first; skip is available only when the flow allows degraded continuation
+- guided timezone selection stays `country or region -> city`
+- timezone confirmation shows the selected zone and uses a simple `Y/n` confirmation
+- wildcard bind addresses still use loopback health probes
+- quickstart keeps provider auth API-key-first
+- provider OAuth client configuration belongs in wizard, then account linking uses `openassist auth start --provider <provider-id> --account default --open-browser`
+
+Quickstart intentionally does not own:
+
+- extra providers
+- extra channels
+- scheduler task authoring
+- native web tuning
+- advanced tools and security changes
+- persona or profile editing
+
+## Wizard
+
+Run wizard when you need to edit configuration beyond first-reply essentials.
+
+Command:
 
 ```bash
-pnpm --filter @openassist/openassist-cli dev -- setup quickstart --config openassist.toml --env-file ~/.config/openassist/openassistd.env --skip-service
-pnpm --filter @openassist/openassist-cli dev -- setup wizard --config openassist.toml --env-file ~/.config/openassist/openassistd.env
-pnpm --filter @openassist/openassist-cli dev -- setup show --config openassist.toml
-pnpm --filter @openassist/openassist-cli dev -- setup env --env-file ~/.config/openassist/openassistd.env
+openassist setup wizard \
+  --config "$HOME/openassist/openassist.toml" \
+  --env-file "$HOME/.config/openassist/openassistd.env" \
+  --install-dir "$HOME/openassist"
 ```
 
-## `setup quickstart` Flow
+Wizard sections:
 
-`setup quickstart` runs staged onboarding:
+- basic runtime and defaults
+- providers and model access
+- channels and chat destinations
+- scheduling and time
+- advanced tools and security
 
-1. Preflight: runtime/tooling/path/service-manager checks.
-2. Runtime base settings: bind, port, data/log/skills paths, default policy.
-3. Global assistant profile memory: assistant name/persona/preferences and first-contact profile prompt toggle.
-4. Provider onboarding: provider config + API key env capture.
-   - OpenAI/Anthropic OAuth account linking is available when `runtime.providers[].oauth` is configured.
-   - Setup now prints direct account-link commands for configured providers.
-   - Setup defaults now suggest:
-     - OpenAI: `gpt-5.2`
-     - Anthropic: `claude-sonnet-4-5` (or newer Sonnet 4.x)
-5. Channel onboarding: optional channel setup with `env:VAR` secret refs.
-   - Telegram flow now prints concrete steps: create bot via `@BotFather`, add bot to target chat, and capture numeric chat IDs.
-   - Discord flow now clarifies numeric channel-ID allow-list behavior.
-   - Channel prompts use friendly names and show auto-generated system IDs.
-   - Leaving Telegram/Discord allow-list IDs blank allows all chats/channels visible to the bot.
-   - Telegram defaults to inline behavior:
-     - `conversationMode=chat` (single memory stream per chat/group)
-     - `responseMode=inline` (no forced reply-thread behavior)
-   - Optional threaded behavior can be enabled with `conversationMode=chat-thread` and `responseMode=reply-threaded`.
-6. Time/scheduler onboarding: timezone, NTP policy, scheduler defaults, optional first task.
-7. Tool defaults and native web onboarding: autonomous tool defaults, `tools.web.enabled`, `tools.web.searchMode`, and optional Brave API key env capture.
-   - `hybrid` is the recommended default: Brave Search API when `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is set, DuckDuckGo HTML fallback otherwise.
-   - `api-only` is blocked at validation time when `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is missing.
-8. Validation gate: strict blocking by default.
-9. Save + backup: config backup and env write.
-10. Service + health: install/restart/health checks unless `--skip-service`.
-11. Prompt-level validation re-prompts invalid values (no silent coercion):
-   - numeric/range checks for port/time/scheduler/tool timeout fields
-   - guided timezone picker (`country/region -> city`) using DST-aware Country/City IANA zones
-   - provider/channel prompts accept friendly names and auto-generate internal IDs
-   - Telegram allowed chat IDs and Discord allowed channel IDs are now validated as numeric IDs
-   - identifier validation for task/skill IDs
-   - bind-address validation
+Use wizard for:
 
-Autonomy defaults during onboarding:
+- advanced runtime changes
+- additional providers or provider OAuth config
+- additional channels or non-default channel behavior
+- scheduler task and timing changes
+- native web settings
+- advanced tools, workspace, and security posture
 
-- default profile remains `operator`
-- autonomous chat tool execution requires explicit session profile elevation to `full-root`
-- quickstart does not silently enable unrestricted autonomy
+Wizard is safe to re-run after install, after a successful quickstart, and after upgrades when you need to edit advanced settings instead of redoing first-run onboarding.
 
-Strict default behavior:
+## Post-Save Behavior
 
-- blocks incomplete provider auth for default provider
-- blocks unresolved channel secret references
-- blocks plaintext secret-like channel settings (`token`, `secret`, `apiKey`, `password`, etc.) unless values are `env:VAR_NAME`
-- blocks invalid provider OAuth `clientSecretEnv` names
-- blocks missing timezone confirmation when required
-- blocks `tools.web.searchMode="api-only"` when `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` is not configured
-- blocks service-readiness issues when service step is enabled
+Wizard saves are operational by default, not just config writes.
 
-Override path:
+After a save, wizard:
 
-- `--allow-incomplete` allows continuation after explicit confirmation.
+1. writes the config and env file
+2. creates a backup when the config already exists
+3. restarts the service
+4. checks daemon health
+5. checks time status
+6. checks scheduler status
 
-## `setup wizard` Scope
+If checks fail, wizard offers:
 
-`setup wizard` remains the advanced editor mode.
+- retry
+- skip
+- abort
 
-Sections:
+Use `--skip-post-checks` only when you intentionally want to save without operational validation.
 
-- runtime and paths
-- providers
-- channels
-- time and scheduler
-- tools and security
+If you skip or abort post-save checks, follow up with:
 
-Security section behavior:
+```bash
+openassist service restart
+openassist service health
+openassist doctor
+```
 
-- backend selection is fixed to `encrypted-file` (no `os-keyring` option)
-- runtime rejects unsupported legacy backend values at startup
-- tools/security editing also covers native web settings:
-  - `tools.web.enabled`
-  - `tools.web.searchMode`
-  - request timeout, redirect limit, fetch byte limit, search-result limit, and page limit
-  - optional env-file update for `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY`
+## Secret Handling
 
-Use wizard when you need focused edits instead of linear onboarding.
+Setup flows keep secret values in the env file and keep config references as `env:VAR_NAME`.
 
-Provider auth behavior in wizard:
-
-- API key storage in env file remains available for every provider.
-- Default model suggestions in add-provider flow:
-  - OpenAI / OpenAI-compatible: `gpt-5.2`
-  - Anthropic: `claude-sonnet-4-5`
-- For OpenAI/Anthropic providers, wizard prints OAuth account-link guidance:
-  - `openassist auth start --provider <provider-id> --account default --open-browser`
-  - `openassist auth status`
-- `openassist auth status` confirms status endpoint reachability; OAuth/API-key details are intentionally redacted in CLI output.
-
-Post-save behavior:
-
-1. Save + backup runs first.
-2. Service restart + daemon health + time status + scheduler status checks run automatically.
-3. If service is not installed, wizard prompts to install it before checks.
-4. If post-save checks fail, wizard now offers recovery actions: retry checks, skip checks, or abort checks.
-5. On unsupported service-manager platforms, checks are skipped with an explicit warning.
-6. `--skip-post-checks` disables this operational validation step.
-7. Health probes use loopback fallbacks automatically when bind address is wildcard (`0.0.0.0` / `::`).
-8. Channel startup is non-blocking at runtime start; use `openassist channel status` to inspect connector-specific degraded states even when daemon health is OK.
-
-Quickstart service checks use similar recovery logic after save:
-
-- strict mode: retry or abort (no silent degraded continuation)
-- `--allow-incomplete`: retry, skip, or abort
-- wildcard bind-address health probes are normalized to loopback where needed
-
-## Save and Secret Behavior
-
-On save (`quickstart` and `wizard`):
-
-1. schema validation
-2. config backup (`openassist.toml.bak.<timestamp>`)
-3. TOML write
-4. env file write with restricted permissions (Unix)
-
-Secrets are stored in env file and referenced in config via `env:VAR_NAME`.
-
-Example:
+Examples:
 
 ```toml
-[runtime.channels.settings]
 botToken = "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN"
 ```
 
-Native web search credential example:
-
 ```toml
-# in openassistd.env
-OPENASSIST_TOOLS_WEB_BRAVE_API_KEY=...
-```
-
-Provider OAuth example:
-
-```toml
-[runtime.providers.oauth]
 clientSecretEnv = "OPENASSIST_OPENAI_OAUTH_CLIENT_SECRET"
 ```
 
-`clientSecretEnv` must be a valid env-var name (`[A-Za-z_][A-Za-z0-9_]*`).
+Important rules:
 
-## Enabling Autonomous Tool Sessions
+- plaintext secret-like channel settings are rejected
+- provider OAuth `clientSecretEnv` must be a valid env-var name
+- Unix secret-bearing files are kept owner-only where the host supports it
 
-After onboarding, enable autonomous tool execution only for specific sessions:
+## Related Commands
+
+Show effective config:
 
 ```bash
-openassist policy-set --session <channel>:<conversationKey> --profile full-root
-openassist tools status --session <channel>:<conversationKey>
+openassist setup show --config "$HOME/openassist/openassist.toml"
 ```
 
-Inspect audited tool runs:
+Edit env values interactively:
 
 ```bash
-openassist tools invocations --session <channel>:<conversationKey> --limit 20
+openassist setup env --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Channel diagnostics without provider dependency:
-
-- send `/status` in Telegram/Discord/WhatsApp to get local runtime/time/scheduler/channel profile status
-- `/status` now includes awareness summary, callable tools, configured tool families, and native web backend state for the current session
-- if provider/auth/runtime errors occur during normal chat, runtime returns an operational diagnostic reply instead of silent failure
-
-Global assistant profile memory commands (shared across chats for the main agent):
-
-- `/profile` shows persisted global assistant profile memory and runtime system profile
-- `/profile force=true; name=<name>; persona=<style>; prefs=<preferences>` updates persisted global memory
-- first-boot lock-in guard blocks accidental global profile changes unless `force=true` is provided
-- if enabled (`runtime.assistant.promptOnFirstContact=true`), `/start` or `/new` sends a first-contact profile bootstrap prompt
-
-## TTY and Automation Notes
-
-- `setup quickstart`, `setup wizard`, and `setup env` require TTY.
-- Bootstrap defaults to interactive in TTY and non-interactive in non-TTY environments.
-- For automation, use non-interactive bootstrap (`--non-interactive`) plus direct file management.
-
-Validation command for automated pipelines:
+Validate lifecycle readiness after setup:
 
 ```bash
-openassist config validate --config <path-to-openassist.toml>
+openassist doctor
+openassist service health
 ```

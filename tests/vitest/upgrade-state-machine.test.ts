@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildUpgradePlan,
+  renderUpgradePlanSummary,
   resolveUpgradeTargetRef,
   shouldPullOnCurrentBranch
 } from "../../apps/openassist-cli/src/lib/upgrade.js";
@@ -34,8 +35,40 @@ describe("upgrade state machine planning", () => {
     expect(plan).toEqual({
       targetRef: "main",
       usePullOnCurrentBranch: true,
+      executionMode: "fast-forward-current-branch",
       skipRestart: false,
       dryRun: true
     });
+  });
+
+  it("renders operator-facing upgrade summary lines", () => {
+    const plan = buildUpgradePlan({
+      optionRef: "main",
+      currentBranch: "main",
+      skipRestart: true,
+      dryRun: true
+    });
+
+    expect(
+      renderUpgradePlanSummary({
+        installDir: "/tmp/openassist",
+        currentBranch: "main",
+        currentCommit: "1234567890abcdef",
+        trackedRef: "main",
+        rollbackTarget: "1234567890abcdef",
+        plan
+      })
+    ).toEqual([
+      "Upgrade plan",
+      "- Install model: repo-backed checkout",
+      "- Install directory: /tmp/openassist",
+      "- Current branch: main",
+      "- Current commit: 1234567890ab",
+      "- Tracked ref: main",
+      "- Target ref: main",
+      "- Update method: fast-forward pull on the current branch",
+      "- Restart and health checks: skipped by option",
+      "- Rollback target: 1234567890ab"
+    ]);
   });
 });

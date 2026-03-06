@@ -44,39 +44,41 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
     collectChannelEnvRefs(channel.settings, envRefs);
   }
 
+  const primaryChannel = input.config.runtime.channels.find((channel) => channel.enabled);
+  const firstReplyGuidance =
+    primaryChannel?.type === "telegram"
+      ? "Send a message in a Telegram chat where the bot was added, then run /status if you need diagnostics."
+      : primaryChannel?.type === "discord"
+        ? "Send a message in an allowed Discord channel, then run /status if you need diagnostics."
+        : primaryChannel?.type === "whatsapp-md"
+          ? `Run openassist channel qr --id ${primaryChannel.id} if QR login is still pending, then send a WhatsApp message.`
+          : "Finish channel setup, then send a first test message and run /status if you need diagnostics.";
+
   const lines: string[] = [];
-  lines.push("Quickstart summary");
-  lines.push(`- Config: ${input.configPath}`);
-  lines.push(`- Env file: ${input.envFilePath}`);
+  lines.push("Quickstart complete");
+  lines.push(`- Config saved: ${input.configPath}`);
+  lines.push(`- Env file saved: ${input.envFilePath}`);
   if (input.backupPath) {
     lines.push(`- Backup: ${input.backupPath}`);
   }
-  lines.push(`- Default provider: ${input.config.runtime.defaultProviderId}`);
-  lines.push(`- Assistant name: ${input.config.runtime.assistant.name}`);
-  lines.push(`- Providers: ${input.config.runtime.providers.map((item) => item.id).join(", ") || "(none)"}`);
-  lines.push(`- Channels: ${input.config.runtime.channels.map((item) => item.id).join(", ") || "(none)"}`);
-  lines.push(`- Scheduler tasks: ${input.config.runtime.scheduler.tasks.length}`);
-  lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
+  lines.push(`- Primary provider: ${input.config.runtime.defaultProviderId}`);
+  lines.push(`- Primary channel: ${primaryChannel ? `${primaryChannel.id} (${primaryChannel.type})` : "(not configured)"}`);
+  lines.push(`- Timezone confirmed: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
   lines.push(
-    `- Native web tools: ${
-      input.config.tools.web.enabled
-        ? `${input.config.tools.web.searchMode} mode`
-        : "disabled"
+    `- Service status: ${
+      input.skippedService ? "not checked yet (--skip-service)" : input.healthOk ? "healthy" : "needs attention"
     }`
   );
+  lines.push(`- Env keys updated: ${input.changedEnvKeys.join(", ") || "(none)"}`);
   lines.push(`- Secret refs in config: ${Array.from(envRefs).sort().join(", ") || "(none)"}`);
-  lines.push(`- Env keys changed in this run: ${input.changedEnvKeys.join(", ") || "(none)"}`);
-  lines.push(`- Validation warnings: ${input.warningCount}`);
-  lines.push(
-    `- Service and health step: ${
-      input.skippedService ? "skipped by option" : input.healthOk ? "completed" : "failed"
-    }`
-  );
-  lines.push(
-    "- Ops commands: openassist service console | openassist service status | openassist service reload | openassist service health"
-  );
-  lines.push("- OAuth commands: openassist auth start --provider <id> --account default --open-browser | openassist auth status");
-  lines.push("- Setup commands: openassist setup quickstart | openassist setup wizard | openassist setup env");
+  if (input.warningCount > 0) {
+    lines.push(`- Validation warnings: ${input.warningCount}`);
+  }
+  lines.push("First reply checklist:");
+  lines.push(`- ${firstReplyGuidance}`);
+  lines.push("- Verify daemon health: openassist service health");
+  lines.push("- Check channel status if there is no reply: openassist channel status");
+  lines.push("- Use the advanced editor for more settings: openassist setup wizard");
 
   return lines;
 }

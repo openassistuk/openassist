@@ -17,11 +17,13 @@ import {
 import { loadEnvFile, saveEnvFile } from "../lib/env-file.js";
 
 export function registerSetupCommands(program: Command): void {
-  const setupCommand = program.command("setup").description("Interactive setup and configuration commands");
+  const setupCommand = program
+    .command("setup")
+    .description("First-run onboarding and advanced configuration commands");
 
   setupCommand
     .command("wizard")
-    .description("Run interactive setup wizard")
+    .description("Run advanced setup editor")
     .option("--config <path>", "Path to openassist.toml", "openassist.toml")
     .option("--env-file <path>", "Environment file path", defaultEnvFilePath())
     .option("--install-dir <path>", "OpenAssist install directory (used for service operations)")
@@ -44,7 +46,7 @@ export function registerSetupCommands(program: Command): void {
           console.log("Setup wizard exited without saving.");
           return;
         }
-        console.log(`Saved configuration to ${configPath}`);
+        console.log(`Saved advanced configuration to ${configPath}`);
         if (result.backupPath) {
           console.log(`Backup created: ${result.backupPath}`);
         }
@@ -54,7 +56,7 @@ export function registerSetupCommands(program: Command): void {
           return;
         }
 
-        console.log("Running post-save service restart and health checks...");
+        console.log("Running advanced post-save service restart and health checks...");
         try {
           const postSave = await runSetupWizardPostSaveChecks(
             {
@@ -116,7 +118,7 @@ export function registerSetupCommands(program: Command): void {
 
   setupCommand
     .command("quickstart")
-    .description("Run strict onboarding quickstart flow")
+    .description("Run minimal first-reply onboarding")
     .option("--config <path>", "Path to openassist.toml", "openassist.toml")
     .option("--env-file <path>", "Environment file path", defaultEnvFilePath())
     .option("--install-dir <path>", "OpenAssist install directory", defaultInstallDir())

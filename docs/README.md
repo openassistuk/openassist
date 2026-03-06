@@ -1,77 +1,62 @@
-# OpenAssist Documentation Index
+# OpenAssist Documentation
 
-Use this page as the operator starting point. Links are grouped by real operational tasks.
+Use this index by lifecycle stage.
 
-## Install and First Run
+## Canonical Operator Flow
 
-- Fastest Linux/macOS path (operator + end-user): `docs/operations/quickstart-linux-macos.md`
-- Linux install runbook: `docs/operations/install-linux.md`
-- macOS install runbook: `docs/operations/install-macos.md`
-- Strict onboarding quickstart + advanced wizard, including native web tool setup: `docs/operations/setup-wizard.md`
-- Global assistant profile memory (`/profile`) + restart persistence notes: `docs/operations/restart-recovery.md`
-- Root quick start and command reference: `README.md`
+1. Install from GitHub or a local checkout.
+2. Run `openassist setup quickstart` until you have a first real reply.
+3. Use `openassist setup wizard` for advanced changes.
+4. Use `openassist upgrade --dry-run` before every update.
 
-## Configure Providers and Auth
+OpenAssist remains a repo-backed install and update model. Bootstrap, `openassist doctor`, `openassist service install`, and `openassist upgrade` all work from the same persisted install record so operators can see the install directory, tracked ref, config path, env path, service manager, and last known good commit in one place.
 
+Primary runbooks:
+
+- Fastest operator path: `docs/operations/quickstart-linux-macos.md`
+- Linux platform details: `docs/operations/install-linux.md`
+- macOS platform details: `docs/operations/install-macos.md`
+- Quickstart versus wizard responsibilities: `docs/operations/setup-wizard.md`
+- Upgrade, rollback, and rerun-bootstrap guidance: `docs/operations/upgrade-and-rollback.md`
+- Restart and recovery guarantees: `docs/operations/restart-recovery.md`
+
+## Lifecycle Commands
+
+- `openassist doctor`: lifecycle readiness report for install, setup, and upgrade
+- `openassist setup quickstart`: minimal first-reply onboarding
+- `openassist setup wizard`: advanced section editor
+- `openassist service install`: explicit service install or reinstall
+- `openassist upgrade --dry-run`: resolved update plan without mutation
+
+Use `install.sh` or `scripts/install/bootstrap.sh` again when the checkout is no longer trustworthy, `.git` is missing, or build output is missing and you want the installer to rebuild a clean repo-backed install.
+
+## Architecture and Interfaces
+
+- System overview: `docs/architecture/overview.md`
+- Runtime modules: `docs/architecture/runtime-and-modules.md`
 - Provider contract: `docs/interfaces/provider-adapter.md`
-- OAuth and API-key operational commands: `README.md`
-- OpenClaw migration mapping: `docs/migration/openclaw-import.md`
-
-## Connect Channels
-
 - Channel contract: `docs/interfaces/channel-adapter.md`
-- Runtime channel behavior: `docs/architecture/runtime-and-modules.md`
-- Operational channel commands: `README.md`
-
-## Scheduling and Time Reliability
-
-- Scheduler/time contract: `docs/interfaces/scheduler-and-time.md`
-- Config patterns and rollout safety: `docs/operations/config-rollout-and-rollback.md`
-- Restart/replay behavior: `docs/operations/restart-recovery.md`
-- Stress scenarios: `docs/testing/chaos-and-soak.md`
-
-## Service Lifecycle and Upgrades
-
-- Service install/start/restart/logs: `docs/operations/install-linux.md`, `docs/operations/install-macos.md`
-- Upgrade and automatic rollback: `docs/operations/upgrade-and-rollback.md`
-- Recovery behavior after restarts: `docs/operations/restart-recovery.md`
+- Tool-calling contract: `docs/interfaces/tool-calling.md`
+- Scheduler and time contract: `docs/interfaces/scheduler-and-time.md`
 
 ## Security and Policy
 
 - Threat model: `docs/security/threat-model.md`
 - Policy profiles: `docs/security/policy-profiles.md`
-- Tool-calling contract and audit model, including native web tools and awareness status: `docs/interfaces/tool-calling.md`
-- Secret-hardening execution plan: `docs/execplans/open-source-secrets-hardening.md`
-
-## Skills and Extensibility
-
-- Skills contract: `docs/interfaces/skills-manifest.md`
-- Example skill package: `examples/skills/shell-audit/SKILL.md`
-
-## Architecture Deep Dive
-
-- System overview: `docs/architecture/overview.md`
-- Runtime module details, including layered runtime awareness and native web tools: `docs/architecture/runtime-and-modules.md`
-- Context engine details: `docs/architecture/context-engine.md`
+- End-to-end autonomy validation: `docs/operations/e2e-autonomy-validation.md`
 
 ## Testing and Release Readiness
 
 - Test matrix and quality gates: `docs/testing/test-matrix.md`
 - Chaos and soak scenarios: `docs/testing/chaos-and-soak.md`
-- End-to-end autonomy validation runbook: `docs/operations/e2e-autonomy-validation.md`
-- Service smoke cadence note: lifecycle smoke runs on manual dispatch and schedule (Mon/Thu 06:00 UTC), not on every push/PR
-
-## Planning and Change History
-
-- Living ExecPlan: `docs/execplans/openassist-v1.md`
-- Runtime awareness ExecPlan: `docs/execplans/runtime-self-awareness.md`
-- Native web tools ExecPlan: `docs/execplans/native-web-tools.md`
-- Security hardening ExecPlan: `docs/execplans/open-source-secrets-hardening.md`
-- ExecPlan process rules: `.agents/PLANS.md`
 - Changelog: `CHANGELOG.md`
 
-## Community and Governance
+Service smoke note:
 
-- Security policy and disclosure process: `SECURITY.md`
-- Contribution guide: `CONTRIBUTING.md`
-- Community standards: `CODE_OF_CONDUCT.md`
+- `.github/workflows/service-smoke.yml` runs on `workflow_dispatch` and schedule (`Mon`/`Thu` at `06:00 UTC`)
+- it is a supplemental lifecycle check, not a required per-push or per-PR gate
+
+## Planning
+
+- Current lifecycle ExecPlan: `docs/execplans/lifecycle-ux-overhaul.md`
+- ExecPlan process: `.agents/PLANS.md`

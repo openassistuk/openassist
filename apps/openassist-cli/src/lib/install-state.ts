@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { defaultEnvFilePath, defaultInstallDir, defaultInstallStatePath } from "./runtime-context.js";
 
@@ -35,6 +36,51 @@ function normalizeState(input: Partial<InstallState>): InstallState {
   };
 }
 
+function mergeDefined<T extends Record<string, unknown>>(base: T, updates: Partial<T>): T {
+  const merged = { ...base };
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      merged[key as keyof T] = value as T[keyof T];
+    }
+  }
+  return merged;
+}
+
+function readGitValue(installDir: string, args: string[]): string | undefined {
+  if (!fs.existsSync(path.join(installDir, ".git"))) {
+    return undefined;
+  }
+  const result = spawnSync("git", ["-C", installDir, ...args], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
+  });
+  if (result.status !== 0) {
+    return undefined;
+  }
+  const value = result.stdout.trim();
+  return value.length > 0 ? value : undefined;
+}
+
+export function detectInstallStateFromRepo(installDir: string): Partial<InstallState> {
+  const trackedRefRaw = readGitValue(installDir, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const trackedRef =
+    trackedRefRaw && trackedRefRaw !== "HEAD" ? trackedRefRaw : undefined;
+
+  return {
+    repoUrl: readGitValue(installDir, ["config", "--get", "remote.origin.url"]),
+    trackedRef,
+    lastKnownGoodCommit: readGitValue(installDir, ["rev-parse", "HEAD"])
+  };
+}
+
+export function mergeInstallState(
+  current: Partial<InstallState> | undefined,
+  updates: Partial<InstallState>
+): InstallState {
+  const merged = mergeDefined(current ?? {}, updates);
+  return normalizeState(merged);
+}
+
 export function loadInstallState(statePath = defaultInstallStatePath()): InstallState | undefined {
   if (!fs.existsSync(statePath)) {
     return undefined;
@@ -47,8 +93,12 @@ export function loadInstallState(statePath = defaultInstallStatePath()): Install
   }
 }
 
-export function saveInstallState(state: Partial<InstallState>, statePath = defaultInstallStatePath()): InstallState {
-  const normalized = normalizeState(state);
+export function saveInstallState(
+  state: Partial<InstallState>,
+  statePath = defaultInstallStatePath(),
+  current?: Partial<InstallState>
+): InstallState {
+  const normalized = mergeInstallState(current ?? loadInstallState(statePath), state);
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
   fs.writeFileSync(statePath, JSON.stringify(normalized, null, 2), "utf8");
   return normalized;

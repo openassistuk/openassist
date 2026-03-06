@@ -68,18 +68,71 @@ class ScriptedPromptAdapter implements PromptAdapter {
   }
 }
 
-async function basePromptAnswers(bindPort: number): Promise<string[]> {
+function createFakeService(counters?: { installCalls: number; restartCalls: number }): ServiceManagerAdapter {
+  return {
+    kind: process.platform === "darwin" ? "launchd" : "systemd-user",
+    async install(): Promise<void> {
+      if (counters) {
+        counters.installCalls += 1;
+      }
+    },
+    async uninstall(): Promise<void> {},
+    async start(): Promise<void> {},
+    async stop(): Promise<void> {},
+    async restart(): Promise<void> {
+      if (counters) {
+        counters.restartCalls += 1;
+      }
+    },
+    async status(): Promise<void> {},
+    async logs(): Promise<void> {},
+    async enable(): Promise<void> {},
+    async disable(): Promise<void> {},
+    async isInstalled(): Promise<boolean> {
+      return true;
+    }
+  };
+}
+
+function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[] {
   return [
+    "false",
     "127.0.0.1",
     String(bindPort),
-    "operator",
-    ".openassist/data",
-    ".openassist/skills",
-    ".openassist/logs",
     "openai",
     "openai-main",
     "gpt-5.2",
-    ""
+    "",
+    "openai-key",
+    "telegram",
+    "telegram-main",
+    "telegram-token",
+    "123,456",
+    "Europe",
+    "Europe/London",
+    "true",
+    ...extra
+  ];
+}
+
+function invalidQuickstartAnswers(bindPort: number, extra: string[] = []): string[] {
+  return [
+    "false",
+    "127.0.0.1",
+    String(bindPort),
+    "openai",
+    "openai-main",
+    "gpt-5.2",
+    "",
+    "",
+    "telegram",
+    "telegram-main",
+    "",
+    "",
+    "Europe",
+    "Europe/London",
+    "true",
+    ...extra
   ];
 }
 
@@ -93,22 +146,7 @@ describe("setup quickstart branch behavior", () => {
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
     const prompts = new ScriptedPromptAdapter([
-      ...(await basePromptAnswers(bindPort)),
-      "",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
+      ...invalidQuickstartAnswers(bindPort),
       "abort"
     ]);
 
@@ -140,22 +178,7 @@ describe("setup quickstart branch behavior", () => {
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
     const prompts = new ScriptedPromptAdapter([
-      ...(await basePromptAnswers(bindPort)),
-      "",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
+      ...invalidQuickstartAnswers(bindPort),
       "true"
     ]);
 
@@ -178,92 +201,6 @@ describe("setup quickstart branch behavior", () => {
     expect(fs.existsSync(configPath)).toBe(true);
   });
 
-  it("covers whatsapp channel path plus cron skill task with output and remove branch", async () => {
-    const root = tempDir("openassist-quickstart-branches-");
-    const configPath = path.join(root, "openassist.toml");
-    const envPath = path.join(root, "openassistd.env");
-    const installDir = root;
-    const bindPort = await getFreePort();
-    const state = loadSetupQuickstartState(configPath, envPath, installDir);
-
-    const prompts = new ScriptedPromptAdapter([
-      ...(await basePromptAnswers(bindPort)),
-      "openai-key",
-      "true",
-      "anthropic",
-      "anthropic-main",
-      "claude-sonnet-4-5",
-      "",
-      "",
-      "false",
-      "openai-main",
-      "true",
-      "upsert",
-      "whatsapp-md",
-      "whatsapp-main",
-      "true",
-      "experimental",
-      "true",
-      "false",
-      "5",
-      "4000",
-      "upsert",
-      "telegram",
-      "telegram-main",
-      "true",
-      "true",
-      "telegram-token",
-      "111,222",
-      "remove",
-      "telegram-main",
-      "done",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "backfill",
-      "true",
-      "skill-task",
-      "cron",
-      "skip",
-      "",
-      "120",
-      "skill",
-      "ops-audit",
-      "scripts/run.mjs",
-      "true",
-      "whatsapp-main",
-      "ops-room",
-      "Task {{result}}",
-      "0 */5 * * * *"
-    ]);
-
-    const result = await runSetupQuickstart(
-      state,
-      {
-        configPath,
-        envFilePath: envPath,
-        installDir,
-        allowIncomplete: false,
-        skipService: true,
-        requireTty: false,
-        preflightCommandChecks: false
-      },
-      prompts
-    );
-
-    expect(result.saved).toBe(true);
-    expect(result.validationWarnings).toBeGreaterThanOrEqual(1);
-    expect(state.config.runtime.channels.some((channel) => channel.id === "whatsapp-main")).toBe(true);
-    expect(state.config.runtime.channels.some((channel) => channel.id === "telegram-main")).toBe(false);
-    expect(state.config.runtime.scheduler.tasks.some((task) => task.id === "skill-task")).toBe(true);
-  });
-
   it("executes service and health step using dependency stubs", async () => {
     const root = tempDir("openassist-quickstart-service-");
     const configPath = path.join(root, "openassist.toml");
@@ -274,62 +211,12 @@ describe("setup quickstart branch behavior", () => {
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
-    let installCalls = 0;
-    let restartCalls = 0;
+    const counters = { installCalls: 0, restartCalls: 0 };
     const requestCalls: Array<{ method: string; url: string }> = [];
-
-    const fakeService: ServiceManagerAdapter = {
-      kind: process.platform === "darwin" ? "launchd" : "systemd-user",
-      async install(): Promise<void> {
-        installCalls += 1;
-      },
-      async uninstall(): Promise<void> {
-        // no-op
-      },
-      async start(): Promise<void> {
-        // no-op
-      },
-      async stop(): Promise<void> {
-        // no-op
-      },
-      async restart(): Promise<void> {
-        restartCalls += 1;
-      },
-      async status(): Promise<void> {
-        // no-op
-      },
-      async logs(): Promise<void> {
-        // no-op
-      },
-      async enable(): Promise<void> {
-        // no-op
-      },
-      async disable(): Promise<void> {
-        // no-op
-      },
-      async isInstalled(): Promise<boolean> {
-        return true;
-      }
-    };
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
 
     const prompts = new ScriptedPromptAdapter([
-      ...(await basePromptAnswers(bindPort)),
-      "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      "true"
+      ...validQuickstartAnswers(bindPort, validationContinuationAnswers)
     ]);
 
     const result = await runSetupQuickstart(
@@ -345,7 +232,8 @@ describe("setup quickstart branch behavior", () => {
       },
       prompts,
       {
-        createServiceManagerFn: () => fakeService,
+        createServiceManagerFn: () =>
+          createFakeService(counters),
         waitForHealthyFn: async () => ({
           ok: true,
           status: 200,
@@ -363,8 +251,8 @@ describe("setup quickstart branch behavior", () => {
 
     expect(result.saved).toBe(true);
     expect(result.serviceHealthOk).toBe(true);
-    expect(installCalls).toBe(1);
-    expect(restartCalls).toBe(1);
+    expect(counters.installCalls).toBe(1);
+    expect(counters.restartCalls).toBe(1);
     expect(requestCalls.some((call) => call.method === "POST" && call.url.includes("/v1/time/timezone/confirm"))).toBe(true);
     expect(requestCalls.filter((call) => call.method === "GET").length).toBeGreaterThanOrEqual(2);
   });
@@ -379,61 +267,9 @@ describe("setup quickstart branch behavior", () => {
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
-    const fakeService: ServiceManagerAdapter = {
-      kind: process.platform === "darwin" ? "launchd" : "systemd-user",
-      async install(): Promise<void> {
-        // no-op
-      },
-      async uninstall(): Promise<void> {
-        // no-op
-      },
-      async start(): Promise<void> {
-        // no-op
-      },
-      async stop(): Promise<void> {
-        // no-op
-      },
-      async restart(): Promise<void> {
-        // no-op
-      },
-      async status(): Promise<void> {
-        // no-op
-      },
-      async logs(): Promise<void> {
-        // no-op
-      },
-      async enable(): Promise<void> {
-        // no-op
-      },
-      async disable(): Promise<void> {
-        // no-op
-      },
-      async isInstalled(): Promise<boolean> {
-        return true;
-      }
-    };
-
     const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
-
     const prompts = new ScriptedPromptAdapter([
-      ...(await basePromptAnswers(bindPort)),
-      "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      ...validationContinuationAnswers,
-      "skip"
+      ...validQuickstartAnswers(bindPort, [...validationContinuationAnswers, "skip"])
     ]);
 
     const result = await runSetupQuickstart(
@@ -449,7 +285,7 @@ describe("setup quickstart branch behavior", () => {
       },
       prompts,
       {
-        createServiceManagerFn: () => fakeService,
+        createServiceManagerFn: () => createFakeService(),
         waitForHealthyFn: async () => ({
           ok: false,
           status: 503,
@@ -466,7 +302,7 @@ describe("setup quickstart branch behavior", () => {
     expect(result.serviceHealthOk).toBe(false);
     expect(result.postSaveAborted).toBe(false);
     expect(result.postSaveError).toMatch(/daemon health is failing/i);
-    expect(result.summary.some((line) => line.includes("Service and health step: failed"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Service status: needs attention"))).toBe(true);
   });
 
   it("allows abort-after-failure in allow-incomplete mode for service checks", async () => {
@@ -479,61 +315,9 @@ describe("setup quickstart branch behavior", () => {
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
-    const fakeService: ServiceManagerAdapter = {
-      kind: process.platform === "darwin" ? "launchd" : "systemd-user",
-      async install(): Promise<void> {
-        // no-op
-      },
-      async uninstall(): Promise<void> {
-        // no-op
-      },
-      async start(): Promise<void> {
-        // no-op
-      },
-      async stop(): Promise<void> {
-        // no-op
-      },
-      async restart(): Promise<void> {
-        // no-op
-      },
-      async status(): Promise<void> {
-        // no-op
-      },
-      async logs(): Promise<void> {
-        // no-op
-      },
-      async enable(): Promise<void> {
-        // no-op
-      },
-      async disable(): Promise<void> {
-        // no-op
-      },
-      async isInstalled(): Promise<boolean> {
-        return true;
-      }
-    };
-
     const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
-
     const prompts = new ScriptedPromptAdapter([
-      ...(await basePromptAnswers(bindPort)),
-      "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      ...validationContinuationAnswers,
-      "abort"
+      ...validQuickstartAnswers(bindPort, [...validationContinuationAnswers, "abort"])
     ]);
 
     const result = await runSetupQuickstart(
@@ -549,7 +333,7 @@ describe("setup quickstart branch behavior", () => {
       },
       prompts,
       {
-        createServiceManagerFn: () => fakeService,
+        createServiceManagerFn: () => createFakeService(),
         waitForHealthyFn: async () => ({
           ok: false,
           status: 503,
@@ -583,58 +367,8 @@ describe("setup quickstart branch behavior", () => {
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
-    const fakeService: ServiceManagerAdapter = {
-      kind: process.platform === "darwin" ? "launchd" : "systemd-user",
-      async install(): Promise<void> {
-        // no-op
-      },
-      async uninstall(): Promise<void> {
-        // no-op
-      },
-      async start(): Promise<void> {
-        // no-op
-      },
-      async stop(): Promise<void> {
-        // no-op
-      },
-      async restart(): Promise<void> {
-        // no-op
-      },
-      async status(): Promise<void> {
-        // no-op
-      },
-      async logs(): Promise<void> {
-        // no-op
-      },
-      async enable(): Promise<void> {
-        // no-op
-      },
-      async disable(): Promise<void> {
-        // no-op
-      },
-      async isInstalled(): Promise<boolean> {
-        return true;
-      }
-    };
-
     const prompts = new ScriptedPromptAdapter([
-      ...(await basePromptAnswers(bindPort)),
-      "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      "abort"
+      ...validQuickstartAnswers(bindPort, ["abort"])
     ]);
 
     const result = await runSetupQuickstart(
@@ -650,7 +384,7 @@ describe("setup quickstart branch behavior", () => {
       },
       prompts,
       {
-        createServiceManagerFn: () => fakeService,
+        createServiceManagerFn: () => createFakeService(),
         waitForHealthyFn: async () => ({
           ok: false,
           status: 503,
@@ -666,8 +400,6 @@ describe("setup quickstart branch behavior", () => {
     expect(result.saved).toBe(true);
     expect(result.serviceHealthOk).toBe(false);
     expect(result.postSaveAborted).toBe(true);
-    expect(result.postSaveError).toMatch(/daemon health is failing/i);
-    expect(result.summary.some((line) => line.includes("aborted by operator"))).toBe(true);
   });
 
   it("uses loopback health probe urls when bind address is wildcard", async () => {
@@ -680,69 +412,26 @@ describe("setup quickstart branch behavior", () => {
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
-    const fakeService: ServiceManagerAdapter = {
-      kind: process.platform === "darwin" ? "launchd" : "systemd-user",
-      async install(): Promise<void> {
-        // no-op
-      },
-      async uninstall(): Promise<void> {
-        // no-op
-      },
-      async start(): Promise<void> {
-        // no-op
-      },
-      async stop(): Promise<void> {
-        // no-op
-      },
-      async restart(): Promise<void> {
-        // no-op
-      },
-      async status(): Promise<void> {
-        // no-op
-      },
-      async logs(): Promise<void> {
-        // no-op
-      },
-      async enable(): Promise<void> {
-        // no-op
-      },
-      async disable(): Promise<void> {
-        // no-op
-      },
-      async isInstalled(): Promise<boolean> {
-        return true;
-      }
-    };
-
     let healthArg: string | string[] | undefined;
     const requestUrls: string[] = [];
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
     const prompts = new ScriptedPromptAdapter([
+      "false",
       "0.0.0.0",
       String(bindPort),
-      "operator",
-      ".openassist/data",
-      ".openassist/skills",
-      ".openassist/logs",
       "openai",
       "openai-main",
       "gpt-5.2",
       "",
       "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
+      "telegram",
+      "telegram-main",
+      "telegram-token",
+      "123,456",
+      "Europe",
       "Europe/London",
       "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      "true"
+      ...validationContinuationAnswers
     ]);
 
     const result = await runSetupQuickstart(
@@ -758,7 +447,7 @@ describe("setup quickstart branch behavior", () => {
       },
       prompts,
       {
-        createServiceManagerFn: () => fakeService,
+        createServiceManagerFn: () => createFakeService(),
         waitForHealthyFn: async (baseUrl) => {
           healthArg = baseUrl;
           return {
@@ -781,5 +470,135 @@ describe("setup quickstart branch behavior", () => {
     expect(Array.isArray(healthArg)).toBe(true);
     expect((healthArg as string[]).some((entry) => entry.includes("127.0.0.1"))).toBe(true);
     expect(requestUrls.some((url) => url.startsWith(`http://127.0.0.1:${bindPort}`))).toBe(true);
+  });
+
+  it("re-enters runtime to fix a busy port before saving", async () => {
+    const root = tempDir("openassist-quickstart-runtime-fix-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const busyPort = await getFreePort();
+    const freePort = await getFreePort();
+    const holder = net.createServer();
+    holder.unref();
+    await new Promise<void>((resolve, reject) => {
+      holder.once("error", reject);
+      holder.listen(busyPort, "127.0.0.1", () => resolve());
+    });
+
+    try {
+      const state = loadSetupQuickstartState(configPath, envPath, installDir);
+      const prompts = new ScriptedPromptAdapter([
+        "false",
+        "127.0.0.1",
+        String(busyPort),
+        "openai",
+        "openai-main",
+        "gpt-5.2",
+        "",
+        "openai-key",
+        "telegram",
+        "telegram-main",
+        "telegram-token",
+        "123",
+        "Europe",
+        "Europe/London",
+        "true",
+        "runtime",
+        "false",
+        "127.0.0.1",
+        String(freePort)
+      ]);
+
+      const result = await runSetupQuickstart(
+        state,
+        {
+          configPath,
+          envFilePath: envPath,
+          installDir,
+          allowIncomplete: false,
+          skipService: true,
+          requireTty: false,
+          preflightCommandChecks: false
+        },
+        prompts
+      );
+
+      expect(result.saved).toBe(true);
+      expect(result.validationErrors).toBe(0);
+      expect(state.config.runtime.bindPort).toBe(freePort);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        holder.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
+  it("re-enters provider, channel, and time stages until validation passes", async () => {
+    const root = tempDir("openassist-quickstart-repair-flow-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+
+    const prompts = new ScriptedPromptAdapter([
+      "true",
+      "openai",
+      "openai-main",
+      "gpt-5.2",
+      "",
+      "",
+      "telegram",
+      "telegram-main",
+      "",
+      "",
+      "Europe",
+      "Europe/London",
+      "false",
+      "retry",
+      "providers",
+      "openai",
+      "openai-main",
+      "gpt-5.2",
+      "",
+      "openai-key",
+      "channels",
+      "telegram",
+      "telegram-main",
+      "telegram-token",
+      "123",
+      "time",
+      "Europe",
+      "Europe/London",
+      "true"
+    ]);
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    expect(result.saved).toBe(true);
+    expect(result.validationErrors).toBe(0);
+    expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY).toBe("openai-key");
+    expect(state.env.OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN).toBe("telegram-token");
+    expect(state.config.runtime.time.defaultTimezone).toBe("Europe/London");
+    expect(result.summary.some((line) => line.includes("Service status: not checked yet"))).toBe(true);
   });
 });

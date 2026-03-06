@@ -5,7 +5,7 @@ import { SpawnCommandRunner } from "../lib/command-runner.js";
 import { createServiceManager } from "../lib/service-manager.js";
 import { checkHealth } from "../lib/health-check.js";
 import { defaultEnvFilePath, defaultInstallDir, detectDefaultDaemonBaseUrl } from "../lib/runtime-context.js";
-import { saveInstallState } from "../lib/install-state.js";
+import { detectInstallStateFromRepo, loadInstallState, saveInstallState } from "../lib/install-state.js";
 import { writeEnvTemplateIfMissing } from "../lib/env-file.js";
 
 function normalizeBaseUrl(baseUrl?: string): string {
@@ -45,6 +45,8 @@ export function registerServiceCommands(program: Command): void {
         writeEnvTemplateIfMissing(envFilePath);
         const runner = new SpawnCommandRunner();
         const service = createServiceManager(runner);
+        const existingState = loadInstallState();
+        const repoMetadata = detectInstallStateFromRepo(installDir);
         await service.install({
           installDir,
           configPath,
@@ -57,11 +59,13 @@ export function registerServiceCommands(program: Command): void {
             installDir,
             configPath,
             envFilePath,
-            repoUrl: "",
-            trackedRef: "main",
+            ...(repoMetadata.repoUrl ? { repoUrl: repoMetadata.repoUrl } : {}),
+            ...(repoMetadata.trackedRef ? { trackedRef: repoMetadata.trackedRef } : {}),
             serviceManager: service.kind,
-            lastKnownGoodCommit: ""
-          });
+            ...(repoMetadata.lastKnownGoodCommit
+              ? { lastKnownGoodCommit: repoMetadata.lastKnownGoodCommit }
+              : {})
+          }, undefined, existingState);
         }
         console.log(
           options.dryRun

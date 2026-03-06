@@ -18,6 +18,11 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("--no-auto-install-prereqs"));
     assert.ok(script.includes("[[ -t 0 && -t 1 ]]"));
     assert.ok(script.includes("exec </dev/tty"));
+    assert.ok(script.includes("OpenAssist lifecycle plan"));
+    assert.ok(script.includes("install model: repo-backed checkout"));
+    assert.ok(script.includes("quickstart after build: ${quickstart_mode}"));
+    assert.ok(script.includes("service install/restart: ${service_mode}"));
+    assert.ok(script.includes("persist_install_state"));
     assert.ok(script.includes("OPENASSIST_DEFAULT_REPO_URL"));
     assert.ok(script.includes("Missing prerequisites detected:"));
     assert.ok(script.includes("Attempting prerequisite installation using"));
@@ -44,9 +49,13 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("append_path_snippet"));
     assert.ok(script.includes("# >>> openassist path >>>"));
     assert.ok(script.includes("PATH profile updated for OpenAssist wrappers:"));
-    assert.ok(script.includes("CLI wrappers (local): ${LOCAL_BIN_DIR}/openassist and ${LOCAL_BIN_DIR}/openassistd"));
-    assert.ok(script.includes("CLI wrappers (global): ${GLOBAL_BIN_DIR}/openassist and ${GLOBAL_BIN_DIR}/openassistd"));
-    assert.ok(script.includes("If 'openassist' is not found in this shell, run: ${LOCAL_BIN_DIR}/openassist --help"));
+    assert.ok(script.includes("Ready now:"));
+    assert.ok(script.includes("local wrappers available at ${LOCAL_BIN_DIR}/openassist and ${LOCAL_BIN_DIR}/openassistd"));
+    assert.ok(script.includes("global wrappers linked at ${GLOBAL_BIN_DIR}/openassist and ${GLOBAL_BIN_DIR}/openassistd"));
+    assert.ok(script.includes("Next step:"));
+    assert.ok(script.includes("finish first-run onboarding: openassist setup quickstart"));
+    assert.ok(script.includes("verify daemon health: openassist service health"));
+    assert.ok(script.includes("if 'openassist' is not found in this shell, run: ${LOCAL_BIN_DIR}/openassist --help"));
     assert.ok(script.includes("SERVICE_KIND=\"systemd-system\""));
   });
 });

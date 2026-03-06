@@ -3,80 +3,69 @@
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)
 [![Service Smoke](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml)
 
-OpenAssist is a lightweight, local-first LLM-to-chat gateway.
+OpenAssist is a local-first LLM-to-chat gateway built around one daemon, `openassistd`, and one operator CLI, `openassist`.
 
-It runs as a single daemon (`openassistd`) with a CLI control plane (`openassist`) so you can:
+It is designed for a public operator workflow:
 
-- connect LLM providers to real chat channels
-- run scheduled AI tasks with durable replay
-- gate host-impacting actions behind explicit policy profiles
-- ground every chat turn with runtime self-awareness about the current host, profile, tool boundary, and native web availability
-- expose native web search/fetch/research tools for `full-root` sessions
-- operate and debug everything from terminal and chat diagnostics
+- install from GitHub into a repo-backed checkout
+- reach a first real reply with one provider and one channel
+- use an advanced editor only when you need deeper changes
+- upgrade in place with a dry-run plan and automatic rollback on failure
 
-`Service Smoke` is a supplemental lifecycle workflow (manual + schedule at Mon/Thu 06:00 UTC), not a required push/PR gate.
+`Service Smoke` is a supplemental lifecycle workflow that runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`). It is not a required push or PR gate.
 
-## Why OpenAssist
+## Lifecycle
 
-- Lightweight runtime: one daemon, one CLI, no required web dashboard.
-- Chat-native operations: built for Telegram, Discord, and WhatsApp MD workflows.
-- Provider flexibility: OpenAI, Anthropic, and OpenAI-compatible adapters.
-- Safer automation: autonomy is profile-gated (`full-root`) and audited.
-- Restart-safe behavior: durable queue replay + idempotent scheduler execution.
-- Practical onboarding: strict `setup quickstart` path plus advanced `setup wizard`.
-- Operator diagnostics by default: `/status` works from chat even when provider auth fails.
-- Runtime grounding by default: every provider turn includes a bounded awareness snapshot so the model knows what OpenAssist is, where it is running, and what tools are actually callable.
+OpenAssist now has one canonical operator path:
 
-## Supported Today
+1. Install OpenAssist with `install.sh` or `scripts/install/bootstrap.sh`.
+2. Run `openassist setup quickstart` to get one provider, one channel, healthy service state, and a clear first-reply checklist.
+3. Use `openassist setup wizard` for advanced runtime, provider, channel, scheduler, and tool/security changes.
+4. Use `openassist upgrade --dry-run` before every update, then `openassist upgrade` when the plan looks correct.
 
-| Surface | Status |
-| --- | --- |
-| Linux | Primary release target |
-| macOS | Supported operational path |
-| Windows | CI/test coverage; service-manager parity deferred |
-| Providers | `openai`, `anthropic`, `openai-compatible` |
-| Channels | `telegram`, `discord`, `whatsapp-md` (experimental) |
-| Runtime requirements | Node `>=22`, pnpm `>=10` |
-
-## Quickstart (Linux + macOS)
+## Fast Start
 
 Full runbook: [`docs/operations/quickstart-linux-macos.md`](docs/operations/quickstart-linux-macos.md)
 
-### 1) Install
+### 1. Install from GitHub
 
-Interactive install from GitHub:
+Interactive install:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
 ```
 
-Automation/non-interactive install:
+Non-interactive example:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --non-interactive --skip-service
 ```
 
-Bootstrap defaults:
+Bootstrap keeps the current Git-backed model. It clones or updates a repo checkout, builds it, writes install state, and prints a lifecycle plan before it mutates anything.
 
-- interactive on TTY
-- non-interactive on non-TTY
-- auto prerequisite install enabled unless `--no-auto-install-prereqs`
+Bootstrap mode matters:
 
-### 2) Verify wrappers
+- interactive TTY bootstrap runs `openassist setup quickstart` after the build
+- non-interactive bootstrap leaves onboarding for a later `openassist setup quickstart` run
+- non-interactive bootstrap still installs the service unless you pass `--skip-service`
+
+### 2. Verify wrappers
 
 ```bash
 openassist --help
 openassistd --help
 ```
 
-If your current shell does not see wrappers yet:
+If your shell has not picked up the wrappers yet:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 $HOME/.local/bin/openassist --help
 ```
 
-### 3) Run strict onboarding (if installer did not already run it)
+### 3. Finish first-run onboarding
+
+If bootstrap stopped early or you installed non-interactively, run quickstart explicitly:
 
 ```bash
 openassist setup quickstart \
@@ -85,257 +74,171 @@ openassist setup quickstart \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Key behavior:
+Quickstart is intentionally minimal:
 
-- strict validation blocks invalid/unsafe config by default
-- `--allow-incomplete` allows explicit degraded continuation
-- service + health checks are recoverable (retry/abort, plus skip when `--allow-incomplete`)
-- guided timezone onboarding uses `country/region -> city`
-- health probes fall back to loopback when bind address is wildcard (`0.0.0.0` / `::`)
-- Linux service manager auto-selection: non-root -> `systemd --user`, root -> system-level `systemd`
-- quickstart and wizard can enable native web tooling and set `tools.web.searchMode` (`hybrid` recommended)
-- `OPENASSIST_TOOLS_WEB_BRAVE_API_KEY` enables Brave Search API; without it, `hybrid` mode falls back to DuckDuckGo HTML search
+- confirm runtime defaults for the first reply
+- choose one primary provider
+- capture API-key auth first
+- configure one primary channel
+- confirm the selected timezone with a simple `Y/n` prompt
+- run service and health checks unless `--skip-service`
 
-### 4) Verify daemon and runtime health
+OAuth client configuration, extra providers, extra channels, scheduler tasks, native web tuning, and deeper runtime policy changes stay in `openassist setup wizard`.
 
-```bash
-openassist service status
-openassist service health
-openassist channel status
-openassist time status
-```
+Quickstart blocks invalid or incomplete first-reply state by default. Use `--allow-incomplete` only when you explicitly want to save a degraded setup.
 
-### 5) Connect provider auth and channels
-
-```bash
-openassist auth start --provider openai-main --account default --open-browser
-openassist auth status
-openassist channel status
-```
-
-`openassist auth status` confirms endpoint reachability; OAuth/API-key detail output is intentionally redacted in CLI output.
-
-WhatsApp MD only:
-
-```bash
-openassist channel qr --id whatsapp-main
-```
-
-### 6) Validate first end-user reply
-
-1. Send a simple message in your configured Telegram/Discord/WhatsApp conversation.
-2. Confirm bot reply.
-3. Send `/status` in chat for local diagnostics (no provider dependency).
-
-If chat is not responding:
-
-```bash
-openassist service logs --lines 200 --follow
-openassist channel status
-openassist auth status
-```
-
-## Install Modes
-
-### Direct from GitHub
-
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
-```
-
-### From local checkout
-
-```bash
-bash scripts/install/bootstrap.sh
-```
-
-Common bootstrap flags:
-
-- `--interactive` or `--non-interactive`
-- `--allow-incomplete` (interactive onboarding path)
-- `--skip-service`
-- `--no-auto-install-prereqs`
-- `--install-dir <path>`
-- `--ref <git-ref>`
-
-## Setup Modes
-
-OpenAssist has two interactive setup paths:
-
-- `openassist setup quickstart`: strict onboarding (recommended)
-- `openassist setup wizard`: advanced section editor
-
-Wizard behavior:
-
-- saves config + backup
-- runs post-save service restart + health/time/scheduler checks by default
-- supports recovery flow (`retry`, `skip`, `abort`) on post-check failure
-- `--skip-post-checks` is explicit opt-out
-
-## Command Reference
-
-### Core lifecycle
+### 4. Check install and runtime readiness
 
 ```bash
 openassist doctor
-openassist init --config openassist.toml
-openassist config validate --config openassist.toml
-openassist upgrade --dry-run
-openassist upgrade --ref main
+openassist service status
+openassist service health
+openassist channel status
 ```
 
-### Setup and secrets
+`openassist doctor` now reports install-state presence, repo-backed install status, tracked ref, config and env paths, detected service manager, and whether the current install is ready for `openassist upgrade`.
+
+### 5. Send the first reply
+
+Default quickstart success means:
+
+- one provider is configured
+- one channel is configured
+- service health checks have passed, unless you explicitly skipped them
+- the summary tells you exactly what to do next
+
+For Telegram, quickstart keeps the default inline behavior:
+
+- one memory stream per chat or group
+- inline responses by default
+- threaded behavior only when you configure it deliberately later
+
+When the bot is online:
+
+1. Send a simple message in the configured chat.
+2. Confirm you receive a reply.
+3. Send `/status` if you need local diagnostics without depending on provider health.
+
+### 6. Use the advanced editor when needed
 
 ```bash
+openassist setup wizard \
+  --config "$HOME/openassist/openassist.toml" \
+  --env-file "$HOME/.config/openassist/openassistd.env" \
+  --install-dir "$HOME/openassist"
+```
+
+Wizard owns the advanced surfaces:
+
+- basic runtime and defaults
+- providers and model access
+- channels and chat destinations
+- scheduling and time
+- advanced tools and security
+
+Wizard saves also run post-save restart, health, time, and scheduler checks by default. Use `--skip-post-checks` only when you intentionally want to defer operational validation.
+
+### 7. Upgrade safely
+
+```bash
+openassist upgrade --dry-run --install-dir "$HOME/openassist"
+openassist upgrade --install-dir "$HOME/openassist"
+```
+
+Dry-run prints the resolved plan before any mutation:
+
+- install directory
+- current commit
+- tracked ref
+- target ref
+- whether the update is a pull on the current branch or a detached checkout
+- restart and health behavior
+- rollback target
+
+Use `openassist upgrade` for normal in-place updates on a clean repo-backed checkout. Re-run bootstrap instead when the checkout is damaged, missing `.git`, or you want a fresh install directory.
+
+If the checkout is detached, dry-run will show that state before any mutation. In that case, prefer `--ref <branch-or-tag>` so the update target is explicit. Re-run bootstrap instead of forcing `upgrade` when the repo metadata is damaged or build output under `apps/openassist-cli/dist` or `apps/openassistd/dist` is missing.
+
+## Install Model
+
+OpenAssist does not currently use packaged release artifacts. Install and update both operate on a local Git checkout.
+
+Bootstrap writes and preserves an install record at `~/.config/openassist/install-state.json` with the lifecycle fields that matter for later commands:
+
+- `installDir`
+- `repoUrl`
+- `trackedRef`
+- `serviceManager`
+- `configPath`
+- `envFilePath`
+- `lastKnownGoodCommit`
+
+`openassist service install`, `openassist doctor`, and `openassist upgrade` all read or update the same record instead of drifting independent state.
+
+The install record keeps the tracked ref visible to operators, but `openassist upgrade` still follows the current checked-out branch by default. If the repo is detached, dry-run will show the target ref it resolved, and you should usually pass `--ref` explicitly.
+
+## Command Reference
+
+Core lifecycle:
+
+```bash
+openassist doctor
 openassist setup quickstart
 openassist setup wizard
-openassist setup show --config openassist.toml
-openassist setup env --env-file ~/.config/openassist/openassistd.env
+openassist service install --install-dir "$HOME/openassist" --config "$HOME/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
+openassist upgrade --dry-run --install-dir "$HOME/openassist"
 ```
 
-### Service operations
+Service operations:
 
 ```bash
-openassist service install --install-dir "$HOME/openassist" --config "$HOME/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
 openassist service status
 openassist service restart
 openassist service logs --lines 200 --follow
-openassist service console
 openassist service health
 ```
 
-### Auth and channels
+Auth and channels:
 
 ```bash
 openassist auth start --provider <provider-id> --account default --open-browser
 openassist auth status
-openassist auth disconnect --provider <provider-id> --account <account-id>
 openassist channel status
 openassist channel qr --id <channel-id>
 ```
 
-`openassist auth status` output is intentionally redacted in CLI output.
-
-### Time and scheduler
+Time and scheduler:
 
 ```bash
 openassist time status
 openassist time confirm --timezone Europe/London
 openassist scheduler status
 openassist scheduler tasks
-openassist scheduler run --id <task-id>
 ```
 
-### Policy and autonomous tools
+Source-checkout alternatives are documented, but the installed commands above are the primary operator path.
 
-```bash
-openassist policy-get --session <channel>:<conversationKey>
-openassist policy-set --session <channel>:<conversationKey> --profile full-root
-openassist tools status --session <channel>:<conversationKey>
-openassist tools invocations --session <channel>:<conversationKey> --limit 20
-```
+## Docs
 
-## In-Chat Diagnostics and Profile Memory
-
-- `/status`: returns local runtime diagnostics without provider dependency.
-- `/status` includes the same awareness boundary the model sees: session profile, callable tools, configured tool families, and native web mode/status.
-- `/profile`: shows persisted global assistant profile memory.
-- `/profile force=true; name=<name>; persona=<style>; prefs=<preferences>`: updates global profile memory with explicit force semantics.
-
-## Autonomy and Safety Model
-
-Default profile is `operator`.
-
-- `restricted` and `operator`: no autonomous tool loop
-- `full-root`: autonomous tool execution enabled for that session, including `exec.run`, `fs.*`, optional `pkg.install`, and native web tools (`web.search`, `web.fetch`, `web.run`)
-
-Safety defaults include:
-
-- bounded tool-call rounds per model turn
-- guardrails for catastrophic command patterns
-- HTTP-first native web tooling only (`http`/`https`, no browser automation or JS execution)
-- durable audit rows for every tool invocation lifecycle state
-- redacted tool request/result payload storage
-
-## Security and Reliability Defaults
-
-- Loopback bind default (`127.0.0.1:3344`)
-- Secrets via env references (`env:VAR_NAME`) for secret-like fields
-- `security.secretsBackend = "encrypted-file"` only
-- Owner-only Unix permission checks for secret-bearing paths
-- Timezone confirmation gate support before scheduler execution
-- Deterministic sequential tool-call execution per model turn
-- Channel startup is non-blocking: daemon health can be OK while one connector is degraded
-
-## Architecture (High-Level)
-
-- `apps/openassistd`: daemon process + HTTP API
-- `apps/openassist-cli`: operator lifecycle and diagnostics CLI
-- `packages/core-runtime`: orchestration, policy engine, scheduler/time, tool loop
-- `packages/tools-web`: native web search/fetch/research tools with bounded HTTP extraction
-- `packages/storage-sqlite`: durable runtime state and audit persistence
-- `packages/providers-*`: provider adapters
-- `packages/channels-*`: channel adapters
-- `packages/tools-*`: host tool surfaces
-- `packages/skills-engine`: skill runtime
-
-## CI and Quality Gates
-
-Local gate before merge:
-
-```bash
-pnpm verify:all
-```
-
-Coverage thresholds:
-
-- Vitest: lines/statements/functions `>= 81`, branches `>= 71`
-- Node integration: lines/statements `>= 79`, functions `>= 80`, branches `>= 70`
-
-Workflows:
-
-- `.github/workflows/ci.yml`: required quality/build/test/coverage (Linux/macOS/Windows)
-- `.github/workflows/service-smoke.yml`: supplemental Linux/macOS lifecycle dry-run smoke (manual + scheduled), not required on every push/PR
-
-## Documentation
-
-- Documentation index: [`docs/README.md`](docs/README.md)
-- Quickstart runbook: [`docs/operations/quickstart-linux-macos.md`](docs/operations/quickstart-linux-macos.md)
-- Linux install: [`docs/operations/install-linux.md`](docs/operations/install-linux.md)
-- macOS install: [`docs/operations/install-macos.md`](docs/operations/install-macos.md)
-- Setup quickstart + wizard: [`docs/operations/setup-wizard.md`](docs/operations/setup-wizard.md)
+- Lifecycle runbook: [`docs/operations/quickstart-linux-macos.md`](docs/operations/quickstart-linux-macos.md)
+- Linux install details: [`docs/operations/install-linux.md`](docs/operations/install-linux.md)
+- macOS install details: [`docs/operations/install-macos.md`](docs/operations/install-macos.md)
+- Quickstart vs wizard: [`docs/operations/setup-wizard.md`](docs/operations/setup-wizard.md)
 - Upgrade and rollback: [`docs/operations/upgrade-and-rollback.md`](docs/operations/upgrade-and-rollback.md)
-- Restart recovery: [`docs/operations/restart-recovery.md`](docs/operations/restart-recovery.md)
-- Tool-calling contract: [`docs/interfaces/tool-calling.md`](docs/interfaces/tool-calling.md)
-- Provider adapter contract: [`docs/interfaces/provider-adapter.md`](docs/interfaces/provider-adapter.md)
-- Security threat model: [`docs/security/threat-model.md`](docs/security/threat-model.md)
-- Policy profiles: [`docs/security/policy-profiles.md`](docs/security/policy-profiles.md)
+- Restart and recovery: [`docs/operations/restart-recovery.md`](docs/operations/restart-recovery.md)
+- Full docs index: [`docs/README.md`](docs/README.md)
 
-## Development from Source
+## Safety Model
+
+Default session profile is `operator`.
+
+- `restricted` and `operator` do not expose autonomous tool execution
+- `full-root` enables autonomous host-impacting tools for that session only
+- native web tooling remains runtime-owned, bounded, and profile-gated
+- `/status` and lifecycle CLI output are designed to stay useful even when provider auth is broken
+
+Local merge gate:
 
 ```bash
-pnpm install
-pnpm -r build
-pnpm test
 pnpm verify:all
 ```
-
-Run daemon and CLI from source checkout:
-
-```bash
-pnpm --filter @openassist/openassistd dev -- run --config openassist.toml
-pnpm --filter @openassist/openassist-cli dev -- setup quickstart --config openassist.toml --env-file ~/.config/openassist/openassistd.env --skip-service
-```
-
-## Contributing
-
-1. Read `AGENTS.md`.
-2. For non-trivial scope, follow `.agents/PLANS.md`.
-3. Keep behavior, docs, and tests in the same change.
-4. Run `pnpm verify:all` before merge.
-
-## Security and Community
-
-- Security policy and private vulnerability reporting: [`SECURITY.md`](SECURITY.md)
-- Contribution workflow and quality expectations: [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- Community standards: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)

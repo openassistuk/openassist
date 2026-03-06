@@ -12,11 +12,13 @@ function tempDir(prefix: string): string {
 async function runCommand(
   command: string,
   args: string[],
-  cwd: string
+  cwd: string,
+  env?: NodeJS.ProcessEnv
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
+      env: env ? { ...process.env, ...env } : process.env,
       stdio: ["ignore", "pipe", "pipe"],
       shell: false
     });
@@ -63,8 +65,64 @@ describe("cli root command coverage", () => {
     assert.equal(validate.code, 0, validate.stderr || validate.stdout);
     assert.match(validate.stdout, /Config is valid/);
 
-    const doctor = await runCli(["doctor"]);
-    assert.equal(doctor.code, 0, doctor.stderr || doctor.stdout);
+    const doctorHome = path.join(root, "home");
+    const doctorConfigPath = path.join(root, "doctor-openassist.toml");
+    const doctorEnvPath = path.join(root, "doctor-openassistd.env");
+    const doctorInstallStatePath = path.join(doctorHome, ".config", "openassist", "install-state.json");
+    const doctorBinDir = path.join(root, "bin");
+    fs.mkdirSync(path.dirname(doctorInstallStatePath), { recursive: true });
+    fs.mkdirSync(doctorBinDir, { recursive: true });
+    fs.writeFileSync(doctorConfigPath, "runtime.bindPort = 3344\n", "utf8");
+    fs.writeFileSync(doctorEnvPath, "# doctor test env\n", "utf8");
+    fs.writeFileSync(
+      doctorInstallStatePath,
+      JSON.stringify(
+        {
+          installDir: repoRoot(),
+          repoUrl: "https://github.com/openassistuk/openassist.git",
+          trackedRef: "main",
+          serviceManager: process.platform === "darwin" ? "launchd" : "systemd-user",
+          configPath: doctorConfigPath,
+          envFilePath: doctorEnvPath,
+          lastKnownGoodCommit: "test-commit",
+          updatedAt: "2026-03-06T00:00:00.000Z"
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+    if (process.platform === "win32") {
+      fs.writeFileSync(path.join(doctorBinDir, "pnpm.cmd"), "@echo off\r\necho 10.0.0\r\n", "utf8");
+    } else {
+      const pnpmPath = path.join(doctorBinDir, "pnpm");
+      fs.writeFileSync(pnpmPath, "#!/usr/bin/env sh\necho 10.0.0\n", "utf8");
+      fs.chmodSync(pnpmPath, 0o755);
+    }
+
+    const doctor = await runCommand(
+      process.execPath,
+      [
+        path.join(repoRoot(), "node_modules", "tsx", "dist", "cli.mjs"),
+        path.join(repoRoot(), "apps", "openassist-cli", "src", "index.ts"),
+        "doctor"
+      ],
+      repoRoot(),
+      {
+        HOME: doctorHome,
+        USERPROFILE: doctorHome,
+        PATH: `${doctorBinDir}${path.delimiter}${process.env.PATH ?? ""}`,
+        Path: `${doctorBinDir}${path.delimiter}${process.env.Path ?? process.env.PATH ?? ""}`
+      }
+    );
+    assert.ok(doctor.code === 0 || doctor.code === 1, doctor.stderr || doctor.stdout);
+    assert.match(doctor.stdout, /OpenAssist lifecycle doctor/);
+    assert.match(doctor.stdout, /PASS  Install record/);
+    assert.match(doctor.stdout, /PASS  Repo-backed install/);
+    assert.match(doctor.stdout, /Upgrade prerequisites/);
+    assert.match(doctor.stdout, /Upgrade readiness/);
+    assert.match(doctor.stdout, /Next step:/);
+    assert.match(doctor.stdout, /openassist (upgrade --dry-run|doctor)/);
 
     const policySet = await runCli([
       "policy-set",

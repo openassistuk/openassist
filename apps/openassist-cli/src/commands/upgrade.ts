@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import type { Command } from "commander";
@@ -9,14 +10,16 @@ import {
 import { checkHealth, waitForHealthy } from "../lib/health-check.js";
 import { createServiceManager } from "../lib/service-manager.js";
 import { defaultInstallDir, detectDefaultDaemonBaseUrl } from "../lib/runtime-context.js";
-import { loadInstallState, saveInstallState } from "../lib/install-state.js";
-import { buildUpgradePlan } from "../lib/upgrade.js";
+import { detectInstallStateFromRepo, loadInstallState, saveInstallState } from "../lib/install-state.js";
+import { buildUpgradePlan, renderUpgradePlanSummary } from "../lib/upgrade.js";
 
 interface UpgradeContext {
   installDir: string;
   configPath: string;
   envFilePath: string;
   targetRef: string;
+  trackedRef?: string;
+  repoUrl?: string;
   oldCommit?: string;
   currentBranch?: string;
 }
@@ -34,7 +37,9 @@ async function detectCurrentCommit(runner: SpawnCommandRunner, cwd: string): Pro
 async function ensureGitClean(runner: SpawnCommandRunner, cwd: string): Promise<void> {
   const result = await runOrThrow(runner, "git", ["status", "--porcelain"], { cwd });
   if (result.stdout.trim().length > 0) {
-    throw new Error("Upgrade aborted: git working tree is dirty. Commit/stash changes before upgrading.");
+    throw new Error(
+      "Upgrade requires a clean repo-backed checkout. Commit or stash local changes first. If the checkout is no longer trustworthy, rerun bootstrap in a fresh install directory."
+    );
   }
 }
 
@@ -43,6 +48,30 @@ async function verifyBinary(runner: SpawnCommandRunner, command: string): Promis
   if (result.code !== 0) {
     throw new Error(`Required command is unavailable: ${command}`);
   }
+}
+
+function ensureRepoBackedInstall(installDir: string): void {
+  if (!fs.existsSync(path.join(installDir, ".git"))) {
+    throw new Error(
+      `Upgrade requires a repo-backed install at ${installDir}. Re-run install.sh or scripts/install/bootstrap.sh for this directory.`
+    );
+  }
+}
+
+function printLines(lines: string[]): void {
+  for (const line of lines) {
+    console.log(line);
+  }
+}
+
+function printUpgradeNextSteps(baseUrl: string, skipRestart: boolean): void {
+  console.log("Next checks:");
+  if (skipRestart) {
+    console.log("- Restart was skipped. Run: openassist service restart");
+  }
+  console.log("- Verify daemon health: openassist service health");
+  console.log("- Verify channels: openassist channel status");
+  console.log(`- API base URL: ${baseUrl.replace(/\/+$/, "")}`);
 }
 
 async function performRollback(
@@ -103,7 +132,9 @@ export function registerUpgradeCommand(program: Command): void {
         installDir,
         configPath,
         envFilePath,
-        targetRef: String(options.ref ?? "")
+        targetRef: String(options.ref ?? ""),
+        trackedRef: installState?.trackedRef,
+        repoUrl: installState?.repoUrl
       };
 
       const skipRestart = Boolean(options.skipRestart);
@@ -113,6 +144,11 @@ export function registerUpgradeCommand(program: Command): void {
         await verifyBinary(runner, "git");
         await verifyBinary(runner, "pnpm");
         await verifyBinary(runner, "node");
+        ensureRepoBackedInstall(installDir);
+
+        const repoMetadata = detectInstallStateFromRepo(installDir);
+        context.trackedRef = repoMetadata.trackedRef ?? context.trackedRef;
+        context.repoUrl = repoMetadata.repoUrl ?? context.repoUrl;
 
         context.currentBranch = await detectCurrentBranch(runner, installDir);
         context.oldCommit = await detectCurrentCommit(runner, installDir);
@@ -123,6 +159,18 @@ export function registerUpgradeCommand(program: Command): void {
           dryRun
         });
         context.targetRef = plan.targetRef;
+        const baseUrl = detectDefaultDaemonBaseUrl(configPath);
+
+        printLines(
+          renderUpgradePlanSummary({
+            installDir,
+            currentBranch: context.currentBranch,
+            currentCommit: context.oldCommit,
+            trackedRef: context.trackedRef,
+            rollbackTarget: context.oldCommit,
+            plan
+          })
+        );
 
         await ensureGitClean(runner, installDir);
         await runOrThrow(runner, "git", ["fetch", "origin", context.targetRef], {
@@ -131,10 +179,13 @@ export function registerUpgradeCommand(program: Command): void {
 
         if (dryRun) {
           console.log("Upgrade dry-run checks passed.");
-          console.log(`installDir: ${installDir}`);
-          console.log(`currentCommit: ${context.oldCommit}`);
-          console.log(`targetRef: ${context.targetRef}`);
-          console.log(`skipRestart: ${String(skipRestart)}`);
+          if (context.currentBranch === "HEAD") {
+            console.log(
+              "- This install is currently detached. Dry-run resolved the target ref explicitly to keep updates predictable."
+            );
+          }
+          console.log(`- Upgrade command: openassist upgrade --install-dir "${installDir}" --ref ${context.targetRef}`);
+          printUpgradeNextSteps(baseUrl, skipRestart);
           return;
         }
 
@@ -163,7 +214,6 @@ export function registerUpgradeCommand(program: Command): void {
         const currentCommit = await detectCurrentCommit(runner, installDir);
         const service = createServiceManager(runner);
         const serviceInstalled = await service.isInstalled();
-        const baseUrl = detectDefaultDaemonBaseUrl(configPath);
 
         if (serviceInstalled && !skipRestart) {
           await service.restart();
@@ -184,7 +234,7 @@ export function registerUpgradeCommand(program: Command): void {
 
         saveInstallState({
           installDir,
-          repoUrl: "",
+          ...(context.repoUrl ? { repoUrl: context.repoUrl } : {}),
           trackedRef: context.targetRef,
           serviceManager: service.kind,
           configPath,
@@ -193,6 +243,7 @@ export function registerUpgradeCommand(program: Command): void {
         });
 
         console.log(`Upgrade complete: ${context.oldCommit} -> ${currentCommit}`);
+        printUpgradeNextSteps(baseUrl, skipRestart);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`Upgrade failed: ${message}`);
@@ -204,15 +255,21 @@ export function registerUpgradeCommand(program: Command): void {
             const baseUrl = detectDefaultDaemonBaseUrl(context.configPath);
             await performRollback(runner, installed, context, skipRestart, baseUrl);
             console.error("Rollback completed.");
+            const rollbackMetadata = detectInstallStateFromRepo(context.installDir);
             saveInstallState({
               installDir: context.installDir,
-              repoUrl: "",
-              trackedRef: context.targetRef,
+              ...(rollbackMetadata.repoUrl ?? context.repoUrl
+                ? { repoUrl: rollbackMetadata.repoUrl ?? context.repoUrl ?? "" }
+                : {}),
+              ...(rollbackMetadata.trackedRef ?? context.trackedRef
+                ? { trackedRef: rollbackMetadata.trackedRef ?? context.trackedRef ?? "" }
+                : {}),
               serviceManager: service.kind,
               configPath: context.configPath,
               envFilePath: context.envFilePath,
               lastKnownGoodCommit: context.oldCommit ?? ""
             });
+            printUpgradeNextSteps(baseUrl, skipRestart);
           } catch (rollbackError) {
             const rollbackMessage =
               rollbackError instanceof Error ? rollbackError.message : String(rollbackError);

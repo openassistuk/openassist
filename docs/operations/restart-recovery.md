@@ -1,118 +1,94 @@
 # Restart and Recovery
 
-OpenAssist persists all critical execution state so restart/reboot events do not lose durable intent or create duplicate scheduled side effects.
+OpenAssist is designed so restart and reboot events do not silently lose durable intent.
 
-## Durable State Components
+The lifecycle commands in this repo now rely on the same persistent install and runtime state:
 
-- `messages`, `events`
-- `jobs`, `job_attempts`, `dead_letters`
-- `idempotency_keys`
-- `scheduled_task_cursors`, `scheduled_task_runs`
-- `tool_invocations`
-- `session_bootstrap`
-- `clock_checks`, `module_health`
+- bootstrap writes install state
+- `openassist doctor` reads it to report readiness
+- `openassist service install` refreshes service metadata without discarding repo data
+- `openassist upgrade` updates the same record with the current known-good commit
 
-Secret material safety:
+## Durable Runtime State
 
-- provider OAuth token material is encrypted at rest
-- OAuth flow PKCE verifier values are encrypted before DB write (`enc:` payload format)
-- tool invocation request/result payloads are stored in redacted form
+OpenAssist persists the state needed for safe recovery:
+
+- durable jobs and attempts
+- idempotency keys
+- scheduler cursors and run history
+- tool invocation audit rows
+- module and clock health records
+- session bootstrap state used for runtime grounding
+
+This is why restart safety is based on durable state, not in-memory retries.
 
 ## Startup Recovery Sequence
 
-1. load OAuth/account state
-2. verify security/path posture (secret backend support and secret-bearing path permission checks where host semantics support it)
-3. run clock health check
-4. launch channel adapters asynchronously
-5. start replay worker
-6. start scheduler if enabled and timezone confirmation requirements are satisfied
+At daemon startup, OpenAssist restores runtime state and then brings services online in a restart-safe order.
 
-Channel startup is non-blocking for daemon readiness. A single channel can remain degraded/connecting without blocking runtime startup or `/v1/health`.
+High-level sequence:
 
-## Conversational Recovery
+1. load persisted runtime and auth state
+2. verify security and path posture
+3. run clock health checks
+4. start channel adapters
+5. start recovery and replay workers
+6. start scheduler when the install is eligible to do so
 
-Outbound send failures enqueue durable `send_outbound` jobs. Recovery worker retries with bounded backoff and eventually dead-letters terminal failures.
+Channel startup remains non-blocking for daemon health. A degraded connector can fail independently without taking the whole daemon health surface down.
 
-Provider/auth/runtime failures during inbound chat now produce channel-visible operational diagnostics (sanitized) instead of silent drops. Operators and end users can also request runtime diagnostics directly from chat with `/status`.
+## Setup and Service Recovery
 
-Assistant profile memory and host context are also durable:
+Quickstart and wizard are intentionally recovery-first.
 
-- global assistant profile memory persists across all sessions (main agent identity/persona/preferences)
-- `/profile` reads persisted global assistant profile memory
-- `/profile force=true; ...` updates persisted global assistant profile memory (first-boot lock-in guard blocks non-force updates)
-- first-contact profile bootstrap prompt state and host profile context persist per session in `session_bootstrap`
-- per-session host context now includes a layered runtime awareness snapshot (software identity, host summary, session profile, configured/callable tools, native web state)
-- runtime refreshes the stored awareness snapshot when session policy or runtime tool configuration changes, keeping restarts deterministic without unbounded transcript growth
+Quickstart:
 
-Autonomous tool calls are executed inline but audited durably:
+- strict mode offers retry or abort when service checks fail
+- `--allow-incomplete` adds an explicit skip path
+- wildcard bind addresses still probe through loopback URLs
 
-- each call writes a `tool_invocations` row (`running -> succeeded/failed/blocked`) with redacted request/result payloads
-- restart does not retroactively duplicate already-completed tool invocations for the same inbound idempotency key
+Wizard:
 
-## Scheduled Recovery
+- saves first, then runs post-save restart and health checks by default
+- offers retry, skip, or abort on post-save failure
+- can skip post-save checks only with `--skip-post-checks`
 
-Scheduler enqueues durable `scheduled_task_execute` jobs keyed by `scheduler:<taskId>:<scheduledFor>`. This keying prevents duplicate execution of the same window after restart.
+## Upgrade Recovery
 
-Run persistence model:
+`openassist upgrade` keeps recovery explicit:
 
-- every scheduled execution creates a `scheduled_task_runs` row
-- success stores output payload and optional transport message ID
-- failure stores error text for replay and triage
+- dry-run prints the full plan before mutation
+- live upgrade records the rollback target
+- live-upgrade failures after rollback-target capture trigger automatic rollback
+- the command prints the next validation commands after both success and rollback
 
-## Misfire Behavior After Downtime
+## Operator Verification
 
-Per-task policy controls catch-up behavior:
-
-- `catch-up-once`
-- `skip`
-- `backfill` (bounded)
-
-## Operational Verification Commands
-
-Installed command path:
+Lifecycle verification commands:
 
 ```bash
-openassist time status
-openassist scheduler status
-openassist scheduler tasks
+openassist doctor
 openassist service status
 openassist service health
+openassist time status
+openassist scheduler status
 ```
 
-In-channel diagnostic command:
+Chat-side diagnostics:
 
-- send `/status` to receive runtime/time/scheduler/channel profile status without provider dependency
-- `/status` now exposes the same awareness boundary the model sees, including callable tools and native web backend state
-- send `/profile` to view memory and `/profile force=true; ...` to update persistent global assistant profile memory
+- send `/status` for local diagnostics without provider dependency
+- use `/profile` to inspect persisted assistant profile state
 
-## Setup/Service Interaction
+## Incident Notes
 
-- `setup quickstart` can install/restart service and run health checks unless `--skip-service` is used.
-- `setup quickstart` service checks are recoverable: strict mode offers retry/abort; `--allow-incomplete` also offers skip.
-- `setup wizard` runs post-save service restart + health/time/scheduler checks by default (or `--skip-post-checks` to opt out).
-- wizard post-save failures now offer retry/skip/abort paths instead of immediate hard failure.
-- wildcard bind-address health checks use loopback probe fallbacks during setup/service validation.
-- Restart-safe guarantees still rely on durable queue and idempotency state, not in-memory process state.
+Use `openassist doctor` when you are unsure whether the install is still coherent enough for setup changes or upgrade.
 
-## Useful SQL Checks
+Use `openassist upgrade --dry-run` when you want the current repo, ref, and rollback plan without mutating anything.
 
-```sql
-SELECT task_id, scheduled_for, status, started_at, finished_at
-FROM scheduled_task_runs
-ORDER BY id DESC
-LIMIT 20;
-```
+Re-run bootstrap instead of forcing an in-place recovery when:
 
-```sql
-SELECT key, created_at
-FROM idempotency_keys
-WHERE key LIKE 'scheduler:%'
-ORDER BY created_at DESC
-LIMIT 20;
-```
-
-## Incident Triage Notes
-
-- correlate `dead_letters.payload_json` with `scheduled_task_runs.error_text`
-- confirm scheduler block reasons via `/v1/scheduler/status`
-- confirm clock and timezone status via `/v1/time/status`
+- the install is not repo-backed anymore
+- wrapper commands are broken beyond simple PATH repair
+- the checkout is damaged or untrusted
+- build output is missing under `apps/openassist-cli/dist` or `apps/openassistd/dist`
+- you want to move a detached install back onto an explicit branch or tag through the installer flow

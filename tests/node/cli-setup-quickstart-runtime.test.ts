@@ -99,42 +99,35 @@ function createFakeService(counters?: { installCalls: number; restartCalls: numb
   };
 }
 
+function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[] {
+  return [
+    "false",
+    "127.0.0.1",
+    String(bindPort),
+    "openai",
+    "openai-main",
+    "gpt-5.2",
+    "",
+    "openai-key",
+    "telegram",
+    "telegram-main",
+    "telegram-token",
+    "123,456",
+    "Europe",
+    "Europe/London",
+    "true",
+    ...extra
+  ];
+}
+
 describe("cli setup quickstart runtime coverage", () => {
-  it("runs strict onboarding flow and saves config/env", async () => {
+  it("runs minimal first-reply onboarding and saves config/env", async () => {
     const root = tempDir("openassist-node-quickstart-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
     const bindPort = await getFreePort();
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
-
-    const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      ".openassist/data",
-      ".openassist/skills",
-      ".openassist/logs",
-      "openai",
-      "openai-main",
-      "gpt-5.2",
-      "",
-      "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false"
-    ]);
 
     const result = await runSetupQuickstart(
       state,
@@ -147,13 +140,17 @@ describe("cli setup quickstart runtime coverage", () => {
         requireTty: false,
         preflightCommandChecks: false
       },
-      prompts
+      new ScriptedPromptAdapter(validQuickstartAnswers(bindPort))
     );
 
     assert.equal(result.saved, true);
     assert.equal(result.validationErrors, 0);
     assert.equal(fs.existsSync(configPath), true);
     assert.equal(fs.existsSync(envPath), true);
+    assert.match(fs.readFileSync(configPath, "utf8"), /defaultProviderId = "openai-main"/);
+    assert.match(fs.readFileSync(configPath, "utf8"), /\[\[runtime\.channels\]\]/);
+    assert.ok(result.summary.some((line) => line.includes("Quickstart complete")));
+    assert.ok(result.summary.some((line) => line.includes("First reply checklist:")));
   });
 
   it("runs service step through dependency stubs", async () => {
@@ -167,36 +164,8 @@ describe("cli setup quickstart runtime coverage", () => {
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
     const counters = { installCalls: 0, restartCalls: 0 };
-    const fakeService = createFakeService(counters);
-
-    const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      ".openassist/data",
-      ".openassist/skills",
-      ".openassist/logs",
-      "openai",
-      "openai-main",
-      "gpt-5.2",
-      "",
-      "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      "true"
-    ]);
+    const requestCalls: Array<{ method: string; url: string }> = [];
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
 
     const result = await runSetupQuickstart(
       state,
@@ -209,18 +178,21 @@ describe("cli setup quickstart runtime coverage", () => {
         requireTty: false,
         preflightCommandChecks: false
       },
-      prompts,
+      new ScriptedPromptAdapter(validQuickstartAnswers(bindPort, validationContinuationAnswers)),
       {
-        createServiceManagerFn: () => fakeService,
+        createServiceManagerFn: () => createFakeService(counters),
         waitForHealthyFn: async () => ({
           ok: true,
           status: 200,
           bodyText: "{\"status\":\"ok\"}"
         }),
-        requestJsonFn: async () => ({
-          status: 200,
-          data: { status: "ok" }
-        })
+        requestJsonFn: async (method, url) => {
+          requestCalls.push({ method, url });
+          return {
+            status: 200,
+            data: { status: "ok" }
+          };
+        }
       }
     );
 
@@ -228,6 +200,11 @@ describe("cli setup quickstart runtime coverage", () => {
     assert.equal(result.serviceHealthOk, true);
     assert.equal(counters.installCalls, 1);
     assert.equal(counters.restartCalls, 1);
+    assert.equal(
+      requestCalls.some((call) => call.method === "POST" && call.url.includes("/v1/time/timezone/confirm")),
+      true
+    );
+    assert.ok(requestCalls.filter((call) => call.method === "GET").length >= 2);
   });
 
   it("supports skip recovery for failed service checks when allow-incomplete is enabled", async () => {
@@ -240,38 +217,7 @@ describe("cli setup quickstart runtime coverage", () => {
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
-    const fakeService = createFakeService();
     const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
-
-    const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      ".openassist/data",
-      ".openassist/skills",
-      ".openassist/logs",
-      "openai",
-      "openai-main",
-      "gpt-5.2",
-      "",
-      "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      ...validationContinuationAnswers,
-      "skip"
-    ]);
 
     const result = await runSetupQuickstart(
       state,
@@ -284,9 +230,9 @@ describe("cli setup quickstart runtime coverage", () => {
         requireTty: false,
         preflightCommandChecks: false
       },
-      prompts,
+      new ScriptedPromptAdapter(validQuickstartAnswers(bindPort, [...validationContinuationAnswers, "skip"])),
       {
-        createServiceManagerFn: () => fakeService,
+        createServiceManagerFn: () => createFakeService(),
         waitForHealthyFn: async () => ({
           ok: false,
           status: 503,
@@ -315,38 +261,7 @@ describe("cli setup quickstart runtime coverage", () => {
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
 
-    const fakeService = createFakeService();
     const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
-
-    const prompts = new ScriptedPromptAdapter([
-      "127.0.0.1",
-      String(bindPort),
-      "operator",
-      ".openassist/data",
-      ".openassist/skills",
-      ".openassist/logs",
-      "openai",
-      "openai-main",
-      "gpt-5.2",
-      "",
-      "openai-key",
-      "false",
-      "openai-main",
-      "false",
-      "Europe/London",
-      "warn-degrade",
-      "300",
-      "10000",
-      "true",
-      "Europe/London",
-      "true",
-      "1000",
-      "30",
-      "catch-up-once",
-      "false",
-      ...validationContinuationAnswers,
-      "abort"
-    ]);
 
     const result = await runSetupQuickstart(
       state,
@@ -359,9 +274,9 @@ describe("cli setup quickstart runtime coverage", () => {
         requireTty: false,
         preflightCommandChecks: false
       },
-      prompts,
+      new ScriptedPromptAdapter(validQuickstartAnswers(bindPort, [...validationContinuationAnswers, "abort"])),
       {
-        createServiceManagerFn: () => fakeService,
+        createServiceManagerFn: () => createFakeService(),
         waitForHealthyFn: async () => ({
           ok: false,
           status: 503,

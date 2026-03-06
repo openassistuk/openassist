@@ -19,6 +19,8 @@ const BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search";
 const DUCKDUCKGO_SEARCH_URL = "https://html.duckduckgo.com/html/";
 const HTML_TEXT_LIMIT = 12_000;
 const EXCERPT_LIMIT = 480;
+const HIDDEN_HTML_ELEMENTS = new Set(["head", "script", "style", "noscript", "template", "svg"]);
+const BLOCK_BREAK_HTML_ELEMENTS = new Set(["br", "p", "div", "section", "article", "ul", "ol", "table", "tr", "h1", "h2", "h3", "h4", "h5", "h6"]);
 
 export interface WebSearchRequest {
   sessionId: string;
@@ -125,45 +127,277 @@ export interface WebToolOptions {
   userAgent?: string;
 }
 
+interface ParsedHtmlTag {
+  name: string;
+  closing: boolean;
+  startIndex: number;
+  endIndex: number;
+}
+
+function isHtmlWhitespaceChar(value: string | undefined): boolean {
+  return value === " " || value === "\n" || value === "\t" || value === "\r" || value === "\f" || value === "\v";
+}
+
+function isHtmlTagNameChar(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+  const code = value.charCodeAt(0);
+  return (
+    (code >= 48 && code <= 57) ||
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122) ||
+    value === ":" ||
+    value === "-" ||
+    value === "_"
+  );
+}
+
+function parseHtmlTag(value: string, startIndex: number): ParsedHtmlTag | undefined {
+  if (value[startIndex] !== "<") {
+    return undefined;
+  }
+
+  let index = startIndex + 1;
+  let closing = false;
+  if (value[index] === "/") {
+    closing = true;
+    index += 1;
+  }
+
+  while (isHtmlWhitespaceChar(value[index])) {
+    index += 1;
+  }
+
+  const nameStart = index;
+  while (isHtmlTagNameChar(value[index])) {
+    index += 1;
+  }
+  const name = value.slice(nameStart, index).toLowerCase();
+
+  let quote: "\"" | "'" | undefined;
+  while (index < value.length) {
+    const current = value[index];
+    if (quote) {
+      if (current === quote) {
+        quote = undefined;
+      }
+      index += 1;
+      continue;
+    }
+    if (current === "\"" || current === "'") {
+      quote = current;
+      index += 1;
+      continue;
+    }
+    if (current === ">") {
+      return {
+        name,
+        closing,
+        startIndex,
+        endIndex: index
+      };
+    }
+    index += 1;
+  }
+
+  return undefined;
+}
+
+function isSelfClosingHtmlTag(value: string, tag: ParsedHtmlTag): boolean {
+  let index = tag.endIndex - 1;
+  while (index > tag.startIndex && isHtmlWhitespaceChar(value[index])) {
+    index -= 1;
+  }
+  return value[index] === "/";
+}
+
+function skipHtmlComment(value: string, startIndex: number): number {
+  const endIndex = value.indexOf("-->", startIndex + 4);
+  return endIndex >= 0 ? endIndex + 3 : value.length;
+}
+
+function findClosingHtmlTagStart(value: string, startIndex: number, tagName: string): number {
+  let depth = 1;
+  let index = startIndex;
+  while (index < value.length) {
+    if (value.startsWith("<!--", index)) {
+      index = skipHtmlComment(value, index);
+      continue;
+    }
+    if (value[index] !== "<") {
+      index += 1;
+      continue;
+    }
+
+    const tag = parseHtmlTag(value, index);
+    if (!tag) {
+      index += 1;
+      continue;
+    }
+
+    if (tag.name === tagName) {
+      if (tag.closing) {
+        depth -= 1;
+        if (depth === 0) {
+          return tag.startIndex;
+        }
+      } else if (!isSelfClosingHtmlTag(value, tag)) {
+        depth += 1;
+      }
+    }
+
+    index = tag.endIndex + 1;
+  }
+
+  return -1;
+}
+
+function skipHtmlElementContent(value: string, startIndex: number, tagName: string): number {
+  const closingStart = findClosingHtmlTagStart(value, startIndex, tagName);
+  if (closingStart < 0) {
+    return value.length;
+  }
+  const closingTag = parseHtmlTag(value, closingStart);
+  return closingTag ? closingTag.endIndex + 1 : value.length;
+}
+
 export function normalizeWhitespace(value: string): string {
-  return value.replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+  const output: string[] = [];
+  let pendingSpace = false;
+  let newlineRun = 0;
+
+  for (const current of value) {
+    if (current === "\r") {
+      continue;
+    }
+
+    if (current === "\n") {
+      pendingSpace = false;
+      while (output.length > 0 && output[output.length - 1] === " ") {
+        output.pop();
+      }
+      if (output.length > 0 && newlineRun < 2) {
+        output.push("\n");
+      }
+      newlineRun += 1;
+      continue;
+    }
+
+    if (current === " " || current === "\t" || current === "\f" || current === "\v") {
+      if (output.length > 0 && output[output.length - 1] !== "\n") {
+        pendingSpace = true;
+      }
+      continue;
+    }
+
+    if (pendingSpace && output.length > 0 && output[output.length - 1] !== "\n") {
+      output.push(" ");
+    }
+    pendingSpace = false;
+    newlineRun = 0;
+    output.push(current);
+  }
+
+  return output.join("").trim();
 }
 
 export function decodeHtmlEntities(value: string): string {
-  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity: string) => {
+  const output: string[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const current = value[index];
+    if (current !== "&") {
+      output.push(current);
+      continue;
+    }
+
+    const endIndex = value.indexOf(";", index + 1);
+    if (endIndex < 0 || endIndex - index > 16) {
+      output.push(current);
+      continue;
+    }
+
+    const entity = value.slice(index + 1, endIndex);
     const normalized = entity.toLowerCase();
+    let decoded: string | undefined;
     if (normalized === "amp") {
-      return "&";
-    }
-    if (normalized === "lt") {
-      return "<";
-    }
-    if (normalized === "gt") {
-      return ">";
-    }
-    if (normalized === "quot") {
-      return "\"";
-    }
-    if (normalized === "apos" || normalized === "#39") {
-      return "'";
-    }
-    if (normalized === "nbsp") {
-      return " ";
-    }
-    if (normalized.startsWith("#x")) {
+      decoded = "&";
+    } else if (normalized === "lt") {
+      decoded = "<";
+    } else if (normalized === "gt") {
+      decoded = ">";
+    } else if (normalized === "quot") {
+      decoded = "\"";
+    } else if (normalized === "apos" || normalized === "#39") {
+      decoded = "'";
+    } else if (normalized === "nbsp") {
+      decoded = " ";
+    } else if (normalized.startsWith("#x")) {
       const codePoint = Number.parseInt(normalized.slice(2), 16);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
-    }
-    if (normalized.startsWith("#")) {
+      if (Number.isFinite(codePoint)) {
+        decoded = String.fromCodePoint(codePoint);
+      }
+    } else if (normalized.startsWith("#")) {
       const codePoint = Number.parseInt(normalized.slice(1), 10);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      if (Number.isFinite(codePoint)) {
+        decoded = String.fromCodePoint(codePoint);
+      }
     }
-    return match;
-  });
+
+    if (decoded === undefined) {
+      output.push(value.slice(index, endIndex + 1));
+    } else {
+      output.push(decoded);
+    }
+    index = endIndex;
+  }
+
+  return output.join("");
 }
 
-function stripTags(value: string): string {
-  return value.replace(/<[^>]+>/g, " ");
+function htmlFragmentToText(value: string, options?: { skipHidden?: boolean }): string {
+  const output: string[] = [];
+  let index = 0;
+
+  while (index < value.length) {
+    if (value.startsWith("<!--", index)) {
+      index = skipHtmlComment(value, index);
+      continue;
+    }
+    if (value[index] !== "<") {
+      output.push(value[index]);
+      index += 1;
+      continue;
+    }
+
+    const tag = parseHtmlTag(value, index);
+    if (!tag) {
+      output.push(value[index]);
+      index += 1;
+      continue;
+    }
+
+    if (options?.skipHidden && !tag.closing && HIDDEN_HTML_ELEMENTS.has(tag.name)) {
+      index = skipHtmlElementContent(value, tag.endIndex + 1, tag.name);
+      continue;
+    }
+
+    if (tag.name === "li" && !tag.closing) {
+      output.push("\n- ");
+      index = tag.endIndex + 1;
+      continue;
+    }
+
+    if (tag.name === "li" || BLOCK_BREAK_HTML_ELEMENTS.has(tag.name)) {
+      output.push("\n");
+      index = tag.endIndex + 1;
+      continue;
+    }
+
+    index = tag.endIndex + 1;
+  }
+
+  return normalizeWhitespace(decodeHtmlEntities(output.join("")));
 }
 
 function limitText(value: string, maxChars: number): string {
@@ -218,27 +452,41 @@ function responseIsRedirect(status: number): boolean {
 }
 
 function extractTitleFromHtml(html: string): string | undefined {
-  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (!match?.[1]) {
-    return undefined;
+  let index = 0;
+  while (index < html.length) {
+    if (html.startsWith("<!--", index)) {
+      index = skipHtmlComment(html, index);
+      continue;
+    }
+    if (html[index] !== "<") {
+      index += 1;
+      continue;
+    }
+
+    const tag = parseHtmlTag(html, index);
+    if (!tag) {
+      index += 1;
+      continue;
+    }
+
+    if (tag.name === "title" && !tag.closing) {
+      const closingStart = findClosingHtmlTagStart(html, tag.endIndex + 1, "title");
+      if (closingStart < 0) {
+        return undefined;
+      }
+      const title = htmlFragmentToText(html.slice(tag.endIndex + 1, closingStart));
+      return title.length > 0 ? title : undefined;
+    }
+
+    index = tag.endIndex + 1;
   }
-  return normalizeWhitespace(decodeHtmlEntities(stripTags(match[1])));
+
+  return undefined;
 }
 
 export function extractHtmlText(html: string): { title?: string; content: string; excerpt: string } {
   const title = extractTitleFromHtml(html);
-  const withoutHidden = html
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi, " ")
-    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, " ")
-    .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, " ");
-  const lineBroken = withoutHidden
-    .replace(/<(br|\/p|\/div|\/section|\/article|\/li|\/ul|\/ol|\/table|\/tr|\/h[1-6])\b[^>]*>/gi, "\n")
-    .replace(/<li\b[^>]*>/gi, "\n- ");
-  const text = normalizeWhitespace(decodeHtmlEntities(stripTags(lineBroken)));
+  const text = htmlFragmentToText(html, { skipHidden: true });
   const bounded = limitText(text, HTML_TEXT_LIMIT);
   return {
     title,
@@ -531,7 +779,7 @@ export class WebTool {
       let match: RegExpExecArray | null;
       while ((match = linkPattern.exec(html)) !== null && results.length < limit) {
         const href = unwrapDuckDuckGoHref(match[1] ?? "");
-        const title = normalizeWhitespace(decodeHtmlEntities(stripTags(match[2] ?? "")));
+        const title = htmlFragmentToText(match[2] ?? "");
         if (!href || !title) {
           continue;
         }
@@ -539,7 +787,7 @@ export class WebTool {
         const snippetMatch =
           near.match(/<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/i) ??
           near.match(/<div[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
-        const snippet = normalizeWhitespace(decodeHtmlEntities(stripTags(snippetMatch?.[1] ?? "")));
+        const snippet = htmlFragmentToText(snippetMatch?.[1] ?? "");
         const normalizedUrl = normalizeUrl(href).toString();
         if (results.some((item) => item.url === normalizedUrl)) {
           continue;

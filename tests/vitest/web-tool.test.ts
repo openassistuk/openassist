@@ -40,6 +40,26 @@ describe("WebTool", () => {
     expect(extracted.content).not.toContain("ignore");
   });
 
+  it("removes hidden HTML blocks even when closing tags contain trailing whitespace", () => {
+    const extracted = extractHtmlText(`
+      <html>
+        <body>
+          <script type="text/javascript">
+            window.secret = "ignore me";
+          </script   >
+          <style>
+            body { color: red; }
+          </style  >
+          <p>Visible content</p>
+        </body>
+      </html>
+    `);
+
+    expect(extracted.content).toContain("Visible content");
+    expect(extracted.content).not.toContain("ignore me");
+    expect(extracted.content).not.toContain("color: red");
+  });
+
   it("unwraps DuckDuckGo redirect links", () => {
     expect(
       unwrapDuckDuckGoHref("/l/?uddg=https%3A%2F%2Fexample.com%2Fpost")

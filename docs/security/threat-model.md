@@ -25,7 +25,7 @@ Out of scope:
 - local filesystem integrity
 - conversation and scheduler run history
 - global assistant profile memory (`system_settings` / `assistant.globalProfile`) plus per-session host bootstrap context (`session_bootstrap`)
-- policy profile assignments
+- access assignments (`policy_profiles`, `actor_policy_profiles`, approved operator channel settings)
 
 ## Threats and Controls
 
@@ -36,6 +36,8 @@ Controls:
 - policy profiles gate tool boundaries
 - explicit elevation to `full-root`
 - autonomous chat tool execution only in `full-root` sessions
+- approved operator IDs are required before chat-side `/access` changes are allowed
+- `/access` changes only the current sender in the current chat and never grants Unix root
 - audit logs for tool activity (`tool.call.*`, `audit.exec`, `audit.fs.*`, `audit.pkg.install`)
 - minimal exec guardrails enabled by default
 
@@ -46,7 +48,8 @@ Controls:
 - runtime injects a bounded awareness snapshot on every provider turn
 - the same awareness boundary is exposed to operators via `/status` and `openassist tools status`
 - awareness snapshot includes explicit negative capability text when autonomy is disabled or native web search is unavailable
-- awareness snapshots are persisted in `session_bootstrap` without raw secrets and refreshed when policy/tool state changes
+- awareness snapshots are persisted in `session_bootstrap` without raw secrets and refreshed when effective access/tool state changes
+- `/status` exposes the current sender ID, canonical session ID, effective access, and access source so operators do not need to guess identity formats
 
 ### Secret leakage
 
@@ -86,7 +89,8 @@ Controls:
 - first-boot lock-in guard requires explicit force confirmation (`/profile force=true; ...`) before profile updates are applied
 - first-contact profile prompt is configurable (`runtime.assistant.promptOnFirstContact`) and does not execute host tools
 - global profile + per-session host context are injected as bounded system context only; no secret env values are injected into profile memory payloads
-- per-session host context now includes layered runtime awareness state, but only normalized host/runtime/policy/tool metadata is stored
+- per-session host context now includes layered runtime awareness state, but only normalized host/runtime/access/tool metadata is stored
+- `session_bootstrap` remains a last-seen chat snapshot, not a permanent per-actor access store
 
 ### Clock drift and scheduling errors
 
@@ -144,7 +148,8 @@ Controls:
 
 - use `openassist setup quickstart` for first-time setup to enforce strict validation gates
 - keep `~/.config/openassist/openassistd.env` at mode `0600` on Unix hosts
-- use `openassist policy-set --session <channel>:<conversationKey> --profile full-root` only for sessions that require autonomous host actions
+- use `openassist policy-set --session <channelId>:<conversationKey> --profile full-root` only for sessions that require autonomous host actions
+- use `openassist policy-set --session <channelId>:<conversationKey> --sender-id <sender-id> --profile full-root` when only one approved operator in a shared chat needs elevation
 - review `openassist tools invocations` during incident triage and after privileged automation runs
-- use `openassist tools status --session <channel>:<conversationKey>` to confirm callable tools and native web mode before enabling sensitive sessions
+- use `openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>` to confirm callable tools and native web mode before enabling sensitive sessions
 - use in-channel `/status` for quick local diagnostics; avoid pasting raw service logs containing secrets into public channels

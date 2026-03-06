@@ -8,6 +8,12 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Actor-aware access-mode controls across setup, chat, CLI, API, and runtime:
+  - `runtime.operatorAccessProfile` plus per-channel `channels[*].settings.operatorUserIds`
+  - canonical session IDs now use `<channelId>:<conversationKey>` for new writes and operator examples
+  - shared chats can resolve access per sender with source reporting (`default`, `channel-operator-default`, `session-override`, `actor-override`)
+  - provider-independent `/access`, `/access full`, and `/access standard` commands let approved operators change only their own current chat access
+  - `openassist policy-set`, `openassist policy-get`, `openassist tools status`, and `GET /v1/tools/status` now accept sender-aware lookup paths
 - Layered runtime-awareness contract on every provider turn:
   - bounded awareness snapshot covers OpenAssist software identity, host summary, runtime/session state, session policy/autonomy state, configured vs callable tools, and native web status
   - normalized awareness snapshot is persisted in `session_bootstrap.systemProfile` and refreshed when session profile or runtime tool configuration changes
@@ -65,6 +71,12 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Beginner-facing access and lifecycle wording pass:
+  - quickstart and wizard now present `Standard mode (recommended)` and `Full access for approved operators` instead of forcing raw policy jargon onto new operators
+  - quickstart asks `Enable full access for approved operators? [y/N]` after the primary channel is configured and only asks for approved operator IDs on the opt-in path
+  - quickstart blocks incomplete full-access setup and offers a clear path back to standard mode instead of failing with schema-style errors
+  - `/status` now shows the exact sender ID, canonical session ID, effective access, and access source needed for later operator configuration and troubleshooting
+  - bootstrap, doctor, setup summaries, and update output now use plainer operator language and explicitly explain expected `pnpm` notices / optional build-script warnings on normal Telegram and Discord installs
 - Lifecycle UX overhaul for install, setup, and update:
   - bootstrap now prints an operator-first lifecycle plan and readiness summary instead of ending with a loose path dump
   - install-state persistence is now normalized across bootstrap, service install, and upgrade so tracked ref, repo metadata, config/env paths, service manager, and last known good commit do not drift

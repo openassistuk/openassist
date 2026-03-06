@@ -299,6 +299,14 @@ export class OpenAssistDatabase {
         updated_at TEXT NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS actor_policy_profiles (
+        session_id TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        profile TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(session_id, actor_id)
+      );
+
       CREATE TABLE IF NOT EXISTS skill_registry (
         id TEXT PRIMARY KEY,
         version TEXT NOT NULL,
@@ -455,6 +463,7 @@ export class OpenAssistDatabase {
           envelope.text ?? "",
           JSON.stringify({
             channel: envelope.channel,
+            channelId: envelope.channelId,
             senderId: envelope.senderId,
             transportMessageId: envelope.transportMessageId
           }),
@@ -527,18 +536,18 @@ export class OpenAssistDatabase {
       );
   }
 
-  getRecentMessages(conversationKey: string, limit: number): NormalizedMessage[] {
+  getRecentMessages(sessionId: string, limit: number): NormalizedMessage[] {
     const rows = this.db
       .prepare(
         `
         SELECT role, content, metadata_json, internal_trace, created_at
         FROM messages
-        WHERE conversation_key = ?
+        WHERE session_id = ?
         ORDER BY id DESC
         LIMIT ?
       `
       )
-      .all(conversationKey, limit) as Array<{
+      .all(sessionId, limit) as Array<{
       role: string;
       content: string;
       metadata_json: string | null;
@@ -731,10 +740,31 @@ export class OpenAssistDatabase {
       .run(sessionId, profile, nowIso());
   }
 
+  setActorPolicyProfile(sessionId: string, actorId: string, profile: PolicyProfile): void {
+    this.db
+      .prepare(
+        `
+        INSERT INTO actor_policy_profiles (session_id, actor_id, profile, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(session_id, actor_id) DO UPDATE SET
+          profile = excluded.profile,
+          updated_at = excluded.updated_at
+      `
+      )
+      .run(sessionId, actorId, profile, nowIso());
+  }
+
   getPolicyProfile(sessionId: string): PolicyProfile | null {
     const row = this.db
       .prepare(`SELECT profile FROM policy_profiles WHERE session_id = ?`)
       .get(sessionId) as { profile: PolicyProfile } | undefined;
+    return row?.profile ?? null;
+  }
+
+  getActorPolicyProfile(sessionId: string, actorId: string): PolicyProfile | null {
+    const row = this.db
+      .prepare(`SELECT profile FROM actor_policy_profiles WHERE session_id = ? AND actor_id = ?`)
+      .get(sessionId, actorId) as { profile: PolicyProfile } | undefined;
     return row?.profile ?? null;
   }
 

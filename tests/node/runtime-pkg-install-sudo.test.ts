@@ -184,6 +184,7 @@ describe("runtime pkg.install sudo behavior", () => {
     await runtime.start();
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m1",
       conversationKey: "conv-pkg",
       senderId: "u1",
@@ -193,7 +194,7 @@ describe("runtime pkg.install sudo behavior", () => {
       idempotencyKey: "pkg-1"
     });
 
-    const invocations = runtime.listToolInvocations("telegram:conv-pkg", 10);
+    const invocations = runtime.listToolInvocations("telegram-mock:conv-pkg", 10);
     assert.equal(invocations.length, 1);
     const result = invocations[0]?.result as { command?: string; args?: string[] } | undefined;
     assert.equal(result?.command, "sudo");

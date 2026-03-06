@@ -15,6 +15,7 @@ import { SpawnCommandRunner } from "./lib/command-runner.js";
 import { detectInstallStateFromRepo, loadInstallState } from "./lib/install-state.js";
 import { detectDefaultDaemonBaseUrl } from "./lib/runtime-context.js";
 import { createServiceManager, detectServiceManagerKind } from "./lib/service-manager.js";
+import { detectSetupAccessMode, getOperatorUserIds } from "./lib/setup-access.js";
 
 const logger = createLogger({ service: "openassist-cli" });
 const workspaceCwd = process.env.INIT_CWD ? path.resolve(process.env.INIT_CWD) : process.cwd();
@@ -31,6 +32,26 @@ function resolveDbPath(dbPath?: string): string {
     return resolveFromWorkspace(dbPath);
   }
   return resolveFromWorkspace(".openassist/data/openassist.db");
+}
+
+function resolveConfigPath(configPath?: string): string {
+  if (configPath) {
+    return resolveFromWorkspace(configPath);
+  }
+  const installState = loadInstallState();
+  return installState?.configPath ?? resolveFromWorkspace("openassist.toml");
+}
+
+function loadCliRuntimeConfig(configPath?: string) {
+  const resolvedConfigPath = resolveConfigPath(configPath);
+  const loaded = loadConfig({
+    baseFile: resolvedConfigPath,
+    overlaysDir: path.join(path.dirname(resolvedConfigPath), "config.d")
+  });
+  return {
+    configPath: resolvedConfigPath,
+    config: loaded.config
+  };
 }
 
 function defaultInstallDir(): string {
@@ -97,6 +118,13 @@ function defaultInstallStatePath(): string {
 }
 
 function commandAvailable(command: string): boolean {
+  if (process.platform === "win32") {
+    const result = spawnSync("where.exe", [command], {
+      encoding: "utf8",
+      stdio: ["ignore", "ignore", "ignore"]
+    });
+    return result.status === 0;
+  }
   const result = spawnSync(command, ["--version"], {
     encoding: "utf8",
     stdio: ["ignore", "ignore", "ignore"]
@@ -129,9 +157,17 @@ program
     const hasGit = commandAvailable("git");
     const hasPnpm = commandAvailable("pnpm");
     const repoBacked = fs.existsSync(path.join(installDir, ".git"));
+    let parsedConfig: Awaited<ReturnType<typeof loadCliRuntimeConfig>>["config"] | undefined;
+    if (fs.existsSync(configPath)) {
+      try {
+        parsedConfig = loadCliRuntimeConfig(configPath).config;
+      } catch {
+        parsedConfig = undefined;
+      }
+    }
     const checks = [
       {
-        name: "Node version",
+        name: "Node.js",
         ok: Number(process.versions.node.split(".")[0]) >= 22,
         detail: process.version,
         required: true
@@ -161,7 +197,7 @@ program
         required: false
       },
       {
-        name: "Tracked ref",
+        name: "Update track",
         ok: trackedRef.length > 0,
         detail: trackedRef,
         required: false
@@ -185,12 +221,49 @@ program
         required: false
       },
       {
-        name: "Upgrade prerequisites",
+        name: "Update prerequisites",
         ok: hasGit && hasPnpm,
         detail: `git=${hasGit ? "ok" : "missing"}, pnpm=${hasPnpm ? "ok" : "missing"}`,
         required: true
       }
     ];
+
+    if (parsedConfig) {
+      const accessMode = detectSetupAccessMode(parsedConfig);
+      const enabledChannels = parsedConfig.runtime.channels.filter((channel) => channel.enabled);
+      const enabledWithOperators = enabledChannels.filter((channel) => getOperatorUserIds(channel).length > 0);
+      checks.push({
+        name: "Access mode",
+        ok: true,
+        detail:
+          accessMode === "full-access"
+            ? "Full access for approved operators"
+            : accessMode === "custom"
+              ? "Custom advanced access settings"
+              : "Standard mode",
+        required: false
+      });
+      checks.push({
+        name: "Approved operator IDs",
+        ok: enabledWithOperators.length > 0,
+        detail:
+          enabledWithOperators.length > 0
+            ? enabledWithOperators
+                .map((channel) => `${channel.id}=${getOperatorUserIds(channel).length}`)
+                .join(", ")
+            : "none on enabled channels",
+        required: false
+      });
+      checks.push({
+        name: "In-chat /access controls",
+        ok: enabledWithOperators.length > 0,
+        detail:
+          enabledWithOperators.length > 0
+            ? "available for listed operator IDs"
+            : "disabled until operator IDs are configured",
+        required: false
+      });
+    }
 
     try {
       const serviceKind = detectServiceManagerKind();
@@ -226,16 +299,16 @@ program
           time?: { timezone?: string; timezoneConfirmed?: boolean; clockHealth?: string };
         };
         checks.push({
-          name: "Time status API",
-          ok: true,
-          detail: `${data.time?.timezone ?? "unknown"} / confirmed=${String(
-            data.time?.timezoneConfirmed ?? false
+        name: "Time check API",
+        ok: true,
+        detail: `${data.time?.timezone ?? "unknown"} / confirmed=${String(
+          data.time?.timezoneConfirmed ?? false
           )} / clock=${data.time?.clockHealth ?? "unknown"}`,
           required: false
         });
       } else {
         checks.push({
-          name: "Time status API",
+          name: "Time check API",
           ok: false,
           detail: `daemon responded ${result.status}`,
           required: false
@@ -243,7 +316,7 @@ program
       }
     } catch {
       checks.push({
-        name: "Time status API",
+        name: "Time check API",
         ok: false,
         detail: `daemon not reachable at ${daemonBaseUrl}`,
         required: false
@@ -251,10 +324,10 @@ program
     }
 
     const upgradeReady =
-      checks.find((check) => check.name === "Node version")?.ok === true &&
+      checks.find((check) => check.name === "Node.js")?.ok === true &&
       checks.find((check) => check.name === "Repo-backed install")?.ok === true &&
       checks.find((check) => check.name === "Config file")?.ok === true &&
-      checks.find((check) => check.name === "Upgrade prerequisites")?.ok === true;
+      checks.find((check) => check.name === "Update prerequisites")?.ok === true;
 
     checks.push({
       name: "Upgrade readiness",
@@ -619,13 +692,19 @@ toolsCommand
   .command("status")
   .description("Show autonomous tool execution status")
   .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
-  .option("--session <id>", "Session ID for profile-specific status (<channel>:<conversationKey>)")
+  .option("--session <id>", "Session ID for profile-specific status (<channelId>:<conversationKey>)")
+  .option("--sender-id <id>", "Sender ID for actor-specific shared-chat status")
   .action(async (options) => {
     try {
       const baseUrl = String(options.baseUrl).replace(/\/+$/, "");
-      const query = options.session
-        ? `?sessionId=${encodeURIComponent(String(options.session))}`
-        : "";
+      const params = new URLSearchParams();
+      if (options.session) {
+        params.set("sessionId", String(options.session));
+      }
+      if (options.senderId) {
+        params.set("senderId", String(options.senderId));
+      }
+      const query = params.size > 0 ? `?${params.toString()}` : "";
       const result = await requestJson("GET", `${baseUrl}/v1/tools/status${query}`);
       if (result.status >= 400) {
         throw new Error(`Request failed with status ${result.status}`);
@@ -641,7 +720,7 @@ toolsCommand
 toolsCommand
   .command("invocations")
   .description("List recent tool invocation audit records")
-  .option("--session <id>", "Session ID filter (<channel>:<conversationKey>)")
+  .option("--session <id>", "Session ID filter (<channelId>:<conversationKey>)")
   .option("--limit <n>", "Max rows", "50")
   .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
   .action(async (options) => {
@@ -734,9 +813,11 @@ channelCommand
 
 program
   .command("policy-set")
-  .description("Set policy profile for a session")
-  .requiredOption("--session <id>", "Session ID (<channel>:<conversationKey>)")
+  .description("Set policy profile for a chat or one sender inside a chat")
+  .requiredOption("--session <id>", "Session ID (<channelId>:<conversationKey>)")
   .requiredOption("--profile <profile>", "restricted|operator|full-root")
+  .option("--sender-id <id>", "Sender ID for a sender-scoped override in this chat")
+  .option("--config <path>", "Path to openassist.toml")
   .option("--db <path>", "Path to SQLite DB")
   .action(async (options) => {
     const [{ OpenAssistDatabase }, { DatabasePolicyEngine }] = await Promise.all([
@@ -746,18 +827,30 @@ program
 
     const dbPath = resolveDbPath(options.db);
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    const { config } = loadCliRuntimeConfig(options.config);
 
     const db = new OpenAssistDatabase({ dbPath, logger });
-    const policy = new DatabasePolicyEngine({ db, defaultProfile: "operator" });
-    await policy.setProfile(options.session, options.profile);
-    console.log(`Session ${options.session} profile set to ${options.profile}`);
+    const policy = new DatabasePolicyEngine({
+      db,
+      defaultProfile: config.runtime.defaultPolicyProfile,
+      operatorAccessProfile: config.runtime.operatorAccessProfile,
+      channels: config.runtime.channels
+    });
+    await policy.setProfile(options.session, options.profile, options.senderId);
+    console.log(
+      options.senderId
+        ? `Sender ${options.senderId} in ${options.session} set to ${options.profile}`
+        : `Session ${options.session} set to ${options.profile}`
+    );
     db.close();
   });
 
 program
   .command("policy-get")
-  .description("Get policy profile for a session")
-  .requiredOption("--session <id>", "Session ID (<channel>:<conversationKey>)")
+  .description("Get the effective policy profile for a chat or one sender inside a chat")
+  .requiredOption("--session <id>", "Session ID (<channelId>:<conversationKey>)")
+  .option("--sender-id <id>", "Sender ID for actor-specific access resolution")
+  .option("--config <path>", "Path to openassist.toml")
   .option("--db <path>", "Path to SQLite DB")
   .action(async (options) => {
     const [{ OpenAssistDatabase }, { DatabasePolicyEngine }] = await Promise.all([
@@ -767,11 +860,20 @@ program
 
     const dbPath = resolveDbPath(options.db);
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    const { config } = loadCliRuntimeConfig(options.config);
 
     const db = new OpenAssistDatabase({ dbPath, logger });
-    const policy = new DatabasePolicyEngine({ db, defaultProfile: "operator" });
-    const profile = await policy.currentProfile(options.session);
-    console.log(profile);
+    const policy = new DatabasePolicyEngine({
+      db,
+      defaultProfile: config.runtime.defaultPolicyProfile,
+      operatorAccessProfile: config.runtime.operatorAccessProfile,
+      channels: config.runtime.channels
+    });
+    const resolution = await policy.resolveProfile({
+      sessionId: options.session,
+      actorId: options.senderId
+    });
+    console.log(JSON.stringify(resolution, null, 2));
     db.close();
   });
 

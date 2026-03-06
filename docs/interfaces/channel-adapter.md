@@ -19,6 +19,7 @@ Every adapter must implement:
 `InboundEnvelope` fields include:
 
 - channel type (`telegram`, `discord`, `whatsapp-md`)
+- configured channel ID (`channelId`, for example `telegram-main`)
 - transport message ID
 - conversation key
 - sender ID
@@ -27,6 +28,8 @@ Every adapter must implement:
 - idempotency key
 
 Idempotency keys must be stable for the same transport event.
+
+`channelId` is now the canonical routing identity for runtime session tracking. Runtime session IDs use `<channelId>:<conversationKey>`, not just the transport type.
 
 ## Outbound Envelope Contract
 

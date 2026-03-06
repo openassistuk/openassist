@@ -1,5 +1,5 @@
 import type { ChannelConfig } from "./channel.js";
-import type { PolicyProfile } from "./policy.js";
+import type { EffectivePolicySource, PolicyProfile } from "./policy.js";
 import type { ProviderConfig } from "./provider.js";
 import type { SchedulerConfig, TimeConfig } from "./scheduler.js";
 
@@ -84,6 +84,7 @@ export interface RuntimeAwarenessSnapshot {
   };
   policy: {
     profile: PolicyProfile;
+    source: EffectivePolicySource;
     autonomyEnabled: boolean;
     callableToolNames: string[];
     configuredToolNames: string[];
@@ -110,6 +111,7 @@ export interface RuntimeConfig {
   providers: ProviderConfig[];
   channels: ChannelConfig[];
   defaultPolicyProfile: PolicyProfile;
+  operatorAccessProfile: Extract<PolicyProfile, "operator" | "full-root">;
   workspaceRoot?: string;
   assistant?: RuntimeAssistantConfig;
   paths: RuntimePaths;

@@ -38,7 +38,7 @@ async function ensureGitClean(runner: SpawnCommandRunner, cwd: string): Promise<
   const result = await runOrThrow(runner, "git", ["status", "--porcelain"], { cwd });
   if (result.stdout.trim().length > 0) {
     throw new Error(
-      "Upgrade requires a clean repo-backed checkout. Commit or stash local changes first. If the checkout is no longer trustworthy, rerun bootstrap in a fresh install directory."
+      "OpenAssist found local code changes in the install directory. Commit or stash them before updating. If this checkout is no longer trustworthy, run bootstrap again in a fresh install directory."
     );
   }
 }
@@ -53,7 +53,7 @@ async function verifyBinary(runner: SpawnCommandRunner, command: string): Promis
 function ensureRepoBackedInstall(installDir: string): void {
   if (!fs.existsSync(path.join(installDir, ".git"))) {
     throw new Error(
-      `Upgrade requires a repo-backed install at ${installDir}. Re-run install.sh or scripts/install/bootstrap.sh for this directory.`
+      `This update command only works for a repo-backed install at ${installDir}. Re-run install.sh or scripts/install/bootstrap.sh for this directory if the checkout is missing.`
     );
   }
 }
@@ -85,7 +85,7 @@ async function performRollback(
     return;
   }
 
-  console.error(`Rolling back to commit ${context.oldCommit}...`);
+  console.error(`Update failed. Rolling back to ${context.oldCommit}...`);
   await runOrThrow(runner, "git", ["checkout", "--detach", context.oldCommit], {
     cwd: context.installDir
   });
@@ -178,14 +178,14 @@ export function registerUpgradeCommand(program: Command): void {
         });
 
         if (dryRun) {
-          console.log("Upgrade dry-run checks passed.");
+          console.log("Dry-run complete. The update can be applied safely with the same install directory and target ref shown above.");
           if (context.currentBranch === "HEAD") {
             console.log(
-              "- This install is currently detached. Dry-run resolved the target ref explicitly to keep updates predictable."
+              "- This install is currently on a detached commit, so the dry-run resolved the target ref explicitly to keep the update predictable."
             );
           }
           console.log(
-            "- When ready to apply the update, rerun openassist upgrade with the install directory and target ref shown above."
+            "- When you are ready, rerun openassist upgrade without --dry-run."
           );
           printUpgradeNextSteps(baseUrl, skipRestart);
           return;
@@ -228,9 +228,7 @@ export function registerUpgradeCommand(program: Command): void {
         } else if (!skipRestart) {
           const health = await checkHealth(baseUrl);
           if (!health.ok) {
-            console.warn(
-              `Warning: service not installed; daemon health check failed (status=${health.status}).`
-            );
+            console.warn(`Warning: service is not installed yet, and the direct daemon health check returned status ${health.status}.`);
           }
         }
 
@@ -244,11 +242,11 @@ export function registerUpgradeCommand(program: Command): void {
           lastKnownGoodCommit: currentCommit
         });
 
-        console.log(`Upgrade complete: ${context.oldCommit} -> ${currentCommit}`);
+        console.log(`Update complete: ${context.oldCommit} -> ${currentCommit}`);
         printUpgradeNextSteps(baseUrl, skipRestart);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error(`Upgrade failed: ${message}`);
+        console.error(`Update failed: ${message}`);
 
         if (!dryRun) {
           try {

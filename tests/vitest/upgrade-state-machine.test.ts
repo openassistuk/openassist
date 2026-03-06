@@ -59,16 +59,16 @@ describe("upgrade state machine planning", () => {
         plan
       })
     ).toEqual([
-      "Upgrade plan",
-      "- Install model: repo-backed checkout",
-      "- Install directory: /tmp/openassist",
+      "Update plan",
+      "- Install style: repo-backed checkout",
+      "- OpenAssist location: /tmp/openassist",
       "- Current branch: main",
       "- Current commit: 1234567890ab",
-      "- Tracked ref: main",
-      "- Target ref: main",
+      "- Current update track: main",
+      "- Target update track: main",
       "- Update method: fast-forward pull on the current branch",
-      "- Restart and health checks: skipped by option",
-      "- Rollback target: 1234567890ab"
+      "- Restart and health checks after update: skipped by option",
+      "- Rollback target if the update fails: 1234567890ab"
     ]);
   });
 });

@@ -11,6 +11,12 @@ Source:
 - `operator`
 - `full-root`
 
+Beginner-facing setup language now uses `access mode`:
+
+- `Standard mode (recommended)` keeps the default chat access at `operator`
+- `Full access for approved operators` keeps the default chat access at `operator`, but lets explicitly approved sender IDs default to `full-root`
+- approved operator IDs are configured per channel in `channels[*].settings.operatorUserIds`
+
 ## Action Model
 
 Current policy behavior:
@@ -25,6 +31,7 @@ Autonomous chat tool loop gate:
 - `full-root`: provider tool schemas are exposed and tool calls are executed automatically
 - if provider responses include unsolicited tool calls while schemas are not exposed, runtime ignores those calls and does not execute tools
 - chat diagnostic command `/status` is provider-independent and available regardless of profile (no autonomous tool execution) and now reports awareness summary, callable tools, configured tool families, and native web backend state
+- chat access command `/access` is provider-independent and available only to approved operators for their own current chat
 - global profile-memory command `/profile` is provider-independent and available regardless of profile
 - global profile updates require explicit force confirmation (`/profile force=true; ...`) because first-boot lock-in guard is enabled by default
 
@@ -48,13 +55,27 @@ If scheduled shell or direct FS actions are introduced later, policy action cont
 ## Persistence and Audit
 
 - profile assignment state lives in `policy_profiles`
+- sender-specific access overrides live in `actor_policy_profiles`
 - tool actions are auditable in `tool_invocations` (request/result payloads are redacted before persistence/retrieval)
 - scheduler and clock events are auditable (`scheduler.*`, `clock.check`)
 - `/status` and `openassist tools status` expose the same capability boundary the model sees, which helps operators confirm whether `web.*` tools are callable before granting `full-root`
 
+## Shared-Chat Resolution
+
+Canonical session IDs use `<channelId>:<conversationKey>`.
+
+Effective access resolves in this order:
+
+1. sender override for this chat
+2. session override for the whole chat
+3. configured approved-operator default for this sender on this channel
+4. `runtime.defaultPolicyProfile`
+
+`/access full` and `/access standard` only change the current sender's access for the current chat. They do not change other senders in the same room.
+
 ## Operational Guidance
 
-- keep default session profile as `operator`
+- keep default chat access at `operator`
 - use `restricted` where host-tool access is unnecessary
 - use `full-root` as explicit, temporary elevation with traceability
 
@@ -62,9 +83,10 @@ Installed command examples:
 
 ```bash
 openassist setup quickstart
-openassist policy-set --session <channel>:<conversationKey> --profile operator
-openassist policy-set --session <channel>:<conversationKey> --profile full-root
-openassist policy-get --session <channel>:<conversationKey>
-openassist tools status --session <channel>:<conversationKey>
-openassist tools invocations --session <channel>:<conversationKey> --limit 20
+openassist policy-set --session <channelId>:<conversationKey> --profile operator
+openassist policy-set --session <channelId>:<conversationKey> --profile full-root
+openassist policy-set --session <channelId>:<conversationKey> --sender-id <sender-id> --profile full-root
+openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id>
+openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>
+openassist tools invocations --session <channelId>:<conversationKey> --limit 20
 ```

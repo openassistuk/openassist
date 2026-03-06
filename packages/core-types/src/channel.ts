@@ -2,6 +2,7 @@ import type { AttachmentRef, HealthStatus, ValidationResult } from "./common.js"
 
 export interface InboundEnvelope {
   channel: "telegram" | "discord" | "whatsapp-md";
+  channelId: string;
   transportMessageId: string;
   conversationKey: string;
   senderId: string;

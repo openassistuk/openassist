@@ -49,7 +49,7 @@ For non-trivial changes, follow `.agents/PLANS.md`.
 
 Do not bypass boundaries with cross-package shortcuts.
 
-## Lifecycle UX Rules (V1.4)
+## Lifecycle UX Rules (V1.5)
 
 OpenAssist now has two setup paths:
 
@@ -70,8 +70,19 @@ When changing installer/setup/service behavior:
 10. preserve Linux service-manager auto-selection semantics (non-root -> `systemd --user`, root -> system-level `systemd`)
 11. preserve setup auth guidance semantics (API-key-first path plus explicit OAuth account-link instructions for configured OpenAI/Anthropic providers)
 12. preserve Telegram default UX semantics (inline chat memory + inline responses by default; threaded mode only when explicitly configured)
+13. preserve access-mode onboarding semantics:
+   - quickstart and wizard use beginner-facing `access mode` wording on operator paths
+   - standard mode remains the default recommendation
+   - full access remains explicit opt-in only
+14. preserve full-access setup safety:
+   - quickstart must not require operator IDs unless the operator opts into full access
+   - quickstart must offer a clear recovery path back to standard mode when full access is selected before operator IDs are ready
+15. preserve operator identity semantics:
+   - approved operator accounts are configured per channel in `channels[*].settings.operatorUserIds`
+   - channel allowlists and approved operator IDs must stay distinct in setup/docs/output
+   - `/status` must surface the exact sender ID and canonical session ID needed for later operator configuration
 
-## Autonomous Tool Loop Rules (V1.4)
+## Autonomous Tool Loop Rules (V1.5)
 
 When touching chat/runtime/provider/tool code:
 
@@ -90,13 +101,27 @@ When touching chat/runtime/provider/tool code:
    - `/status` in channel chat must return local diagnostics without provider dependency
    - provider/auth/runtime failures during chat must emit channel-visible operational diagnostics (sanitized, no secret leakage)
 8. preserve the bounded runtime-awareness snapshot on every turn:
-   - it must truthfully identify OpenAssist, the local host/runtime context, the active policy profile, and the currently callable tools
+   - it must truthfully identify OpenAssist, the local host/runtime context, the active/effective access profile, the access source, and the currently callable tools
    - it must state negative capability explicitly when autonomy or native web tooling is unavailable/not callable
    - it must not introduce unbounded prompt/context growth
 9. keep native web tooling runtime-owned, profile-gated, and bounded:
    - `tools.web` remains callable only in `full-root`
    - search/fetch behavior must stay bounded by configured redirects/bytes/results/pages
    - do not add browser automation or JS-rendered web execution without an explicit approved plan and docs/security updates
+10. preserve shared-chat access resolution and identity rules:
+   - canonical session IDs use `<channelId>:<conversationKey>`
+   - runtime must resolve effective access in this order:
+     1. sender override for this chat
+     2. session override for the whole chat
+     3. configured approved-operator default for this sender on this channel
+     4. `runtime.defaultPolicyProfile`
+   - runtime must use the configured `channelId` end to end for routing, access resolution, and diagnostics
+   - runtime must use the raw emitted sender ID for operator matching; do not invent prettier IDs
+11. preserve chat-side access controls:
+   - `/access` only changes the current sender's access for the current chat
+   - `/access` must stay unavailable for unlisted senders
+   - no in-chat path may escalate an unapproved sender
+   - `full-root` means OpenAssist's highest tool profile, not Unix root privileges
 
 ## Security Rules
 

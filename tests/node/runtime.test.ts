@@ -463,6 +463,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m1",
       conversationKey: "c1",
       senderId: "u1",
@@ -559,6 +560,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m1",
       conversationKey: "c1",
       senderId: "u1",
@@ -571,7 +573,7 @@ describe("OpenAssistRuntime", () => {
     assert.equal(channel.sent.length, 1);
     assert.equal(channel.sent[0]?.text, "tool run complete");
     assert.equal(fs.readFileSync(targetPath, "utf8"), "hello-from-tool");
-    assert.equal(runtime.listToolInvocations("telegram:c1", 10)[0]?.status, "succeeded");
+    assert.equal(runtime.listToolInvocations("telegram-mock:c1", 10)[0]?.status, "succeeded");
 
     await runtime.stop();
     db.close();
@@ -587,7 +589,7 @@ describe("OpenAssistRuntime", () => {
     const provider = new MockStrictToolContextProvider();
 
     db.recordAssistantMessage(
-      "telegram:c1",
+      "telegram-mock:c1",
       "c1",
       {
         role: "assistant",
@@ -603,7 +605,7 @@ describe("OpenAssistRuntime", () => {
       }
     );
     db.recordAssistantMessage(
-      "telegram:c1",
+      "telegram-mock:c1",
       "c1",
       {
         role: "tool",
@@ -664,6 +666,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m-reconcile",
       conversationKey: "c1",
       senderId: "u1",
@@ -972,6 +975,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m1",
       conversationKey: "c-diagnostic",
       senderId: "u1",
@@ -1048,6 +1052,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m1",
       conversationKey: "c-status",
       senderId: "u1",
@@ -1126,6 +1131,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m-awareness-1",
       conversationKey: "c-awareness",
       senderId: "u1",
@@ -1140,16 +1146,17 @@ describe("OpenAssistRuntime", () => {
     assert.match(provider.requests[0]?.messages[1]?.content ?? "", /profile=operator/i);
     assert.match(provider.requests[0]?.messages[1]?.content ?? "", /callable tools now: none/i);
 
-    const bootstrap = db.getSessionBootstrap("telegram:c-awareness");
+    const bootstrap = db.getSessionBootstrap("telegram-mock:c-awareness");
     assert.ok(bootstrap);
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.policy?.profile ?? ""),
       "operator"
     );
 
-    await runtime.setPolicyProfile("telegram:c-awareness", "full-root");
+    await runtime.setPolicyProfile("telegram-mock:c-awareness", "full-root");
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m-awareness-2",
       conversationKey: "c-awareness",
       senderId: "u1",
@@ -1235,6 +1242,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m-start",
       conversationKey: "c-profile",
       senderId: "u1",
@@ -1260,6 +1268,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m-profile",
       conversationKey: "c-profile",
       senderId: "u1",
@@ -1286,6 +1295,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m-profile-force",
       conversationKey: "c-profile",
       senderId: "u1",
@@ -1321,6 +1331,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m-normal",
       conversationKey: "c-profile",
       senderId: "u1",
@@ -1336,6 +1347,7 @@ describe("OpenAssistRuntime", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m-profile-global",
       conversationKey: "c-profile-other",
       senderId: "u2",

@@ -77,6 +77,8 @@ openassist scheduler status
 Chat-side diagnostics:
 
 - send `/status` for local diagnostics without provider dependency
+- `/status` shows the current sender ID, canonical session ID, effective access, and access source
+- approved operators can use `/access full` or `/access standard` for their own current chat only
 - use `/profile` to inspect persisted assistant profile state
 
 ## Incident Notes

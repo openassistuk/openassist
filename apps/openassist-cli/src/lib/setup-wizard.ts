@@ -9,6 +9,14 @@ import {
   toWebBraveApiKeyEnvVar
 } from "./config-edit.js";
 import {
+  applySetupAccessModePreset,
+  detectSetupAccessMode,
+  getOperatorUserIds,
+  operatorIdPromptConfig,
+  setOperatorUserIds,
+  type SetupAccessMode
+} from "./setup-access.js";
+import {
   promptBindAddress,
   promptGeneratedIdentifier,
   promptIdentifier,
@@ -116,13 +124,39 @@ async function promptValidatedCsvIds(
   }
 }
 
+async function promptOperatorIdsForChannel(
+  prompts: PromptAdapter,
+  channel: OpenAssistConfig["runtime"]["channels"][number],
+  allowEmpty = true
+): Promise<string[]> {
+  const promptConfig = operatorIdPromptConfig(channel.type);
+  for (const line of promptConfig.guidance) {
+    console.log(`- ${line}`);
+  }
+
+  while (true) {
+    const values = await promptValidatedCsvIds(
+      prompts,
+      promptConfig.prompt,
+      getOperatorUserIds(channel).join(","),
+      promptConfig.pattern,
+      promptConfig.errorHint
+    );
+    if (allowEmpty || values.length > 0) {
+      return values;
+    }
+    console.error("Full access needs at least one approved operator ID. Choose standard mode if you want to leave this empty.");
+  }
+}
+
 function printChannelGuidance(type: OpenAssistConfig["runtime"]["channels"][number]["type"]): void {
   console.log("");
   if (type === "telegram") {
     console.log("Telegram setup:");
-    console.log("- Create bot token with @BotFather.");
+    console.log("- Create the bot token with @BotFather.");
     console.log("- Add the bot to your target chat/group and send one message.");
-    console.log("- Add numeric chat IDs below (blank = allow all chats).");
+    console.log("- Allowed chat IDs decide where the bot can reply.");
+    console.log("- Approved operator user IDs decide who may use /access full.");
     console.log("- Default behavior is inline memory per chat/group (not per-message threads).");
     console.log("- Tip: @userinfobot can help identify chat/user IDs.");
     return;
@@ -130,31 +164,25 @@ function printChannelGuidance(type: OpenAssistConfig["runtime"]["channels"][numb
 
   if (type === "discord") {
     console.log("Discord setup:");
-    console.log("- Create bot in Discord Developer Portal and invite it.");
-    console.log("- Add numeric channel IDs below (blank = allow all channels).");
+    console.log("- Create the bot in the Discord Developer Portal and invite it.");
+    console.log("- Allowed channel IDs decide where the bot can reply.");
+    console.log("- Approved operator user IDs decide who may use /access full.");
     return;
   }
 
   console.log("WhatsApp setup:");
   console.log("- WhatsApp MD is experimental and requires QR login at first start.");
+  console.log("- Approved operator IDs must match the exact sender IDs shown by /status.");
 }
 
 async function editRuntimeBasics(state: SetupWizardState, prompts: PromptAdapter): Promise<void> {
   const runtime = state.config.runtime;
-  runtime.bindAddress = await promptBindAddress(prompts, "Runtime bind address", runtime.bindAddress);
-  runtime.bindPort = await promptInteger(prompts, "Runtime bind port", runtime.bindPort, {
+  runtime.bindAddress = await promptBindAddress(prompts, "Listen address", runtime.bindAddress);
+  runtime.bindPort = await promptInteger(prompts, "Listen port", runtime.bindPort, {
     min: 1,
     max: 65535
   });
-  runtime.defaultPolicyProfile = await prompts.select(
-    "Default policy profile",
-    [
-      { name: "restricted", value: "restricted" },
-      { name: "operator", value: "operator" },
-      { name: "full-root", value: "full-root" }
-    ],
-    runtime.defaultPolicyProfile
-  );
+  await editAccessMode(state, prompts);
   runtime.paths.dataDir = await promptRequiredText(prompts, "Data directory", runtime.paths.dataDir);
   runtime.paths.skillsDir = await promptRequiredText(prompts, "Skills directory", runtime.paths.skillsDir);
   runtime.paths.logsDir = await promptRequiredText(prompts, "Logs directory", runtime.paths.logsDir);
@@ -178,6 +206,51 @@ async function editRuntimeBasics(state: SetupWizardState, prompts: PromptAdapter
       runtime.assistant.promptOnFirstContact
     );
   }
+}
+
+async function editAccessMode(state: SetupWizardState, prompts: PromptAdapter): Promise<void> {
+  const detectedMode = detectSetupAccessMode(state.config);
+  const selectedMode = await prompts.select<SetupAccessMode>(
+    "Access mode",
+    [
+      { name: "Standard mode (recommended)", value: "standard" },
+      { name: "Full access for approved operators", value: "full-access" },
+      { name: "Custom advanced access settings", value: "custom" }
+    ],
+    detectedMode
+  );
+
+  if (selectedMode === "standard" || selectedMode === "full-access") {
+    applySetupAccessModePreset(state.config, selectedMode);
+    console.log(
+      selectedMode === "full-access"
+        ? "Approved operators will default to full-root and filesystem tools will no longer stay workspace-only."
+        : "Keeping standard mode. Approved operator IDs can still use /access full later if you add them on a channel."
+    );
+    return;
+  }
+
+  state.config.runtime.defaultPolicyProfile = await prompts.select(
+    "Default access for everyone else",
+    [
+      { name: "restricted", value: "restricted" },
+      { name: "operator", value: "operator" },
+      { name: "full-root", value: "full-root" }
+    ],
+    state.config.runtime.defaultPolicyProfile
+  );
+  state.config.runtime.operatorAccessProfile = await prompts.select<"operator" | "full-root">(
+    "Default access for approved operators",
+    [
+      { name: "operator", value: "operator" },
+      { name: "full-root", value: "full-root" }
+    ],
+    state.config.runtime.operatorAccessProfile
+  );
+  state.config.tools.fs.workspaceOnly = await prompts.confirm(
+    "Keep filesystem tools limited to the workspace only?",
+    state.config.tools.fs.workspaceOnly
+  );
 }
 
 async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Promise<void> {
@@ -372,7 +445,7 @@ async function addChannel(state: SetupWizardState, prompts: PromptAdapter): Prom
     }
     settings.allowedChatIds = await promptValidatedCsvIds(
       prompts,
-      "Allowed Telegram chat IDs (comma separated numeric IDs; blank = allow all)",
+      "Allowed Telegram chat IDs (comma separated numeric IDs; blank = allow all chats)",
       "",
       /^-?\d+$/,
       "Telegram chat IDs must be numeric (for example 123456789 or -1001234567890)"
@@ -408,7 +481,7 @@ async function addChannel(state: SetupWizardState, prompts: PromptAdapter): Prom
     }
     settings.allowedChannelIds = await promptValidatedCsvIds(
       prompts,
-      "Allowed Discord channel IDs (comma separated numeric IDs; blank = allow all)",
+      "Allowed Discord channel IDs (comma separated numeric IDs; blank = allow all channels)",
       "",
       /^\d{5,30}$/,
       "Discord channel IDs should be numeric snowflakes"
@@ -427,12 +500,15 @@ async function addChannel(state: SetupWizardState, prompts: PromptAdapter): Prom
     });
   }
 
-  state.config.runtime.channels.push({
+  const draftChannel: OpenAssistConfig["runtime"]["channels"][number] = {
     id: channelId,
     type,
     enabled,
     settings
-  });
+  };
+  setOperatorUserIds(draftChannel, await promptOperatorIdsForChannel(prompts, draftChannel));
+
+  state.config.runtime.channels.push(draftChannel);
 }
 
 async function editChannel(state: SetupWizardState, prompts: PromptAdapter): Promise<void> {
@@ -468,7 +544,7 @@ async function editChannel(state: SetupWizardState, prompts: PromptAdapter): Pro
     }
     const allowed = await promptValidatedCsvIds(
       prompts,
-      "Allowed Telegram chat IDs (comma separated numeric IDs; blank = allow all)",
+      "Allowed Telegram chat IDs (comma separated numeric IDs; blank = allow all chats)",
       Array.isArray(settings.allowedChatIds) ? settings.allowedChatIds.join(",") : "",
       /^-?\d+$/,
       "Telegram chat IDs must be numeric (for example 123456789 or -1001234567890)"
@@ -512,7 +588,7 @@ async function editChannel(state: SetupWizardState, prompts: PromptAdapter): Pro
     }
     const allowed = await promptValidatedCsvIds(
       prompts,
-      "Allowed Discord channel IDs (comma separated numeric IDs; blank = allow all)",
+      "Allowed Discord channel IDs (comma separated numeric IDs; blank = allow all channels)",
       Array.isArray(settings.allowedChannelIds) ? settings.allowedChannelIds.join(",") : "",
       /^\d{5,30}$/,
       "Discord channel IDs should be numeric snowflakes"
@@ -539,6 +615,7 @@ async function editChannel(state: SetupWizardState, prompts: PromptAdapter): Pro
     );
   }
 
+  setOperatorUserIds(channel, await promptOperatorIdsForChannel(prompts, channel));
   channel.settings = settings;
 }
 
@@ -866,6 +943,16 @@ export function loadSetupWizardState(configPath: string, envFilePath: string): S
 
 export function validateSetupWizardState(state: SetupWizardState): void {
   parseConfig(state.config);
+  if (
+    state.config.runtime.operatorAccessProfile === "full-root" &&
+    !state.config.runtime.channels.some(
+      (channel) => channel.enabled && getOperatorUserIds(channel).length > 0
+    )
+  ) {
+    throw new Error(
+      "Full access mode needs at least one enabled channel with approved operator user IDs."
+    );
+  }
 }
 
 export async function runSetupWizard(
@@ -881,9 +968,9 @@ export async function runSetupWizard(
     const action = await prompts.select(
       `Setup wizard (${state.configPath})`,
       [
-        { name: "Basic runtime and defaults", value: "runtime" },
+        { name: "Basic runtime and access mode", value: "runtime" },
         { name: "Providers and model access", value: "providers" },
-        { name: "Channels and chat destinations", value: "channels" },
+        { name: "Channels, allowlists, and operator access", value: "channels" },
         { name: "Scheduling and time", value: "time" },
         { name: "Advanced tools and security", value: "tools" },
         { name: "Save and run post-save checks", value: "save" },

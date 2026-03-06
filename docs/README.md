@@ -11,6 +11,12 @@ Use this index by lifecycle stage.
 
 OpenAssist remains a repo-backed install and update model. Bootstrap, `openassist doctor`, `openassist service install`, and `openassist upgrade` all work from the same persisted install record so operators can see the install directory, tracked ref, config path, env path, service manager, and last known good commit in one place.
 
+Quickstart now also owns the beginner-facing access choice:
+
+- `Standard mode (recommended)` keeps the first install safe and workspace-scoped
+- `Full access for approved operators` is explicit opt-in and requires per-channel approved operator IDs
+- `/status` shows the exact sender ID and canonical session ID you need for actor-specific access inspection later
+
 Primary runbooks:
 
 - Fastest operator path: `docs/operations/quickstart-linux-macos.md`
@@ -58,5 +64,5 @@ Service smoke note:
 
 ## Planning
 
-- Current lifecycle ExecPlan: `docs/execplans/lifecycle-ux-overhaul.md`
+- Current lifecycle ExecPlan: `docs/execplans/access-mode-opt-in-and-beginner-copy.md`
 - ExecPlan process: `.agents/PLANS.md`

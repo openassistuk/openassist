@@ -2,6 +2,13 @@
 
 Use this runbook to validate full chat-driven autonomous tool behavior end-to-end.
 
+This runbook assumes you already completed quickstart or wizard setup and understand the difference between:
+
+- `Standard mode (recommended)`
+- `Full access for approved operators`
+
+`full-root` in this document means OpenAssist's highest tool profile. It does not grant Unix root by itself.
+
 ## Goal
 
 Prove this complete path:
@@ -17,7 +24,9 @@ Prove this complete path:
 - OpenAssist installed and running
 - one provider configured and authenticated
 - one channel configured and healthy
-- session profile explicitly set to `full-root` for autonomy tests
+- either:
+  - an approved operator account on a channel configured for `Full access for approved operators`, or
+  - permission to set `full-root` with `openassist policy-set`
 
 Optional for `pkg.install` system-install test:
 
@@ -25,22 +34,36 @@ Optional for `pkg.install` system-install test:
 
 ## Session Preparation
 
-Identify target session:
+Identify the target chat and sender:
 
-- session ID format: `<channel>:<conversationKey>`
-- example: `telegram:ops-room`
+- send `/status` in the target chat
+- copy the `session ID` and `sender ID` shown there
+- canonical session ID format: `<channelId>:<conversationKey>`
+- example session ID: `telegram-main:ops-room`
+- example sender ID: `123456789`
 
-Set profile:
+Choose one elevation path:
+
+1. For a shared chat where only one approved operator should run autonomy, use a sender-scoped override:
 
 ```bash
-openassist policy-set --session telegram:ops-room --profile full-root
-openassist policy-get --session telegram:ops-room
-openassist tools status --session telegram:ops-room
+openassist policy-set --session telegram-main:ops-room --sender-id 123456789 --profile full-root
+openassist policy-get --session telegram-main:ops-room --sender-id 123456789
+openassist tools status --session telegram-main:ops-room --sender-id 123456789
+```
+
+2. For a dedicated test chat where the whole room can be treated as elevated, use a session-wide override:
+
+```bash
+openassist policy-set --session telegram-main:ops-room --profile full-root
+openassist policy-get --session telegram-main:ops-room
+openassist tools status --session telegram-main:ops-room
 ```
 
 Expected:
 
-- policy shows `full-root`
+- policy output shows `full-root`
+- policy output shows whether the source is a sender override or session override
 - tools status lists enabled tools (`exec.run`, `fs.*`, optional `pkg.install`, and `web.*` when `tools.web.enabled=true`)
 - tools status includes awareness summary and native web backend mode/status
 
@@ -48,12 +71,13 @@ Expected:
 
 1. send `/status` in the target chat before enabling `full-root`
 2. confirm the reply says autonomous tools are disabled and no tools are callable
-3. set the session profile to `full-root`
+3. set the session or sender override to `full-root`
 4. send `/status` again
 
 Expected:
 
-- `/status` reflects the current session profile
+- `/status` reflects the current effective access for that sender
+- `/status` shows the current sender ID and session ID
 - before elevation, callable tools are `none`
 - after elevation, `/status` lists the same callable tools exposed through `openassist tools status`
 - native web state is visible as `available`, `fallback`, `unavailable`, or `disabled`
@@ -68,7 +92,7 @@ Expected:
 Commands:
 
 ```bash
-openassist tools invocations --session telegram:ops-room --limit 20
+openassist tools invocations --session telegram-main:ops-room --limit 20
 ```
 
 Expected:
@@ -84,8 +108,8 @@ Expected:
 2. repeat same tool-demanding chat prompt
 
 ```bash
-openassist policy-set --session telegram:ops-room --profile operator
-openassist tools status --session telegram:ops-room
+openassist policy-set --session telegram-main:ops-room --profile operator
+openassist tools status --session telegram-main:ops-room
 ```
 
 Expected:
@@ -98,7 +122,7 @@ Expected:
 
 ## Scenario 3: Guardrail Block Verification
 
-1. set profile back to `full-root`
+1. set access back to `full-root`
 2. send prompt attempting clearly destructive command
 3. inspect tool invocation rows
 
@@ -110,7 +134,7 @@ Expected:
 
 ## Scenario 4: Native Web Research Path
 
-1. set profile back to `full-root`
+1. set access back to `full-root`
 2. send a prompt that requires current web data, for example:
    - "Search the web for the latest OpenAI API docs on tool calling and summarize the cited sources."
 3. inspect tool invocation output
@@ -150,15 +174,15 @@ Expected:
 Use daemon endpoints directly when needed:
 
 ```bash
-curl -fsS "http://127.0.0.1:3344/v1/tools/status?sessionId=telegram%3Aops-room"
-curl -fsS "http://127.0.0.1:3344/v1/tools/invocations?sessionId=telegram%3Aops-room&limit=20"
+curl -fsS "http://127.0.0.1:3344/v1/tools/status?sessionId=telegram-main%3Aops-room&senderId=123456789"
+curl -fsS "http://127.0.0.1:3344/v1/tools/invocations?sessionId=telegram-main%3Aops-room&limit=20"
 ```
 
 ## Evidence Checklist
 
 - channel transcripts for each scenario
-- `tools status` snapshots before/after profile changes
-- `/status` transcripts showing awareness boundary before and after profile elevation
+- `tools status` snapshots before/after access changes
+- `/status` transcripts showing awareness boundary before and after elevation, including sender ID and session ID
 - `tools invocations` output showing succeeded/failed/blocked states
 - `tools invocations` output confirms redacted request/result payloads for secret-like values
 - `tools invocations` output confirms web backend and citation/final-URL metadata when `web.*` tools are used

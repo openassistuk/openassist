@@ -26,6 +26,9 @@ Quickstart owns only the essentials:
 - choose one primary provider
 - capture API-key auth
 - configure one primary channel
+- choose an access mode:
+  - `Standard mode (recommended)`
+  - `Full access for approved operators`
 - confirm timezone
 - run service install, restart, and health checks unless `--skip-service`
 
@@ -35,6 +38,7 @@ Quickstart success should leave you with:
 - one channel configured
 - a healthy service, unless you explicitly skipped checks
 - a first-reply checklist in the summary
+- a clear `/status` path to discover the exact sender ID and session ID for later operator access changes
 
 Quickstart rules:
 
@@ -46,6 +50,8 @@ Quickstart rules:
 - wildcard bind addresses still use loopback health probes
 - quickstart keeps provider auth API-key-first
 - provider OAuth client configuration belongs in wizard, then account linking uses `openassist auth start --provider <provider-id> --account default --open-browser`
+- quickstart only asks for approved operator IDs if you opt into full access
+- if you opt into full access before you know the operator IDs, quickstart offers a return path back to standard mode instead of failing
 
 Quickstart intentionally does not own:
 
@@ -76,6 +82,13 @@ Wizard sections:
 - channels and chat destinations
 - scheduling and time
 - advanced tools and security
+
+Wizard access behavior:
+
+- `Basic runtime and access mode` lets you choose `Standard mode`, `Full access for approved operators`, or `Custom advanced access settings`
+- `Channels, allowlists, and operator access` keeps chat allowlists separate from approved operator accounts
+- approved operator IDs decide who may use `/access full` or receive automatic full access defaults on that channel
+- channel allowlists still decide who may message the bot at all
 
 Use wizard for:
 

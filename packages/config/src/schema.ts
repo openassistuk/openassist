@@ -32,6 +32,18 @@ function isSecretLikeChannelSettingKey(key: string): boolean {
   return SECRET_LIKE_CHANNEL_SETTING_KEY_PATTERN.test(key);
 }
 
+function isTelegramOperatorId(value: string): boolean {
+  return /^[1-9]\d*$/.test(value);
+}
+
+function isDiscordOperatorId(value: string): boolean {
+  return /^\d{5,30}$/.test(value);
+}
+
+function isWhatsAppOperatorId(value: string): boolean {
+  return value.trim().length > 0;
+}
+
 const providerSchema = z.object({
   id: z.string().min(1),
   type: z.enum(["openai", "anthropic", "openai-compatible"]),
@@ -129,6 +141,41 @@ const channelSchema = z.object({
     .default({})
 }).superRefine((channel, ctx) => {
   for (const [key, value] of Object.entries(channel.settings)) {
+    if (key === "operatorUserIds") {
+      if (!Array.isArray(value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Channel setting 'operatorUserIds' must be an array of sender IDs",
+          path: ["settings", key]
+        });
+        continue;
+      }
+
+      const validator =
+        channel.type === "telegram"
+          ? isTelegramOperatorId
+          : channel.type === "discord"
+            ? isDiscordOperatorId
+            : isWhatsAppOperatorId;
+      const hint =
+        channel.type === "telegram"
+          ? "Telegram operator IDs must be positive numeric user IDs"
+          : channel.type === "discord"
+            ? "Discord operator IDs must be numeric snowflakes"
+            : "WhatsApp operator IDs must match the exact sender ID/JID shown by /status";
+
+      value.forEach((entry, index) => {
+        if (!validator(entry)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: hint,
+            path: ["settings", key, index]
+          });
+        }
+      });
+      continue;
+    }
+
     const secretLike = isSecretLikeChannelSettingKey(key);
     const keyPath = ["settings", key];
 
@@ -197,6 +244,7 @@ const runtimeSchema = z.object({
   providers: z.array(providerSchema).min(1),
   channels: z.array(channelSchema).default([]),
   defaultPolicyProfile: z.enum(["restricted", "operator", "full-root"]).default("operator"),
+  operatorAccessProfile: z.enum(["operator", "full-root"]).default("operator"),
   workspaceRoot: z.string().optional(),
   assistant: z
     .object({
@@ -309,6 +357,7 @@ export function toRuntimeConfig(config: OpenAssistConfig): RuntimeConfig {
     providers: config.runtime.providers,
     channels: config.runtime.channels,
     defaultPolicyProfile: config.runtime.defaultPolicyProfile,
+    operatorAccessProfile: config.runtime.operatorAccessProfile,
     workspaceRoot: config.runtime.workspaceRoot,
     assistant: config.runtime.assistant,
     paths: config.runtime.paths,

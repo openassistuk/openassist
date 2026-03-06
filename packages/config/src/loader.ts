@@ -108,6 +108,7 @@ export function writeDefaultConfig(filePath: string): void {
       bindPort: 3344,
       defaultProviderId: "openai-main",
       defaultPolicyProfile: "operator",
+      operatorAccessProfile: "operator",
       assistant: {
         name: "OpenAssist",
         persona: "Pragmatic, concise, and execution-focused local AI assistant.",

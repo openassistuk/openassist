@@ -190,6 +190,7 @@ describe("runtime chat tool exec", () => {
     await runtime.start();
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m1",
       conversationKey: "conv-1",
       senderId: "u1",
@@ -204,7 +205,7 @@ describe("runtime chat tool exec", () => {
     assert.equal(channel.sent.length, 1);
     assert.equal(channel.sent[0]?.text, "Tool execution complete.");
 
-    const invocations = runtime.listToolInvocations("telegram:conv-1", 10);
+    const invocations = runtime.listToolInvocations("telegram-mock:conv-1", 10);
     assert.equal(invocations.length, 1);
     assert.equal(invocations[0]?.status, "succeeded");
 

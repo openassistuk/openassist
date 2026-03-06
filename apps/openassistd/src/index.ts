@@ -331,8 +331,9 @@ program
 
         if (method === "GET" && requestUrl.pathname === "/v1/tools/status") {
           const sessionId = requestUrl.searchParams.get("sessionId") ?? undefined;
+          const senderId = requestUrl.searchParams.get("senderId") ?? undefined;
           sendJson(res, 200, {
-            tools: await runtime.getToolsStatus(sessionId)
+            tools: await runtime.getToolsStatus(sessionId, senderId)
           });
           return;
         }

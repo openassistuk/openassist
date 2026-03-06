@@ -235,6 +235,7 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
         const senderId = (message.key?.participant as string | undefined) ?? remoteJid;
         await this.handler({
           channel: "whatsapp-md",
+          channelId: this.config.id,
           transportMessageId: messageId,
           conversationKey: remoteJid,
           senderId,

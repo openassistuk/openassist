@@ -124,7 +124,7 @@ describe("cli root command coverage", () => {
     assert.match(doctor.stdout, /OpenAssist lifecycle doctor/);
     assert.match(doctor.stdout, /PASS  Install record/);
     assert.match(doctor.stdout, /PASS  Repo-backed install/);
-    assert.match(doctor.stdout, /Upgrade prerequisites/);
+    assert.match(doctor.stdout, /Update prerequisites/);
     assert.match(doctor.stdout, /Upgrade readiness/);
     assert.match(doctor.stdout, /Next step:/);
     assert.match(doctor.stdout, /openassist (upgrade --dry-run|doctor)/);
@@ -143,6 +143,33 @@ describe("cli root command coverage", () => {
     const policyGet = await runCli(["policy-get", "--session", "s-1", "--db", dbPath]);
     assert.equal(policyGet.code, 0, policyGet.stderr || policyGet.stdout);
     assert.match(policyGet.stdout, /operator/);
+
+    const actorPolicySet = await runCli([
+      "policy-set",
+      "--session",
+      "telegram-main:ops-room",
+      "--sender-id",
+      "123456789",
+      "--profile",
+      "full-root",
+      "--db",
+      dbPath
+    ]);
+    assert.equal(actorPolicySet.code, 0, actorPolicySet.stderr || actorPolicySet.stdout);
+    assert.match(actorPolicySet.stdout, /Sender 123456789 in telegram-main:ops-room set to full-root/);
+
+    const actorPolicyGet = await runCli([
+      "policy-get",
+      "--session",
+      "telegram-main:ops-room",
+      "--sender-id",
+      "123456789",
+      "--db",
+      dbPath
+    ]);
+    assert.equal(actorPolicyGet.code, 0, actorPolicyGet.stderr || actorPolicyGet.stdout);
+    assert.match(actorPolicyGet.stdout, /"profile": "full-root"/);
+    assert.match(actorPolicyGet.stdout, /"source": "actor-override"/);
   });
 
   it("uses a loopback health probe when doctor sees a wildcard bind address", async () => {
@@ -231,7 +258,7 @@ describe("cli root command coverage", () => {
       );
 
       assert.ok(doctor.code === 0 || doctor.code === 1, doctor.stderr || doctor.stdout);
-      assert.match(doctor.stdout, /PASS  Time status API/);
+      assert.match(doctor.stdout, /PASS  Time check API/);
       assert.match(doctor.stdout, /Europe\/London \/ confirmed=true \/ clock=ok/);
     } finally {
       await new Promise<void>((resolve, reject) => {

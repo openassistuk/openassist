@@ -54,7 +54,7 @@ describe("setup wizard runtime flow", () => {
       "runtime",
       "127.0.0.1",
       "3344",
-      "operator",
+      "standard",
       path.join(root, "data"),
       path.join(root, "skills"),
       path.join(root, "logs"),
@@ -74,12 +74,14 @@ describe("setup wizard runtime flow", () => {
       "true",
       "discord-token",
       "123456789012345678,987654321098765432",
+      "",
       "edit",
       "discord-main",
       "false",
       "true",
       "discord-token-2",
       "111111111111111111",
+      "",
       "back",
       "time",
       "Europe/London",
@@ -154,7 +156,7 @@ describe("setup wizard runtime flow", () => {
       "127.0.0.1",
       "not-port",
       "3344",
-      "operator",
+      "standard",
       path.join(root, "data"),
       path.join(root, "skills"),
       path.join(root, "logs"),
@@ -185,6 +187,7 @@ describe("setup wizard runtime flow", () => {
       "telegram-token",
       "abc,123",
       "123,-1001234567890",
+      "",
       "back",
       "save"
     ]);
@@ -228,5 +231,45 @@ describe("setup wizard runtime flow", () => {
     expect(result.saved).toBe(true);
     expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY).toBe(longApiKey);
     expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY.length).toBe(longApiKey.length);
+  });
+
+  it("supports custom advanced access settings without normalizing them away", async () => {
+    const root = tempDir("openassist-vitest-setup-custom-access-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const state = loadSetupWizardState(configPath, envPath);
+
+    const prompts = new ScriptedPromptAdapter([
+      "runtime",
+      "127.0.0.1",
+      "3344",
+      "custom",
+      "restricted",
+      "full-root",
+      "false",
+      path.join(root, "data"),
+      path.join(root, "skills"),
+      path.join(root, "logs"),
+      "channels",
+      "add",
+      "telegram-main",
+      "telegram",
+      "true",
+      "telegram-token",
+      "123456789",
+      "123456789",
+      "back",
+      "save"
+    ]);
+
+    const result = await runSetupWizard(state, prompts, {
+      requireTty: false
+    });
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.defaultPolicyProfile).toBe("restricted");
+    expect(state.config.runtime.operatorAccessProfile).toBe("full-root");
+    expect(state.config.tools.fs.workspaceOnly).toBe(false);
+    expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toEqual(["123456789"]);
   });
 });

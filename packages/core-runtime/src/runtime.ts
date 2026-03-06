@@ -3,12 +3,14 @@ import os from "node:os";
 import type {
   ApiKeyAuth,
   ChannelAdapter,
+  EffectivePolicySource,
   InboundEnvelope,
   MisfirePolicy,
   NormalizedMessage,
   OAuthStartResult,
   OutboundEnvelope,
   PolicyProfile,
+  PolicyResolution,
   ProviderAdapter,
   ProviderAuthHandle,
   RuntimeConfig,
@@ -68,7 +70,15 @@ function defaultSystemPrompt(): string {
 }
 
 function sessionIdFromEnvelope(envelope: InboundEnvelope): string {
-  return `${envelope.channel}:${envelope.conversationKey}`;
+  return `${envelope.channelId}:${envelope.conversationKey}`;
+}
+
+function conversationKeyFromSessionId(sessionId: string): string {
+  const separatorIndex = sessionId.indexOf(":");
+  if (separatorIndex < 0) {
+    return "__status__";
+  }
+  return sessionId.slice(separatorIndex + 1);
 }
 
 function randomToken(size = 24): string {
@@ -89,8 +99,32 @@ const SESSION_BOOTSTRAP_CORE_IDENTITY = [
   "It must never expose internal reasoning traces in channel output."
 ].join(" ");
 const SESSION_PROFILE_COMMAND_PREFIX = "/profile";
+const SESSION_ACCESS_COMMAND_PREFIX = "/access";
 const PROFILE_FIELD_KEYS = new Set(["name", "persona", "prefs", "preferences"]);
 const PROFILE_FORCE_FIELD_KEYS = new Set(["force"]);
+
+function describeAccessMode(profile: PolicyProfile): string {
+  if (profile === "full-root") {
+    return "Full access (full-root)";
+  }
+  if (profile === "operator") {
+    return "Standard access (operator)";
+  }
+  return "Restricted access";
+}
+
+function describeAccessSource(source: EffectivePolicySource): string {
+  if (source === "actor-override") {
+    return "sender-specific override for this chat";
+  }
+  if (source === "session-override") {
+    return "chat-wide override";
+  }
+  if (source === "channel-operator-default") {
+    return "approved operator default for this channel";
+  }
+  return "runtime default";
+}
 
 function toDisplayText(value: unknown): string {
   if (typeof value === "string") {
@@ -196,6 +230,30 @@ function parseProfileCommand(text: string): {
   }
 
   return updates;
+}
+
+function parseAccessCommand(text: string): {
+  desiredProfile?: Extract<PolicyProfile, "operator" | "full-root">;
+  error?: string;
+} {
+  const raw = text.trim();
+  const remainder = raw.startsWith(SESSION_ACCESS_COMMAND_PREFIX)
+    ? raw.slice(SESSION_ACCESS_COMMAND_PREFIX.length).trim().toLowerCase()
+    : raw.toLowerCase();
+
+  if (remainder.length === 0) {
+    return {};
+  }
+  if (remainder === "full" || remainder === "full-root") {
+    return { desiredProfile: "full-root" };
+  }
+  if (remainder === "standard" || remainder === "operator") {
+    return { desiredProfile: "operator" };
+  }
+
+  return {
+    error: "Use '/access' to inspect access, '/access full' for full access, or '/access standard' for standard access."
+  };
 }
 
 const DEFAULT_MAX_TOOL_ROUNDS = 8;
@@ -306,7 +364,9 @@ export class OpenAssistRuntime {
 
     this.policyEngine = new DatabasePolicyEngine({
       db: this.db,
-      defaultProfile: config.defaultPolicyProfile
+      defaultProfile: config.defaultPolicyProfile,
+      operatorAccessProfile: config.operatorAccessProfile ?? "operator",
+      channels: config.channels
     });
 
     this.skillRuntime = new FileSkillRuntime({
@@ -741,29 +801,35 @@ export class OpenAssistRuntime {
     return lock;
   }
 
-  getToolsStatus(sessionId?: string): Promise<{
+  getToolsStatus(sessionId?: string, actorId?: string): Promise<{
     enabledTools: string[];
     configuredTools: string[];
     autonomyMode: "full-root-auto";
     guardrailsMode: "minimal" | "off" | "strict";
     profile: PolicyProfile;
+    profileSource: EffectivePolicySource;
     packageTool: ReturnType<PackageInstallTool["getStatus"]>;
     webTool: ReturnType<WebTool["getStatus"]>;
     awareness: string;
   }> {
-    return this.policyEngine.currentProfile(sessionId ?? "__default__").then((profile) => {
+    return this.policyEngine.resolveProfile({
+      sessionId: sessionId ?? "__default__",
+      actorId
+    }).then((resolution) => {
       const enabled = this.enabledToolSchemas();
-      const callableTools = profile === "full-root" ? enabled.map((item) => item.name) : [];
-      const conversationKey = sessionId?.includes(":") ? sessionId.split(":").slice(1).join(":") : "__status__";
+      const callableTools =
+        resolution.profile === "full-root" ? enabled.map((item) => item.name) : [];
+      const conversationKey = sessionId ? conversationKeyFromSessionId(sessionId) : "__status__";
       const awareness = summarizeRuntimeAwareness(
-        this.buildAwarenessSnapshot(sessionId ?? "__default__", conversationKey, profile)
+        this.buildAwarenessSnapshot(sessionId ?? "__default__", conversationKey, resolution)
       );
       return {
         enabledTools: callableTools,
         configuredTools: enabled.map((item) => item.name),
         autonomyMode: "full-root-auto",
         guardrailsMode: this.config.tools?.exec.guardrails.mode ?? "minimal",
-        profile,
+        profile: resolution.profile,
+        profileSource: resolution.source,
         packageTool: this.pkgTool.getStatus(),
         webTool: this.webTool.getStatus(),
         awareness
@@ -775,8 +841,8 @@ export class OpenAssistRuntime {
     return this.db.listToolInvocations(sessionId, limit);
   }
 
-  async setPolicyProfile(sessionId: string, profile: PolicyProfile): Promise<void> {
-    await this.policyEngine.setProfile(sessionId, profile);
+  async setPolicyProfile(sessionId: string, profile: PolicyProfile, actorId?: string): Promise<void> {
+    await this.policyEngine.setProfile(sessionId, profile, actorId);
   }
 
   async start(): Promise<void> {
@@ -944,6 +1010,11 @@ export class OpenAssistRuntime {
       this.config = nextConfig;
       this.refreshEffectiveTimezone();
       this.hostSystemProfile.workspaceRoot = nextConfig.workspaceRoot;
+      this.policyEngine.updateConfig({
+        defaultProfile: nextConfig.defaultPolicyProfile,
+        operatorAccessProfile: nextConfig.operatorAccessProfile ?? "operator",
+        channels: nextConfig.channels
+      });
       this.channelTypes.clear();
       for (const channelConfig of nextConfig.channels) {
         this.channelTypes.set(channelConfig.id, channelConfig.type);
@@ -974,14 +1045,16 @@ export class OpenAssistRuntime {
       return;
     }
 
-    const channel = this.findChannelForType(envelope.channel);
+    const channel = this.channels.get(envelope.channelId);
     if (!channel) {
-      throw new Error(`No channel adapter found for type ${envelope.channel}`);
+      throw new Error(`No channel adapter found for id ${envelope.channelId}`);
     }
 
     try {
       if (this.isOperationalStatusRequest(envelope.text)) {
-        const statusText = sanitizeUserOutput(await this.buildOperationalStatusMessage(sessionId));
+        const statusText = sanitizeUserOutput(
+          await this.buildOperationalStatusMessage(sessionId, envelope.senderId)
+        );
         this.db.recordAssistantMessage(sessionId, envelope.conversationKey, {
           role: "assistant",
           content: statusText
@@ -1006,11 +1079,19 @@ export class OpenAssistRuntime {
         return;
       }
 
-      const sessionProfile = await this.policyEngine.currentProfile(sessionId);
+      if (this.isAccessCommand(envelope.text)) {
+        await this.handleAccessCommand(channel, envelope, sessionId);
+        return;
+      }
+
+      const profileResolution = await this.policyEngine.resolveProfile({
+        sessionId,
+        actorId: envelope.senderId
+      });
       const sessionBootstrap = this.ensureSessionBootstrap(
         sessionId,
         envelope.conversationKey,
-        sessionProfile
+        profileResolution
       );
       if (this.shouldSendFirstContactPrompt(envelope.text, sessionBootstrap)) {
         const prompt = sanitizeUserOutput(this.buildFirstContactPrompt(sessionBootstrap));
@@ -1053,9 +1134,9 @@ export class OpenAssistRuntime {
       const model =
         this.config.providers.find((candidate) => candidate.id === provider.id())?.defaultModel ??
         "unknown";
-      const actorId = `${envelope.channel}:${envelope.senderId}`;
-      const toolSchemas = await this.resolveToolSchemasForSession(sessionId);
-      const recentMessages = this.db.getRecentMessages(envelope.conversationKey, 50);
+      const actorId = envelope.senderId;
+      const toolSchemas = await this.resolveToolSchemasForSession(sessionId, actorId);
+      const recentMessages = this.db.getRecentMessages(sessionId, 50);
       const planned = this.contextPlanner.plan(defaultSystemPrompt(), recentMessages);
       let conversationMessages: NormalizedMessage[] = [...planned.messages];
       conversationMessages.splice(1, 0, this.buildSessionBootstrapSystemMessage(sessionBootstrap));
@@ -1092,6 +1173,8 @@ export class OpenAssistRuntime {
             tools: toolSchemas,
             metadata: {
               channel: envelope.channel,
+              channelId: envelope.channelId,
+              senderId: envelope.senderId,
               toolRound: String(round)
             }
           },
@@ -1109,7 +1192,7 @@ export class OpenAssistRuntime {
               type: "tool.call.ignored",
               sessionId,
               conversationKey: envelope.conversationKey,
-              profile: await this.policyEngine.currentProfile(sessionId),
+              profile: profileResolution.profile,
               providerId: provider.id(),
               toolCallCount: toolCalls.length
             },
@@ -1315,17 +1398,22 @@ export class OpenAssistRuntime {
     return normalized === SESSION_PROFILE_COMMAND_PREFIX || normalized.startsWith(`${SESSION_PROFILE_COMMAND_PREFIX} `);
   }
 
+  private isAccessCommand(text: string | undefined): boolean {
+    const normalized = (text ?? "").trim().toLowerCase();
+    return normalized === SESSION_ACCESS_COMMAND_PREFIX || normalized.startsWith(`${SESSION_ACCESS_COMMAND_PREFIX} `);
+  }
+
   private buildAwarenessSnapshot(
     sessionId: string,
     conversationKey: string,
-    profile: PolicyProfile
+    resolution: PolicyResolution
   ): RuntimeAwarenessSnapshot {
     const runtimeStatus = this.getStatus();
     const modules = Object.entries(runtimeStatus.modules).map(
       ([moduleId, status]) => `${moduleId}=${status}`
     );
     const configuredToolNames = this.enabledToolSchemas().map((item) => item.name);
-    const callableToolNames = profile === "full-root" ? configuredToolNames : [];
+    const callableToolNames = resolution.profile === "full-root" ? configuredToolNames : [];
     return buildRuntimeAwarenessSnapshot({
       sessionId,
       conversationKey,
@@ -1346,7 +1434,8 @@ export class OpenAssistRuntime {
             ? this.hostSystemProfile.workspaceRoot
             : undefined
       },
-      profile,
+      profile: resolution.profile,
+      source: resolution.source,
       configuredToolNames,
       callableToolNames,
       webStatus: this.webTool.getStatus()
@@ -1376,7 +1465,7 @@ export class OpenAssistRuntime {
   private ensureSessionBootstrap(
     sessionId: string,
     conversationKey: string,
-    profile: PolicyProfile
+    resolution: PolicyResolution
   ): {
     sessionId: string;
     assistantName: string;
@@ -1388,7 +1477,7 @@ export class OpenAssistRuntime {
   } {
     const assistant = this.getGlobalAssistantProfile();
     const existing = this.db.getSessionBootstrap(sessionId);
-    const awareness = this.buildAwarenessSnapshot(sessionId, conversationKey, profile);
+    const awareness = this.buildAwarenessSnapshot(sessionId, conversationKey, resolution);
     const initializedAt = existing?.createdAt ?? new Date().toISOString();
     const systemProfile = {
       ...this.hostSystemProfile,
@@ -1501,11 +1590,14 @@ export class OpenAssistRuntime {
     envelope: InboundEnvelope,
     sessionId: string
   ): Promise<void> {
-    const sessionProfile = await this.policyEngine.currentProfile(sessionId);
+    const resolution = await this.policyEngine.resolveProfile({
+      sessionId,
+      actorId: envelope.senderId
+    });
     const bootstrap = this.ensureSessionBootstrap(
       sessionId,
       envelope.conversationKey,
-      sessionProfile
+      resolution
     );
     const global = this.getGlobalAssistantProfile();
     const profileCommand = parseProfileCommand(envelope.text ?? "");
@@ -1590,7 +1682,91 @@ export class OpenAssistRuntime {
     });
   }
 
-  private async buildOperationalStatusMessage(sessionId: string): Promise<string> {
+  private async buildAccessStatusMessage(sessionId: string, senderId: string): Promise<string> {
+    const resolution = await this.policyEngine.resolveProfile({
+      sessionId,
+      actorId: senderId
+    });
+    const canManage = this.policyEngine.isApprovedOperator(sessionId, senderId);
+    const operatorsConfigured = this.policyEngine.hasApprovedOperators(sessionId);
+    return [
+      "OpenAssist access for this chat",
+      `- sender id: ${senderId}`,
+      `- session id: ${sessionId}`,
+      `- current access: ${describeAccessMode(resolution.profile)}`,
+      `- access source: ${describeAccessSource(resolution.source)}`,
+      `- access changes in chat: ${
+        canManage
+          ? "available for this sender"
+          : operatorsConfigured
+            ? "not allowed for this sender"
+            : "disabled until approved operator IDs are configured"
+      }`,
+      canManage
+        ? "- commands: /access full for full access, /access standard for standard access"
+        : "- note: only explicitly approved operator IDs may change access in chat",
+      "- full access uses OpenAssist full-root tools and open filesystem scope. It does not grant Unix root."
+    ].join("\n");
+  }
+
+  private async handleAccessCommand(
+    channel: ChannelAdapter,
+    envelope: InboundEnvelope,
+    sessionId: string
+  ): Promise<void> {
+    const parsed = parseAccessCommand(envelope.text ?? "");
+    const senderId = envelope.senderId;
+    const canManage = this.policyEngine.isApprovedOperator(sessionId, senderId);
+    const operatorsConfigured = this.policyEngine.hasApprovedOperators(sessionId);
+
+    let message: string;
+    if (parsed.error) {
+      message = parsed.error;
+    } else if (!parsed.desiredProfile) {
+      message = await this.buildAccessStatusMessage(sessionId, senderId);
+    } else if (!canManage) {
+      message = [
+        operatorsConfigured
+          ? "Access change blocked. This sender is not on the approved operator list for this channel."
+          : "Access change blocked. This channel has no approved operator IDs configured yet.",
+        "",
+        await this.buildAccessStatusMessage(sessionId, senderId)
+      ].join("\n");
+    } else {
+      await this.policyEngine.setProfile(sessionId, parsed.desiredProfile, senderId);
+      message = [
+        `Access updated for this sender in this chat: ${describeAccessMode(parsed.desiredProfile)}`,
+        "",
+        await this.buildAccessStatusMessage(sessionId, senderId)
+      ].join("\n");
+    }
+
+    const text = sanitizeUserOutput(message);
+    this.db.recordAssistantMessage(
+      sessionId,
+      envelope.conversationKey,
+      {
+        role: "assistant",
+        content: text
+      },
+      {
+        providerId: "runtime.access",
+        source: "runtime.access"
+      }
+    );
+
+    await this.sendOutboundWithRetry(channel, sessionId, {
+      channel: envelope.channel,
+      conversationKey: envelope.conversationKey,
+      text,
+      replyToTransportMessageId: envelope.transportMessageId,
+      metadata: {
+        source: "runtime-access"
+      }
+    });
+  }
+
+  private async buildOperationalStatusMessage(sessionId: string, senderId: string): Promise<string> {
     const runtimeStatus = this.getStatus();
     const time = this.getTimeStatus();
     const scheduler = this.getSchedulerStatus();
@@ -1598,7 +1774,7 @@ export class OpenAssistRuntime {
       this.logger.warn({ error }, "failed to collect channel statuses for status command");
       return [];
     });
-    const toolsStatus = await this.getToolsStatus(sessionId);
+    const toolsStatus = await this.getToolsStatus(sessionId, senderId);
 
     const moduleSummary =
       Object.entries(runtimeStatus.modules)
@@ -1615,14 +1791,22 @@ export class OpenAssistRuntime {
         : `not running${scheduler.blockedReason ? ` (${scheduler.blockedReason})` : ""}`
       : "disabled";
     const assistant = this.assistantConfig();
-    const conversationKey = sessionId.includes(":") ? sessionId.split(":").slice(1).join(":") : "__status__";
-    const awareness = this.buildAwarenessSnapshot(sessionId, conversationKey, toolsStatus.profile);
+    const conversationKey = conversationKeyFromSessionId(sessionId);
+    const awareness = this.buildAwarenessSnapshot(sessionId, conversationKey, {
+      profile: toolsStatus.profile,
+      source: toolsStatus.profileSource
+    });
+    const canManageAccess = this.policyEngine.isApprovedOperator(sessionId, senderId);
+    const operatorsConfigured = this.policyEngine.hasApprovedOperators(sessionId);
 
     return [
       "OpenAssist local status",
+      `- sender id: ${senderId}`,
+      `- session id: ${sessionId}`,
       `- default provider: ${this.config.defaultProviderId}`,
       `- assistant: ${assistant.name}`,
-      `- session profile: ${toolsStatus.profile} (autonomous tools ${toolsStatus.profile === "full-root" ? "enabled" : "disabled"})`,
+      `- current access: ${describeAccessMode(toolsStatus.profile)}`,
+      `- access source: ${describeAccessSource(toolsStatus.profileSource)}`,
       `- awareness: ${summarizeRuntimeAwareness(awareness)}`,
       `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
       `- configured tool families: ${toolsStatus.configuredTools.join(", ") || "none"}`,
@@ -1631,13 +1815,20 @@ export class OpenAssistRuntime {
       `- channels: ${channelSummary}`,
       `- time: ${time.clockHealth}, timezone=${time.timezone}, confirmed=${time.timezoneConfirmed}`,
       `- scheduler: ${schedulerState}`,
+      `- access changes in chat: ${
+        canManageAccess
+          ? "available for this sender (/access full or /access standard)"
+          : operatorsConfigured
+            ? "not allowed for this sender"
+            : "disabled until approved operator IDs are configured"
+      }`,
       "- global profile memory: use '/profile' to view or '/profile force=true; name=...; persona=...; prefs=...' to update"
     ].join("\n");
   }
 
-  private async resolveToolSchemasForSession(sessionId: string): Promise<ToolSchema[]> {
-    const profile = await this.policyEngine.currentProfile(sessionId);
-    if (profile !== "full-root") {
+  private async resolveToolSchemasForSession(sessionId: string, actorId: string): Promise<ToolSchema[]> {
+    const resolution = await this.policyEngine.resolveProfile({ sessionId, actorId });
+    if (resolution.profile !== "full-root") {
       return [];
     }
     return this.enabledToolSchemas();
@@ -1969,19 +2160,6 @@ export class OpenAssistRuntime {
         finishReason: response.finishReason
       }
     };
-  }
-
-  private findChannelForType(channelType: InboundEnvelope["channel"]): ChannelAdapter | undefined {
-    for (const [channelId, configuredType] of this.channelTypes.entries()) {
-      if (configuredType !== channelType) {
-        continue;
-      }
-      const adapter = this.channels.get(channelId);
-      if (adapter) {
-        return adapter;
-      }
-    }
-    return undefined;
   }
 
   getTools(): { execTool: ExecTool; fsTool: FsTool; pkgTool: PackageInstallTool; webTool: WebTool } {

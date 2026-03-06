@@ -50,6 +50,12 @@ bash scripts/install/bootstrap.sh --no-auto-install-prereqs
 
 Interactive bootstrap on Linux runs `openassist setup quickstart` after build. Non-interactive bootstrap does not run onboarding, but it still installs the service unless `--skip-service` is set.
 
+Expected installer note:
+
+- `pnpm` version notices are informational
+- ignored optional build-script warnings are expected on normal Telegram or Discord installs
+- those warnings usually matter only for optional WhatsApp/media paths
+
 ## Linux Service Manager Rules
 
 Linux service manager selection is automatic:

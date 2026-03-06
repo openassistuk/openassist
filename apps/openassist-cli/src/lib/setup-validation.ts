@@ -7,6 +7,7 @@ import { SpawnCommandRunner } from "./command-runner.js";
 import { toProviderApiKeyEnvVar, toWebBraveApiKeyEnvVar } from "./config-edit.js";
 import { isValidBindAddress } from "./prompt-validation.js";
 import { createServiceManager } from "./service-manager.js";
+import { getOperatorUserIds } from "./setup-access.js";
 
 export interface SetupValidationIssue {
   code: string;
@@ -234,6 +235,40 @@ function validateChannelPresence(config: OpenAssistConfig, errors: SetupValidati
   );
 }
 
+function validateAccessModeRequirements(
+  config: OpenAssistConfig,
+  errors: SetupValidationIssue[],
+  warnings: SetupValidationIssue[]
+): void {
+  if (config.runtime.operatorAccessProfile !== "full-root") {
+    return;
+  }
+
+  const enabledChannels = config.runtime.channels.filter((channel) => channel.enabled);
+  const enabledWithOperators = enabledChannels.filter((channel) => getOperatorUserIds(channel).length > 0);
+  if (enabledWithOperators.length === 0) {
+    pushIssue(
+      errors,
+      "access.operator_ids_required",
+      "Full access mode needs at least one enabled channel with approved operator IDs.",
+      "Add operator user IDs to the channel you want to use for full access, or switch back to standard mode."
+    );
+    return;
+  }
+
+  for (const channel of enabledChannels) {
+    if (getOperatorUserIds(channel).length > 0) {
+      continue;
+    }
+    pushIssue(
+      warnings,
+      "access.channel_operator_ids_missing",
+      `Channel '${channel.id}' has no approved operator IDs, so chat-side /access changes stay unavailable there.`,
+      "Add operator user IDs in setup wizard if you want full access controls in that channel."
+    );
+  }
+}
+
 function validateWebToolRequirements(
   config: OpenAssistConfig,
   env: Record<string, string>,
@@ -381,6 +416,7 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
   if (input.requireEnabledChannel) {
     validateChannelPresence(input.config, errors);
   }
+  validateAccessModeRequirements(input.config, errors, warnings);
   validateWebToolRequirements(input.config, input.env, errors, warnings);
   validateTimezoneConfirmation(input.config, input.timezoneConfirmed, errors);
   validatePaths(input.config, input.configPath, input.envFilePath, input.installDir, errors);

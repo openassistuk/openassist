@@ -121,6 +121,7 @@ describe("setup-wizard branch coverage", () => {
       "true",
       "12",
       "4500",
+      "",
       "back",
       // Time and scheduler with both task kinds/action kinds.
       "time",

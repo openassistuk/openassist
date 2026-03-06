@@ -1,4 +1,5 @@
 import type {
+  EffectivePolicySource,
   PolicyProfile,
   RuntimeAwarenessSnapshot,
   RuntimeWebToolsConfig
@@ -27,6 +28,7 @@ export interface RuntimeAwarenessBuildInput {
     workspaceRoot?: string;
   };
   profile: PolicyProfile;
+  source: EffectivePolicySource;
   configuredToolNames: string[];
   callableToolNames: string[];
   webStatus: WebToolStatus;
@@ -83,6 +85,7 @@ export function buildRuntimeAwarenessSnapshot(
     },
     policy: {
       profile: input.profile,
+      source: input.source,
       autonomyEnabled: input.profile === "full-root",
       callableToolNames: input.callableToolNames,
       configuredToolNames: input.configuredToolNames,
@@ -134,7 +137,7 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
     `- host: ${hostParts.join(", ")}`,
     `- runtime: session=${snapshot.runtime.sessionId}, defaultProvider=${snapshot.runtime.defaultProviderId}, providers=${joinOrNone(snapshot.runtime.providerIds)}, channels=${joinOrNone(snapshot.runtime.channelIds)}, timezone=${snapshot.runtime.timezone}`,
     `- subsystems: ${joinOrNone(snapshot.runtime.modules)}`,
-    `- policy: profile=${snapshot.policy.profile}; ${autonomyLine}`,
+    `- policy: profile=${snapshot.policy.profile}, source=${snapshot.policy.source}; ${autonomyLine}`,
     `- callable tools now: ${joinOrNone(snapshot.policy.callableToolNames)}`,
     `- configured tool families: ${joinOrNone(snapshot.policy.configuredToolNames)}`,
     `- web: ${webLine}`,
@@ -146,6 +149,7 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
 export function summarizeRuntimeAwareness(snapshot: RuntimeAwarenessSnapshot): string {
   return [
     `profile=${snapshot.policy.profile}`,
+    `source=${snapshot.policy.source}`,
     `autonomy=${snapshot.policy.autonomyEnabled ? "enabled" : "disabled"}`,
     `callableTools=${joinOrNone(snapshot.policy.callableToolNames)}`,
     `web=${snapshot.web.searchStatus}`

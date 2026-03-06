@@ -222,8 +222,8 @@ describe("cli command branch coverage", () => {
 
     const dirty = await runCli(["upgrade", "--dry-run", "--install-dir", gitRepo]);
     assert.equal(dirty.code, 1, dirty.stderr || dirty.stdout);
-    assert.match(dirty.stderr, /clean repo-backed checkout/i);
-    assert.match(dirty.stderr, /Commit or stash local changes first/i);
+    assert.match(dirty.stderr, /local code changes/i);
+    assert.match(dirty.stderr, /Commit or stash .* before updating/i);
 
     const missing = await runCli([
       "upgrade",
@@ -232,6 +232,6 @@ describe("cli command branch coverage", () => {
       path.join(gitRepo, "does-not-exist")
     ]);
     assert.equal(missing.code, 1, missing.stderr || missing.stdout);
-    assert.match(missing.stderr, /Upgrade failed/);
+    assert.match(missing.stderr, /Update failed/);
   });
 });

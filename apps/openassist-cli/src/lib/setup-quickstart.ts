@@ -346,8 +346,7 @@ function normalizeChannelSettings(
 
 async function promptOperatorIdsForChannel(
   prompts: PromptAdapter,
-  channel: OpenAssistConfig["runtime"]["channels"][number],
-  allowEmpty: boolean
+  channel: OpenAssistConfig["runtime"]["channels"][number]
 ): Promise<string[]> {
   const promptConfig = operatorIdPromptConfig(channel.type);
   for (const line of promptConfig.guidance) {
@@ -362,7 +361,7 @@ async function promptOperatorIdsForChannel(
       promptConfig.pattern,
       promptConfig.errorHint
     );
-    if (allowEmpty || values.length > 0) {
+    if (values.length > 0) {
       return values;
     }
     const nextStep = await prompts.select(
@@ -530,7 +529,7 @@ async function configureAccessMode(state: SetupQuickstartState, prompts: PromptA
     throw new Error("Full access setup requires an enabled primary channel.");
   }
 
-  const operatorIds = await promptOperatorIdsForChannel(prompts, primaryChannel, false);
+  const operatorIds = await promptOperatorIdsForChannel(prompts, primaryChannel);
   if (operatorIds.length === 0) {
     applySetupAccessModePreset(state.config, "standard");
     console.log("Switching back to standard mode. You can add approved operator IDs later in setup wizard.");

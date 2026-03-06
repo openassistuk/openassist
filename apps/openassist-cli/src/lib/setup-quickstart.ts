@@ -111,15 +111,6 @@ function providerSupportsOAuth(type: ProviderType): boolean {
   return type === "openai" || type === "anthropic";
 }
 
-function hasNonEmptyEnvValue(env: Record<string, string>, key: string): boolean {
-  const local = env[key];
-  if (typeof local === "string" && local.trim().length > 0) {
-    return true;
-  }
-  const inherited = process.env[key];
-  return typeof inherited === "string" && inherited.trim().length > 0;
-}
-
 function validateCsvIds(
   input: string,
   pattern: RegExp

@@ -44,17 +44,30 @@ Each provider turn also carries a bounded runtime-awareness system message so th
 
 ## Runtime Autonomy Gate
 
-Autonomous tool execution is enabled only when the session policy profile is `full-root`.
+Autonomous tool execution is enabled only when the effective sender access for that chat turn is `full-root`.
 
 - `restricted` and `operator`: provider receives no tool schemas
 - `full-root`: provider receives runtime tool schema list and may issue tool calls
 - if a provider still returns tool calls while schemas are absent, runtime ignores those calls and returns a safe non-executing assistant response
 - if provider/auth/runtime errors occur during chat, runtime emits a sanitized operational diagnostic message to channel instead of dropping the request
 
-Session ID format for profile commands:
+Canonical session ID format:
 
-- `<channel>:<conversationKey>`
-- example: `telegram:ops-room`
+- `<channelId>:<conversationKey>`
+- example: `telegram-main:ops-room`
+
+Access resolution order:
+
+1. sender override for this chat
+2. session override for the whole chat
+3. configured approved-operator default for this sender on this channel
+4. `runtime.defaultPolicyProfile`
+
+Provider-independent chat command:
+
+- `/access` shows the current sender's access, source, and whether chat-side changes are allowed
+- `/access full` sets `full-root` for that sender in the current chat only
+- `/access standard` sets `operator` for that sender in the current chat only
 
 ## Tool Schema Registry (V1.4)
 
@@ -71,21 +84,21 @@ Current runtime-exposed tool names:
 
 `web.*` schemas are exposed only when both are true:
 
-- session policy profile is `full-root`
+- effective access for the current sender/chat turn is `full-root`
 - `tools.web.enabled=true`
 
-`GET /v1/tools/status` and `openassist tools status` now report both configured tool families and currently callable tools, plus native web backend mode and an awareness summary.
+`GET /v1/tools/status` and `openassist tools status` now report both configured tool families and currently callable tools, plus native web backend mode and an awareness summary. Shared-chat lookups can include `senderId` so operator output matches the same actor-specific access boundary the runtime uses.
 
 ## Runtime Awareness Contract
 
-Runtime persists a normalized awareness snapshot in the existing `session_bootstrap.systemProfile` payload and refreshes it whenever policy profile, runtime tool enablement, or other key runtime state changes.
+Runtime persists a normalized awareness snapshot in the existing `session_bootstrap.systemProfile` payload and refreshes it whenever effective access, runtime tool enablement, or other key runtime state changes. `session_bootstrap` is the last-seen chat snapshot, not a permanent per-actor truth store.
 
 The awareness snapshot includes:
 
 - software identity (`OpenAssist`, local-first gateway role)
 - host summary (platform, release, arch, hostname, Node version, workspace root when known)
 - runtime/session state (session ID, provider IDs, channel IDs, timezone, runtime modules)
-- policy/autonomy state (profile, callable tools, configured tools, negative capability text)
+- policy/autonomy state (effective profile, access source, callable tools, configured tools, negative capability text)
 - native web state (`enabled`, `searchMode`, `searchStatus`, callable `web.*` tools)
 
 ## Tool Loop Behavior
@@ -148,8 +161,8 @@ Daemon endpoints:
 
 CLI commands:
 
-- `openassist tools status [--session <channel:conversationKey>]`
-- `openassist tools invocations [--session <channel:conversationKey>] [--limit <n>]`
+- `openassist tools status [--session <channelId>:<conversationKey>] [--sender-id <id>]`
+- `openassist tools invocations [--session <channelId>:<conversationKey>] [--limit <n>]`
 
 ## Guardrails
 

@@ -30,6 +30,7 @@ describe("OpenAssistDatabase", () => {
 
     const envelope = {
       channel: "telegram" as const,
+      channelId: "telegram-main",
       transportMessageId: "1",
       conversationKey: "c1",
       senderId: "u1",
@@ -39,8 +40,8 @@ describe("OpenAssistDatabase", () => {
       idempotencyKey: "idemp-1"
     };
 
-    const first = db.recordInbound("telegram:c1", envelope);
-    const second = db.recordInbound("telegram:c1", envelope);
+    const first = db.recordInbound("telegram-main:c1", envelope);
+    const second = db.recordInbound("telegram-main:c1", envelope);
 
     assert.equal(first, true);
     assert.equal(second, false);
@@ -73,7 +74,7 @@ describe("OpenAssistDatabase", () => {
     const logger = createLogger({ service: "test" });
     const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
 
-    const sessionId = "telegram:c1";
+    const sessionId = "telegram-main:c1";
     const conversationKey = "c1";
     db.recordAssistantMessage(sessionId, conversationKey, {
       role: "assistant",
@@ -94,7 +95,7 @@ describe("OpenAssistDatabase", () => {
       }
     });
 
-    const rows = db.getRecentMessages(conversationKey, 10);
+    const rows = db.getRecentMessages(sessionId, 10);
     assert.equal(rows.length, 2);
     assert.equal(rows[0]?.toolCallId, "tool-1");
     assert.equal(rows[0]?.toolName, "fs.read");
@@ -114,7 +115,7 @@ describe("OpenAssistDatabase", () => {
     });
 
     const inserted = db.upsertSessionBootstrap({
-      sessionId: "telegram:c1",
+      sessionId: "telegram-main:c1",
       assistantName: "OpenAssist",
       persona: "Direct",
       operatorPreferences: "Use apt",
@@ -125,15 +126,15 @@ describe("OpenAssistDatabase", () => {
       }
     });
 
-    assert.equal(inserted.sessionId, "telegram:c1");
+    assert.equal(inserted.sessionId, "telegram-main:c1");
     assert.equal(inserted.firstContactPrompted, false);
 
-    db.markSessionBootstrapPrompted("telegram:c1");
-    const prompted = db.getSessionBootstrap("telegram:c1");
+    db.markSessionBootstrapPrompted("telegram-main:c1");
+    const prompted = db.getSessionBootstrap("telegram-main:c1");
     assert.equal(prompted?.firstContactPrompted, true);
 
     db.upsertSessionBootstrap({
-      sessionId: "telegram:c1",
+      sessionId: "telegram-main:c1",
       assistantName: "Nova",
       persona: "Execution-focused",
       operatorPreferences: "Keep it concise",
@@ -145,7 +146,7 @@ describe("OpenAssistDatabase", () => {
       firstContactPrompted: true
     });
 
-    const updated = db.getSessionBootstrap("telegram:c1");
+    const updated = db.getSessionBootstrap("telegram-main:c1");
     assert.equal(updated?.assistantName, "Nova");
     assert.equal(updated?.persona, "Execution-focused");
     assert.equal(updated?.operatorPreferences, "Keep it concise");
@@ -164,7 +165,7 @@ describe("OpenAssistDatabase", () => {
     });
 
     const invocationId = db.startToolInvocation({
-      sessionId: "telegram:c1",
+      sessionId: "telegram-main:c1",
       conversationKey: "c1",
       toolCallId: "tool-1",
       toolName: "exec.run",
@@ -187,7 +188,7 @@ describe("OpenAssistDatabase", () => {
       42
     );
 
-    const rows = db.listToolInvocations("telegram:c1", 10);
+    const rows = db.listToolInvocations("telegram-main:c1", 10);
     assert.equal(rows.length, 1);
     assert.equal((rows[0]?.request.env as Record<string, string>)?.OPENASSIST_TEST_SECRET, "[REDACTED]");
     assert.equal((rows[0]?.request.env as Record<string, string>)?.PATH, "[REDACTED]");

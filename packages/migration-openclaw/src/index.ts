@@ -152,6 +152,7 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
       providers,
       channels,
       defaultPolicyProfile: "operator",
+      operatorAccessProfile: "operator",
       assistant: {
         name: "OpenAssist",
         persona: "Pragmatic, concise, and execution-focused local AI assistant.",

@@ -68,11 +68,11 @@ describe("cli command integration", () => {
       repoRoot()
     );
     assert.equal(result.code, 0, result.stderr || result.stdout);
-    assert.ok(result.stdout.includes("Upgrade dry-run checks passed"), result.stdout);
-    assert.ok(result.stdout.includes("- Target ref: HEAD"), result.stdout);
+    assert.ok(result.stdout.includes("Update plan"), result.stdout);
+    assert.ok(result.stdout.includes("- Target update track: HEAD"), result.stdout);
     assert.ok(
       result.stdout.includes(
-        "rerun openassist upgrade with the install directory and target ref shown above"
+        "The update can be applied safely with the same install directory and target ref shown above."
       ),
       result.stdout
     );

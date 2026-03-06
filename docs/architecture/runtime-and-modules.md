@@ -100,7 +100,7 @@ Runtime methods consumed by daemon API:
 - `getSchedulerStatus()`
 - `listSchedulerTasks()`
 - `enqueueScheduledTaskNow(taskId)`
-- `getToolsStatus(sessionId?)`
+- `getToolsStatus(sessionId?, senderId?)`
 - `listToolInvocations(sessionId?, limit?)`
 
 Daemon HTTP endpoints map directly to these methods in `apps/openassistd/src/index.ts`.
@@ -118,7 +118,7 @@ Daemon HTTP endpoints map directly to these methods in `apps/openassistd/src/ind
 `handleInbound()` now runs a bounded multi-round provider loop:
 
 1. persist inbound event/message (idempotent)
-2. resolve policy profile for session
+2. resolve effective access for the current sender/chat turn
 3. include tool schemas only for `full-root`
 4. call provider
 5. if tool calls exist:
@@ -140,7 +140,7 @@ Context planner input now includes a second runtime system message containing:
 - OpenAssist core identity statement
 - per-session layered runtime awareness snapshot (host/runtime/profile/tool/web state)
 
-Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per session and reused deterministically for future turns. The runtime awareness snapshot is stored inside the existing `session_bootstrap.systemProfile` payload and refreshed when the session profile or runtime tool state changes.
+Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per chat and reused deterministically for future turns. The runtime awareness snapshot is stored inside the existing `session_bootstrap.systemProfile` payload as the last-seen chat snapshot and refreshed when effective access or runtime tool state changes.
 
 ## Config Apply Behavior
 

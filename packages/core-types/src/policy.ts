@@ -1,4 +1,9 @@
 export type PolicyProfile = "restricted" | "operator" | "full-root";
+export type EffectivePolicySource =
+  | "default"
+  | "channel-operator-default"
+  | "session-override"
+  | "actor-override";
 
 export type ToolAction =
   | "exec.run"
@@ -24,8 +29,14 @@ export interface AuthorizationDecision {
   reason?: string;
 }
 
+export interface PolicyResolution {
+  profile: PolicyProfile;
+  source: EffectivePolicySource;
+}
+
 export interface PolicyEngine {
-  currentProfile(sessionId: string): Promise<PolicyProfile>;
-  setProfile(sessionId: string, profile: PolicyProfile): Promise<void>;
+  resolveProfile(input: { sessionId: string; actorId?: string }): Promise<PolicyResolution>;
+  currentProfile(sessionId: string, actorId?: string): Promise<PolicyProfile>;
+  setProfile(sessionId: string, profile: PolicyProfile, actorId?: string): Promise<void>;
   authorize(action: ToolAction, context: AuthorizationContext): Promise<AuthorizationDecision>;
 }

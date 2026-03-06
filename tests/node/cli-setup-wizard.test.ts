@@ -72,7 +72,7 @@ describe("cli setup wizard", () => {
       "runtime",
       "127.0.0.1",
       "4455",
-      "operator",
+      "standard",
       path.join(root, "data"),
       path.join(root, "skills"),
       path.join(root, "logs"),
@@ -96,6 +96,7 @@ describe("cli setup wizard", () => {
       "true",
       "telegram-token",
       "1001,1002",
+      "",
       "back",
       // Time + scheduler
       "time",

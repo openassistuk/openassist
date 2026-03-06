@@ -72,6 +72,7 @@ export class DiscordChannelAdapter implements ChannelAdapter {
 
       await handler({
         channel: "discord",
+        channelId: this.config.id,
         transportMessageId: message.id,
         conversationKey: message.channelId,
         senderId: message.author.id,

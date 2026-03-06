@@ -16,6 +16,13 @@ import {
 } from "./health-check.js";
 import { requestJson } from "./runtime-context.js";
 import { createServiceManager, type ServiceManagerAdapter } from "./service-manager.js";
+import {
+  applySetupAccessModePreset,
+  detectSetupAccessMode,
+  getOperatorUserIds,
+  operatorIdPromptConfig,
+  setOperatorUserIds
+} from "./setup-access.js";
 import { buildSetupSummary } from "./setup-summary.js";
 import { type PromptAdapter, createInquirerPromptAdapter } from "./setup-wizard.js";
 import { renderValidationIssues, validateSetupReadiness } from "./setup-validation.js";
@@ -228,9 +235,9 @@ async function runPreflight(
 async function configureRuntimeBase(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
   stage("Runtime", "Confirm the local runtime defaults used for the first reply.");
   const runtime = state.config.runtime;
-  console.log(`Current bind address: ${runtime.bindAddress}`);
-  console.log(`Current bind port: ${runtime.bindPort}`);
-  console.log(`Policy profile kept for quickstart: ${runtime.defaultPolicyProfile}`);
+  console.log(`Current listen address: ${runtime.bindAddress}`);
+  console.log(`Current listen port: ${runtime.bindPort}`);
+  console.log(`Access mode kept for quickstart: ${detectSetupAccessMode(state.config) === "full-access" ? "Full access for approved operators" : "Standard mode"}`);
   console.log(`Data directory: ${runtime.paths.dataDir}`);
   console.log(`Logs directory: ${runtime.paths.logsDir}`);
   console.log(`Skills directory: ${runtime.paths.skillsDir}`);
@@ -242,12 +249,12 @@ async function configureRuntimeBase(state: SetupQuickstartState, prompts: Prompt
     return;
   }
 
-  runtime.bindAddress = await promptBindAddress(prompts, "Bind address", runtime.bindAddress);
-  runtime.bindPort = await promptInteger(prompts, "Bind port", runtime.bindPort, {
+  runtime.bindAddress = await promptBindAddress(prompts, "Listen address", runtime.bindAddress);
+  runtime.bindPort = await promptInteger(prompts, "Listen port", runtime.bindPort, {
     min: 1,
     max: 65535
   });
-  console.log("Advanced policy, path, assistant, scheduler, and native web settings stay in setup wizard.");
+  console.log("Advanced access mode, path, assistant, scheduler, and native web settings stay in setup wizard.");
 }
 
 async function promptProvider(
@@ -335,6 +342,40 @@ function normalizeChannelSettings(
     return {};
   }
   return settings as Record<string, string | number | boolean | string[]>;
+}
+
+async function promptOperatorIdsForChannel(
+  prompts: PromptAdapter,
+  channel: OpenAssistConfig["runtime"]["channels"][number]
+): Promise<string[]> {
+  const promptConfig = operatorIdPromptConfig(channel.type);
+  for (const line of promptConfig.guidance) {
+    console.log(`- ${line}`);
+  }
+
+  while (true) {
+    const values = await promptValidatedCsvIds(
+      prompts,
+      promptConfig.prompt,
+      getOperatorUserIds(channel).join(","),
+      promptConfig.pattern,
+      promptConfig.errorHint
+    );
+    if (values.length > 0) {
+      return values;
+    }
+    const nextStep = await prompts.select(
+      "Full access needs at least one approved operator ID before quickstart can continue.",
+      [
+        { name: "Try entering operator IDs again", value: "retry" },
+        { name: "Go back to standard mode", value: "standard" }
+      ],
+      "retry"
+    );
+    if (nextStep === "standard") {
+      return [];
+    }
+  }
 }
 
 function printChannelGuidance(type: OpenAssistConfig["runtime"]["channels"][number]["type"]): void {
@@ -460,6 +501,45 @@ async function configureChannels(state: SetupQuickstartState, prompts: PromptAda
   console.log("Add extra channels or advanced channel behavior later with: openassist setup wizard");
 }
 
+async function configureAccessMode(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
+  stage("Access Mode", "Choose whether approved operators should get full access automatically.");
+  const primaryChannel = state.config.runtime.channels.find((channel) => channel.enabled);
+  const currentMode = detectSetupAccessMode(state.config);
+  console.log(
+    `Current access mode: ${
+      currentMode === "full-access"
+        ? "Full access for approved operators"
+        : currentMode === "custom"
+          ? "Custom advanced access settings"
+          : "Standard mode"
+    }`
+  );
+  const enableFullAccess = await prompts.confirm(
+    "Enable full access for approved operators?",
+    false
+  );
+
+  if (!enableFullAccess) {
+    applySetupAccessModePreset(state.config, "standard");
+    console.log("Keeping standard mode. Approved operator IDs can be added later in setup wizard if you want in-chat /access controls.");
+    return;
+  }
+
+  if (!primaryChannel) {
+    throw new Error("Full access setup requires an enabled primary channel.");
+  }
+
+  const operatorIds = await promptOperatorIdsForChannel(prompts, primaryChannel);
+  if (operatorIds.length === 0) {
+    applySetupAccessModePreset(state.config, "standard");
+    console.log("Switching back to standard mode. You can add approved operator IDs later in setup wizard.");
+    return;
+  }
+  setOperatorUserIds(primaryChannel, operatorIds);
+  applySetupAccessModePreset(state.config, "full-access");
+  console.log(`Approved operator IDs saved for ${primaryChannel.id}. Only those senders will receive automatic full access in this channel.`);
+}
+
 async function configureTimeAndScheduler(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
   stage("Timezone", "Confirm the scheduler timezone used by this install.");
   const runtimeTime = state.config.runtime.time;
@@ -547,6 +627,7 @@ async function runValidationGate(
         { name: "Runtime basics", value: "runtime" },
         { name: "Primary provider", value: "providers" },
         { name: "Primary channel", value: "channels" },
+        { name: "Access mode", value: "access" },
         { name: "Timezone", value: "time" },
         { name: "Re-run validation", value: "retry" },
         { name: "Abort setup", value: "abort" }
@@ -571,6 +652,10 @@ async function runValidationGate(
     }
     if (action === "channels") {
       await configureChannels(state, prompts);
+      continue;
+    }
+    if (action === "access") {
+      await configureAccessMode(state, prompts);
       continue;
     }
     if (action === "time") {
@@ -831,6 +916,7 @@ export async function runSetupQuickstart(
   await configureRuntimeBase(state, prompts);
   await configureProviders(state, prompts);
   await configureChannels(state, prompts);
+  await configureAccessMode(state, prompts);
   await configureTimeAndScheduler(state, prompts);
 
   const validationGate = await runValidationGate(state, prompts, options);

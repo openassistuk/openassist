@@ -198,6 +198,7 @@ describe("runtime provider tool contracts", () => {
       await runtime.start();
       await channel.emit({
         channel: "telegram",
+        channelId: "telegram-mock",
         transportMessageId: "m1",
         conversationKey: "conv-provider",
         senderId: "u1",
@@ -209,7 +210,7 @@ describe("runtime provider tool contracts", () => {
 
       assert.equal(provider.requests.length, 2);
       assert.equal(channel.sent[0]?.text, `${contract.id}:done`);
-      assert.equal(runtime.listToolInvocations("telegram:conv-provider", 10).length, 1);
+      assert.equal(runtime.listToolInvocations("telegram-mock:conv-provider", 10).length, 1);
       assert.equal(fs.readFileSync(writePath, "utf8"), contract.id);
 
       await runtime.stop();

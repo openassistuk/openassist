@@ -34,7 +34,7 @@ Operator CLI includes dual setup surfaces:
 1. Channel adapter emits `InboundEnvelope`.
 2. Runtime persists event + message + idempotency data in one transaction.
 3. Context planner builds bounded provider payload.
-4. Runtime resolves session profile and exposes tool schemas only for `full-root`.
+4. Runtime resolves effective access for the current sender/chat turn and exposes tool schemas only for `full-root`.
 5. Runtime loads/persists global assistant profile memory (assistant identity/persona/preferences) plus per-session host profile snapshot.
 6. Provider adapter executes chat request.
 7. If provider returns tool calls, runtime executes tools, persists audit, appends tool-result messages, and loops back to provider (bounded rounds).
@@ -72,8 +72,8 @@ SQLite runs in WAL mode for local durability and concurrent reader behavior.
 
 - loopback-only API bind by default
 - no WebUI in current release
-- host actions gated by policy profiles
-- autonomous chat tool execution only in `full-root` sessions
+- host actions gated by explicit access profiles
+- autonomous chat tool execution only when the current sender/chat turn resolves to `full-root`
 - OAuth token material encrypted at rest
 - scheduler currently supports prompt and skill actions only (no first-class shell action)
 

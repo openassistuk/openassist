@@ -44,7 +44,9 @@ Provider OAuth config requirements:
 - generation parameters
 - metadata map
 
-Runtime now prepends a bounded runtime-awareness system message on every provider turn. Adapters must preserve system-message order and content exactly; they must not collapse or drop the awareness message because it tells the model what OpenAssist is, what host it is running on, what session profile is active, and which tools are callable right now.
+Runtime now prepends a bounded runtime-awareness system message on every provider turn. Adapters must preserve system-message order and content exactly; they must not collapse or drop the awareness message because it tells the model what OpenAssist is, what host it is running on, what effective access is active for that sender/chat turn, and which tools are callable right now.
+
+The runtime-awareness payload is now actor-aware in shared chats. For the same chat, one sender may arrive with `full-root` access while another stays `operator`, and provider adapters must preserve that exact system-message boundary on every turn.
 
 Scheduler prompt actions use the same `chat()` path with metadata that identifies scheduler context (`source`, `taskId`, `scheduledFor`).
 

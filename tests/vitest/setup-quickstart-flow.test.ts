@@ -465,4 +465,103 @@ describe("setup quickstart flow", () => {
     expect(state.config.runtime.time.defaultTimezone).toBe("Europe/London");
     expect(result.summary.some((line) => line.includes("openassist channel qr --id whatsapp-main"))).toBe(true);
   });
+
+  it("supports the quickstart full-access opt-in path for approved operators", async () => {
+    const root = tempDir("openassist-quickstart-flow-full-access-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.bindPort = await getFreePort();
+    const prompts = new ScriptedPromptAdapter([
+      "true",
+      "openai",
+      "openai-main",
+      "gpt-5.2",
+      "",
+      "openai-key",
+      "telegram",
+      "telegram-main",
+      "telegram-token",
+      "123,456",
+      "true",
+      "123456789",
+      "Europe",
+      "Europe/London",
+      "true"
+    ]);
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.operatorAccessProfile).toBe("full-root");
+    expect(state.config.tools.fs.workspaceOnly).toBe(false);
+    expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toEqual(["123456789"]);
+    expect(result.summary.some((line) => line.includes("Access mode: Full access for approved operators"))).toBe(true);
+  });
+
+  it("returns to standard mode when full access is selected before operator IDs are ready", async () => {
+    const root = tempDir("openassist-quickstart-flow-standard-fallback-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.bindPort = await getFreePort();
+    const prompts = new ScriptedPromptAdapter([
+      "true",
+      "openai",
+      "openai-main",
+      "gpt-5.2",
+      "",
+      "openai-key",
+      "telegram",
+      "telegram-main",
+      "telegram-token",
+      "123,456",
+      "true",
+      "",
+      "standard",
+      "Europe",
+      "Europe/London",
+      "true"
+    ]);
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.operatorAccessProfile).toBe("operator");
+    expect(state.config.tools.fs.workspaceOnly).toBe(true);
+    expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toBeUndefined();
+    expect(result.summary.some((line) => line.includes("Access mode: Standard mode"))).toBe(true);
+  });
 });

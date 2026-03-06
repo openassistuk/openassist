@@ -95,9 +95,9 @@ Expected:
 
 ## Scenario H: Autonomous Tool Policy Gate
 
-1. run chat prompt requiring tool action with session profile `operator`
+1. run chat prompt requiring tool action with effective access `operator`
 2. verify no autonomous tool execution
-3. switch session profile to `full-root`
+3. switch effective access to `full-root`
 4. run same prompt and verify tool execution occurs
 
 Expected:

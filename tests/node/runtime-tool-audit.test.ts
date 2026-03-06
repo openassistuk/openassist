@@ -181,6 +181,7 @@ describe("runtime tool audit", () => {
     await runtime.start();
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m1",
       conversationKey: "conv-audit",
       senderId: "u1",
@@ -190,7 +191,7 @@ describe("runtime tool audit", () => {
       idempotencyKey: "audit-1"
     });
 
-    const rows = runtime.listToolInvocations("telegram:conv-audit", 10);
+    const rows = runtime.listToolInvocations("telegram-mock:conv-audit", 10);
     assert.equal(rows.length, 1);
     assert.equal(rows[0]?.status, "blocked");
     assert.equal(rows[0]?.toolName, "exec.run");

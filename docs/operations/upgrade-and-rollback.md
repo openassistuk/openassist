@@ -84,9 +84,9 @@ Use `install.sh` or `scripts/install/bootstrap.sh` again when:
 - you want a fresh install directory
 - the repo metadata is no longer coherent enough for a safe in-place update
 
-## Dirty Working Trees
+## Local Code Changes
 
-Upgrade now refuses to continue on a dirty checkout.
+Update now refuses to continue when the install directory has local code changes.
 
 The operator guidance is explicit:
 

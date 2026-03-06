@@ -1,5 +1,6 @@
 import type { OpenAssistConfig } from "@openassist/config";
 import { toProviderApiKeyEnvVar, toWebBraveApiKeyEnvVar } from "./config-edit.js";
+import { detectSetupAccessMode, getOperatorUserIds } from "./setup-access.js";
 
 function collectChannelEnvRefs(
   settings: Record<string, string | number | boolean | string[]>,
@@ -45,6 +46,8 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   }
 
   const primaryChannel = input.config.runtime.channels.find((channel) => channel.enabled);
+  const accessMode = detectSetupAccessMode(input.config);
+  const primaryOperatorIds = getOperatorUserIds(primaryChannel);
   const firstReplyGuidance =
     primaryChannel?.type === "telegram"
       ? "Send a message in a Telegram chat where the bot was added, then run /status if you need diagnostics."
@@ -63,6 +66,18 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   }
   lines.push(`- Primary provider: ${input.config.runtime.defaultProviderId}`);
   lines.push(`- Primary channel: ${primaryChannel ? `${primaryChannel.id} (${primaryChannel.type})` : "(not configured)"}`);
+  lines.push(
+    `- Access mode: ${
+      accessMode === "full-access"
+        ? "Full access for approved operators"
+        : accessMode === "custom"
+          ? "Custom advanced access settings"
+          : "Standard mode"
+    }`
+  );
+  if (primaryChannel) {
+    lines.push(`- Approved operator IDs on primary channel: ${primaryOperatorIds.join(", ") || "(none)"}`);
+  }
   lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
   lines.push(
     `- Service status: ${
@@ -76,6 +91,12 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   }
   lines.push("First reply checklist:");
   lines.push(`- ${firstReplyGuidance}`);
+  lines.push("- In chat, run /status to see the exact sender ID and session ID for access troubleshooting.");
+  if (accessMode === "full-access") {
+    lines.push("- Approved operators will receive full access automatically in this channel. Use /access standard if you want to drop back to standard access for this chat.");
+  } else {
+    lines.push("- Standard mode is active. Add approved operator IDs later if you want to use /access full in chat.");
+  }
   lines.push("- Verify daemon health: openassist service health");
   lines.push("- Check channel status if there is no reply: openassist channel status");
   lines.push("- Use the advanced editor for more settings: openassist setup wizard");

@@ -3,6 +3,7 @@ bindAddress = "127.0.0.1"
 bindPort = 3344
 defaultProviderId = "openai-main"
 defaultPolicyProfile = "operator"
+operatorAccessProfile = "operator"
 
 [runtime.assistant]
 name = "OpenAssist"
@@ -67,6 +68,7 @@ defaultModel = "gpt-5.2"
 # [runtime.channels.settings]
 # botToken = "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN"
 # allowedChatIds = ["123456789"]
+# operatorUserIds = ["123456789"]
 # conversationMode = "chat" # "chat" or "chat-thread"
 # responseMode = "inline" # "inline" or "reply-threaded"
 

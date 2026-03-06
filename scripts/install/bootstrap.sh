@@ -195,6 +195,9 @@ print_bootstrap_summary() {
   if [[ "${GLOBAL_WRAPPERS_INSTALLED}" -eq 1 ]]; then
     echo "  - global wrappers linked at ${GLOBAL_BIN_DIR}/openassist and ${GLOBAL_BIN_DIR}/openassistd"
   fi
+  echo "Still worth knowing:"
+  echo "  - pnpm version notices are informational"
+  echo "  - ignored optional build-script warnings are expected unless you need optional WhatsApp/media extras"
 
   echo "Next step:"
   if [[ "${INTERACTIVE}" -eq 1 && "${SKIP_SERVICE}" -eq 1 ]]; then
@@ -866,6 +869,8 @@ fi
 
 echo "Installing dependencies..."
 pnpm --dir "${INSTALL_DIR}" install --frozen-lockfile
+echo "Install note: pnpm version notices and ignored optional build-script warnings are expected on normal Telegram or Discord installs."
+echo "They usually matter only if you are testing optional WhatsApp/media paths."
 
 echo "Building workspace..."
 pnpm --dir "${INSTALL_DIR}" -r build

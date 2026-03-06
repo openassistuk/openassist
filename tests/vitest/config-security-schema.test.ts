@@ -139,4 +139,79 @@ describe("config schema security validation", () => {
 
     expect(() => parseConfig(input)).not.toThrow();
   });
+
+  it("defaults operatorAccessProfile to operator when omitted", () => {
+    const input = baseConfigInput();
+
+    const parsed = parseConfig(input);
+
+    expect(parsed.runtime.operatorAccessProfile).toBe("operator");
+  });
+
+  it("rejects invalid Telegram operator user IDs", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).channels = [
+      {
+        id: "telegram-main",
+        type: "telegram",
+        enabled: true,
+        settings: {
+          botToken: "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN",
+          operatorUserIds: ["-123"]
+        }
+      }
+    ];
+
+    expect(() => parseConfig(input)).toThrow(/Telegram operator IDs must be positive numeric user IDs/);
+  });
+
+  it("accepts channel-specific approved operator IDs", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).channels = [
+      {
+        id: "telegram-main",
+        type: "telegram",
+        enabled: true,
+        settings: {
+          botToken: "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN",
+          operatorUserIds: ["123456789"]
+        }
+      },
+      {
+        id: "discord-main",
+        type: "discord",
+        enabled: true,
+        settings: {
+          botToken: "env:OPENASSIST_CHANNEL_DISCORD_MAIN_BOT_TOKEN",
+          operatorUserIds: ["123456789012345678"]
+        }
+      },
+      {
+        id: "whatsapp-main",
+        type: "whatsapp-md",
+        enabled: true,
+        settings: {
+          operatorUserIds: ["447700900123@s.whatsapp.net"]
+        }
+      }
+    ];
+
+    expect(() => parseConfig(input)).not.toThrow();
+  });
+
+  it("rejects channel IDs that use reserved session delimiters", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).channels = [
+      {
+        id: "telegram:main",
+        type: "telegram",
+        enabled: true,
+        settings: {
+          botToken: "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN"
+        }
+      }
+    ];
+
+    expect(() => parseConfig(input)).toThrow(/Channel IDs must use letters, numbers, dot, dash, or underscore/);
+  });
 });

@@ -239,6 +239,7 @@ describe("runtime chat policy gating", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m1",
       conversationKey: "conv-1",
       senderId: "u1",
@@ -248,12 +249,13 @@ describe("runtime chat policy gating", () => {
       idempotencyKey: "op-1"
     });
     assert.equal(channel.sent[0]?.text, "no autonomous tools");
-    assert.equal(runtime.listToolInvocations("telegram:conv-1", 10).length, 0);
+    assert.equal(runtime.listToolInvocations("telegram-mock:conv-1", 10).length, 0);
     assert.equal(fs.existsSync(writePath), false);
 
-    await runtime.setPolicyProfile("telegram:conv-1", "full-root");
+    await runtime.setPolicyProfile("telegram-mock:conv-1", "full-root");
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m2",
       conversationKey: "conv-1",
       senderId: "u1",
@@ -265,7 +267,7 @@ describe("runtime chat policy gating", () => {
 
     assert.equal(channel.sent[1]?.text, "tools executed");
     assert.equal(fs.readFileSync(writePath, "utf8"), "enabled");
-    assert.equal(runtime.listToolInvocations("telegram:conv-1", 10).length, 1);
+    assert.equal(runtime.listToolInvocations("telegram-mock:conv-1", 10).length, 1);
 
     await runtime.stop();
     db.close();
@@ -290,6 +292,7 @@ describe("runtime chat policy gating", () => {
 
     await channel.emit({
       channel: "telegram",
+      channelId: "telegram-mock",
       transportMessageId: "m-rogue",
       conversationKey: "conv-rogue",
       senderId: "u1",
@@ -304,7 +307,7 @@ describe("runtime chat policy gating", () => {
       channel.sent[0]?.text,
       "Autonomous tool execution is disabled for this session profile."
     );
-    assert.equal(runtime.listToolInvocations("telegram:conv-rogue", 10).length, 0);
+    assert.equal(runtime.listToolInvocations("telegram-mock:conv-rogue", 10).length, 0);
     assert.equal(fs.existsSync(writePath), false);
 
     await runtime.stop();

@@ -89,6 +89,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 
       await handler({
         channel: "telegram",
+        channelId: this.config.id,
         transportMessageId: String(ctx.msg.message_id),
         conversationKey,
         senderId: String(ctx.from?.id ?? "unknown"),

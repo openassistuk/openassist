@@ -80,12 +80,16 @@ Quickstart is intentionally minimal:
 - choose one primary provider
 - capture API-key auth first
 - configure one primary channel
+- choose an access mode:
+  - `Standard mode (recommended)`
+  - `Full access for approved operators`
 - confirm the selected timezone with a simple `Y/n` prompt
 - run service and health checks unless `--skip-service`
 
 OAuth client configuration, extra providers, extra channels, scheduler tasks, native web tuning, and deeper runtime policy changes stay in `openassist setup wizard`.
 
 Quickstart blocks invalid or incomplete first-reply state by default. Use `--allow-incomplete` only when you explicitly want to save a degraded setup.
+If you opt into full access, quickstart asks for approved operator IDs for the chosen channel and falls back cleanly to standard mode if you are not ready to enter them yet.
 
 ### 4. Check install and runtime readiness
 
@@ -118,6 +122,7 @@ When the bot is online:
 1. Send a simple message in the configured chat.
 2. Confirm you receive a reply.
 3. Send `/status` if you need local diagnostics without depending on provider health.
+4. Copy the sender ID and session ID from `/status` if you want to configure approved operators or inspect actor-specific access from the CLI later.
 
 ### 6. Use the advanced editor when needed
 
@@ -216,6 +221,14 @@ openassist scheduler status
 openassist scheduler tasks
 ```
 
+Actor-aware access checks:
+
+```bash
+openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id>
+openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id> --json
+openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>
+```
+
 Source-checkout alternatives are documented, but the installed commands above are the primary operator path.
 
 ## Docs
@@ -230,11 +243,16 @@ Source-checkout alternatives are documented, but the installed commands above ar
 
 ## Safety Model
 
-Default session profile is `operator`.
+Default install path is `Standard mode (recommended)`.
 
+- standard mode keeps `runtime.defaultPolicyProfile=operator`, keeps approved operators at standard access by default, and keeps filesystem tools workspace-only
+- full access for approved operators keeps the default chat access at `operator`, but lets explicitly approved sender IDs default to `full-root`
+- approved operator IDs are configured per channel in `channels[*].settings.operatorUserIds`
+- `/access` is available only to approved operators and only changes that sender's access for the current chat
 - `restricted` and `operator` do not expose autonomous tool execution
-- `full-root` enables autonomous host-impacting tools for that session only
+- `full-root` enables autonomous host-impacting tools for that sender/chat resolution only
 - native web tooling remains runtime-owned, bounded, and profile-gated
+- `/status` shows the current sender ID, canonical session ID, effective access, and access source
 - `/status` and lifecycle CLI output are designed to stay useful even when provider auth is broken
 
 Local merge gate:

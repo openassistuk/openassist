@@ -46,6 +46,7 @@ async function runCli(args: string[], cwd = repoRoot()): Promise<{ code: number;
 
 describe("cli api surface coverage", () => {
   it("covers status and mutation command paths against daemon APIs", async () => {
+    const seenToolStatusQueries: string[] = [];
     const server = http.createServer((req, res) => {
       const requestUrl = new URL(req.url ?? "/", "http://localhost");
       const pathname = requestUrl.pathname;
@@ -92,6 +93,7 @@ describe("cli api surface coverage", () => {
         return;
       }
       if (method === "GET" && pathname === "/v1/tools/status") {
+        seenToolStatusQueries.push(requestUrl.search);
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify({ tools: { enabled: true } }));
         return;
@@ -187,7 +189,16 @@ describe("cli api surface coverage", () => {
         outputPattern: /enqueued/
       },
       {
-        args: ["tools", "status", "--session", "telegram:ops-room", "--base-url", baseUrl],
+        args: [
+          "tools",
+          "status",
+          "--session",
+          "telegram-main:ops-room",
+          "--sender-id",
+          "123456789",
+          "--base-url",
+          baseUrl
+        ],
         outputPattern: /enabled/
       },
       {
@@ -195,7 +206,7 @@ describe("cli api surface coverage", () => {
           "tools",
           "invocations",
           "--session",
-          "telegram:ops-room",
+          "telegram-main:ops-room",
           "--limit",
           "5",
           "--base-url",
@@ -245,6 +256,8 @@ describe("cli api surface coverage", () => {
           assert.match(result.stdout, command.outputPattern);
         }
       }
+
+      assert.deepEqual(seenToolStatusQueries, ["?sessionId=telegram-main%3Aops-room&senderId=123456789"]);
 
       const failedStart = await runCli([
         "auth",

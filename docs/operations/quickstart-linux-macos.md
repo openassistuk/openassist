@@ -48,6 +48,8 @@ Bootstrap behavior:
 - interactive bootstrap runs quickstart after the build
 - non-interactive bootstrap does not run quickstart for you
 - non-interactive bootstrap still installs the service unless you pass `--skip-service`
+- `pnpm` version notices and ignored optional build-script warnings are expected on normal Telegram or Discord installs
+- those warnings usually matter only if you are testing optional WhatsApp/media paths
 
 If you are installing from a local checkout instead of GitHub:
 
@@ -89,6 +91,9 @@ What quickstart configures:
 - runtime defaults for the first reply
 - one primary provider
 - one primary channel
+- one access mode choice:
+  - `Standard mode (recommended)`
+  - `Full access for approved operators`
 - timezone confirmation
 - service install, restart, and health checks unless `--skip-service`
 
@@ -112,6 +117,8 @@ Quickstart rules:
 - timezone confirmation now shows the selected zone and asks for a simple `Y/n` confirmation
 - wildcard bind addresses still probe health through loopback fallbacks
 - Linux service manager selection stays automatic: non-root uses `systemd --user`, root uses system-level `systemd`
+- quickstart asks for approved operator IDs only if you opt into full access
+- if you opt into full access before you know those IDs, quickstart offers a clear return path back to standard mode instead of failing
 
 Provider and channel guidance:
 
@@ -137,6 +144,9 @@ openassist time status
 - tracked ref and current commit
 - config and env paths
 - detected service manager
+- configured access mode
+- whether enabled channels already have approved operator IDs
+- whether in-chat `/access` switching is available yet
 - whether upgrade prerequisites are satisfied
 - the next command you should run
 
@@ -148,6 +158,7 @@ After quickstart completes:
 2. Send a simple message.
 3. Confirm the bot replies.
 4. Send `/status` if you need local diagnostics without provider dependency.
+5. Copy the `sender id` and `session id` from `/status` if you plan to configure approved operators or inspect actor-specific access later.
 
 First-reply checklist:
 
@@ -155,6 +166,13 @@ First-reply checklist:
 - one enabled channel saved in config
 - `openassist service health` succeeds, unless you intentionally skipped service checks
 - `openassist doctor` reports upgrade-ready or tells you the next lifecycle fix to make
+- if you chose full access, the right approved operator IDs are saved for that channel
+
+Access mode notes:
+
+- standard mode keeps everyone at standard access until you deliberately elevate a listed operator
+- full access still does not grant Unix `root`; it enables OpenAssist's `full-root` tool profile for approved operators
+- approved operators can use `/access full` or `/access standard` inside chat for their own current chat only
 
 If the bot does not reply:
 

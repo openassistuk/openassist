@@ -11,6 +11,7 @@ function isValidIanaTimezone(value: string): boolean {
 }
 
 const ENV_VAR_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const CONFIG_IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SECRET_LIKE_CHANNEL_SETTING_KEY_PATTERN =
   /(token|secret|api[_-]?key|password|passphrase|credential|authorization|auth)/i;
 
@@ -30,6 +31,18 @@ function parseEnvReference(value: string): { varName: string } | null {
 
 function isSecretLikeChannelSettingKey(key: string): boolean {
   return SECRET_LIKE_CHANNEL_SETTING_KEY_PATTERN.test(key);
+}
+
+function isTelegramOperatorId(value: string): boolean {
+  return /^[1-9]\d*$/.test(value);
+}
+
+function isDiscordOperatorId(value: string): boolean {
+  return /^\d{5,30}$/.test(value);
+}
+
+function isWhatsAppOperatorId(value: string): boolean {
+  return value.trim().length > 0;
 }
 
 const providerSchema = z.object({
@@ -57,7 +70,10 @@ const providerSchema = z.object({
 
 const scheduledOutputSchema = z
   .object({
-    channelId: z.string().min(1).optional(),
+    channelId: z
+      .string()
+      .regex(CONFIG_IDENTIFIER_PATTERN, "Channel IDs must use letters, numbers, dot, dash, or underscore")
+      .optional(),
     conversationKey: z.string().min(1).optional(),
     messageTemplate: z.string().min(1).optional()
   })
@@ -121,7 +137,9 @@ const scheduledTaskSchema = z
   });
 
 const channelSchema = z.object({
-  id: z.string().min(1),
+  id: z
+    .string()
+    .regex(CONFIG_IDENTIFIER_PATTERN, "Channel IDs must use letters, numbers, dot, dash, or underscore"),
   type: z.enum(["telegram", "discord", "whatsapp-md"]),
   enabled: z.boolean().default(true),
   settings: z
@@ -129,6 +147,41 @@ const channelSchema = z.object({
     .default({})
 }).superRefine((channel, ctx) => {
   for (const [key, value] of Object.entries(channel.settings)) {
+    if (key === "operatorUserIds") {
+      if (!Array.isArray(value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Channel setting 'operatorUserIds' must be an array of sender IDs",
+          path: ["settings", key]
+        });
+        continue;
+      }
+
+      const validator =
+        channel.type === "telegram"
+          ? isTelegramOperatorId
+          : channel.type === "discord"
+            ? isDiscordOperatorId
+            : isWhatsAppOperatorId;
+      const hint =
+        channel.type === "telegram"
+          ? "Telegram operator IDs must be positive numeric user IDs"
+          : channel.type === "discord"
+            ? "Discord operator IDs must be numeric snowflakes"
+            : "WhatsApp operator IDs must match the exact sender ID/JID shown by /status";
+
+      value.forEach((entry, index) => {
+        if (!validator(entry)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: hint,
+            path: ["settings", key, index]
+          });
+        }
+      });
+      continue;
+    }
+
     const secretLike = isSecretLikeChannelSettingKey(key);
     const keyPath = ["settings", key];
 
@@ -197,6 +250,7 @@ const runtimeSchema = z.object({
   providers: z.array(providerSchema).min(1),
   channels: z.array(channelSchema).default([]),
   defaultPolicyProfile: z.enum(["restricted", "operator", "full-root"]).default("operator"),
+  operatorAccessProfile: z.enum(["operator", "full-root"]).default("operator"),
   workspaceRoot: z.string().optional(),
   assistant: z
     .object({
@@ -309,6 +363,7 @@ export function toRuntimeConfig(config: OpenAssistConfig): RuntimeConfig {
     providers: config.runtime.providers,
     channels: config.runtime.channels,
     defaultPolicyProfile: config.runtime.defaultPolicyProfile,
+    operatorAccessProfile: config.runtime.operatorAccessProfile,
     workspaceRoot: config.runtime.workspaceRoot,
     assistant: config.runtime.assistant,
     paths: config.runtime.paths,

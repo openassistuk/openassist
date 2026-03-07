@@ -19,7 +19,9 @@ The proof should be visible in three places: `/status` should redact full lifecy
 - [x] (2026-03-07 15:15Z) Added regression coverage for redacted `/status`, approved-operator detail, protected path/surface separation, and install-context git timeout behavior.
 - [x] (2026-03-07 15:16Z) Passed targeted runtime/self-knowledge/install-context suites after correcting the Windows-specific test harness approach.
 - [x] (2026-03-07 15:16Z) Passed the full local gate with `pnpm verify:all`.
-- [ ] Open the follow-up PR, monitor GitHub checks/review until clean, and link the fixes back to the three original review comments.
+- [x] (2026-03-07 15:18Z) Opened follow-up PR `#8` (`fix: close runtime self-knowledge review follow-ups`) from branch `fix/runtime-self-knowledge-review-followups`.
+- [x] (2026-03-07 15:22Z) Replied to and resolved the three original PR `#7` Copilot review threads with links back to PR `#8`.
+- [x] (2026-03-07 15:22Z) Reached a fully green GitHub state for PR `#8`: Actions/CodeQL passed, no new review comments, and no code-scanning alerts on the PR head.
 
 ## Surprises & Discoveries
 
@@ -48,9 +50,9 @@ The proof should be visible in three places: `/status` should redact full lifecy
 
 ## Outcomes & Retrospective
 
-The implementation is complete locally. `/status` now keeps host filesystem and install-path detail out of unapproved chat views while preserving the trusted operator view, the awareness contract now separates machine-friendly protected paths from descriptive protected lifecycle surfaces, and daemon startup git probing is bounded and logged instead of potentially stalling twice. The new vitest install-context regression uses a module mock rather than a fake `git` binary so the test stays deterministic on Windows, Linux, and macOS.
+The follow-up achieved the intended result. `/status` now keeps host filesystem and install-path detail out of unapproved chat views while preserving the trusted operator view, the awareness contract now separates machine-friendly protected paths from descriptive protected lifecycle surfaces, and daemon startup git probing is bounded and logged instead of potentially stalling twice. The new vitest install-context regression uses a module mock rather than a fake `git` binary so the test stays deterministic on Windows, Linux, and macOS.
 
-Local verification is done: targeted suites passed first, then `pnpm verify:all` passed on 2026-03-07. The only remaining work is the GitHub side: open the follow-up PR, monitor Actions/CodeQL/Copilot, and then reference that PR back on the three original PR `#7` review threads.
+The GitHub-side cleanup is complete as well. PR `#8` carries the fixes, `pnpm verify:all` passed locally before push, all GitHub checks on PR `#8` are green, there are no PR-head code-scanning alerts, and the three original PR `#7` Copilot threads were replied to and resolved so the old review surface no longer looks ignored.
 
 ## Context and Orientation
 
@@ -98,13 +100,19 @@ If a new install-context test fails on one platform, rerun that targeted node te
 
 ## Artifacts and Notes
 
-The most important evidence to capture later in this document is:
+The most important evidence for this follow-up is:
 
 - a redacted `/status` transcript for an unapproved sender
 - a detailed `/status` transcript for an approved operator
 - a self-knowledge snapshot assertion showing `protectedPaths` and `protectedSurfaces` separately
 - the install-context timeout regression test result
 - the final `pnpm verify:all` result and follow-up PR status
+
+Captured evidence:
+
+- Local gate: `pnpm verify:all` passed on 2026-03-07 after the targeted runtime/self-knowledge/install-context suites were green.
+- PR: `#8` (`fix: close runtime self-knowledge review follow-ups`) is green across `workflow-lint`, Linux/macOS/Windows quality-and-coverage, `CodeQL preflight`, `analyze (javascript-typescript)`, and `CodeQL`.
+- Review closure: the three original PR `#7` review threads (`PRRT_kwDOReTCo85yxWu6`, `PRRT_kwDOReTCo85yxWvA`, `PRRT_kwDOReTCo85yxWvH`) were replied to and resolved after PR `#8` opened.
 
 ## Interfaces and Dependencies
 
@@ -125,3 +133,4 @@ The change should end with these concrete interface results:
 
 Revision (2026-03-07 15:14Z): Initial follow-up ExecPlan created after re-auditing the merged PR `#7` Copilot review comments and the affected runtime/install-context surfaces.
 Revision (2026-03-07 15:22Z): Updated the living sections after implementation, docs sync, the Windows-safe install-context test rewrite, and the successful `pnpm verify:all` run; remaining work is PR creation plus GitHub review/check monitoring.
+Revision (2026-03-07 15:22Z): Recorded the opened PR `#8`, the green GitHub check state, and the replies/resolution on the three original PR `#7` review threads so the plan reflects the actual finished state.

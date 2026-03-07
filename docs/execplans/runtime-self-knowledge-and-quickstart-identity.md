@@ -18,7 +18,7 @@ The proof should be visible in four places: `/status` becomes much more informat
 - [x] (2026-03-07 18:30Z) Restored assistant identity capture to quickstart, changed quickstart-created installs to disable first-contact prompting by default, and updated wizard wording to describe the same fields as the global main-agent identity.
 - [x] (2026-03-07 19:05Z) Updated AGENTS, lifecycle/security/runtime docs, install docs, restart/recovery, testing matrix, and changelog in the same change so the public story matches the runtime behavior.
 - [x] (2026-03-07 22:46Z) Added/updated coverage for self-knowledge and quickstart identity, fixed stale runtime/native-web test fixtures uncovered during the post-crash rerun, and passed `pnpm verify:all` locally.
-- [ ] Open PR, monitor CI and review findings, and keep the branch green until merge-ready.
+- [x] (2026-03-07 22:50Z) Opened PR `#7`, monitored GitHub CI/code scanning/review surfaces, and reached a fully green bot-check state with no open review comments or code-scanning alerts.
 
 ## Surprises & Discoveries
 
@@ -63,7 +63,7 @@ The proof should be visible in four places: `/status` becomes much more informat
 
 The implementation now covers the intended behavior end to end in code and docs. OpenAssist carries a richer bounded self-knowledge pack on provider turns, `/status` explains identity/host/install/capability/doc facts in operator language, daemon startup feeds repo-backed install context into runtime awareness, and quickstart once again captures assistant identity before the first chat while disabling the redundant later first-contact reminder by default.
 
-The local implementation and verification work are now complete. No schema migration or new durable table was required because the richer awareness snapshot still fits inside the existing `session_bootstrap.systemProfile.awareness` payload. The only remaining work is release hygiene: open the PR, keep GitHub CI/code scanning/review clean, and then capture the final PR evidence back into this plan.
+The implementation is complete and merge-ready. No schema migration or new durable table was required because the richer awareness snapshot still fits inside the existing `session_bootstrap.systemProfile.awareness` payload. PR `#7` now carries the change, `pnpm verify:all` passed locally after the post-crash rerun, GitHub CI is green across Linux/macOS/Windows plus CodeQL, and the PR has no open review comments or open code-scanning alerts. The only remaining step is human review and merge.
 
 ## Context and Orientation
 
@@ -131,6 +131,7 @@ Current evidence captured during implementation:
 - Provider grounding assertions live in `tests/node/runtime.test.ts` and `tests/vitest/runtime-self-knowledge.test.ts`, proving the runtime self-knowledge pack includes doc refs and maintenance facts.
 - Quickstart persistence expectations live in `tests/node/cli-setup-quickstart-runtime.test.ts` and `tests/vitest/setup-quickstart-flow.test.ts`, including `promptOnFirstContact = false`.
 - Local merge gate evidence: `pnpm verify:all` passed on 2026-03-07 after the post-crash rerun and stale test-fixture fixes.
+- PR evidence: GitHub PR `#7` (`feat: strengthen runtime self-knowledge and quickstart identity`) is open with all checks green and no open review comments or code-scanning alerts as of 2026-03-07.
 
 ## Interfaces and Dependencies
 
@@ -153,3 +154,4 @@ The implementation should end with these interface-level additions:
 Revision (2026-03-07 16:25Z): Initial ExecPlan created after repo audit to capture the implementation path before code changes begin.
 Revision (2026-03-07 19:05Z): Updated the living sections after implementing the self-knowledge contract, daemon install-context flow, quickstart identity restoration, and the related docs/test synchronization; remaining work is full verification and PR monitoring.
 Revision (2026-03-07 22:46Z): Recorded the successful full local gate, plus the stale runtime/native-web test-fixture fixes that surfaced during the post-crash rerun, so the remaining work is only PR creation and review monitoring.
+Revision (2026-03-07 22:50Z): Recorded PR `#7`, the fully green GitHub check state, and the absence of bot review/code-scanning findings so the plan reflects the actual merge-ready status.

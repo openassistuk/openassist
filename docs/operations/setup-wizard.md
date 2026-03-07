@@ -46,6 +46,24 @@ Quickstart success should leave you with:
 - a first-reply checklist in the summary
 - a clear `/status` path to discover the exact sender ID and session ID for later operator access changes
 
+Quickstart now also includes a required review-before-save step so beginners can confirm the first-reply plan before files are written. The review actions are:
+
+- `Save`
+- `Edit runtime`
+- `Edit assistant identity`
+- `Edit provider`
+- `Edit channel`
+- `Edit timezone`
+- `Abort`
+
+When quickstart validation fails, the repair guidance is grouped by operator task instead of one flat issue list:
+
+- provider auth
+- channel auth or routing
+- timezone or time
+- service or health
+- access or operator IDs
+
 Quickstart rules:
 
 - strict validation blocks incomplete first-reply setup by default
@@ -87,6 +105,8 @@ Wizard sections:
 - channels and chat destinations
 - scheduling and time
 - advanced tools and security
+
+These labels now intentionally match the lifecycle language used by quickstart summaries and doctor output so the two setup paths read like one system instead of separate tools.
 
 Wizard access behavior:
 

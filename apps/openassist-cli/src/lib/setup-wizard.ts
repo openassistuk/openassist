@@ -987,12 +987,12 @@ export async function runSetupWizard(
     const action = await prompts.select(
       `Setup wizard (${state.configPath})`,
       [
-        { name: "Basic runtime and access mode", value: "runtime" },
-        { name: "Providers and model access", value: "providers" },
-        { name: "Channels, allowlists, and operator access", value: "channels" },
-        { name: "Scheduling and time", value: "time" },
+        { name: "Runtime and assistant identity", value: "runtime" },
+        { name: "Providers", value: "providers" },
+        { name: "Channels and operator access", value: "channels" },
+        { name: "Timezone and scheduler", value: "time" },
         { name: "Advanced tools and security", value: "tools" },
-        { name: "Save and run post-save checks", value: "save" },
+        { name: "Save and run lifecycle checks", value: "save" },
         { name: "Exit without saving", value: "exit" }
       ],
       "save"

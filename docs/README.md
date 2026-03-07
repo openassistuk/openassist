@@ -11,6 +11,14 @@ Use this index by lifecycle stage.
 
 OpenAssist remains a repo-backed install and update model. Bootstrap, `openassist doctor`, `openassist service install`, and `openassist upgrade` all work from the same persisted install record so operators can see the install directory, tracked ref, config path, env path, service manager, and last known good commit in one place.
 
+Lifecycle surfaces now share one grouped readiness model instead of each inventing their own wording. The same readiness questions now flow through bootstrap summaries, quickstart, wizard post-save checks, `openassist doctor`, and `openassist upgrade --dry-run`:
+
+- what is ready now
+- what still needs action before first reply
+- what still needs action before full access
+- what still needs action before upgrade
+- which command to run next
+
 Quickstart now also owns the beginner-facing access choice:
 
 - `Standard mode (recommended)` keeps the first install safe and workspace-scoped
@@ -47,6 +55,7 @@ Primary runbooks:
 ## Lifecycle Commands
 
 - `openassist doctor`: lifecycle readiness report for install, setup, and upgrade
+- `openassist doctor --json`: machine-readable form of the same grouped lifecycle report
 - `openassist setup quickstart`: minimal first-reply onboarding
 - `openassist setup wizard`: advanced section editor
 - `openassist service install`: explicit service install or reinstall

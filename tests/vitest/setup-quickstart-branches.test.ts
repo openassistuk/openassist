@@ -114,6 +114,7 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
     "Europe",
     "Europe/London",
     "true",
+    "save",
     ...extra
   ];
 }
@@ -138,6 +139,7 @@ function invalidQuickstartAnswers(bindPort: number, extra: string[] = []): strin
     "Europe",
     "Europe/London",
     "true",
+    "save",
     ...extra
   ];
 }
@@ -308,7 +310,7 @@ describe("setup quickstart branch behavior", () => {
     expect(result.serviceHealthOk).toBe(false);
     expect(result.postSaveAborted).toBe(false);
     expect(result.postSaveError).toMatch(/daemon health is failing/i);
-    expect(result.summary.some((line) => line.includes("Service status: needs attention"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Service state: Service needs attention"))).toBe(true);
   });
 
   it("allows abort-after-failure in allow-incomplete mode for service checks", async () => {
@@ -440,6 +442,7 @@ describe("setup quickstart branch behavior", () => {
       "Europe",
       "Europe/London",
       "true",
+      "save",
       ...validationContinuationAnswers
     ]);
 
@@ -512,14 +515,15 @@ describe("setup quickstart branch behavior", () => {
         "telegram",
         "telegram-main",
         "telegram-token",
-        "123",
-        "Europe",
-        "Europe/London",
-        "true",
-        "runtime",
-        "false",
-        "127.0.0.1",
-        String(freePort)
+      "123",
+      "Europe",
+      "Europe/London",
+      "true",
+      "save",
+      "service-health",
+      "false",
+      "127.0.0.1",
+      String(freePort)
       ]);
 
       const result = await runSetupQuickstart(
@@ -576,19 +580,21 @@ describe("setup quickstart branch behavior", () => {
       "Europe",
       "Europe/London",
       "false",
-      "retry",
-      "providers",
+      "save",
+      "provider-auth",
+      "false",
       "openai",
       "openai-main",
       "gpt-5.2",
       "",
       "openai-key",
-      "channels",
+      "channel-auth-routing",
       "telegram",
+      "false",
       "telegram-main",
       "telegram-token",
       "123",
-      "time",
+      "timezone-time",
       "Europe",
       "Europe/London",
       "true"
@@ -613,6 +619,6 @@ describe("setup quickstart branch behavior", () => {
     expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY).toBe("openai-key");
     expect(state.env.OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN).toBe("telegram-token");
     expect(state.config.runtime.time.defaultTimezone).toBe("Europe/London");
-    expect(result.summary.some((line) => line.includes("Service status: not checked yet"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Service state: Service checks skipped"))).toBe(true);
   });
 });

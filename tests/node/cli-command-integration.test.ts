@@ -56,11 +56,13 @@ describe("cli command integration", () => {
     assert.ok(result.stdout.includes("\"runtime\""), result.stdout);
   });
 
-  it("runs upgrade dry-run on a clean cloned working tree", async () => {
+  it("runs upgrade dry-run on a clean built working tree", async () => {
     const root = tempDir("openassist-upgrade-dryrun-");
     const cloneDir = path.join(root, "repo");
     const cloneResult = await runCommand("git", ["clone", "--depth", "1", repoRoot(), cloneDir], repoRoot());
     assert.equal(cloneResult.code, 0, cloneResult.stderr || cloneResult.stdout);
+    fs.mkdirSync(path.join(cloneDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(cloneDir, "apps", "openassistd", "dist", "index.js"), "// built for dry-run\n", "utf8");
 
     // CI checkouts can be detached and may not have origin/main fetched; using HEAD keeps dry-run deterministic.
     const result = await runCli(
@@ -68,14 +70,16 @@ describe("cli command integration", () => {
       repoRoot()
     );
     assert.equal(result.code, 0, result.stderr || result.stdout);
-    assert.ok(result.stdout.includes("Update plan"), result.stdout);
+    assert.ok(result.stdout.includes("Update readiness"), result.stdout);
     assert.ok(result.stdout.includes("- Target update track: HEAD"), result.stdout);
+    assert.ok(result.stdout.includes("Needs action before upgrade"), result.stdout);
     assert.ok(
       result.stdout.includes(
-        "The update can be applied safely with the same install directory and target ref shown above."
+        "Dry-run complete. Upgrade is safe to continue with the install directory and update track shown above."
       ),
       result.stdout
     );
+    assert.ok(result.stdout.includes("- When you are ready, rerun: openassist upgrade"), result.stdout);
   });
 
   it("runs service install dry-run on supported platforms", async (t) => {

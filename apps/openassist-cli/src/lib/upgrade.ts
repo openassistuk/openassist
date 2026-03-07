@@ -1,3 +1,5 @@
+import type { LifecycleReportItem, UpgradeReadiness } from "./lifecycle-readiness.js";
+
 export interface UpgradePlanInput {
   optionRef?: string;
   currentBranch: string;
@@ -19,6 +21,8 @@ export interface RenderUpgradePlanInput {
   currentCommit: string;
   trackedRef?: string;
   rollbackTarget?: string;
+  upgradeReadiness: UpgradeReadiness;
+  upgradeBlockers: LifecycleReportItem[];
   plan: UpgradePlan;
 }
 
@@ -56,9 +60,16 @@ function abbreviateCommit(commit: string): string {
 
 export function renderUpgradePlanSummary(input: RenderUpgradePlanInput): string[] {
   const trackedRef = input.trackedRef?.trim() || "(not recorded)";
-  return [
-    "Update plan",
-    "- Install style: repo-backed checkout",
+  const blockers = input.upgradeBlockers ?? [];
+  const lines = [
+    "Update readiness",
+    `- Status: ${
+      input.upgradeReadiness === "safe-to-continue"
+        ? "safe to continue"
+        : input.upgradeReadiness === "rerun-bootstrap"
+          ? "rerun bootstrap instead"
+          : "fix before updating"
+    }`,
     `- OpenAssist location: ${input.installDir}`,
     `- Current branch: ${input.currentBranch}`,
     `- Current commit: ${abbreviateCommit(input.currentCommit)}`,
@@ -72,4 +83,16 @@ export function renderUpgradePlanSummary(input: RenderUpgradePlanInput): string[
     `- Restart and health checks after update: ${input.plan.skipRestart ? "skipped by option" : "enabled"}`,
     `- Rollback target if the update fails: ${input.rollbackTarget ? abbreviateCommit(input.rollbackTarget) : "(not available)"}`
   ];
+
+  lines.push("Needs action before upgrade");
+  if (blockers.length === 0) {
+    lines.push("- None.");
+  } else {
+    for (const blocker of blockers) {
+      const detail = blocker.nextStep ? `${blocker.detail}. Next step: ${blocker.nextStep}` : blocker.detail;
+      lines.push(`- ${blocker.label}: ${detail}`);
+    }
+  }
+
+  return lines;
 }

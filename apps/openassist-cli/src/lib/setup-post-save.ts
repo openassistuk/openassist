@@ -6,6 +6,7 @@ import {
   waitForHealthy
 } from "./health-check.js";
 import type { ServiceManagerKind } from "./install-state.js";
+import { serviceHealthRecoveryLines } from "./lifecycle-readiness.js";
 import { requestJson } from "./runtime-context.js";
 import { createServiceManager, type ServiceManagerAdapter } from "./service-manager.js";
 import type { PromptAdapter } from "./setup-wizard.js";
@@ -109,12 +110,7 @@ export async function runSetupWizardPostSaveChecks(
     serviceInstalled = true;
   }
 
-  const troubleshootingLines = [
-    `Check service status: openassist service status`,
-    `Inspect service logs: openassist service logs --lines 200 --follow`,
-    `Run health probe: openassist service health`,
-    `Raw health endpoint: curl -fsS ${normalizedBaseUrl}/v1/health`
-  ];
+  const troubleshootingLines = serviceHealthRecoveryLines(normalizedBaseUrl);
 
   let attempts = 0;
   while (true) {

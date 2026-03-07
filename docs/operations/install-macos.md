@@ -45,6 +45,12 @@ bash scripts/install/bootstrap.sh --no-auto-install-prereqs
 
 Interactive bootstrap on macOS runs `openassist setup quickstart` after build. Non-interactive bootstrap does not run onboarding, but it still installs the `launchd` service unless `--skip-service` is set.
 
+Bootstrap now ends with three fixed operator sections so the stopping point is obvious:
+
+- `Ready now`
+- `Needs action`
+- `Next command`
+
 Quickstart now captures the main assistant identity during onboarding:
 
 - assistant name

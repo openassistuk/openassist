@@ -150,6 +150,7 @@ describe("cli setup validation and summary coverage", () => {
   });
 
   it("renders validation issues and setup summary variants", () => {
+    const root = tempDir("openassist-node-summary-");
     const withHint = renderValidationIssues([
       {
         code: "x.with_hint",
@@ -179,6 +180,7 @@ describe("cli setup validation and summary coverage", () => {
     });
 
     const failedServiceSummary = buildSetupSummary({
+      installDir: root,
       configPath: "/tmp/openassist.toml",
       envFilePath: "/tmp/openassistd.env",
       backupPath: "/tmp/openassist.toml.bak",
@@ -186,23 +188,28 @@ describe("cli setup validation and summary coverage", () => {
       changedEnvKeys: ["OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY"],
       warningCount: 2,
       skippedService: false,
-      healthOk: false
+      healthOk: false,
+      postSaveError: "Daemon health is failing."
     });
     assert.equal(failedServiceSummary.some((line) => line.includes("Backup: /tmp/openassist.toml.bak")), true);
-    assert.equal(failedServiceSummary.some((line) => line.includes("Service status: needs attention")), true);
+    assert.equal(failedServiceSummary.some((line) => line.includes("Service state: Service needs attention")), true);
     assert.equal(failedServiceSummary.some((line) => line.startsWith("- Timezone: ")), true);
     assert.equal(failedServiceSummary.some((line) => line.startsWith("- Timezone confirmed: ")), false);
     assert.equal(
       failedServiceSummary.some(
         (line) =>
-          line.includes("Secret refs in config:") &&
-          line.includes("OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY") &&
-          line.includes("OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN")
+          line.includes("Updated env keys:") &&
+          line.includes("OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY")
       ),
+      true
+    );
+    assert.equal(
+      failedServiceSummary.some((line) => line.includes("First reply destination: Telegram via telegram-main")),
       true
     );
 
     const skippedServiceSummary = buildSetupSummary({
+      installDir: root,
       configPath: "/tmp/openassist.toml",
       envFilePath: "/tmp/openassistd.env",
       config,
@@ -211,6 +218,9 @@ describe("cli setup validation and summary coverage", () => {
       skippedService: true,
       healthOk: false
     });
-    assert.equal(skippedServiceSummary.some((line) => line.includes("Service status: not checked yet (--skip-service)")), true);
+    assert.equal(
+      skippedServiceSummary.some((line) => line.includes("Service state: Service checks skipped")),
+      true
+    );
   });
 });

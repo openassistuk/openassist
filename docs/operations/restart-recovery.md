@@ -68,11 +68,14 @@ Lifecycle verification commands:
 
 ```bash
 openassist doctor
+openassist doctor --json
 openassist service status
 openassist service health
 openassist time status
 openassist scheduler status
 ```
+
+`openassist doctor` now uses the same grouped lifecycle report as bootstrap, quickstart, wizard post-save checks, and upgrade dry-run. Use `openassist doctor --json` when you want the same readiness assessment in a machine-readable form.
 
 Chat-side diagnostics:
 

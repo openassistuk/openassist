@@ -119,6 +119,7 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
     "Europe",
     "Europe/London",
     "true",
+    "save",
     ...extra
   ];
 }
@@ -153,8 +154,8 @@ describe("cli setup quickstart runtime coverage", () => {
     assert.match(fs.readFileSync(configPath, "utf8"), /defaultProviderId = "openai-main"/);
     assert.match(fs.readFileSync(configPath, "utf8"), /promptOnFirstContact = false/);
     assert.match(fs.readFileSync(configPath, "utf8"), /\[\[runtime\.channels\]\]/);
-    assert.ok(result.summary.some((line) => line.includes("Assistant: OpenAssist")));
-    assert.ok(result.summary.some((line) => line.includes("Quickstart complete")));
+    assert.ok(result.summary.some((line) => line.includes("Assistant identity: OpenAssist")));
+    assert.ok(result.summary.some((line) => line.includes("Quickstart saved")));
     assert.ok(result.summary.some((line) => line.includes("First reply checklist:")));
   });
 

@@ -87,6 +87,7 @@ function minimalTelegramAnswers(bindPort: number, extra: string[] = []): string[
     "Europe",
     "Europe/London",
     "true",
+    "save",
     ...extra
   ];
 }
@@ -111,6 +112,7 @@ function minimalDiscordCompatAnswers(extra: string[] = []): string[] {
     "Europe",
     "Europe/London",
     "true",
+    "save",
     ...extra
   ];
 }
@@ -131,6 +133,7 @@ function minimalWhatsAppAnthropicAnswers(extra: string[] = []): string[] {
     "false",
     "Europe",
     "Europe/London",
+    "save",
     ...extra
   ];
 }
@@ -204,7 +207,8 @@ describe("setup quickstart flow", () => {
       "123,456",
       "Europe",
       "Europe/London",
-      "true"
+      "true",
+      "save"
     ]);
 
     const result = await runSetupQuickstart(
@@ -291,12 +295,13 @@ describe("setup quickstart flow", () => {
     expect(fs.existsSync(configPath)).toBe(true);
     expect(fs.existsSync(envPath)).toBe(true);
     expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
-    expect(result.summary.some((line) => line.includes("Quickstart complete"))).toBe(true);
-    expect(result.summary.some((line) => line.includes("Assistant: OpenAssist"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Quickstart saved"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Assistant identity: OpenAssist"))).toBe(true);
     expect(result.summary.some((line) => line.includes("First reply checklist:"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Primary channel: telegram-main"))).toBe(true);
     expect(result.summary.some((line) => line.includes("PATH fallback:"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Direct Node fallback:"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("First reply destination: Telegram via telegram-main"))).toBe(true);
   });
 
   it("re-prompts invalid numeric, timezone, and Telegram chat ID inputs", async () => {
@@ -330,7 +335,8 @@ describe("setup quickstart flow", () => {
       "Frederick",
       "Europe",
       "Europe/London",
-      "true"
+      "true",
+      "save"
     ]);
 
     const result = await runSetupQuickstart(
@@ -386,7 +392,8 @@ describe("setup quickstart flow", () => {
       "123,456",
       "Europe",
       "Europe/London",
-      "true"
+      "true",
+      "save"
     ]);
 
     const result = await runSetupQuickstart(
@@ -518,7 +525,8 @@ describe("setup quickstart flow", () => {
       "123456789",
       "Europe",
       "Europe/London",
-      "true"
+      "true",
+      "save"
     ]);
 
     const result = await runSetupQuickstart(
@@ -571,7 +579,8 @@ describe("setup quickstart flow", () => {
       "standard",
       "Europe",
       "Europe/London",
-      "true"
+      "true",
+      "save"
     ]);
 
     const result = await runSetupQuickstart(
@@ -593,6 +602,6 @@ describe("setup quickstart flow", () => {
     expect(state.config.tools.fs.workspaceOnly).toBe(true);
     expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toBeUndefined();
     expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
-    expect(result.summary.some((line) => line.includes("Access mode: Standard mode"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Access mode: Standard mode (recommended)"))).toBe(true);
   });
 });

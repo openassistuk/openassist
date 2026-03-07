@@ -50,6 +50,11 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 ```
 
 Bootstrap keeps the current Git-backed model. It clones or updates a repo checkout, builds it, writes install state, and prints a lifecycle plan before it mutates anything.
+Its final summary now always ends in the same operator order used by the CLI lifecycle surfaces:
+
+- `Ready now`
+- `Needs action`
+- `Next command`
 
 Bootstrap mode matters:
 
@@ -93,7 +98,26 @@ Quickstart is intentionally minimal:
   - `Standard mode (recommended)`
   - `Full access for approved operators`
 - confirm the selected timezone with a simple `Y/n` prompt
+- review the first-reply plan before files are written
 - run service and health checks unless `--skip-service`
+
+Before quickstart saves, it now pauses at a required review step with these actions:
+
+- `Save`
+- `Edit runtime`
+- `Edit assistant identity`
+- `Edit provider`
+- `Edit channel`
+- `Edit timezone`
+- `Abort`
+
+If quickstart validation fails, it now groups repair guidance by operator task instead of printing one flat issue list:
+
+- provider auth
+- channel auth or routing
+- timezone or time
+- service or health
+- access or operator IDs
 
 Quickstart writes the same global main-agent identity that `/profile` manages later, and a successful quickstart disables the later first-chat identity reminder by default.
 
@@ -107,12 +131,21 @@ Discord direct messages stay disabled unless you explicitly add `allowedDmUserId
 
 ```bash
 openassist doctor
+openassist doctor --json
 openassist service status
 openassist service health
 openassist channel status
 ```
 
-`openassist doctor` now reports install-state presence, repo-backed install status, tracked ref, config and env paths, detected service manager, and whether the current install is ready for `openassist upgrade`.
+`openassist doctor` now uses the same grouped lifecycle model as bootstrap, quickstart, and upgrade. It always reports in this order:
+
+- `Ready now`
+- `Needs action before first reply`
+- `Needs action before full access`
+- `Needs action before upgrade`
+- `Recommended next command`
+
+Use `openassist doctor --json` when you want the same grouped report shape for automation or scripting.
 
 ## Runtime Self-Knowledge
 
@@ -185,6 +218,10 @@ Dry-run prints the resolved plan before any mutation:
 - whether the update is a pull on the current branch or a detached checkout
 - restart and health behavior
 - rollback target
+- whether the update is:
+  - safe to continue
+  - fix before updating
+  - rerun bootstrap instead
 
 Use `openassist upgrade` for normal in-place updates on a clean repo-backed checkout. Re-run bootstrap instead when the checkout is damaged, missing `.git`, or you want a fresh install directory.
 

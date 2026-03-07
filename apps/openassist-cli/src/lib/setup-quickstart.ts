@@ -23,9 +23,16 @@ import {
   operatorIdPromptConfig,
   setOperatorUserIds
 } from "./setup-access.js";
+import {
+  buildLifecycleReport,
+  groupValidationIssuesByLifecycleBucket,
+  renderGroupedValidationBuckets,
+  serviceHealthRecoveryLines,
+  type LifecycleRepairBucketId
+} from "./lifecycle-readiness.js";
 import { buildSetupSummary } from "./setup-summary.js";
 import { type PromptAdapter, createInquirerPromptAdapter } from "./setup-wizard.js";
-import { renderValidationIssues, validateSetupReadiness } from "./setup-validation.js";
+import { validateSetupReadiness } from "./setup-validation.js";
 import {
   isCountryCityTimezone,
   promptBindAddress,
@@ -74,6 +81,7 @@ interface SetupQuickstartState {
   timezoneCandidate: string;
   timezoneConfirmed: boolean;
   confirmedTimezone?: string;
+  guidanceShown: Record<string, boolean>;
 }
 
 function stage(name: string, description?: string): void {
@@ -177,6 +185,31 @@ function resolveRuntimePath(configPath: string, target: string): string {
     return target;
   }
   return path.resolve(path.dirname(configPath), target);
+}
+
+async function maybeShowDetailedGuidance(
+  state: SetupQuickstartState,
+  prompts: PromptAdapter,
+  key: string,
+  reminder: string,
+  lines: string[]
+): Promise<void> {
+  if (!state.guidanceShown[key]) {
+    state.guidanceShown[key] = true;
+    for (const line of lines) {
+      console.log(line);
+    }
+    return;
+  }
+
+  console.log(reminder);
+  const showAgain = await prompts.confirm("Show detailed help again?", false);
+  if (!showAgain) {
+    return;
+  }
+  for (const line of lines) {
+    console.log(line);
+  }
 }
 
 async function runPreflight(
@@ -347,6 +380,18 @@ async function configureProviders(state: SetupQuickstartState, prompts: PromptAd
     "Primary Provider",
     "Choose the model provider that will answer the first chat reply."
   );
+  await maybeShowDetailedGuidance(
+    state,
+    prompts,
+    "provider",
+    "Provider reminder: pick the provider that should answer the first reply and make sure its auth secret is ready.",
+    [
+      "Provider quickstart guidance:",
+      "- API key is the fastest path to the first reply.",
+      "- OAuth-capable providers can still be linked later after the daemon is healthy.",
+      "- Add extra providers later with: openassist setup wizard"
+    ]
+  );
   const existingDefault = state.config.runtime.providers.find(
     (provider) => provider.id === state.config.runtime.defaultProviderId
   );
@@ -354,7 +399,6 @@ async function configureProviders(state: SetupQuickstartState, prompts: PromptAd
   await configureProviderAuthentication(state, prompts, configuredDefault);
   upsertProvider(state.config, configuredDefault);
   state.config.runtime.defaultProviderId = configuredDefault.id;
-  console.log("Add extra providers later with: openassist setup wizard");
 }
 
 function normalizeChannelSettings(
@@ -400,33 +444,61 @@ async function promptOperatorIdsForChannel(
   }
 }
 
-function printChannelGuidance(type: OpenAssistConfig["runtime"]["channels"][number]["type"]): void {
+async function printChannelGuidance(
+  state: SetupQuickstartState,
+  prompts: PromptAdapter,
+  type: OpenAssistConfig["runtime"]["channels"][number]["type"]
+): Promise<void> {
   console.log("");
   if (type === "telegram") {
-    console.log("Telegram setup:");
-    console.log("- Create a bot with @BotFather and copy the bot token.");
-    console.log("- Add the bot to the chat/group where you want to use OpenAssist.");
-    console.log("- Send one message in that chat, then capture the numeric chat ID.");
-    console.log("- Default behavior is inline chat memory per chat/group (not per-message threads).");
-    console.log("- Telegram replies support readable formatting, images, and text-like document uploads.");
-    console.log("- Tip: @userinfobot can show user/chat IDs quickly.");
+    await maybeShowDetailedGuidance(
+      state,
+      prompts,
+      "channel.telegram",
+      "Telegram reminder: you need the bot token and the chat IDs you want to allow.",
+      [
+        "Telegram setup:",
+        "- Create a bot with @BotFather and copy the bot token.",
+        "- Add the bot to the chat or group where you want to use OpenAssist.",
+        "- Send one message in that chat, then capture the numeric chat ID.",
+        "- Default behavior is inline chat memory per chat or group.",
+        "- Telegram replies support readable formatting, images, and text-like document uploads.",
+        "- Tip: @userinfobot can show user and chat IDs quickly."
+      ]
+    );
     return;
   }
 
   if (type === "discord") {
-    console.log("Discord setup:");
-    console.log("- Create a bot application in the Discord Developer Portal.");
-    console.log("- Invite the bot to the server, channel, or DM flow you want to use.");
-    console.log("- Use channel IDs (Developer Mode) for server and thread allow-list filtering.");
-    console.log("- Use DM user IDs if you want to allow direct messages.");
-    console.log("- Discord replies preserve readable structure and support image/text-like attachment ingest.");
+    await maybeShowDetailedGuidance(
+      state,
+      prompts,
+      "channel.discord",
+      "Discord reminder: you need the bot token plus the channel IDs or DM user IDs you want to allow.",
+      [
+        "Discord setup:",
+        "- Create a bot application in the Discord Developer Portal.",
+        "- Invite the bot to the server, channel, thread, or DM flow you want to use.",
+        "- Use channel IDs from Developer Mode for server and thread allow-list filtering.",
+        "- Use DM user IDs if you want to allow direct messages.",
+        "- Discord replies preserve readable structure and support image and text-like attachment ingest."
+      ]
+    );
     return;
   }
 
-  console.log("WhatsApp setup:");
-  console.log("- First startup requires QR login from a real WhatsApp account.");
-  console.log("- OpenAssist supports private chats and groups on this channel.");
-  console.log("- WhatsApp replies keep readable formatting and can ingest images and text-like documents.");
+  await maybeShowDetailedGuidance(
+    state,
+    prompts,
+    "channel.whatsapp-md",
+    "WhatsApp reminder: first startup still needs a QR login from a real WhatsApp account.",
+    [
+      "WhatsApp setup:",
+      "- First startup requires QR login from a real WhatsApp account.",
+      "- OpenAssist supports private chats and groups on this channel.",
+      "- WhatsApp replies keep readable formatting and can ingest images and text-like documents."
+    ]
+  );
 }
 
 async function configureSingleChannel(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
@@ -442,7 +514,7 @@ async function configureSingleChannel(state: SetupQuickstartState, prompts: Prom
     ],
     existingPrimary?.type ?? "telegram"
   );
-  printChannelGuidance(type);
+  await printChannelGuidance(state, prompts, type);
 
   const defaultId =
     existingPrimary?.type === type && existingPrimary.id
@@ -537,6 +609,15 @@ async function configureChannels(state: SetupQuickstartState, prompts: PromptAda
 
 async function configureAccessMode(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
   stage("Access Mode", "Choose whether approved operators should get full access automatically.");
+  if (!state.guidanceShown.access) {
+    state.guidanceShown.access = true;
+    console.log("Access mode quickstart guidance:");
+    console.log("- Standard mode is the default recommendation.");
+    console.log("- Full access only applies to approved operator accounts on the enabled primary channel.");
+    console.log("- Add or edit approved operator IDs later with: openassist setup wizard");
+  } else {
+    console.log("Access mode reminder: standard mode is the recommended default, and full access only applies to approved operator IDs.");
+  }
   const primaryChannel = state.config.runtime.channels.find((channel) => channel.enabled);
   const currentMode = detectSetupAccessMode(state.config);
   console.log(
@@ -576,6 +657,15 @@ async function configureAccessMode(state: SetupQuickstartState, prompts: PromptA
 
 async function configureTimeAndScheduler(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
   stage("Timezone", "Confirm the scheduler timezone used by this install.");
+  if (!state.guidanceShown.timezone) {
+    state.guidanceShown.timezone = true;
+    console.log("Timezone quickstart guidance:");
+    console.log("- Pick the real Country/City timezone you want OpenAssist scheduling to use.");
+    console.log("- Server clocks can stay on UTC, but OpenAssist still needs the local scheduling timezone.");
+    console.log("- Advanced scheduler tuning stays in setup wizard.");
+  } else {
+    console.log("Timezone reminder: quickstart still needs a Country/City timezone because scheduling and delayed work depend on it.");
+  }
   const runtimeTime = state.config.runtime.time;
 
   const timezone = await promptTimezone(
@@ -597,6 +687,79 @@ async function configureTimeAndScheduler(state: SetupQuickstartState, prompts: P
     true
   );
   state.confirmedTimezone = state.timezoneConfirmed ? timezone : undefined;
+}
+
+async function runQuickstartReviewStep(
+  state: SetupQuickstartState,
+  prompts: PromptAdapter,
+  options: SetupQuickstartOptions
+): Promise<"save" | "abort"> {
+  while (true) {
+    stage("Review", "Confirm the first-reply plan before OpenAssist writes files.");
+    const reviewReport = buildLifecycleReport({
+      installDir: state.installDir,
+      configPath: state.configPath,
+      envFilePath: state.envFilePath,
+      installStatePresent: false,
+      repoBacked: fs.existsSync(path.join(state.installDir, ".git")),
+      configExists: true,
+      envExists: true,
+      config: state.config,
+      trackedRef: "main",
+      serviceWasSkipped: options.skipService,
+      daemonBuildExists: fs.existsSync(path.join(state.installDir, "apps", "openassistd", "dist", "index.js")),
+      hasNode: true
+    });
+
+    console.log(`First reply destination: ${reviewReport.context.firstReplyDestination}`);
+    console.log(`Access mode: ${reviewReport.context.accessMode}`);
+    console.log(
+      `Service state after save: ${
+        options.skipService
+          ? "Quickstart will save config only and leave service setup for later (--skip-service)."
+          : "Quickstart will install or restart the service and check daemon health."
+      }`
+    );
+    console.log(`Timezone: ${state.config.runtime.time.defaultTimezone ?? state.timezoneCandidate}`);
+    console.log("Advanced settings handoff: use 'openassist setup wizard' after the first reply path is working.");
+
+    const action = await prompts.select<
+      "save" | "runtime" | "identity" | "provider" | "channel" | "timezone" | "abort"
+    >(
+      "Review quickstart plan",
+      [
+        { name: "Save", value: "save" },
+        { name: "Edit runtime", value: "runtime" },
+        { name: "Edit assistant identity", value: "identity" },
+        { name: "Edit provider", value: "provider" },
+        { name: "Edit channel", value: "channel" },
+        { name: "Edit timezone", value: "timezone" },
+        { name: "Abort", value: "abort" }
+      ],
+      "save"
+    );
+
+    if (action === "save" || action === "abort") {
+      return action;
+    }
+    if (action === "runtime") {
+      await configureRuntimeBase(state, prompts);
+      continue;
+    }
+    if (action === "identity") {
+      await configureAssistantIdentity(state, prompts);
+      continue;
+    }
+    if (action === "provider") {
+      await configureProviders(state, prompts);
+      continue;
+    }
+    if (action === "channel") {
+      await configureChannels(state, prompts);
+      continue;
+    }
+    await configureTimeAndScheduler(state, prompts);
+  }
 }
 
 async function runValidationGate(
@@ -625,9 +788,9 @@ async function runValidationGate(
     );
 
     if (visibleWarnings.length > 0) {
-      console.log("Warnings:");
-      for (const line of renderValidationIssues(visibleWarnings)) {
-        console.log(`- ${line}`);
+      console.log("Needs attention later:");
+      for (const line of renderGroupedValidationBuckets(groupValidationIssuesByLifecycleBucket(visibleWarnings))) {
+        console.log(line);
       }
     }
 
@@ -636,9 +799,10 @@ async function runValidationGate(
       return { errors: 0, warnings: visibleWarnings.length, aborted: false };
     }
 
-    console.error("Validation gate failed:");
-    for (const line of renderValidationIssues(validation.errors)) {
-      console.error(`- ${line}`);
+    console.error("Needs action before first reply:");
+    const errorBuckets = groupValidationIssuesByLifecycleBucket(validation.errors);
+    for (const line of renderGroupedValidationBuckets(errorBuckets)) {
+      console.error(line);
     }
 
     if (options.allowIncomplete) {
@@ -655,18 +819,18 @@ async function runValidationGate(
       }
     }
 
-    const action = await prompts.select(
-      "Choose a section to fix before re-validating",
+    const actionChoices = errorBuckets.map((bucket) => ({
+      name: `Fix ${bucket.label.toLowerCase()}`,
+      value: bucket.id
+    }));
+    const action = await prompts.select<LifecycleRepairBucketId | "retry" | "abort">(
+      "Choose the area to repair before re-validating",
       [
-        { name: "Runtime basics", value: "runtime" },
-        { name: "Primary provider", value: "providers" },
-        { name: "Primary channel", value: "channels" },
-        { name: "Access mode", value: "access" },
-        { name: "Timezone", value: "time" },
+        ...actionChoices,
         { name: "Re-run validation", value: "retry" },
         { name: "Abort setup", value: "abort" }
       ],
-      "providers"
+      actionChoices[0]?.value ?? "retry"
     );
 
     if (action === "abort") {
@@ -676,24 +840,58 @@ async function runValidationGate(
         aborted: true
       };
     }
-    if (action === "runtime") {
-      await configureRuntimeBase(state, prompts);
-      continue;
-    }
-    if (action === "providers") {
+    if (action === "provider-auth") {
       await configureProviders(state, prompts);
       continue;
     }
-    if (action === "channels") {
+    if (action === "channel-auth-routing") {
       await configureChannels(state, prompts);
       continue;
     }
-    if (action === "access") {
+    if (action === "access-operator-ids") {
       await configureAccessMode(state, prompts);
       continue;
     }
-    if (action === "time") {
+    if (action === "timezone-time") {
       await configureTimeAndScheduler(state, prompts);
+      continue;
+    }
+    if (action === "service-health") {
+      const hasRuntimeEditableIssue = validation.errors.some(
+        (issue) =>
+          issue.code.startsWith("runtime.") ||
+          issue.code.startsWith("paths.") ||
+          issue.code.startsWith("config.")
+      );
+      if (hasRuntimeEditableIssue) {
+        await configureRuntimeBase(state, prompts);
+        continue;
+      }
+
+      console.error("Service or health problems usually need a shell, service-manager, or daemon fix outside quickstart.");
+      for (const line of serviceHealthRecoveryLines(
+        preferredLocalHealthBaseUrl(state.config.runtime.bindAddress, state.config.runtime.bindPort)
+      )) {
+        console.error(`- ${line}`);
+      }
+      if (!options.skipService) {
+        console.error("- If you only want to save config for now, restart quickstart with --skip-service.");
+      }
+      const next = await prompts.select<"retry" | "abort">(
+        "After fixing the service or health issue, what should quickstart do next?",
+        [
+          { name: "Re-run validation", value: "retry" },
+          { name: "Abort setup", value: "abort" }
+        ],
+        "retry"
+      );
+      if (next === "abort") {
+        return {
+          errors: validation.errors.length,
+          warnings: validation.warnings.length,
+          aborted: true
+        };
+      }
       continue;
     }
   }
@@ -830,14 +1028,11 @@ async function runServiceStep(
   };
 
   const troubleshootingLines = [
-    "Inspect service state: openassist service status",
-    "Inspect logs: openassist service logs --lines 200 --follow",
+    ...serviceHealthRecoveryLines(baseUrl),
     "Open interactive controls: openassist service console",
     "Reload config via restart: openassist service reload",
-    "Check daemon health: openassist service health",
     `If 'openassist' is not on PATH, use: ${localWrapperCommand}`,
     `Direct Node fallback: ${directNodeCommand}`,
-    `Raw health endpoint: curl -fsS ${baseUrl}/v1/health`
   ];
 
   const printServiceDiagnostics = async (): Promise<void> => {
@@ -932,7 +1127,8 @@ export function loadSetupQuickstartState(
     env: loaded.env,
     originalEnv: { ...loaded.env },
     timezoneCandidate,
-    timezoneConfirmed: false
+    timezoneConfirmed: false,
+    guidanceShown: {}
   };
 }
 
@@ -953,6 +1149,17 @@ export async function runSetupQuickstart(
   await configureChannels(state, prompts);
   await configureAccessMode(state, prompts);
   await configureTimeAndScheduler(state, prompts);
+  const reviewAction = await runQuickstartReviewStep(state, prompts, options);
+  if (reviewAction === "abort") {
+    return {
+      saved: false,
+      validationWarnings: 0,
+      validationErrors: 0,
+      serviceHealthOk: false,
+      summary: ["Quickstart exited during review before saving."],
+      postSaveAborted: false
+    };
+  }
 
   const validationGate = await runValidationGate(state, prompts, options);
   if (validationGate.aborted || (validationGate.errors > 0 && !options.allowIncomplete)) {
@@ -995,6 +1202,7 @@ export async function runSetupQuickstart(
   }
 
   const summary = buildSetupSummary({
+    installDir: state.installDir,
     configPath: state.configPath,
     envFilePath: state.envFilePath,
     backupPath: saveResult.backupPath,
@@ -1002,7 +1210,8 @@ export async function runSetupQuickstart(
     changedEnvKeys: envDiff(state.originalEnv, state.env),
     warningCount: validationGate.warnings,
     skippedService: options.skipService,
-    healthOk: serviceHealthOk
+    healthOk: serviceHealthOk,
+    postSaveError
   });
   summary.push(`- PATH fallback: ${localWrapperCommand}`);
   summary.push(`- Direct Node fallback: ${directNodeCommand}`);

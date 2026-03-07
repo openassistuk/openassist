@@ -46,12 +46,13 @@ Controls:
 Controls:
 
 - runtime injects a bounded awareness snapshot on every provider turn
-- the same awareness boundary is exposed to operators via `/status` and `openassist tools status`
+- the same awareness boundary is exposed to operators via `/start`, `/help`, `/capabilities`, `/grow`, `/status`, and `openassist tools status`
 - awareness snapshot includes explicit negative capability text when autonomy is disabled or native web search is unavailable
-- awareness snapshot now also includes a curated local docs/config/install map plus explicit safe-maintenance and protected-path rules
+- awareness snapshot now also includes a curated local docs/config/install map, capability domains, managed-growth state, plus explicit safe-maintenance and protected-path rules
 - awareness snapshots are persisted in `session_bootstrap` without raw secrets and refreshed when effective access/tool state changes
 - `/status` exposes the current sender ID, canonical session ID, effective access, and access source so operators do not need to guess identity formats
 - `/status` keeps detailed config/env/install filesystem paths hidden from unapproved chat senders even though the high-level lifecycle summary stays available
+- `/grow` keeps managed growth directories hidden from unapproved chat senders even though the high-level growth policy stays available
 
 ### Secret leakage
 
@@ -87,6 +88,17 @@ Controls:
 - only providers that declare `supportsImageInputs=true` receive image binaries
 - text-only providers get an explicit runtime note when image understanding is unavailable
 - unsupported or oversized attachments produce operator-visible notes instead of silent drops
+
+### Managed growth misuse or misleading durability claims
+
+Controls:
+
+- runtime awareness and `/grow` make the default growth mode explicit as `extensions-first`
+- managed skills and helper tools live under runtime-owned directories instead of tracked repo manifests
+- managed growth assets are tracked durably in `managed_capabilities` so lifecycle and operator surfaces can distinguish update-safe extensions from dirty repo changes
+- helper registration requires explicit `id`, `root`, `installer`, and `summary` fields
+- direct repo mutation remains available only in `full-root`, but runtime/docs surface it as advanced and less update-safe than managed growth
+- `openassist doctor` and `openassist upgrade --dry-run` surface managed growth state so operators can see what should survive normal upgrades
 
 ### Reasoning/internal-trace leakage to channels
 
@@ -153,7 +165,7 @@ Controls:
 
 ## Residual Risks
 
-- skill scripts run as trusted local code
+- skill scripts and managed helper tools run as trusted local code
 - `full-root` profile intentionally permits unrestricted host impact
 - clock-check dependencies (OS utilities / HTTP date sources) may be constrained on hardened hosts
 - Windows filesystems do not enforce Unix mode semantics; runtime logs explicit permission-check skip diagnostics there
@@ -166,5 +178,6 @@ Controls:
 - use `openassist policy-set --session <channelId>:<conversationKey> --sender-id <sender-id> --profile full-root` when only one approved operator in a shared chat needs elevation
 - review `openassist tools invocations` during incident triage and after privileged automation runs
 - use `openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>` to confirm callable tools and native web mode before enabling sensitive sessions
+- use `openassist growth status` and `openassist skills list` to review managed extensions or helper tooling before and after privileged changes
 - use in-channel `/status` for quick local diagnostics; avoid pasting raw service logs containing secrets into public channels
 - when enabling Discord DMs, keep `allowedDmUserIds` narrow and explicit instead of opening DMs broadly

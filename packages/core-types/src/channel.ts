@@ -24,6 +24,9 @@ export interface ChannelCapabilities {
   supportsEdits: boolean;
   supportsDeletes: boolean;
   supportsReadReceipts: boolean;
+  supportsFormattedText: boolean;
+  supportsImageAttachments: boolean;
+  supportsDocumentAttachments: boolean;
 }
 
 export interface ChannelAdapter {

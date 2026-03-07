@@ -42,6 +42,8 @@ describe("runtime self-knowledge", () => {
       sessionId: "telegram-main:ops-room",
       conversationKey: "ops-room",
       defaultProviderId: "openai-main",
+      activeChannelId: "telegram-main",
+      activeChannelType: "telegram",
       providerIds: ["openai-main"],
       channelIds: ["telegram-main"],
       timezone: "Europe/London",
@@ -58,6 +60,32 @@ describe("runtime self-knowledge", () => {
       source: "session-override",
       configuredToolNames: ["exec.run", "fs.read", "fs.write", "web.search", "web.fetch", "web.run"],
       callableToolNames: ["exec.run", "fs.read", "fs.write", "web.search", "web.fetch", "web.run"],
+      providerCapabilities: {
+        supportsStreaming: true,
+        supportsTools: true,
+        supportsOAuth: true,
+        supportsApiKeys: true,
+        supportsImageInputs: true
+      },
+      channelCapabilities: {
+        supportsEdits: true,
+        supportsDeletes: true,
+        supportsReadReceipts: false,
+        supportsFormattedText: true,
+        supportsImageAttachments: true,
+        supportsDocumentAttachments: true
+      },
+      scheduler: {
+        enabled: true,
+        running: true,
+        taskCount: 3
+      },
+      growth: {
+        installedSkillCount: 2,
+        managedHelperCount: 1,
+        skillsDirectory: "/srv/openassist/.openassist/skills",
+        helperToolsDirectory: "/srv/openassist/.openassist/data/helper-tools"
+      },
       webStatus: buildWebStatus(),
       workspaceOnly: false,
       allowedWritePaths: [],
@@ -71,7 +99,7 @@ describe("runtime self-knowledge", () => {
       }
     });
 
-    expect(snapshot.version).toBe(2);
+    expect(snapshot.version).toBe(3);
     expect(snapshot.capabilities.canInspectLocalFiles).toBe(true);
     expect(snapshot.capabilities.canRunLocalCommands).toBe(true);
     expect(snapshot.capabilities.canEditConfig).toBe(true);
@@ -81,9 +109,16 @@ describe("runtime self-knowledge", () => {
     expect(snapshot.capabilities.nativeWebAvailable).toBe(true);
     expect(snapshot.documentation.refs.some((entry) => entry.path === "README.md")).toBe(true);
     expect(snapshot.documentation.refs.some((entry) => entry.path === "openassist.toml")).toBe(true);
+    expect(snapshot.documentation.refs.some((entry) => entry.path === "docs/interfaces/skills-manifest.md")).toBe(true);
     expect(snapshot.maintenance.repoBackedInstall).toBe(true);
     expect(snapshot.maintenance.installDir).toBe("/srv/openassist");
     expect(snapshot.maintenance.trackedRef).toBe("main");
+    expect(snapshot.runtime.activeChannelId).toBe("telegram-main");
+    expect(snapshot.runtime.activeChannelType).toBe("telegram");
+    expect(snapshot.capabilityDomains.some((domain) => domain.id === "capability-growth")).toBe(true);
+    expect(snapshot.growth.defaultMode).toBe("extensions-first");
+    expect(snapshot.growth.installedSkillCount).toBe(2);
+    expect(snapshot.growth.managedHelperCount).toBe(1);
     expect(snapshot.maintenance.protectedPaths).toContain("<installDir>/.git");
     expect(snapshot.maintenance.protectedPaths.some((entry) => entry.includes("$HOME"))).toBe(true);
     expect(snapshot.maintenance.protectedPaths.some((entry) => entry.includes("systemd"))).toBe(false);
@@ -94,7 +129,11 @@ describe("runtime self-knowledge", () => {
     const rendered = buildRuntimeAwarenessSystemMessage(snapshot);
     expect(rendered).toMatch(/OpenAssist runtime self-knowledge/i);
     expect(rendered).toMatch(/docs\/operations\/upgrade-and-rollback\.md/i);
+    expect(rendered).toMatch(/docs\/interfaces\/skills-manifest\.md/i);
     expect(rendered).toMatch(/config=\/srv\/openassist\/openassist\.toml/i);
+    expect(rendered).toMatch(/activeChannel=telegram-main\/telegram/i);
+    expect(rendered).toMatch(/capability domains:/i);
+    expect(rendered).toMatch(/growth: mode=extensions-first/i);
     expect(rendered).toMatch(/protected surfaces:/i);
     expect(rendered).toMatch(/preferred lifecycle commands/i);
   });
@@ -104,6 +143,8 @@ describe("runtime self-knowledge", () => {
       sessionId: "telegram-main:ops-room",
       conversationKey: "ops-room",
       defaultProviderId: "openai-main",
+      activeChannelId: "telegram-main",
+      activeChannelType: "telegram",
       providerIds: ["openai-main"],
       channelIds: ["telegram-main"],
       timezone: "UTC",
@@ -120,6 +161,33 @@ describe("runtime self-knowledge", () => {
       source: "default",
       configuredToolNames: ["exec.run", "fs.read", "fs.write", "web.search", "web.fetch", "web.run"],
       callableToolNames: [],
+      providerCapabilities: {
+        supportsStreaming: true,
+        supportsTools: true,
+        supportsOAuth: true,
+        supportsApiKeys: true,
+        supportsImageInputs: false
+      },
+      channelCapabilities: {
+        supportsEdits: true,
+        supportsDeletes: true,
+        supportsReadReceipts: false,
+        supportsFormattedText: true,
+        supportsImageAttachments: true,
+        supportsDocumentAttachments: true
+      },
+      scheduler: {
+        enabled: true,
+        running: false,
+        blockedReason: "timezone confirmation required",
+        taskCount: 2
+      },
+      growth: {
+        installedSkillCount: 0,
+        managedHelperCount: 0,
+        skillsDirectory: "/srv/openassist/.openassist/skills",
+        helperToolsDirectory: "/srv/openassist/.openassist/data/helper-tools"
+      },
       webStatus: buildWebStatus({ searchStatus: "fallback" }),
       workspaceOnly: true,
       allowedWritePaths: [],
@@ -139,6 +207,7 @@ describe("runtime self-knowledge", () => {
     expect(snapshot.capabilities.nativeWebAvailable).toBe(false);
     expect(snapshot.capabilities.blockedReasons.join(" ")).toMatch(/advisory-only/i);
     expect(snapshot.maintenance.safeEditRules[0]).toMatch(/diagnose and advise/i);
+    expect(snapshot.capabilityDomains.find((domain) => domain.id === "capability-growth")?.available).toBe(false);
   });
 
   it("keeps curated doc references aligned with real repo files", () => {

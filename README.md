@@ -3,7 +3,16 @@
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)
 [![Service Smoke](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml)
 
-OpenAssist is a local-first LLM-to-chat gateway built around one daemon, `openassistd`, and one operator CLI, `openassist`.
+OpenAssist is a local-first machine assistant built around one daemon, `openassistd`, and one operator CLI, `openassist`.
+
+It is designed to help with the host it runs on, not just with its own repo:
+
+- local system tasks and diagnostics
+- files, supported images, and supported text-like documents
+- web research through the bounded native web toolchain
+- recurring automations and skill-driven jobs
+- OpenAssist lifecycle and self-maintenance
+- controlled capability growth through managed skills and helper tools
 
 It is designed for a public operator workflow:
 
@@ -147,18 +156,49 @@ openassist channel status
 
 Use `openassist doctor --json` when you want the same grouped report shape for automation or scripting.
 
-## Runtime Self-Knowledge
+## Runtime Awareness and Growth
 
-Normal chat turns and `/status` now carry a bounded OpenAssist self-knowledge pack so the assistant can stay grounded in:
+Normal chat turns plus the runtime-owned `/start`, `/help`, `/capabilities`, `/grow`, and `/status` surfaces now carry one bounded OpenAssist awareness pack so the assistant can stay grounded in:
 
 - what OpenAssist is and which modules it owns
 - the current host/runtime/access/tool boundary
 - local config, env, install, and update facts when known
 - the local docs that define lifecycle, security, interfaces, and runtime behavior
 - which kinds of self-maintenance are safe right now and which are blocked
+- which capability domains are currently available or limited
+- which managed growth assets already exist and how durable growth should happen safely
 
 This does not weaken the security model. Lower-access sessions stay advisory-only for self-maintenance. Only `full-root` sessions with callable tools may make bounded local config/docs/code changes, and updater-owned paths still stay off-limits to ad-hoc edits.
 In chat, full config/env/install filesystem paths are reserved for approved operators; other senders still get the high-level lifecycle summary plus host-side command guidance.
+
+Runtime-owned chat surfaces now have clearer roles:
+
+- `/start` and `/help`: general OpenAssist welcome plus a truthful summary of what this session can help with
+- `/capabilities`: live capability inventory for the current provider, channel, tools, scheduler state, and access level
+- `/grow`: managed skills, helper tools, growth policy, and safe next actions
+- `/status`: operational diagnostics, lifecycle context, sender/session IDs, and effective access
+- `/profile`: view or intentionally update the main assistant identity
+
+## Controlled Growth
+
+OpenAssist now treats durable growth as `extensions-first`.
+
+That means:
+
+- managed skills live under the runtime-owned skills directory
+- managed helper tools live under the runtime-owned helper-tools directory
+- both are tracked durably so `doctor`, `upgrade --dry-run`, `/grow`, and host-side growth commands can describe what is installed
+- normal upgrades are designed to preserve those managed assets
+- direct repo edits remain possible in `full-root`, but they are documented as advanced or developer work and are not treated as update-safe growth
+
+Host-side growth commands:
+
+```bash
+openassist skills list
+openassist skills install --path "/path/to/skill"
+openassist growth status
+openassist growth helper add --name <id> --root "/path/to/tool" --installer <kind> --summary "<text>"
+```
 
 ### 5. Send the first reply
 
@@ -297,6 +337,24 @@ openassist policy-get --session <channelId>:<conversationKey> --sender-id <sende
 openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>
 ```
 
+Managed growth:
+
+```bash
+openassist skills list
+openassist skills install --path "/path/to/skill"
+openassist growth status
+openassist growth helper add --name <id> --root "/path/to/tool" --installer <kind> --summary "<text>"
+```
+
+In-chat runtime commands:
+
+- `/start`
+- `/help`
+- `/capabilities`
+- `/grow`
+- `/status`
+- `/profile`
+
 Source-checkout alternatives are documented, but the installed commands above are the primary operator path.
 
 ## Docs
@@ -319,6 +377,7 @@ Default install path is `Standard mode (recommended)`.
 - `/access` is available only to approved operators and only changes that sender's access for the current chat
 - `restricted` and `operator` do not expose autonomous tool execution
 - `full-root` enables autonomous host-impacting tools for that sender/chat resolution only
+- `full-root` can also support managed growth work, but the preferred durable path is runtime-owned skills and helper tools rather than tracked repo mutation
 - native web tooling remains runtime-owned, bounded, and profile-gated
 - `/status` shows the current sender ID, canonical session ID, effective access, and access source
 - `/status` and lifecycle CLI output are designed to stay useful even when provider auth is broken

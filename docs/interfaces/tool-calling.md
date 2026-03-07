@@ -16,7 +16,7 @@ V1.4 adds a chat-driven autonomous tool loop:
 3. tool results are fed back to provider
 4. provider returns final assistant output for channel delivery
 
-Each provider turn also carries a bounded runtime self-knowledge system message so the model knows what OpenAssist is, which host/runtime boundary applies to the current session, which tools are configured, which tools are callable, which local docs define its behavior, and which kinds of self-maintenance are safe or blocked.
+Each provider turn also carries a bounded runtime self-knowledge system message so the model knows what OpenAssist is, which host/runtime boundary applies to the current session, which tools are configured, which tools are callable, which local docs define its behavior, which capability domains are currently available, and which kinds of self-maintenance or controlled growth are safe or blocked.
 
 ## Core Types
 
@@ -65,6 +65,11 @@ Access resolution order:
 
 Provider-independent chat command:
 
+- `/start` and `/help` return the runtime-owned welcome and truthful capability primer for the current session
+- `/capabilities` returns the live capability-domain inventory for the current session
+- `/grow` returns managed growth policy, asset inventory, and safe next actions
+- `/status` returns operational diagnostics without using the provider
+- `/profile` returns or updates the global assistant identity without using the provider
 - `/access` shows the current sender's access, source, and whether chat-side changes are allowed
 - `/access full` sets `full-root` for that sender in the current chat only
 - `/access standard` sets `operator` for that sender in the current chat only
@@ -95,14 +100,16 @@ Runtime persists a normalized awareness snapshot in the existing `session_bootst
 
 The awareness snapshot includes:
 
-- software identity (`OpenAssist`, local-first gateway role)
+- software identity (`OpenAssist`, local-first machine-assistant role)
 - host summary (platform, release, arch, hostname, Node version, workspace root when known)
 - runtime/session state (session ID, provider IDs, channel IDs, timezone, runtime modules)
 - policy/autonomy state (effective profile, access source, callable tools, configured tools, negative capability text)
 - native web state (`enabled`, `searchMode`, `searchStatus`, callable `web.*` tools)
 - capability state for the current session (`canInspectLocalFiles`, `canRunLocalCommands`, `canEditConfig`, `canEditDocs`, `canEditCode`, `canControlService`, native web availability, blocked reasons)
+- capability domains derived from the live session boundary (system tasks, files/docs, supported attachments, web work, automation, lifecycle help, controlled growth)
 - curated local doc references (`README.md`, operations/security/interface docs, `openassist.toml`) with short purpose and when-to-use text
 - maintenance/install context (repo-backed install status, install dir, config path, env path, tracked ref, last known good commit when known, protected paths, protected surfaces, preferred lifecycle commands, safe-maintenance rules)
+- growth context (`extensions-first` default mode, whether growth actions are available now, installed skill/helper counts, growth directories, update-safety note)
 
 Chat-visible `/status` keeps the same high-level awareness boundary for every sender, but full config/env/install paths are reserved for approved operators in chat. Unapproved senders should still receive the plain-language lifecycle summary plus guidance to use host-side commands such as `openassist doctor`.
 
@@ -111,6 +118,7 @@ Self-maintenance contract:
 - `restricted` and `operator` sessions stay advisory-only for repo/config/docs maintenance
 - only `full-root` sessions with callable tools may make bounded local config/docs/code changes
 - updater-owned or generated paths remain protected and should be changed through lifecycle commands instead of ad-hoc edits
+- durable growth defaults to managed skills and helper tools under runtime-owned directories; direct repo edits remain advanced and less update-safe
 
 ## Tool Loop Behavior
 
@@ -174,6 +182,10 @@ CLI commands:
 
 - `openassist tools status [--session <channelId>:<conversationKey>] [--sender-id <id>]`
 - `openassist tools invocations [--session <channelId>:<conversationKey>] [--limit <n>]`
+- `openassist skills list [--json]`
+- `openassist skills install --path <dir>`
+- `openassist growth status [--json] [--session <channelId>:<conversationKey>] [--sender-id <id>]`
+- `openassist growth helper add --name <id> --root <path> --installer <kind> --summary <text>`
 
 ## Guardrails
 

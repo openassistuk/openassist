@@ -50,7 +50,14 @@ class MockChannel implements ChannelAdapter {
     return "telegram-mock";
   }
   capabilities(): ChannelCapabilities {
-    return { supportsEdits: false, supportsDeletes: false, supportsReadReceipts: false };
+    return {
+      supportsEdits: false,
+      supportsDeletes: false,
+      supportsReadReceipts: false,
+      supportsFormattedText: true,
+      supportsImageAttachments: true,
+      supportsDocumentAttachments: true
+    };
   }
   async validateConfig(): Promise<ValidationResult> {
     return { valid: true, errors: [] };

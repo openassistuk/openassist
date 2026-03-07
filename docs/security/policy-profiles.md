@@ -30,7 +30,8 @@ Autonomous chat tool loop gate:
 - `restricted` and `operator`: provider tool schemas are not exposed
 - `full-root`: provider tool schemas are exposed and tool calls are executed automatically
 - if provider responses include unsolicited tool calls while schemas are not exposed, runtime ignores those calls and does not execute tools
-- chat diagnostic command `/status` is provider-independent and available regardless of profile (no autonomous tool execution) and now reports awareness summary, callable tools, configured tool families, and native web backend state
+- provider-independent runtime commands `/start`, `/help`, `/capabilities`, `/grow`, `/status`, and `/profile` remain available regardless of profile, but they only describe the truthful capability boundary for the current session
+- chat diagnostic command `/status` stays operational and provider-independent (no autonomous tool execution) and now reports awareness summary, callable tools, configured tool families, native web backend state, and managed growth context
 - chat access command `/access` is provider-independent and available only to approved operators for their own current chat
 - global profile-memory command `/profile` is provider-independent and available regardless of profile
 - global profile updates require explicit force confirmation (`/profile force=true; ...`) because first-boot lock-in guard is enabled by default
@@ -39,6 +40,7 @@ Self-maintenance implications:
 
 - `restricted` and `operator` may explain local docs/config/update behavior, but they stay advisory-only for self-maintenance
 - `full-root` may use callable runtime tools for bounded local config/docs/code changes when the runtime self-knowledge pack says those surfaces are in scope
+- `full-root` is also the only profile that can make managed growth actions available now; even then, durable growth should prefer runtime-owned skills and helper-tool directories over tracked repo edits
 - updater-owned or generated paths remain protected even in `full-root`; use lifecycle commands for install/service/update recovery instead of editing those files directly
 
 Native web tools default to enabled in config, but that does not change the autonomy gate:
@@ -65,6 +67,7 @@ If scheduled shell or direct FS actions are introduced later, policy action cont
 - tool actions are auditable in `tool_invocations` (request/result payloads are redacted before persistence/retrieval)
 - scheduler and clock events are auditable (`scheduler.*`, `clock.check`)
 - `/status` and `openassist tools status` expose the same capability boundary the model sees, which helps operators confirm whether `web.*` tools are callable before granting `full-root`
+- `/grow` and `openassist growth status` expose the same managed-growth boundary the model sees, which helps operators confirm whether durable growth actions are available before asking for extension work
 
 ## Shared-Chat Resolution
 
@@ -95,5 +98,7 @@ openassist policy-set --session <channelId>:<conversationKey> --sender-id <sende
 openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id>
 openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id> --json
 openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>
+openassist growth status --session <channelId>:<conversationKey> --sender-id <sender-id>
+openassist skills list
 openassist tools invocations --session <channelId>:<conversationKey> --limit 20
 ```

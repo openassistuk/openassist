@@ -13,6 +13,23 @@ Every adapter must implement:
 - `stop(): Promise<void>`
 - `send(msg: OutboundEnvelope): Promise<{ transportMessageId: string }>`
 - `health(): Promise<HealthStatus>`
+- `capabilities(): ChannelCapabilities`
+
+## Channel Capabilities Contract
+
+`ChannelCapabilities` must stay truthful because runtime awareness, `/start`, `/help`, `/capabilities`, provider grounding, and the shared channel renderer all derive from it.
+
+Required booleans:
+
+- `supportsFormattedText`
+- `supportsImageAttachments`
+- `supportsDocumentAttachments`
+
+Rules:
+
+- report `supportsFormattedText=true` only when the adapter can safely preserve structured headings, lists, code fences, and links through the shared rendering path
+- report attachment booleans based on actual inbound support, not aspirational platform support
+- do not overclaim image or document support when the adapter only handles text captions or metadata
 
 ## Inbound Envelope Contract
 
@@ -70,6 +87,7 @@ Adapters must provide:
 - idempotent start/stop behavior
 - clear send failures for retry queue handling
 - truthful health status for operator diagnosis
+- reply rendering compatibility with runtime-owned command output, diagnostics, and normal assistant responses
 
 ## Current Implementations
 

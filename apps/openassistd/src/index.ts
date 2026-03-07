@@ -138,7 +138,8 @@ program
     ensureDirectories([
       resolveFromWorkspace(config.runtime.paths.dataDir),
       resolveFromWorkspace(config.runtime.paths.logsDir),
-      resolveFromWorkspace(config.runtime.paths.skillsDir)
+      resolveFromWorkspace(config.runtime.paths.skillsDir),
+      path.join(resolveFromWorkspace(config.runtime.paths.dataDir), "helper-tools")
     ]);
 
     const dataDirPath = resolveFromWorkspace(config.runtime.paths.dataDir);
@@ -346,6 +347,58 @@ program
           const senderId = requestUrl.searchParams.get("senderId") ?? undefined;
           sendJson(res, 200, {
             tools: await runtime.getToolsStatus(sessionId, senderId)
+          });
+          return;
+        }
+
+        if (method === "GET" && requestUrl.pathname === "/v1/skills") {
+          sendJson(res, 200, {
+            skills: await runtime.listInstalledSkills()
+          });
+          return;
+        }
+
+        if (method === "POST" && requestUrl.pathname === "/v1/skills/install") {
+          const body = await readJsonBody(req);
+          const installPath = String(body.path ?? "");
+          if (!installPath) {
+            sendJson(res, 400, { error: "path is required" });
+            return;
+          }
+          sendJson(res, 200, {
+            installed: await runtime.installSkillFromPath(installPath)
+          });
+          return;
+        }
+
+        if (method === "GET" && requestUrl.pathname === "/v1/growth/status") {
+          const sessionId = requestUrl.searchParams.get("sessionId") ?? undefined;
+          const senderId = requestUrl.searchParams.get("senderId") ?? undefined;
+          sendJson(res, 200, {
+            growth: await runtime.getGrowthStatus(sessionId, senderId)
+          });
+          return;
+        }
+
+        if (method === "POST" && requestUrl.pathname === "/v1/growth/helpers") {
+          const body = await readJsonBody(req);
+          const id = String(body.id ?? "");
+          const installRoot = String(body.root ?? "");
+          const installer = String(body.installer ?? "");
+          const summary = String(body.summary ?? "");
+          if (!id || !installRoot || !installer || !summary) {
+            sendJson(res, 400, {
+              error: "id, root, installer, and summary are required"
+            });
+            return;
+          }
+          sendJson(res, 200, {
+            helper: await runtime.registerManagedHelper({
+              id,
+              installRoot,
+              installer,
+              summary
+            })
           });
           return;
         }

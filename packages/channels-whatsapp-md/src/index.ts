@@ -213,7 +213,10 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
     return {
       supportsEdits: false,
       supportsDeletes: false,
-      supportsReadReceipts: true
+      supportsReadReceipts: true,
+      supportsFormattedText: true,
+      supportsImageAttachments: true,
+      supportsDocumentAttachments: true
     };
   }
 

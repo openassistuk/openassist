@@ -42,6 +42,16 @@ function createInput(overrides: Partial<LifecycleReportInput> = {}): LifecycleRe
     hasNode: true,
     daemonBuildExists: true,
     dirtyWorkingTree: false,
+    growth: {
+      skillsDirectory: "/srv/openassist/.openassist/skills",
+      helperToolsDirectory: "/srv/openassist/.openassist/data/helper-tools",
+      installedSkillCount: 1,
+      managedHelperCount: 1,
+      installedSkillIds: ["disk-maintenance"],
+      managedHelperIds: ["ripgrep-helper"],
+      updateSafetyNote:
+        "Managed skills and helper tools live under runtime-owned paths and survive normal updates more predictably than direct repo changes."
+    },
     ...overrides
   };
 }
@@ -146,6 +156,7 @@ describe("lifecycle readiness", () => {
     expect(lines).toContain("Needs action before upgrade");
     expect(lines).toContain("Recommended next command");
     expect(lines.some((line) => line.includes("Install location"))).toBe(true);
+    expect(lines.some((line) => line.includes("Managed growth assets"))).toBe(true);
     expect(lines.some((line) => line.includes("openassist upgrade --dry-run"))).toBe(true);
   });
 });

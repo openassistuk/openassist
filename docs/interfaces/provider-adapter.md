@@ -51,9 +51,11 @@ Message semantics now include attachment-aware turns:
 - only providers with `ProviderCapabilities.supportsImageInputs=true` may receive image binaries
 - supported text-like documents stay provider-agnostic in this release: runtime injects extracted text into the normal user text context instead of using provider-specific file APIs
 
-Runtime now prepends a bounded runtime self-knowledge system message on every provider turn. Adapters must preserve system-message order and content exactly; they must not collapse or drop the message because it tells the model what OpenAssist is, what host it is running on, what effective access is active for that sender/chat turn, which tools are callable right now, which local docs/config/install surfaces define behavior, and what kinds of self-maintenance are safe or blocked.
+Runtime now prepends a bounded runtime self-knowledge system message on every provider turn. Adapters must preserve system-message order and content exactly; they must not collapse or drop the message because it tells the model what OpenAssist is, what host it is running on, what effective access is active for that sender/chat turn, which tools are callable right now, which capability domains are available or limited, which local docs/config/install surfaces define behavior, and what kinds of self-maintenance or controlled growth are safe or blocked.
 
 The runtime-awareness payload is now actor-aware in shared chats. For the same chat, one sender may arrive with `full-root` access while another stays `operator`, and provider adapters must preserve that exact system-message boundary on every turn.
+
+The runtime-owned commands `/start`, `/help`, `/capabilities`, `/grow`, `/status`, and `/profile` are handled before provider dispatch. Provider adapters only see normal model turns plus scheduler-driven work; they should not try to emulate or replace those runtime-owned command surfaces.
 
 Scheduler prompt actions use the same `chat()` path with metadata that identifies scheduler context (`source`, `taskId`, `scheduledFor`).
 

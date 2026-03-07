@@ -8,6 +8,7 @@ import type {
   ChannelAdapter,
   EffectivePolicySource,
   InboundEnvelope,
+  ManagedCapabilityRecord,
   MisfirePolicy,
   NormalizedMessage,
   OAuthStartResult,
@@ -20,13 +21,14 @@ import type {
   RuntimeAwarenessSnapshot,
   RuntimeStatus,
   ScheduledTaskConfig,
+  SkillManifest,
   ToolCall,
   ToolSchema,
   TimeStatus
 } from "@openassist/core-types";
 import { RecoveryWorker } from "@openassist/recovery";
 import type { OpenAssistDatabase } from "@openassist/storage-sqlite";
-import { FileSkillRuntime } from "@openassist/skills-engine";
+import { FileSkillRuntime, validateSkillManifest } from "@openassist/skills-engine";
 import { ExecTool } from "@openassist/tools-exec";
 import { FsTool } from "@openassist/tools-fs";
 import { PackageInstallTool } from "@openassist/tools-package";
@@ -48,7 +50,10 @@ import {
 } from "./clock-health.js";
 import { DatabasePolicyEngine } from "./policy-engine.js";
 import { SecretBox } from "./secrets.js";
-import { OPENASSIST_SOFTWARE_IDENTITY } from "./self-knowledge.js";
+import {
+  OPENASSIST_SOFTWARE_IDENTITY,
+  resolveManagedHelperToolsDir
+} from "./self-knowledge.js";
 import { SchedulerWorker } from "./scheduler.js";
 import { runtimeToolSchemas } from "./tool-registry.js";
 import { RuntimeToolRouter, type ToolExecutionRecord } from "./tool-router.js";
@@ -72,8 +77,10 @@ export interface RuntimeInstallContext extends RuntimeInstallKnowledgeInput {}
 
 function defaultSystemPrompt(): string {
   return [
-    "You are OpenAssist, the main local-first AI gateway assistant for this machine.",
-    "Use the runtime self-knowledge pack to stay grounded in what OpenAssist is, where it is running, what tools and permissions are active right now, and which local docs/config/install files define its behavior.",
+    "You are OpenAssist, the main local-first assistant for this machine.",
+    "Use the runtime self-knowledge pack to stay grounded in what OpenAssist is, where it is running, what the current provider, channel, tools, and access level really make possible, and which local docs/config/install files define its behavior.",
+    "OpenAssist can help with local system tasks, files and supported attachments, web work, recurring automations, lifecycle actions, and controlled capability growth when the current session truly allows it.",
+    "Prefer extensions-first growth for durable capability expansion: managed skills and helper tools are safer than editing tracked repo files.",
     "Be cautiously creative when permissions allow local action: prefer the smallest reversible fix, validate after changes, and stop when access or protected lifecycle boundaries block a safe edit.",
     "When tools, permissions, or local docs are unavailable, say so explicitly instead of pretending they exist.",
     "Never expose internal reasoning metadata to messaging channels.",
@@ -94,6 +101,14 @@ function conversationKeyFromSessionId(sessionId: string): string {
   return sessionId.slice(separatorIndex + 1);
 }
 
+function channelIdFromSessionId(sessionId: string): string {
+  const separatorIndex = sessionId.indexOf(":");
+  if (separatorIndex < 0) {
+    return sessionId;
+  }
+  return sessionId.slice(0, separatorIndex);
+}
+
 function randomToken(size = 24): string {
   return crypto.randomBytes(size).toString("base64url");
 }
@@ -112,6 +127,10 @@ const SESSION_BOOTSTRAP_CORE_IDENTITY = [
 ].join(" ");
 const SESSION_PROFILE_COMMAND_PREFIX = "/profile";
 const SESSION_ACCESS_COMMAND_PREFIX = "/access";
+const SESSION_START_COMMAND_PREFIX = "/start";
+const SESSION_HELP_COMMAND_PREFIX = "/help";
+const SESSION_CAPABILITIES_COMMAND_PREFIX = "/capabilities";
+const SESSION_GROW_COMMAND_PREFIX = "/grow";
 const PROFILE_FIELD_KEYS = new Set(["name", "persona", "prefs", "preferences"]);
 const PROFILE_FORCE_FIELD_KEYS = new Set(["force"]);
 
@@ -326,6 +345,25 @@ interface GlobalAssistantProfileLock {
   lastForcedUpdateAt?: string;
 }
 
+interface RuntimeGrowthStatus {
+  defaultMode: "extensions-first";
+  fullRootCanGrowNow: boolean;
+  profile: PolicyProfile;
+  profileSource: EffectivePolicySource;
+  updateSafetyNote: string;
+  skillsDirectory: string;
+  helperToolsDirectory: string;
+  installedSkills: SkillManifest[];
+  managedHelpers: ManagedCapabilityRecord[];
+}
+
+interface ManagedHelperRegistrationInput {
+  id: string;
+  installRoot: string;
+  installer: string;
+  summary: string;
+}
+
 export class OpenAssistRuntime {
   private config: RuntimeConfig;
   private readonly db: OpenAssistDatabase;
@@ -392,6 +430,14 @@ export class OpenAssistRuntime {
     this.secretBox = new SecretBox({
       dataDir: config.paths.dataDir
     });
+    fs.mkdirSync(this.managedHelperToolsDir(), { recursive: true });
+    if (process.platform !== "win32") {
+      try {
+        fs.chmodSync(this.managedHelperToolsDir(), 0o700);
+      } catch {
+        // Best-effort helper-tools directory hardening.
+      }
+    }
     this.installContext = {
       repoBackedInstall: false,
       ...(deps.installContext ?? {})
@@ -457,6 +503,77 @@ export class OpenAssistRuntime {
         );
       }
     });
+  }
+
+  private managedHelperToolsDir(): string {
+    return resolveManagedHelperToolsDir(this.config.paths.dataDir);
+  }
+
+  private isPathInsideRoot(targetPath: string, rootPath: string): boolean {
+    const relative = path.relative(path.resolve(rootPath), path.resolve(targetPath));
+    return !relative.startsWith("..") && !path.isAbsolute(relative);
+  }
+
+  private isManagedPathUpdateSafe(targetPath: string): boolean {
+    const helperToolsDir = this.managedHelperToolsDir();
+    const resolvedTarget = path.resolve(targetPath);
+    if (this.isPathInsideRoot(resolvedTarget, helperToolsDir)) {
+      return true;
+    }
+
+    const installDir = this.installContext.installDir;
+    if (!installDir) {
+      return true;
+    }
+
+    return !this.isPathInsideRoot(resolvedTarget, installDir);
+  }
+
+  private syncManagedSkills(skills: SkillManifest[]): void {
+    const seenIds: string[] = [];
+    for (const skill of skills) {
+      const installRoot = path.join(this.config.paths.skillsDir, skill.id);
+      seenIds.push(skill.id);
+      this.db.registerSkill(skill.id, skill.version, skill as unknown as Record<string, unknown>);
+      this.db.upsertManagedCapability({
+        kind: "skill",
+        id: skill.id,
+        installRoot,
+        installer: "skill-path-copy",
+        summary: skill.description,
+        updateSafe: true
+      });
+    }
+    this.db.deleteManagedCapabilitiesNotInSet("skill", seenIds);
+  }
+
+  private listInstalledSkillsSync(): SkillManifest[] {
+    const skillsRoot = path.resolve(this.config.paths.skillsDir);
+    if (!fs.existsSync(skillsRoot)) {
+      return [];
+    }
+
+    const entries = fs.readdirSync(skillsRoot, { withFileTypes: true });
+    const manifests: SkillManifest[] = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const manifestPath = path.join(skillsRoot, entry.name, "openassist.skill.json");
+      if (!fs.existsSync(manifestPath)) {
+        continue;
+      }
+
+      try {
+        const parsed = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+        manifests.push(validateSkillManifest(parsed));
+      } catch {
+        // Ignore malformed manifests in live status snapshots.
+      }
+    }
+
+    return manifests.sort((left, right) => left.id.localeCompare(right.id));
   }
 
   setProviderApiKey(providerId: string, apiKey: string): void {
@@ -858,6 +975,75 @@ export class OpenAssistRuntime {
     });
   }
 
+  async listInstalledSkills(): Promise<SkillManifest[]> {
+    const installed = this.listInstalledSkillsSync();
+    this.syncManagedSkills(installed);
+    return installed;
+  }
+
+  async installSkillFromPath(sourcePath: string): Promise<SkillManifest> {
+    const manifestPath = path.join(path.resolve(sourcePath), "openassist.skill.json");
+    const manifestRaw = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+    const manifest = validateSkillManifest(manifestRaw);
+    await this.skillRuntime.installFromPath(sourcePath);
+    this.db.registerSkill(manifest.id, manifest.version, manifest as unknown as Record<string, unknown>);
+    this.db.upsertManagedCapability({
+      kind: "skill",
+      id: manifest.id,
+      installRoot: path.join(this.config.paths.skillsDir, manifest.id),
+      installer: "skill-path-copy",
+      summary: manifest.description,
+      updateSafe: true
+    });
+    const installed = await this.skillRuntime.listInstalled();
+    this.syncManagedSkills(installed);
+    return manifest;
+  }
+
+  async registerManagedHelper(input: ManagedHelperRegistrationInput): Promise<ManagedCapabilityRecord> {
+    const installRoot = path.resolve(input.installRoot);
+    this.db.upsertManagedCapability({
+      kind: "helper-tool",
+      id: input.id,
+      installRoot,
+      installer: input.installer,
+      summary: input.summary,
+      updateSafe: this.isManagedPathUpdateSafe(installRoot)
+    });
+    const stored = this.db.getManagedCapability("helper-tool", input.id);
+    if (!stored) {
+      throw new Error(`Managed helper registration failed for ${input.id}`);
+    }
+    return stored;
+  }
+
+  async getGrowthStatus(sessionId?: string, actorId?: string): Promise<RuntimeGrowthStatus> {
+    const resolution = await this.policyEngine.resolveProfile({
+      sessionId: sessionId ?? "__default__",
+      actorId
+    });
+    const installedSkills = await this.listInstalledSkills();
+    const managedHelpers = this.db.listManagedCapabilities("helper-tool");
+    const fullRootCanGrowNow =
+      resolution.profile === "full-root" &&
+      this.enabledToolSchemas().some((item) => item.name === "fs.write") &&
+      (this.enabledToolSchemas().some((item) => item.name === "pkg.install") ||
+        this.enabledToolSchemas().some((item) => item.name === "exec.run"));
+
+    return {
+      defaultMode: "extensions-first",
+      fullRootCanGrowNow,
+      profile: resolution.profile,
+      profileSource: resolution.source,
+      updateSafetyNote:
+        "Managed skills and helper tools live under runtime-owned paths and are intended to survive normal updates more predictably than direct repo edits. Repo mutation remains possible in full access, but it is advanced and less update-safe.",
+      skillsDirectory: path.resolve(this.config.paths.skillsDir),
+      helperToolsDirectory: this.managedHelperToolsDir(),
+      installedSkills,
+      managedHelpers
+    };
+  }
+
   listToolInvocations(sessionId?: string, limit = 50): ReturnType<OpenAssistDatabase["listToolInvocations"]> {
     return this.db.listToolInvocations(sessionId, limit);
   }
@@ -877,6 +1063,7 @@ export class OpenAssistRuntime {
     this.loadStoredOauthAccounts();
     this.ensureGlobalAssistantProfile();
     this.ensureGlobalAssistantProfileLock();
+    this.syncManagedSkills(this.listInstalledSkillsSync());
 
     const clockResult = await this.clockHealthMonitor.ensureStartupCheck();
     if (this.config.time.ntpPolicy === "hard-fail" && clockResult.status === "unhealthy") {
@@ -1079,6 +1266,21 @@ export class OpenAssistRuntime {
     }
 
     try {
+      if (this.isWelcomeCommand(commandText)) {
+        await this.handleWelcomeCommand(channel, preparedInbound.envelope, sessionId);
+        return;
+      }
+
+      if (this.isCapabilitiesCommand(commandText)) {
+        await this.handleCapabilitiesCommand(channel, preparedInbound.envelope, sessionId);
+        return;
+      }
+
+      if (this.isGrowCommand(commandText)) {
+        await this.handleGrowCommand(channel, preparedInbound.envelope, sessionId);
+        return;
+      }
+
       if (this.isOperationalStatusRequest(commandText)) {
         const statusText = sanitizeUserOutput(
           await this.buildOperationalStatusMessage(sessionId, preparedInbound.envelope.senderId)
@@ -1491,6 +1693,238 @@ export class OpenAssistRuntime {
     return trimmed.length > 0 ? `${trimmed}\n\n${noteBlock}` : noteBlock;
   }
 
+  private async sendRuntimeCommandMessage(
+    channel: ChannelAdapter,
+    envelope: InboundEnvelope,
+    sessionId: string,
+    source: string,
+    content: string
+  ): Promise<void> {
+    const text = sanitizeUserOutput(content);
+    this.db.recordAssistantMessage(
+      sessionId,
+      envelope.conversationKey,
+      {
+        role: "assistant",
+        content: text
+      },
+      {
+        providerId: source,
+        source
+      }
+    );
+
+    await this.sendOutboundWithRetry(channel, sessionId, {
+      channel: envelope.channel,
+      conversationKey: envelope.conversationKey,
+      text,
+      replyToTransportMessageId: envelope.transportMessageId,
+      metadata: {
+        source
+      }
+    });
+  }
+
+  private isWelcomeCommand(text: string | undefined): boolean {
+    const normalized = (text ?? "").trim().toLowerCase();
+    return (
+      normalized === SESSION_START_COMMAND_PREFIX ||
+      normalized === "start" ||
+      normalized === SESSION_HELP_COMMAND_PREFIX ||
+      normalized === "help" ||
+      normalized === "/openassist help"
+    );
+  }
+
+  private isCapabilitiesCommand(text: string | undefined): boolean {
+    const normalized = (text ?? "").trim().toLowerCase();
+    return normalized === SESSION_CAPABILITIES_COMMAND_PREFIX || normalized === "capabilities";
+  }
+
+  private isGrowCommand(text: string | undefined): boolean {
+    const normalized = (text ?? "").trim().toLowerCase();
+    return normalized === SESSION_GROW_COMMAND_PREFIX || normalized === "grow";
+  }
+
+  private formatChannelSurfaceSummary(sessionId: string): string {
+    const activeChannelId = channelIdFromSessionId(sessionId);
+    const adapter = this.channels.get(activeChannelId);
+    const channelType = this.channelTypes.get(activeChannelId) ?? "unknown";
+    if (!adapter) {
+      return `${activeChannelId}/${channelType}`;
+    }
+
+    const capabilities = adapter.capabilities();
+    return `${activeChannelId}/${channelType} (formatted=${capabilities.supportsFormattedText ? "yes" : "no"}, images=${capabilities.supportsImageAttachments ? "yes" : "no"}, documents=${capabilities.supportsDocumentAttachments ? "yes" : "no"})`;
+  }
+
+  private async ensureSessionAwareness(
+    sessionId: string,
+    senderId: string
+  ): Promise<{
+    resolution: PolicyResolution;
+    awareness: RuntimeAwarenessSnapshot;
+  }> {
+    const conversationKey = conversationKeyFromSessionId(sessionId);
+    const resolution = await this.policyEngine.resolveProfile({
+      sessionId,
+      actorId: senderId
+    });
+    const bootstrap = this.ensureSessionBootstrap(sessionId, conversationKey, resolution);
+    return {
+      resolution,
+      awareness:
+        this.awarenessFromSystemProfile(bootstrap.systemProfile) ??
+        this.buildAwarenessSnapshot(sessionId, conversationKey, resolution)
+    };
+  }
+
+  private async buildWelcomeMessage(sessionId: string, senderId: string): Promise<string> {
+    const toolsStatus = await this.getToolsStatus(sessionId, senderId);
+    const { awareness } = await this.ensureSessionAwareness(sessionId, senderId);
+    const assistant = this.assistantConfig();
+    const visibleDomains = awareness.capabilityDomains.filter((domain) => domain.available).slice(0, 6);
+
+    return [
+      `Hi — I'm ${assistant.name} on this machine.`,
+      "",
+      "Current session",
+      `- Host: ${awareness.host.hostname} (${awareness.host.platform}, ${awareness.host.arch})`,
+      `- Chat surface: ${this.formatChannelSurfaceSummary(sessionId)}`,
+      `- Provider: ${this.config.defaultProviderId}${this.providers.get(this.config.defaultProviderId)?.capabilities().supportsImageInputs ? " (supports image inputs)" : " (text-first provider for images)"}`,
+      `- Access: ${describeAccessMode(toolsStatus.profile)}`,
+      `- Tools available now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
+      "",
+      "I can help with",
+      ...visibleDomains.map((domain) => `- ${domain.label}: ${domain.reason}`),
+      awareness.capabilityDomains.some((domain) => !domain.available)
+        ? "- Some domains are limited in this session. Run /capabilities for the full live inventory."
+        : "- Run /capabilities for the full live inventory and concrete examples.",
+      "",
+      "Try asking",
+      '- "Check disk usage and clean up old logs"',
+      '- "Read this document and summarize the key points"',
+      '- "Research the latest docs for a package I use"',
+      '- "Set up a recurring maintenance task"',
+      '- "Show growth status and safe extension options"',
+      '- "Run a safe OpenAssist update dry-run"',
+      "",
+      "Runtime commands",
+      "- /status for diagnostics",
+      "- /capabilities for the live capability inventory",
+      "- /grow for managed skills, helper tools, and growth policy",
+      "- /profile to view or update the main assistant identity"
+    ].join("\n");
+  }
+
+  private async buildCapabilitiesMessage(sessionId: string, senderId: string): Promise<string> {
+    const toolsStatus = await this.getToolsStatus(sessionId, senderId);
+    const { awareness } = await this.ensureSessionAwareness(sessionId, senderId);
+
+    return [
+      "OpenAssist live capability inventory",
+      `- sender id: ${senderId}`,
+      `- session id: ${sessionId}`,
+      `- provider: ${this.config.defaultProviderId}`,
+      `- chat surface: ${this.formatChannelSurfaceSummary(sessionId)}`,
+      `- access: ${describeAccessMode(toolsStatus.profile)}`,
+      `- access source: ${describeAccessSource(toolsStatus.profileSource)}`,
+      `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
+      "Capability domains",
+      ...awareness.capabilityDomains.flatMap((domain) => [
+        `- ${domain.label}: ${domain.available ? "available" : "limited"}. ${domain.reason}`,
+        `- Examples: ${domain.exampleTasks.join("; ")}`
+      ]),
+      `- Local docs/config map: ${awareness.documentation.refs.map((ref) => ref.path).join(", ")}`,
+      `- Growth mode: ${awareness.growth.defaultMode}; run /grow for managed skills and helper tooling`,
+      `- Blocked reasons: ${awareness.capabilities.blockedReasons.join(" | ") || "none"}`
+    ].join("\n");
+  }
+
+  private async buildGrowMessage(sessionId: string, senderId: string): Promise<string> {
+    await this.ensureSessionAwareness(sessionId, senderId);
+    const growthStatus = await this.getGrowthStatus(sessionId, senderId);
+    const canManageAccess = this.policyEngine.isApprovedOperator(sessionId, senderId);
+    const skillList =
+      growthStatus.installedSkills.length > 0
+        ? growthStatus.installedSkills
+            .map((skill) => `${skill.id}@${skill.version}`)
+            .join(", ")
+        : "none yet";
+    const helperList =
+      growthStatus.managedHelpers.length > 0
+        ? growthStatus.managedHelpers
+            .map((helper) => `${helper.id} (${helper.installer}${helper.updateSafe ? ", update-safe" : ", advanced"})`)
+            .join(", ")
+        : "none yet";
+
+    return [
+      "OpenAssist controlled growth",
+      `- Access now: ${describeAccessMode(growthStatus.profile)}`,
+      `- Access source: ${describeAccessSource(growthStatus.profileSource)}`,
+      `- Default growth mode: ${growthStatus.defaultMode}`,
+      `- Growth actions available now: ${growthStatus.fullRootCanGrowNow ? "yes" : "no"}`,
+      `- Installed skills: ${growthStatus.installedSkills.length} (${skillList})`,
+      `- Managed helpers: ${growthStatus.managedHelpers.length} (${helperList})`,
+      ...(canManageAccess
+        ? [
+            `- Skills directory: ${growthStatus.skillsDirectory}`,
+            `- Helper tools directory: ${growthStatus.helperToolsDirectory}`
+          ]
+        : [
+            "- Managed growth directories: hidden in chat for this sender; use 'openassist growth status' on the host for full paths."
+          ]),
+      `- Update safety: ${growthStatus.updateSafetyNote}`,
+      "- Safe next actions:",
+      `- Host-side install: openassist skills install --path "<skill-directory>"`,
+      `- Host-side helper registration: openassist growth helper add --name <id> --root "<path>" --installer <kind> --summary "<text>"`,
+      "- In full access chat, prefer managed skills and helper-tool directories over editing tracked repo files when the goal is durable growth.",
+      "- Direct repo or config edits remain possible in full access, but that path is advanced and less update-safe."
+    ].join("\n");
+  }
+
+  private async handleWelcomeCommand(
+    channel: ChannelAdapter,
+    envelope: InboundEnvelope,
+    sessionId: string
+  ): Promise<void> {
+    await this.sendRuntimeCommandMessage(
+      channel,
+      envelope,
+      sessionId,
+      "runtime.welcome",
+      await this.buildWelcomeMessage(sessionId, envelope.senderId)
+    );
+  }
+
+  private async handleCapabilitiesCommand(
+    channel: ChannelAdapter,
+    envelope: InboundEnvelope,
+    sessionId: string
+  ): Promise<void> {
+    await this.sendRuntimeCommandMessage(
+      channel,
+      envelope,
+      sessionId,
+      "runtime.capabilities",
+      await this.buildCapabilitiesMessage(sessionId, envelope.senderId)
+    );
+  }
+
+  private async handleGrowCommand(
+    channel: ChannelAdapter,
+    envelope: InboundEnvelope,
+    sessionId: string
+  ): Promise<void> {
+    await this.sendRuntimeCommandMessage(
+      channel,
+      envelope,
+      sessionId,
+      "runtime.growth",
+      await this.buildGrowMessage(sessionId, envelope.senderId)
+    );
+  }
+
   private isOperationalStatusRequest(text: string | undefined): boolean {
     const normalized = (text ?? "").trim().toLowerCase();
     return (
@@ -1534,17 +1968,26 @@ export class OpenAssistRuntime {
     conversationKey: string,
     resolution: PolicyResolution
   ): RuntimeAwarenessSnapshot {
+    const activeChannelId = channelIdFromSessionId(sessionId);
+    const activeChannelType = this.channelTypes.get(activeChannelId) ?? "unknown";
+    const activeChannel = this.channels.get(activeChannelId);
+    const provider = this.providers.get(this.config.defaultProviderId);
     const runtimeStatus = this.getStatus();
+    const schedulerStatus = this.getSchedulerStatus();
     const modules = Object.entries(runtimeStatus.modules).map(
       ([moduleId, status]) => `${moduleId}=${status}`
     );
     const configuredToolNames = this.enabledToolSchemas().map((item) => item.name);
     const callableToolNames = resolution.profile === "full-root" ? configuredToolNames : [];
+    const liveSkills = this.listInstalledSkillsSync();
+    const managedHelpers = this.db.listManagedCapabilities("helper-tool");
     return buildRuntimeAwarenessSnapshot({
       sessionId,
       conversationKey,
       startedAt: this.startedAt,
       defaultProviderId: this.config.defaultProviderId,
+      activeChannelId,
+      activeChannelType,
       providerIds: Array.from(this.providers.keys()),
       channelIds: Array.from(this.channels.keys()),
       timezone: this.getEffectiveTimezone(),
@@ -1567,6 +2010,33 @@ export class OpenAssistRuntime {
       webStatus: this.webTool.getStatus(),
       workspaceOnly: this.config.tools?.fs.workspaceOnly ?? true,
       allowedWritePaths: this.config.tools?.fs.allowedWritePaths ?? [],
+      providerCapabilities: provider?.capabilities() ?? {
+        supportsStreaming: false,
+        supportsTools: false,
+        supportsOAuth: false,
+        supportsApiKeys: false,
+        supportsImageInputs: false
+      },
+      channelCapabilities: activeChannel?.capabilities() ?? {
+        supportsEdits: false,
+        supportsDeletes: false,
+        supportsReadReceipts: false,
+        supportsFormattedText: false,
+        supportsImageAttachments: false,
+        supportsDocumentAttachments: false
+      },
+      scheduler: {
+        enabled: schedulerStatus.enabled,
+        running: schedulerStatus.running,
+        blockedReason: schedulerStatus.blockedReason,
+        taskCount: schedulerStatus.taskCount
+      },
+      growth: {
+        installedSkillCount: liveSkills.length,
+        managedHelperCount: managedHelpers.length,
+        skillsDirectory: this.config.paths.skillsDir,
+        helperToolsDirectory: this.managedHelperToolsDir()
+      },
       installContext: this.installContext
     });
   }
@@ -1674,7 +2144,7 @@ export class OpenAssistRuntime {
       return false;
     }
     const normalized = (text ?? "").trim().toLowerCase();
-    return normalized === "/start" || normalized === "start" || normalized === "/new" || normalized === "new";
+    return normalized === "/new" || normalized === "new";
   }
 
   private buildFirstContactPrompt(bootstrap: {
@@ -1690,6 +2160,7 @@ export class OpenAssistRuntime {
       `- preferences: ${bootstrap.operatorPreferences || "(none yet)"}`,
       `- first-chat reminder: ${this.assistantConfig().promptOnFirstContact ? "enabled" : "disabled by current config"}`,
       "Global profile lock-in is enabled by default (first-boot guard).",
+      "Use /help for the general welcome and /capabilities for the live capability inventory.",
       "To update intentionally, use force:",
       "/profile force=true; name=<name>; persona=<style>; prefs=<preferences>"
     ].join("\n");
@@ -1922,11 +2393,8 @@ export class OpenAssistRuntime {
         : `not running${scheduler.blockedReason ? ` (${scheduler.blockedReason})` : ""}`
       : "disabled";
     const assistant = this.assistantConfig();
-    const conversationKey = conversationKeyFromSessionId(sessionId);
-    const awareness = this.buildAwarenessSnapshot(sessionId, conversationKey, {
-      profile: toolsStatus.profile,
-      source: toolsStatus.profileSource
-    });
+    const { awareness } = await this.ensureSessionAwareness(sessionId, senderId);
+    const growthStatus = await this.getGrowthStatus(sessionId, senderId);
     const canManageAccess = this.policyEngine.isApprovedOperator(sessionId, senderId);
     const operatorsConfigured = this.policyEngine.hasApprovedOperators(sessionId);
     const docRefs = awareness.documentation.refs.map((ref) => ref.path).join(", ") || "none";
@@ -1962,6 +2430,7 @@ export class OpenAssistRuntime {
       `- default provider: ${this.config.defaultProviderId}`,
       `- assistant: ${assistant.name}`,
       `- what this is: ${OPENASSIST_SOFTWARE_IDENTITY}`,
+      `- chat surface: ${this.formatChannelSurfaceSummary(sessionId)}`,
       `- current access: ${describeAccessMode(toolsStatus.profile)}`,
       `- access source: ${describeAccessSource(toolsStatus.profileSource)}`,
       `- awareness: ${summarizeRuntimeAwareness(awareness)}`,
@@ -1975,6 +2444,11 @@ export class OpenAssistRuntime {
       `- native web: ${toolsStatus.webTool.searchStatus} (mode=${toolsStatus.webTool.searchMode}, braveConfigured=${toolsStatus.webTool.braveApiConfigured})`,
       `- local docs/config map: ${docRefs}`,
       `- self-maintenance mode: ${maintenanceSummary}`,
+      `- managed growth: mode=${growthStatus.defaultMode}, skills=${growthStatus.installedSkills.length}, helpers=${growthStatus.managedHelpers.length}, actionsNow=${growthStatus.fullRootCanGrowNow ? "yes" : "no"}`,
+      ...(canManageAccess
+        ? [`- growth directories: skills=${growthStatus.skillsDirectory}, helpers=${growthStatus.helperToolsDirectory}`]
+        : ["- growth directories: hidden in chat for this sender; use 'openassist growth status' on the host for full paths."]),
+      `- growth update-safety: ${growthStatus.updateSafetyNote}`,
       ...lifecycleStatusLines,
       `- modules: ${moduleSummary}`,
       `- channels: ${channelSummary}`,

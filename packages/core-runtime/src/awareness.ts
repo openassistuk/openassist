@@ -1,7 +1,10 @@
 import path from "node:path";
 import type {
+  ChannelCapabilities,
   EffectivePolicySource,
   PolicyProfile,
+  ProviderCapabilities,
+  RuntimeCapabilityDomain,
   RuntimeAwarenessSnapshot,
   RuntimeWebToolsConfig
 } from "@openassist/core-types";
@@ -38,6 +41,8 @@ export interface RuntimeAwarenessBuildInput {
   conversationKey: string;
   startedAt?: string | null;
   defaultProviderId: string;
+  activeChannelId: string;
+  activeChannelType: string;
   providerIds: string[];
   channelIds: string[];
   timezone: string;
@@ -57,6 +62,20 @@ export interface RuntimeAwarenessBuildInput {
   webStatus: WebToolStatus;
   workspaceOnly: boolean;
   allowedWritePaths: string[];
+  providerCapabilities: ProviderCapabilities;
+  channelCapabilities: ChannelCapabilities;
+  scheduler: {
+    enabled: boolean;
+    running: boolean;
+    blockedReason?: string;
+    taskCount: number;
+  };
+  growth: {
+    installedSkillCount: number;
+    managedHelperCount: number;
+    skillsDirectory: string;
+    helperToolsDirectory: string;
+  };
   installContext?: RuntimeInstallKnowledgeInput;
 }
 
@@ -195,6 +214,138 @@ function buildCapabilities(
   return capabilities;
 }
 
+function buildCapabilityDomains(
+  input: RuntimeAwarenessBuildInput,
+  capabilities: RuntimeAwarenessSnapshot["capabilities"]
+): RuntimeCapabilityDomain[] {
+  const fullRootCanGrowNow =
+    input.profile === "full-root" &&
+    input.callableToolNames.includes("fs.write") &&
+    (input.callableToolNames.includes("pkg.install") || input.callableToolNames.includes("exec.run"));
+  const localSystemAvailable = capabilities.canRunLocalCommands || capabilities.canInspectLocalFiles;
+  const filesDocumentsAvailable =
+    capabilities.canInspectLocalFiles ||
+    input.channelCapabilities.supportsDocumentAttachments ||
+    input.channelCapabilities.supportsImageAttachments;
+  const imagesAttachmentsAvailable =
+    input.channelCapabilities.supportsImageAttachments ||
+    input.channelCapabilities.supportsDocumentAttachments;
+  const webResearchAvailable = capabilities.nativeWebAvailable;
+  const recurringAutomationAvailable =
+    input.scheduler.enabled &&
+    (capabilities.canEditConfig || capabilities.canEditCode || fullRootCanGrowNow);
+
+  return [
+    {
+      id: "local-system",
+      label: "Local system tasks",
+      available: localSystemAvailable,
+      reason: localSystemAvailable
+        ? "OpenAssist can inspect or act on host software, services, and shell tasks in this session."
+        : input.profile !== "full-root"
+          ? "Direct host actions are blocked until this session has full access."
+          : "Host actions are still blocked because the required file or command tools are not callable.",
+      exampleTasks: [
+        "check disk usage and clean up logs",
+        "restart a service",
+        "inspect package versions"
+      ]
+    },
+    {
+      id: "files-documents",
+      label: "Files and documents",
+      available: filesDocumentsAvailable,
+      reason: capabilities.canInspectLocalFiles
+        ? "OpenAssist can inspect local files and work with supported inbound documents in this session."
+        : imagesAttachmentsAvailable
+          ? "This chat can deliver supported attachments, but local filesystem inspection is blocked in this session."
+          : "Neither local filesystem inspection nor supported inbound attachments are available right now.",
+      exampleTasks: [
+        "summarize a local config file",
+        "organize notes or docs",
+        "extract the key points from a supported text attachment"
+      ]
+    },
+    {
+      id: "images-attachments",
+      label: "Images and chat attachments",
+      available: imagesAttachmentsAvailable,
+      reason: !imagesAttachmentsAvailable
+        ? "This channel does not expose supported inbound images or documents to the runtime."
+        : input.providerCapabilities.supportsImageInputs
+          ? "This channel supports inbound images/documents, and the current provider can inspect image inputs."
+          : "This channel supports inbound attachments, but the current provider cannot inspect image binaries; captions and supported extracted text still work.",
+      exampleTasks: [
+        "inspect a supported image attachment",
+        "use a caption plus attached image for context",
+        "review a supported text-like document upload"
+      ]
+    },
+    {
+      id: "web-research",
+      label: "Web research",
+      available: webResearchAvailable,
+      reason: webResearchAvailable
+        ? "Native web search and fetch tools are callable in this session."
+        : !input.webStatus.enabled
+          ? "Native web tools are disabled in runtime config."
+          : input.profile !== "full-root"
+            ? "Native web tools exist, but they are callable only in full access."
+            : "Native web tooling is configured but not currently usable because the search backend is unavailable.",
+      exampleTasks: [
+        "research a package or API change",
+        "fetch and summarize a webpage",
+        "compare recent documentation updates"
+      ]
+    },
+    {
+      id: "recurring-automation",
+      label: "Recurring automations",
+      available: recurringAutomationAvailable,
+      reason: !input.scheduler.enabled
+        ? "The scheduler is disabled in config."
+        : input.scheduler.running
+          ? "The scheduler is enabled and running, so OpenAssist can help with recurring task changes."
+          : input.scheduler.blockedReason
+            ? `The scheduler is enabled but not currently running: ${input.scheduler.blockedReason}.`
+            : "The scheduler is enabled, but this session cannot safely change automation state yet.",
+      exampleTasks: [
+        "review scheduled tasks",
+        "add a recurring reminder or maintenance task",
+        "install a skill used by scheduled workflows"
+      ]
+    },
+    {
+      id: "capability-growth",
+      label: "Capability growth",
+      available: fullRootCanGrowNow,
+      reason: fullRootCanGrowNow
+        ? "This session can install managed skills, register helper tools, and use controlled package growth."
+        : input.profile !== "full-root"
+          ? "This session can inspect growth state, but installing or registering growth assets needs full access."
+          : "Growth actions still need callable write and install tools in this session.",
+      exampleTasks: [
+        "install a managed skill from a local directory",
+        "register a helper tool under the managed growth registry",
+        "set up durable helper tooling outside tracked repo files"
+      ]
+    },
+    {
+      id: "openassist-lifecycle",
+      label: "OpenAssist lifecycle",
+      available: true,
+      reason: capabilities.canControlService
+        ? "OpenAssist can explain and, when appropriate, act on health, service, and update workflows in this session."
+        : "OpenAssist can always explain lifecycle state and diagnostics, but direct service control may be blocked in this session.",
+      exampleTasks: [
+        "run or interpret openassist doctor",
+        "restart the service safely",
+        "prepare a safe update dry-run"
+      ]
+    }
+  ];
+}
+
 function buildMaintenance(
   input: RuntimeAwarenessBuildInput
 ): RuntimeAwarenessSnapshot["maintenance"] {
@@ -202,7 +353,7 @@ function buildMaintenance(
     input.profile === "full-root" && input.callableToolNames.includes("fs.write");
   const safeEditRules = [
     mutableThisSession
-      ? "This session may make bounded local config/docs/code changes when the required tools are callable and the target stays outside protected paths and protected lifecycle surfaces."
+      ? "This session may make bounded local config/docs/code changes when the required tools are callable and the target stays outside protected paths and protected lifecycle surfaces. Managed skills and helper tools remain the preferred durable growth path."
       : "This session may diagnose and advise, but it must not self-edit local config/docs/code through tools at the current access level.",
     ...RUNTIME_SAFE_EDIT_RULES
   ];
@@ -221,15 +372,34 @@ function buildMaintenance(
   };
 }
 
+function buildGrowth(
+  input: RuntimeAwarenessBuildInput
+): RuntimeAwarenessSnapshot["growth"] {
+  return {
+    defaultMode: "extensions-first",
+    fullRootCanGrowNow:
+      input.profile === "full-root" &&
+      input.callableToolNames.includes("fs.write") &&
+      (input.callableToolNames.includes("pkg.install") || input.callableToolNames.includes("exec.run")),
+    installedSkillCount: input.growth.installedSkillCount,
+    managedHelperCount: input.growth.managedHelperCount,
+    skillsDirectory: path.resolve(input.growth.skillsDirectory),
+    helperToolsDirectory: path.resolve(input.growth.helperToolsDirectory),
+    updateSafetyNote:
+      "Managed skills and helper tools live under runtime-owned directories so they survive normal updates more predictably than direct repo edits. Direct repo mutation is still possible in full access, but it remains advanced and less update-safe."
+  };
+}
+
 export function buildRuntimeAwarenessSnapshot(
   input: RuntimeAwarenessBuildInput
 ): RuntimeAwarenessSnapshot {
   const callableWebTools = input.callableToolNames.filter((item) => item.startsWith("web."));
+  const capabilities = buildCapabilities(input);
   return {
-    version: 2,
+    version: 3,
     software: {
       product: "OpenAssist",
-      role: "modular local-first AI gateway assistant",
+      role: "local-first machine assistant with bounded host, chat, tool, and lifecycle awareness",
       identity: OPENASSIST_SOFTWARE_IDENTITY
     },
     host: {
@@ -239,6 +409,8 @@ export function buildRuntimeAwarenessSnapshot(
       sessionId: input.sessionId,
       conversationKey: input.conversationKey,
       defaultProviderId: input.defaultProviderId,
+      activeChannelId: input.activeChannelId,
+      activeChannelType: input.activeChannelType,
       providerIds: input.providerIds,
       channelIds: input.channelIds,
       startedAt: input.startedAt ?? undefined,
@@ -267,12 +439,14 @@ export function buildRuntimeAwarenessSnapshot(
               ? ["Native web tools are disabled in config."]
               : ["Native web search is unavailable until OPENASSIST_TOOLS_WEB_BRAVE_API_KEY is configured or fallback mode is enabled."]
     },
-    capabilities: buildCapabilities(input),
+    capabilities,
+    capabilityDomains: buildCapabilityDomains(input, capabilities),
     documentation: {
       refs: getRuntimeSelfKnowledgeDocs(),
-      note: "Cite these local paths when explaining behavior, configuration, security limits, or update-safe maintenance."
+      note: "Cite these local paths when explaining OpenAssist behavior, configuration, security limits, lifecycle actions, or managed growth."
     },
-    maintenance: buildMaintenance(input)
+    maintenance: buildMaintenance(input),
+    growth: buildGrowth(input)
   };
 }
 
@@ -289,16 +463,25 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
   const docsLines = snapshot.documentation.refs.map(
     (ref) => `  - ${ref.path}: ${ref.purpose} Use when: ${ref.whenToUse}`
   );
+  const capabilityDomainLines = snapshot.capabilityDomains.map(
+    (domain) =>
+      `  - ${domain.id} (${domain.label}): available=${yesNo(domain.available)}; reason=${domain.reason}; examples=${joinOrNone(domain.exampleTasks)}`
+  );
 
   return [
     "OpenAssist runtime self-knowledge",
     `- software: ${snapshot.software.identity}`,
+    "- role: OpenAssist is the broader assistant for this machine, not only a repo editor. It can help across system tasks, files, supported attachments, web work, automation, lifecycle commands, and controlled capability growth when the current stack really allows it.",
     `- host: ${hostParts.join(", ")}`,
-    `- runtime: session=${snapshot.runtime.sessionId}, defaultProvider=${snapshot.runtime.defaultProviderId}, providers=${joinOrNone(snapshot.runtime.providerIds)}, channels=${joinOrNone(snapshot.runtime.channelIds)}, timezone=${snapshot.runtime.timezone}`,
+    `- runtime: session=${snapshot.runtime.sessionId}, defaultProvider=${snapshot.runtime.defaultProviderId}, activeChannel=${snapshot.runtime.activeChannelId}/${snapshot.runtime.activeChannelType}, providers=${joinOrNone(snapshot.runtime.providerIds)}, channels=${joinOrNone(snapshot.runtime.channelIds)}, timezone=${snapshot.runtime.timezone}`,
     `- subsystems: ${joinOrNone(snapshot.runtime.modules)}`,
     `- access: profile=${snapshot.policy.profile}, source=${snapshot.policy.source}, callableTools=${joinOrNone(snapshot.policy.callableToolNames)}`,
     `- capabilities now: inspectFiles=${yesNo(snapshot.capabilities.canInspectLocalFiles)}, runCommands=${yesNo(snapshot.capabilities.canRunLocalCommands)}, editConfig=${yesNo(snapshot.capabilities.canEditConfig)}, editDocs=${yesNo(snapshot.capabilities.canEditDocs)}, editCode=${yesNo(snapshot.capabilities.canEditCode)}, serviceControl=${yesNo(snapshot.capabilities.canControlService)}, nativeWeb=${yesNo(snapshot.capabilities.nativeWebAvailable)}`,
+    "- capability domains:",
+    ...capabilityDomainLines,
     `- install context: repoBacked=${yesNo(snapshot.maintenance.repoBackedInstall)}, installDir=${snapshot.maintenance.installDir ?? "(not known)"}, config=${snapshot.maintenance.configPath ?? "(not known)"}, envFile=${snapshot.maintenance.envFilePath ?? "(not known)"}, trackedRef=${snapshot.maintenance.trackedRef ?? "(not known)"}, lastKnownGood=${snapshot.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
+    `- growth: mode=${snapshot.growth.defaultMode}, fullRootCanGrowNow=${yesNo(snapshot.growth.fullRootCanGrowNow)}, skills=${snapshot.growth.installedSkillCount}, helpers=${snapshot.growth.managedHelperCount}, skillsDir=${snapshot.growth.skillsDirectory}, helperToolsDir=${snapshot.growth.helperToolsDirectory}`,
+    `- update-safe growth note: ${snapshot.growth.updateSafetyNote}`,
     "- docs map:",
     ...docsLines,
     `- protected paths: ${joinOrNone(snapshot.maintenance.protectedPaths)}`,
@@ -306,7 +489,7 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
     `- safe maintenance rules: ${snapshot.maintenance.safeEditRules.join(" ")}`,
     `- preferred lifecycle commands: ${joinOrNone(snapshot.maintenance.preferredCommands)}`,
     `- blocked right now: ${joinOrNone(snapshot.capabilities.blockedReasons)}`,
-    "- instructions: cite the local doc/config paths above when explaining behavior; never claim unavailable tools or permissions; prefer lifecycle commands over manual service/update/install mutations."
+    "- instructions: cite the local doc/config paths above when explaining behavior; never claim unavailable tools or permissions; prefer extensions-first growth and lifecycle commands over risky manual mutations."
   ].join("\n");
 }
 
@@ -316,6 +499,7 @@ export function summarizeRuntimeAwareness(snapshot: RuntimeAwarenessSnapshot): s
     `source=${snapshot.policy.source}`,
     `fileEdits=${snapshot.capabilities.canEditConfig || snapshot.capabilities.canEditDocs || snapshot.capabilities.canEditCode ? "available" : "blocked"}`,
     `serviceControl=${snapshot.capabilities.canControlService ? "available" : "blocked"}`,
-    `web=${snapshot.capabilities.nativeWebAvailable ? "available" : snapshot.web.searchStatus}`
+    `web=${snapshot.capabilities.nativeWebAvailable ? "available" : snapshot.web.searchStatus}`,
+    `growth=${snapshot.growth.fullRootCanGrowNow ? "available" : "inspect-only"}`
   ].join(", ");
 }

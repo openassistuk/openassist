@@ -15,10 +15,12 @@ Runtime-owned components:
 - `ContextPlanner`
 - layered runtime-awareness builder/system-message generator
 - curated runtime self-knowledge manifest (local docs, install surfaces, safe-maintenance rules)
+- live capability-domain builder and managed-growth status builder
 - `DatabasePolicyEngine`
 - `ExecTool`, `FsTool`, `PackageInstallTool`, and `WebTool`
 - `RuntimeToolRouter` and runtime tool schema registry
 - `FileSkillRuntime`
+- managed capability registry sync (`skills` + `helper-tools`)
 - `RecoveryWorker`
 - `ClockHealthMonitor`
 - `SchedulerWorker`
@@ -30,12 +32,14 @@ Runtime-owned components:
 `start()` executes in this order:
 
 1. load persisted OAuth account state
-2. run immediate clock health check
-3. enforce startup fail-fast only when `ntpPolicy=hard-fail` and health is `unhealthy`
-4. start recurring clock monitor
-5. launch enabled channel adapters asynchronously (non-blocking)
-6. start durable recovery worker
-7. start scheduler worker if enabled and timezone confirmation requirements are met
+2. ensure global assistant identity/profile state
+3. sync installed skills into the durable managed-capability registry
+4. run immediate clock health check
+5. enforce startup fail-fast only when `ntpPolicy=hard-fail` and health is `unhealthy`
+6. start recurring clock monitor
+7. launch enabled channel adapters asynchronously (non-blocking)
+8. start durable recovery worker
+9. start scheduler worker if enabled and timezone confirmation requirements are met
 
 During channel config load, string settings in `env:VAR_NAME` form are resolved from process environment.
 
@@ -103,6 +107,10 @@ Runtime methods consumed by daemon API:
 - `enqueueScheduledTaskNow(taskId)`
 - `getToolsStatus(sessionId?, senderId?)`
 - `listToolInvocations(sessionId?, limit?)`
+- `listInstalledSkills()`
+- `installSkillFromPath(path)`
+- `getGrowthStatus(sessionId?, senderId?)`
+- `registerManagedHelper(input)`
 
 Daemon HTTP endpoints map directly to these methods in `apps/openassistd/src/index.ts`.
 
@@ -129,10 +137,13 @@ Daemon HTTP endpoints map directly to these methods in `apps/openassistd/src/ind
    - repeat (max rounds: 8)
 6. if no tool calls, sanitize final text and send outbound
 7. if provider/auth/runtime failure occurs, send sanitized operational diagnostic reply to channel (no silent drop)
-8. if user sends `/status`, return runtime diagnostics without provider dependency
-9. if user sends `/profile`, return persisted global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`)
-10. first-contact bootstrap prompt can be emitted for `/start`/`/new` when enabled by config (`runtime.assistant.promptOnFirstContact=true`)
-11. quickstart-created installs usually disable that first-contact prompt because the main assistant identity was already captured during onboarding
+8. if user sends `/start` or `/help`, return runtime-owned welcome and capability primer without provider dependency
+9. if user sends `/capabilities`, return the live capability inventory without provider dependency
+10. if user sends `/grow`, return managed growth policy and asset status without provider dependency
+11. if user sends `/status`, return runtime diagnostics without provider dependency
+12. if user sends `/profile`, return persisted global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`)
+13. first-contact bootstrap prompt can be emitted for `/new` when enabled by config (`runtime.assistant.promptOnFirstContact=true`)
+14. quickstart-created installs usually disable that first-contact prompt because the main assistant identity was already captured during onboarding
 
 If max rounds is exceeded, runtime returns a safe operator-visible error message instead of unbounded looping.
 
@@ -142,8 +153,10 @@ Context planner input now includes a second runtime system message containing:
 - OpenAssist core identity statement
 - per-session layered runtime self-knowledge snapshot:
   - host/runtime/profile/tool/web state
+  - capability domains for the current live session
   - local config/env/install/update facts when known
   - curated local doc references for lifecycle, security, interfaces, and runtime behavior
+  - managed growth mode, asset counts, directories, and update-safety note
   - explicit safe-maintenance rules and protected lifecycle paths
 
 Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per chat and reused deterministically for future turns. The runtime self-knowledge snapshot is stored inside the existing `session_bootstrap.systemProfile` payload as the last-seen chat snapshot and refreshed when assistant identity, install context, effective access, or runtime tool state changes.
@@ -172,3 +185,5 @@ Current behavior:
 - `setup wizard`: section-based configuration editor for post-onboarding maintenance.
 - `service *`: managed runtime lifecycle operations (`install/start/stop/restart/status/logs`).
 - `upgrade`: health-gated in-place update with rollback.
+- `skills *`: managed skill install and listing against the runtime-owned skills directory.
+- `growth *`: managed helper registration and growth-policy inspection.

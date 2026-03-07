@@ -35,6 +35,8 @@ const configSchema = z.object({
 
 export type WhatsAppMdChannelConfig = z.infer<typeof configSchema>;
 
+const MAX_WHATSAPP_ATTACHMENT_DOWNLOAD_BYTES = 20_000_000;
+
 function sanitizeFileName(value: string | undefined, fallback: string): string {
   const normalized = (value ?? "").trim();
   if (normalized.length === 0) {
@@ -106,6 +108,14 @@ async function extractAttachments(socket: any, logger: any, message: any): Promi
   const attachments: AttachmentRef[] = [];
   const imageMessage = content.imageMessage;
   if (imageMessage) {
+    if (
+      typeof imageMessage.fileLength === "number" &&
+      imageMessage.fileLength > MAX_WHATSAPP_ATTACHMENT_DOWNLOAD_BYTES
+    ) {
+      throw new Error(
+        `whatsapp image attachment exceeds download limit (${imageMessage.fileLength} bytes)`
+      );
+    }
     const buffer = await downloadMediaMessage(
       message,
       "buffer",
@@ -131,6 +141,14 @@ async function extractAttachments(socket: any, logger: any, message: any): Promi
 
   const documentMessage = content.documentMessage;
   if (documentMessage) {
+    if (
+      typeof documentMessage.fileLength === "number" &&
+      documentMessage.fileLength > MAX_WHATSAPP_ATTACHMENT_DOWNLOAD_BYTES
+    ) {
+      throw new Error(
+        `whatsapp document attachment exceeds download limit (${documentMessage.fileLength} bytes)`
+      );
+    }
     const buffer = await downloadMediaMessage(
       message,
       "buffer",
@@ -347,7 +365,15 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
         }
 
         const text = extractText(message.message);
-        const attachments = await extractAttachments(this.socket, this.logger, message);
+        let attachments: AttachmentRef[] = [];
+        try {
+          attachments = await extractAttachments(this.socket, this.logger, message);
+        } catch (error) {
+          this.logger.warn(
+            { error, remoteJid, messageId },
+            "whatsapp md failed to extract attachments, proceeding with text-only message"
+          );
+        }
         if ((!text || text.trim().length === 0) && attachments.length === 0) {
           continue;
         }

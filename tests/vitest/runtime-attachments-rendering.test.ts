@@ -111,6 +111,20 @@ describe("channel reply rendering", () => {
     expect(chunks[0]?.text).toContain("<pre><code>const x = 1;");
   });
 
+  it("keeps escaped Telegram code chunks within the channel limit", () => {
+    const noisyCode = `<tag attr="value">&</tag>\n`.repeat(500);
+    const chunks = renderOutboundEnvelope({
+      channel: "telegram",
+      conversationKey: "chat-1",
+      text: `\`\`\`html\n${noisyCode}\n\`\`\``,
+      metadata: {}
+    });
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every((chunk) => chunk.text.length <= 3800)).toBe(true);
+    expect(chunks.every((chunk) => chunk.metadata.renderFormat === "telegram-html")).toBe(true);
+  });
+
   it("splits long Discord replies on semantic boundaries", () => {
     const longText = Array.from(
       { length: 120 },

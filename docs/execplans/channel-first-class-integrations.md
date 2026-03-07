@@ -17,6 +17,7 @@ After this change, OpenAssist can behave like a serious bot integration on Teleg
 - [x] (2026-03-07 00:19Z) Upgraded Telegram, Discord, and WhatsApp MD adapters for first-class routing, attachment ingest, richer reply handling, and shared outbound formatting/chunking.
 - [x] (2026-03-07 00:21Z) Updated setup flows, installer wording, `AGENTS.md`, required docs, and `CHANGELOG.md` to describe the new channel scope, attachment behavior, and supported-path media baseline.
 - [x] (2026-03-07 00:25Z) Ran the full verification gate (`pnpm verify:all`) after refreshing targeted setup/runtime/provider/attachment tests. The gate completed successfully across workflow lint, build, lint, typecheck, Vitest, node tests, and both coverage runs.
+- [x] (2026-03-07 12:13Z) Addressed post-PR GitHub security and Copilot review feedback: secured temporary attachment staging, added connector-side download caps and text-only fallback on attachment failures, avoided empty attachment directories on text-only turns, preserved idempotency before attachment persistence, switched provider image reads to async I/O, and tightened Telegram HTML code-block chunking. Re-ran `pnpm verify:all` successfully before updating the PR head.
 
 ## Surprises & Discoveries
 
@@ -59,6 +60,10 @@ After this change, OpenAssist can behave like a serious bot integration on Teleg
 
 - Decision: align `pnpm-workspace.yaml` build-script allow-list with the supported WhatsApp/media baseline now that WhatsApp/image ingest is part of the supported path.
   Rationale: leaving `@whiskeysockets/baileys` and `sharp` blocked while claiming first-class WhatsApp/media support would keep the installer in conflict with the public support statement.
+  Date/Author: 2026-03-07 / Codex
+
+- Decision: keep connector temp downloads in private per-file temp directories with fixed staging filenames, then rely on runtime persistence for the durable attachment names.
+  Rationale: the channel adapters still need transient on-disk staging for platform downloads, but the temp path itself must not be derived from untrusted attachment metadata and must not rely on shared temp filenames.
   Date/Author: 2026-03-07 / Codex
 
 ## Outcomes & Retrospective

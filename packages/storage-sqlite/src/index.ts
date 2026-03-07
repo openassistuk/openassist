@@ -469,6 +469,13 @@ export class OpenAssistDatabase {
     return this.insertIdempotencyKey(`scheduler:${taskId}:${scheduledFor}`);
   }
 
+  hasIdempotencyKey(key: string): boolean {
+    const row = this.db
+      .prepare(`SELECT 1 FROM idempotency_keys WHERE key = ? LIMIT 1`)
+      .get(key) as { 1?: number } | undefined;
+    return row !== undefined;
+  }
+
   private persistMessageAttachments(messageId: number, attachments: AttachmentRef[], createdAt: string): void {
     if (attachments.length === 0) {
       return;

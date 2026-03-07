@@ -23,6 +23,8 @@ const configSchema = z.object({
 
 export interface TelegramChannelConfig extends z.infer<typeof configSchema> {}
 
+const MAX_TELEGRAM_ATTACHMENT_DOWNLOAD_BYTES = 20_000_000;
+
 function sanitizeFileName(value: string | undefined, fallback: string): string {
   const normalized = (value ?? "").trim();
   if (normalized.length === 0) {
@@ -46,15 +48,72 @@ async function persistTempFile(bytes: Uint8Array): Promise<string> {
   return filePath;
 }
 
+async function readResponseBytesWithLimit(response: Response, maxBytes: number): Promise<Uint8Array> {
+  const advertisedLength = Number.parseInt(response.headers.get("content-length") ?? "", 10);
+  if (Number.isFinite(advertisedLength) && advertisedLength > maxBytes) {
+    await response.body?.cancel();
+    throw new Error(`telegram attachment exceeds download limit (${advertisedLength} bytes)`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const fallback = new Uint8Array(await response.arrayBuffer());
+    if (fallback.byteLength > maxBytes) {
+      throw new Error(`telegram attachment exceeds download limit (${fallback.byteLength} bytes)`);
+    }
+    return fallback;
+  }
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    if (!value) {
+      continue;
+    }
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error(`telegram attachment exceeds download limit (${total} bytes)`);
+    }
+    chunks.push(value);
+  }
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return merged;
+}
+
+function warnAttachmentFailure(message: string, error: unknown): void {
+  const errorText = error instanceof Error ? error.message : String(error);
+  console.warn(`[openassist] ${message}: ${errorText}`);
+}
+
 async function downloadTelegramFile(
   botToken: string,
-  filePath: string
+  filePath: string,
+  expectedSizeBytes?: number
 ): Promise<string> {
+  if (
+    typeof expectedSizeBytes === "number" &&
+    expectedSizeBytes > MAX_TELEGRAM_ATTACHMENT_DOWNLOAD_BYTES
+  ) {
+    throw new Error(
+      `telegram attachment exceeds download limit (${expectedSizeBytes} bytes)`
+    );
+  }
   const response = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`);
   if (!response.ok) {
     throw new Error(`telegram file download failed (${response.status})`);
   }
-  const bytes = new Uint8Array(await response.arrayBuffer());
+  const bytes = await readResponseBytesWithLimit(response, MAX_TELEGRAM_ATTACHMENT_DOWNLOAD_BYTES);
   return persistTempFile(bytes);
 }
 
@@ -76,7 +135,11 @@ async function extractAttachments(
         kind: "image",
         name: sanitizeFileName(undefined, `telegram-photo-${photo.file_id}.jpg`),
         mimeType: "image/jpeg",
-        localPath: await downloadTelegramFile(botToken, String(file.file_path)),
+        localPath: await downloadTelegramFile(
+          botToken,
+          String(file.file_path),
+          typeof photo.file_size === "number" ? photo.file_size : undefined
+        ),
         sizeBytes: typeof photo.file_size === "number" ? photo.file_size : undefined,
         captionText
       });
@@ -98,7 +161,11 @@ async function extractAttachments(
           : "document",
         name,
         mimeType: typeof document.mime_type === "string" ? document.mime_type : undefined,
-        localPath: await downloadTelegramFile(botToken, String(file.file_path)),
+        localPath: await downloadTelegramFile(
+          botToken,
+          String(file.file_path),
+          typeof document.file_size === "number" ? document.file_size : undefined
+        ),
         sizeBytes: typeof document.file_size === "number" ? document.file_size : undefined,
         captionText
       });
@@ -170,7 +237,15 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       if (this.config.allowedChatIds.length > 0 && !this.config.allowedChatIds.includes(chatId)) {
         return;
       }
-      const attachments = await extractAttachments(bot, this.config.botToken, ctx.msg);
+      let attachments: AttachmentRef[] = [];
+      try {
+        attachments = await extractAttachments(bot, this.config.botToken, ctx.msg);
+      } catch (error) {
+        warnAttachmentFailure(
+          `telegram attachment extraction failed for chat ${chatId} message ${ctx.msg.message_id}; continuing with text-only message`,
+          error
+        );
+      }
       const text =
         typeof ctx.msg.text === "string"
           ? ctx.msg.text

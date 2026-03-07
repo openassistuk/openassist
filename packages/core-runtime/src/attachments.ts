@@ -184,8 +184,7 @@ export async function ingestInboundAttachments(
     : [];
   const notes: string[] = [];
   const attachments: AttachmentRef[] = [];
-
-  await ensurePrivateDirectory(options.attachmentsDir);
+  const limitedAttachments = inboundAttachments.slice(0, config.maxFilesPerMessage);
 
   if (inboundAttachments.length > config.maxFilesPerMessage) {
     notes.push(
@@ -193,7 +192,11 @@ export async function ingestInboundAttachments(
     );
   }
 
-  for (const attachment of inboundAttachments.slice(0, config.maxFilesPerMessage)) {
+  if (limitedAttachments.length > 0) {
+    await ensurePrivateDirectory(options.attachmentsDir);
+  }
+
+  for (const attachment of limitedAttachments) {
     const sourcePath = attachment.localPath;
     if (!sourcePath) {
       notes.push(`${attachmentDisplayName(attachment)} could not be read from the channel connector.`);

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { ChatRequest } from "../../packages/core-types/src/provider.js";
 import { AnthropicProviderAdapter } from "../../packages/providers-anthropic/src/index.js";
 
@@ -47,12 +47,22 @@ function baseRequest(): ChatRequest {
   };
 }
 
+const tempDirs = new Set<string>();
+
 function tempFile(name: string, contents: Buffer): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openassist-anthropic-provider-"));
+  tempDirs.add(dir);
   const filePath = path.join(dir, name);
   fs.writeFileSync(filePath, contents);
   return filePath;
 }
+
+afterEach(() => {
+  for (const dir of tempDirs) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  tempDirs.clear();
+});
 
 describe("anthropic provider tool mapping", () => {
   it("maps tool_use and tool_result blocks", async () => {

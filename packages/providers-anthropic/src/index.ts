@@ -58,8 +58,11 @@ function imageAttachmentsForMessage(message: ChatRequest["messages"][number]) {
   );
 }
 
-function toAnthropicImageBlock(filePath: string, mimeType: string | undefined): Record<string, unknown> {
-  const bytes = fs.readFileSync(filePath);
+async function toAnthropicImageBlock(
+  filePath: string,
+  mimeType: string | undefined
+): Promise<Record<string, unknown>> {
+  const bytes = await fs.promises.readFile(filePath);
   return {
     type: "image",
     source: {
@@ -70,10 +73,10 @@ function toAnthropicImageBlock(filePath: string, mimeType: string | undefined): 
   };
 }
 
-function mapMessages(messages: ChatRequest["messages"]): {
+async function mapMessages(messages: ChatRequest["messages"]): Promise<{
   system?: string;
   messages: Array<Record<string, unknown>>;
-} {
+}> {
   const systemParts: string[] = [];
   const mapped: Array<Record<string, unknown>> = [];
 
@@ -123,7 +126,7 @@ function mapMessages(messages: ChatRequest["messages"]): {
         });
       }
       for (const attachment of imageAttachments) {
-        content.push(toAnthropicImageBlock(attachment.localPath!, attachment.mimeType));
+        content.push(await toAnthropicImageBlock(attachment.localPath!, attachment.mimeType));
       }
 
       mapped.push({
@@ -302,7 +305,7 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
       baseURL: this.config.baseUrl
     });
 
-    const mapped = mapMessages(req.messages);
+    const mapped = await mapMessages(req.messages);
     const response = await client.messages.create({
       model: req.model || this.config.defaultModel,
       max_tokens: req.maxTokens ?? 1024,

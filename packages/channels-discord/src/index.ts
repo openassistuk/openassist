@@ -22,6 +22,8 @@ const configSchema = z.object({
 
 export interface DiscordChannelConfig extends z.infer<typeof configSchema> {}
 
+const MAX_DISCORD_ATTACHMENT_DOWNLOAD_BYTES = 20_000_000;
+
 function sanitizeFileName(value: string | undefined, fallback: string): string {
   const normalized = (value ?? "").trim();
   if (normalized.length === 0) {
@@ -45,6 +47,54 @@ async function persistTempFile(bytes: Uint8Array): Promise<string> {
   return filePath;
 }
 
+async function readResponseBytesWithLimit(response: Response, maxBytes: number): Promise<Uint8Array> {
+  const advertisedLength = Number.parseInt(response.headers.get("content-length") ?? "", 10);
+  if (Number.isFinite(advertisedLength) && advertisedLength > maxBytes) {
+    await response.body?.cancel();
+    throw new Error(`discord attachment exceeds download limit (${advertisedLength} bytes)`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const fallback = new Uint8Array(await response.arrayBuffer());
+    if (fallback.byteLength > maxBytes) {
+      throw new Error(`discord attachment exceeds download limit (${fallback.byteLength} bytes)`);
+    }
+    return fallback;
+  }
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    if (!value) {
+      continue;
+    }
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error(`discord attachment exceeds download limit (${total} bytes)`);
+    }
+    chunks.push(value);
+  }
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return merged;
+}
+
+function warnAttachmentFailure(message: string, error: unknown): void {
+  const errorText = error instanceof Error ? error.message : String(error);
+  console.warn(`[openassist] ${message}: ${errorText}`);
+}
+
 async function extractAttachments(message: any): Promise<AttachmentRef[]> {
   const attachments: AttachmentRef[] = [];
   const collection = message?.attachments;
@@ -60,11 +110,18 @@ async function extractAttachments(message: any): Promise<AttachmentRef[]> {
     if (typeof item.url !== "string") {
       continue;
     }
+    if (typeof item.size === "number" && item.size > MAX_DISCORD_ATTACHMENT_DOWNLOAD_BYTES) {
+      warnAttachmentFailure(
+        `discord attachment ${item.id ?? "unknown"} skipped before download`,
+        new Error(`size ${item.size} exceeds ${MAX_DISCORD_ATTACHMENT_DOWNLOAD_BYTES} bytes`)
+      );
+      continue;
+    }
     const response = await fetch(item.url);
     if (!response.ok) {
       throw new Error(`discord attachment download failed (${response.status})`);
     }
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const bytes = await readResponseBytesWithLimit(response, MAX_DISCORD_ATTACHMENT_DOWNLOAD_BYTES);
     const name = sanitizeFileName(
       typeof item.name === "string" ? item.name : undefined,
       `discord-attachment-${item.id ?? Date.now()}`
@@ -151,7 +208,15 @@ export class DiscordChannelAdapter implements ChannelAdapter {
       ) {
         return;
       }
-      const attachments = await extractAttachments(message);
+      let attachments: AttachmentRef[] = [];
+      try {
+        attachments = await extractAttachments(message);
+      } catch (error) {
+        warnAttachmentFailure(
+          `discord attachment extraction failed for channel ${message.channelId} message ${message.id}; continuing with text-only message`,
+          error
+        );
+      }
       if (message.content.trim().length === 0 && attachments.length === 0) {
         return;
       }

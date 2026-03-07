@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type {
+  AttachmentRef,
   ApiKeyAuth,
   ChannelAdapter,
   EffectivePolicySource,
@@ -1048,9 +1050,14 @@ export class OpenAssistRuntime {
   async handleInbound(envelope: InboundEnvelope): Promise<void> {
     const sessionId = sessionIdFromEnvelope(envelope);
     const commandText = envelope.text;
+    if (this.db.hasIdempotencyKey(envelope.idempotencyKey)) {
+      this.logger.info(redactSensitiveData({ envelope }), "duplicate inbound message ignored");
+      return;
+    }
     const preparedInbound = await this.prepareInboundEnvelope(envelope);
     const accepted = this.db.recordInbound(sessionId, preparedInbound.envelope);
     if (!accepted) {
+      await this.cleanupPreparedAttachments(preparedInbound.envelope.attachments ?? []);
       this.logger.info(redactSensitiveData({ envelope: preparedInbound.envelope }), "duplicate inbound message ignored");
       return;
     }
@@ -1417,6 +1424,20 @@ export class OpenAssistRuntime {
       },
       notes: ingested.notes
     };
+  }
+
+  private async cleanupPreparedAttachments(attachments: AttachmentRef[]): Promise<void> {
+    for (const attachment of attachments) {
+      if (!attachment.localPath) {
+        continue;
+      }
+
+      try {
+        await fs.promises.rm(attachment.localPath, { force: true });
+      } catch {
+        // Best-effort duplicate cleanup only.
+      }
+    }
   }
 
   private buildProviderInputNotes(

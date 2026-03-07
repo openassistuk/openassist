@@ -111,8 +111,8 @@ function imageAttachmentsForMessage(message: ChatRequest["messages"][number]) {
   );
 }
 
-function toDataUrl(filePath: string, mimeType: string | undefined): string {
-  const bytes = fs.readFileSync(filePath);
+async function toDataUrl(filePath: string, mimeType: string | undefined): Promise<string> {
+  const bytes = await fs.promises.readFile(filePath);
   const resolvedMime = mimeType?.trim() || "image/jpeg";
   return `data:${resolvedMime};base64,${bytes.toString("base64")}`;
 }
@@ -131,8 +131,8 @@ function mapTools(tools: ChatRequest["tools"]): Array<Record<string, unknown>> |
   }));
 }
 
-function mapResponsesInput(messages: ChatRequest["messages"]): Array<Record<string, unknown>> {
-  return messages.map((message) => {
+async function mapResponsesInput(messages: ChatRequest["messages"]): Promise<Array<Record<string, unknown>>> {
+  return Promise.all(messages.map(async (message) => {
     if (message.role === "assistant" && message.toolCallId && message.toolName) {
       return {
         type: "function_call",
@@ -163,7 +163,7 @@ function mapResponsesInput(messages: ChatRequest["messages"]): Array<Record<stri
         for (const attachment of imageAttachments) {
           content.push({
             type: "input_image",
-            image_url: toDataUrl(attachment.localPath!, attachment.mimeType)
+            image_url: await toDataUrl(attachment.localPath!, attachment.mimeType)
           });
         }
         return {
@@ -185,7 +185,7 @@ function mapResponsesInput(messages: ChatRequest["messages"]): Array<Record<stri
       role: "user",
       content: message.content
     };
-  });
+  }));
 }
 
 function hasImageInputs(messages: ChatRequest["messages"]): boolean {
@@ -463,7 +463,7 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
-        input: mapResponsesInput(req.messages) as any,
+        input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
       } as any);
@@ -490,7 +490,7 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
-        input: mapResponsesInput(req.messages) as any,
+        input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
       } as any);

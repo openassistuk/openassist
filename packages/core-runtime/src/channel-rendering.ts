@@ -15,6 +15,56 @@ interface MessageBlock {
   lines: string[];
 }
 
+function renderCodeChunk(
+  language: string,
+  payload: string,
+  renderBlock: (block: MessageBlock) => string
+): string {
+  return renderBlock({
+    type: "code",
+    lines: [`\`\`\`${language}`.trim(), payload, "```"]
+  }).trim();
+}
+
+function splitOversizedCodeBlock(block: MessageBlock, context: RenderContext): string[] {
+  const language = block.lines[0]?.trim().slice(3) ?? "";
+  let remaining = block.lines
+    .filter((line, index) => {
+      if (index === 0 && line.trim().startsWith("```")) {
+        return false;
+      }
+      if (index === block.lines.length - 1 && line.trim() === "```") {
+        return false;
+      }
+      return true;
+    })
+    .join("\n");
+
+  const chunks: string[] = [];
+  while (remaining.length > 0) {
+    let low = 1;
+    let high = remaining.length;
+    let best = 0;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const candidate = renderCodeChunk(language, remaining.slice(0, mid), context.renderBlock);
+      if (candidate.length <= context.maxLength) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    const safeLength = Math.max(1, best);
+    chunks.push(renderCodeChunk(language, remaining.slice(0, safeLength), context.renderBlock));
+    remaining = remaining.slice(safeLength);
+  }
+
+  return chunks;
+}
+
 function splitBlocks(text: string): MessageBlock[] {
   const normalized = text.replace(/\r\n/g, "\n").trim();
   if (normalized.length === 0) {
@@ -187,26 +237,7 @@ function splitRenderedBlocks(blocks: MessageBlock[], context: RenderContext): st
     if (renderedBlock.length > context.maxLength) {
       pushCurrent();
       if (block.type === "code") {
-        const language = block.lines[0]?.trim().slice(3) ?? "";
-        const codeLines = block.lines
-          .filter((line, index) => {
-            if (index === 0 && line.trim().startsWith("```")) {
-              return false;
-            }
-            if (index === block.lines.length - 1 && line.trim() === "```") {
-              return false;
-            }
-            return true;
-          })
-          .join("\n");
-        const safePayloadLimit = Math.max(128, context.maxLength - 16 - language.length);
-        for (let index = 0; index < codeLines.length; index += safePayloadLimit) {
-          const slice = codeLines.slice(index, index + safePayloadLimit);
-          chunks.push(context.renderBlock({
-            type: "code",
-            lines: [`\`\`\`${language}`.trim(), slice, "```"]
-          }).trim());
-        }
+        chunks.push(...splitOversizedCodeBlock(block, context));
         continue;
       }
 

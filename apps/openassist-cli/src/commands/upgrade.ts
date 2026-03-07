@@ -63,14 +63,6 @@ async function binaryAvailable(runner: SpawnCommandRunner, command: string): Pro
   }
 }
 
-function ensureRepoBackedInstall(installDir: string): void {
-  if (!fs.existsSync(path.join(installDir, ".git"))) {
-    throw new Error(
-      `This update command only works for a repo-backed install at ${installDir}. Re-run install.sh or scripts/install/bootstrap.sh for this directory if the checkout is missing.`
-    );
-  }
-}
-
 function printLines(lines: string[]): void {
   for (const line of lines) {
     console.log(line);

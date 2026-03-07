@@ -30,11 +30,18 @@ function sanitizeFileName(value: string | undefined, fallback: string): string {
   return normalized.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || fallback;
 }
 
-async function persistTempFile(bytes: Uint8Array, fileName: string): Promise<string> {
-  const dir = path.join(os.tmpdir(), "openassist-discord");
-  await fs.promises.mkdir(dir, { recursive: true });
-  const filePath = path.join(dir, `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileName}`);
-  await fs.promises.writeFile(filePath, bytes);
+async function persistTempFile(bytes: Uint8Array): Promise<string> {
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "openassist-discord-"));
+  if (process.platform !== "win32") {
+    await fs.promises.chmod(dir, 0o700);
+  }
+  const filePath = path.join(dir, "attachment.bin");
+  const handle = await fs.promises.open(filePath, "wx", 0o600);
+  try {
+    await handle.writeFile(bytes);
+  } finally {
+    await handle.close();
+  }
   return filePath;
 }
 
@@ -71,7 +78,7 @@ async function extractAttachments(message: any): Promise<AttachmentRef[]> {
       name,
       mimeType: typeof item.contentType === "string" ? item.contentType : undefined,
       url: item.url,
-      localPath: await persistTempFile(bytes, name),
+      localPath: await persistTempFile(bytes),
       sizeBytes: typeof item.size === "number" ? item.size : undefined
     });
   }

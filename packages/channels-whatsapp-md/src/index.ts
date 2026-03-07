@@ -43,11 +43,18 @@ function sanitizeFileName(value: string | undefined, fallback: string): string {
   return normalized.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || fallback;
 }
 
-async function persistTempFile(bytes: Uint8Array, fileName: string): Promise<string> {
-  const dir = path.join(os.tmpdir(), "openassist-whatsapp");
-  await fs.promises.mkdir(dir, { recursive: true });
-  const filePath = path.join(dir, `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileName}`);
-  await fs.promises.writeFile(filePath, bytes);
+async function persistTempFile(bytes: Uint8Array): Promise<string> {
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "openassist-whatsapp-"));
+  if (process.platform !== "win32") {
+    await fs.promises.chmod(dir, 0o700);
+  }
+  const filePath = path.join(dir, "attachment.bin");
+  const handle = await fs.promises.open(filePath, "wx", 0o600);
+  try {
+    await handle.writeFile(bytes);
+  } finally {
+    await handle.close();
+  }
   return filePath;
 }
 
@@ -115,10 +122,7 @@ async function extractAttachments(socket: any, logger: any, message: any): Promi
         kind: "image",
         name,
         mimeType: typeof imageMessage.mimetype === "string" ? imageMessage.mimetype : "image/jpeg",
-        localPath: await persistTempFile(
-          buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer),
-          name
-        ),
+        localPath: await persistTempFile(buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)),
         sizeBytes: typeof imageMessage.fileLength === "number" ? imageMessage.fileLength : undefined,
         captionText: typeof imageMessage.caption === "string" ? imageMessage.caption : undefined
       });
@@ -148,10 +152,7 @@ async function extractAttachments(socket: any, logger: any, message: any): Promi
         kind: mimeType?.startsWith("image/") ? "image" : "document",
         name,
         mimeType,
-        localPath: await persistTempFile(
-          buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer),
-          name
-        ),
+        localPath: await persistTempFile(buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)),
         sizeBytes:
           typeof documentMessage.fileLength === "number" ? documentMessage.fileLength : undefined,
         captionText:

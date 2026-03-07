@@ -31,25 +31,31 @@ function sanitizeFileName(value: string | undefined, fallback: string): string {
   return normalized.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || fallback;
 }
 
-async function persistTempFile(bytes: Uint8Array, fileName: string): Promise<string> {
-  const dir = path.join(os.tmpdir(), "openassist-telegram");
-  await fs.promises.mkdir(dir, { recursive: true });
-  const filePath = path.join(dir, `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileName}`);
-  await fs.promises.writeFile(filePath, bytes);
+async function persistTempFile(bytes: Uint8Array): Promise<string> {
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "openassist-telegram-"));
+  if (process.platform !== "win32") {
+    await fs.promises.chmod(dir, 0o700);
+  }
+  const filePath = path.join(dir, "attachment.bin");
+  const handle = await fs.promises.open(filePath, "wx", 0o600);
+  try {
+    await handle.writeFile(bytes);
+  } finally {
+    await handle.close();
+  }
   return filePath;
 }
 
 async function downloadTelegramFile(
   botToken: string,
-  filePath: string,
-  fileName: string
+  filePath: string
 ): Promise<string> {
   const response = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`);
   if (!response.ok) {
     throw new Error(`telegram file download failed (${response.status})`);
   }
   const bytes = new Uint8Array(await response.arrayBuffer());
-  return persistTempFile(bytes, fileName);
+  return persistTempFile(bytes);
 }
 
 async function extractAttachments(
@@ -70,11 +76,7 @@ async function extractAttachments(
         kind: "image",
         name: sanitizeFileName(undefined, `telegram-photo-${photo.file_id}.jpg`),
         mimeType: "image/jpeg",
-        localPath: await downloadTelegramFile(
-          botToken,
-          String(file.file_path),
-          sanitizeFileName(undefined, `telegram-photo-${photo.file_id}.jpg`)
-        ),
+        localPath: await downloadTelegramFile(botToken, String(file.file_path)),
         sizeBytes: typeof photo.file_size === "number" ? photo.file_size : undefined,
         captionText
       });
@@ -96,7 +98,7 @@ async function extractAttachments(
           : "document",
         name,
         mimeType: typeof document.mime_type === "string" ? document.mime_type : undefined,
-        localPath: await downloadTelegramFile(botToken, String(file.file_path), name),
+        localPath: await downloadTelegramFile(botToken, String(file.file_path)),
         sizeBytes: typeof document.file_size === "number" ? document.file_size : undefined,
         captionText
       });

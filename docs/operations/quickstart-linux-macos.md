@@ -90,6 +90,7 @@ Quickstart is the default onboarding path. It is intentionally minimal.
 What quickstart configures:
 
 - runtime defaults for the first reply
+- the main assistant name, persona, and ongoing objectives/preferences
 - one primary provider
 - one primary channel
 - first-class Telegram, Discord, or WhatsApp chat setup with readable replies and attachment ingest
@@ -98,6 +99,7 @@ What quickstart configures:
   - `Full access for approved operators`
 - timezone confirmation
 - service install, restart, and health checks unless `--skip-service`
+- disables the later first-chat identity reminder by default because onboarding already captured the main assistant identity
 
 What quickstart does not try to do:
 
@@ -106,7 +108,6 @@ What quickstart does not try to do:
 - scheduler task authoring
 - native web tuning
 - advanced tools and security changes
-- persona or profile editing
 
 Those belong to `openassist setup wizard`.
 
@@ -121,6 +122,7 @@ Quickstart rules:
 - Linux service manager selection stays automatic: non-root uses `systemd --user`, root uses system-level `systemd`
 - quickstart asks for approved operator IDs only if you opt into full access
 - if you opt into full access before you know those IDs, quickstart offers a clear return path back to standard mode instead of failing
+- the assistant identity captured here is the same global main-agent identity that `/profile` edits later
 
 Provider and channel guidance:
 

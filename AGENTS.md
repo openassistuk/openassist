@@ -81,6 +81,10 @@ When changing installer/setup/service behavior:
    - approved operator accounts are configured per channel in `channels[*].settings.operatorUserIds`
    - channel allowlists and approved operator IDs must stay distinct in setup/docs/output
    - `/status` must surface the exact sender ID and canonical session ID needed for later operator configuration
+16. preserve assistant identity onboarding semantics:
+   - quickstart must ask for the main assistant name, persona, and ongoing objectives/preferences
+   - quickstart-created configs disable the later first-chat identity reminder by default
+   - wizard remains the advanced path for editing the same global assistant identity fields and re-enabling the reminder
 
 ## Autonomous Tool Loop Rules (V1.5)
 
@@ -122,6 +126,11 @@ When touching chat/runtime/provider/tool code:
    - `/access` must stay unavailable for unlisted senders
    - no in-chat path may escalate an unapproved sender
    - `full-root` means OpenAssist's highest tool profile, not Unix root privileges
+12. preserve runtime self-knowledge discipline:
+   - provider turns must carry a bounded curated self-knowledge pack, not a generic or drifting host dump
+   - the same self-knowledge contract must stay aligned across provider grounding, `/status`, and persisted bootstrap awareness
+   - runtime self-knowledge must surface install/config/env/update facts when known, plus stable local doc paths for identity, lifecycle, interface, and security behavior
+   - safe self-maintenance rules must be explicit: only `full-root` sessions with callable tools may self-edit config/docs/code, and protected lifecycle paths remain off-limits to ad-hoc edits
 
 ## Channel Integration Rules (V1.6)
 

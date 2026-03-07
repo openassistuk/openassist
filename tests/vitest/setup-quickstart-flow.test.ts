@@ -72,6 +72,9 @@ function minimalTelegramAnswers(bindPort: number, extra: string[] = []): string[
     "false",
     "127.0.0.1",
     String(bindPort),
+    "OpenAssist",
+    "Pragmatic and concise",
+    "Keep answers practical",
     "openai",
     "openai-main",
     "gpt-5.2",
@@ -91,6 +94,9 @@ function minimalTelegramAnswers(bindPort: number, extra: string[] = []): string[
 function minimalDiscordCompatAnswers(extra: string[] = []): string[] {
   return [
     "true",
+    "OpenAssist",
+    "Pragmatic and concise",
+    "Keep answers practical",
     "openai-compatible",
     "compat-main",
     "gpt-5.2",
@@ -112,6 +118,9 @@ function minimalDiscordCompatAnswers(extra: string[] = []): string[] {
 function minimalWhatsAppAnthropicAnswers(extra: string[] = []): string[] {
   return [
     "true",
+    "OpenAssist",
+    "Pragmatic and concise",
+    "Keep answers practical",
     "anthropic",
     "anthropic-main",
     "claude-sonnet-4-5",
@@ -181,6 +190,9 @@ describe("setup quickstart flow", () => {
     state.config.runtime.bindPort = bindPort;
     const prompts = new ScriptedPromptAdapter([
       "true",
+      "OpenAssist",
+      "Pragmatic and concise",
+      "Keep answers practical",
       "openai",
       "openai-main",
       "gpt-5.2",
@@ -212,6 +224,8 @@ describe("setup quickstart flow", () => {
     expect(result.saved).toBe(true);
     expect(state.config.runtime.bindAddress).toBe("127.0.0.1");
     expect(state.config.runtime.bindPort).toBe(bindPort);
+    expect(state.config.runtime.assistant.name).toBe("OpenAssist");
+    expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
   });
 
   it("creates a backup when config already exists", async () => {
@@ -243,6 +257,7 @@ describe("setup quickstart flow", () => {
     expect(result.saved).toBe(true);
     expect(result.backupPath).toBeDefined();
     expect(result.backupPath && fs.existsSync(result.backupPath)).toBe(true);
+    expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
   });
 
   it("runs strict first-reply onboarding and persists config/env", async () => {
@@ -275,7 +290,9 @@ describe("setup quickstart flow", () => {
     expect(result.validationErrors).toBe(0);
     expect(fs.existsSync(configPath)).toBe(true);
     expect(fs.existsSync(envPath)).toBe(true);
+    expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
     expect(result.summary.some((line) => line.includes("Quickstart complete"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Assistant: OpenAssist"))).toBe(true);
     expect(result.summary.some((line) => line.includes("First reply checklist:"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Primary channel: telegram-main"))).toBe(true);
     expect(result.summary.some((line) => line.includes("PATH fallback:"))).toBe(true);
@@ -297,6 +314,9 @@ describe("setup quickstart flow", () => {
       "127.0.0.1",
       "not-a-port",
       String(bindPort),
+      "OpenAssist",
+      "Pragmatic and concise",
+      "Keep answers practical",
       "openai",
       "openai-main",
       "gpt-5.2",
@@ -352,6 +372,9 @@ describe("setup quickstart flow", () => {
       "false",
       "127.0.0.1",
       String(bindPort),
+      "OpenAssist",
+      "Pragmatic and concise",
+      "Keep answers practical",
       "openai",
       "openai-main",
       "gpt-5.2",
@@ -479,6 +502,9 @@ describe("setup quickstart flow", () => {
     state.config.runtime.bindPort = await getFreePort();
     const prompts = new ScriptedPromptAdapter([
       "true",
+      "OpenAssist",
+      "Pragmatic and concise",
+      "Keep answers practical",
       "openai",
       "openai-main",
       "gpt-5.2",
@@ -528,6 +554,9 @@ describe("setup quickstart flow", () => {
     state.config.runtime.bindPort = await getFreePort();
     const prompts = new ScriptedPromptAdapter([
       "true",
+      "OpenAssist",
+      "Pragmatic and concise",
+      "Keep answers practical",
       "openai",
       "openai-main",
       "gpt-5.2",
@@ -563,6 +592,7 @@ describe("setup quickstart flow", () => {
     expect(state.config.runtime.operatorAccessProfile).toBe("operator");
     expect(state.config.tools.fs.workspaceOnly).toBe(true);
     expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toBeUndefined();
+    expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
     expect(result.summary.some((line) => line.includes("Access mode: Standard mode"))).toBe(true);
   });
 });

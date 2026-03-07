@@ -64,6 +64,14 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   if (input.backupPath) {
     lines.push(`- Backup: ${input.backupPath}`);
   }
+  lines.push(`- Assistant: ${input.config.runtime.assistant.name}`);
+  lines.push(`- Persona: ${input.config.runtime.assistant.persona}`);
+  lines.push(`- Ongoing objectives: ${input.config.runtime.assistant.operatorPreferences || "(none)"}`);
+  lines.push(
+    `- First-chat identity reminder: ${
+      input.config.runtime.assistant.promptOnFirstContact ? "enabled" : "disabled"
+    }`
+  );
   lines.push(`- Primary provider: ${input.config.runtime.defaultProviderId}`);
   lines.push(`- Primary channel: ${primaryChannel ? `${primaryChannel.id} (${primaryChannel.type})` : "(not configured)"}`);
   lines.push(
@@ -97,6 +105,7 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   } else {
     lines.push("- Standard mode is active. Add approved operator IDs later if you want to use /access full in chat.");
   }
+  lines.push("- Use /profile to inspect or intentionally update the global assistant identity later.");
   lines.push("- Verify daemon health: openassist service health");
   lines.push("- Check channel status if there is no reply: openassist channel status");
   lines.push("- Use the advanced editor for more settings: openassist setup wizard");

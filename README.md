@@ -85,6 +85,7 @@ openassist setup quickstart \
 Quickstart is intentionally minimal:
 
 - confirm runtime defaults for the first reply
+- choose the main assistant name, persona, and ongoing objectives before the first chat
 - choose one primary provider
 - capture API-key auth first
 - configure one primary channel
@@ -93,6 +94,8 @@ Quickstart is intentionally minimal:
   - `Full access for approved operators`
 - confirm the selected timezone with a simple `Y/n` prompt
 - run service and health checks unless `--skip-service`
+
+Quickstart writes the same global main-agent identity that `/profile` manages later, and a successful quickstart disables the later first-chat identity reminder by default.
 
 OAuth client configuration, extra providers, extra channels, scheduler tasks, native web tuning, and deeper runtime policy changes stay in `openassist setup wizard`.
 
@@ -110,6 +113,18 @@ openassist channel status
 ```
 
 `openassist doctor` now reports install-state presence, repo-backed install status, tracked ref, config and env paths, detected service manager, and whether the current install is ready for `openassist upgrade`.
+
+## Runtime Self-Knowledge
+
+Normal chat turns and `/status` now carry a bounded OpenAssist self-knowledge pack so the assistant can stay grounded in:
+
+- what OpenAssist is and which modules it owns
+- the current host/runtime/access/tool boundary
+- local config, env, install, and update facts when known
+- the local docs that define lifecycle, security, interfaces, and runtime behavior
+- which kinds of self-maintenance are safe right now and which are blocked
+
+This does not weaken the security model. Lower-access sessions stay advisory-only for self-maintenance. Only `full-root` sessions with callable tools may make bounded local config/docs/code changes, and updater-owned paths still stay off-limits to ad-hoc edits.
 
 ### 5. Send the first reply
 
@@ -130,8 +145,9 @@ When the bot is online:
 
 1. Send a simple message in the configured chat.
 2. Confirm you receive a reply with readable formatting instead of one dense wall of text.
-3. Send `/status` if you need local diagnostics without depending on provider health.
-4. Copy the sender ID and session ID from `/status` if you want to configure approved operators or inspect actor-specific access from the CLI later.
+3. Confirm the assistant introduces itself with the name/persona you chose in quickstart.
+4. Send `/status` if you need local diagnostics without depending on provider health.
+5. Copy the sender ID and session ID from `/status` if you want to configure approved operators or inspect actor-specific access from the CLI later.
 
 ### 6. Use the advanced editor when needed
 

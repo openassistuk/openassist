@@ -161,6 +161,8 @@ Expected:
 
 ## Scenario M: Global Profile Lock + Persistence
 
+Quickstart-created installs now disable the first-contact identity reminder by default because onboarding already captured the main assistant identity. Re-enable the reminder in `openassist setup wizard` before running this scenario, or set `runtime.assistant.promptOnFirstContact=true` in config explicitly.
+
 1. start a new channel conversation and send `/start`
 2. verify first-contact profile prompt is emitted when `runtime.assistant.promptOnFirstContact=true`
 3. send `/profile name=<name>; persona=<style>; prefs=<preferences>` and verify lock-guard block

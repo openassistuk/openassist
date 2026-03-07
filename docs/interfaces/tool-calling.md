@@ -16,7 +16,7 @@ V1.4 adds a chat-driven autonomous tool loop:
 3. tool results are fed back to provider
 4. provider returns final assistant output for channel delivery
 
-Each provider turn also carries a bounded runtime-awareness system message so the model knows what OpenAssist is, which host/runtime boundary applies to the current session, which tools are configured, which tools are callable, and whether native web search is available.
+Each provider turn also carries a bounded runtime self-knowledge system message so the model knows what OpenAssist is, which host/runtime boundary applies to the current session, which tools are configured, which tools are callable, which local docs define its behavior, and which kinds of self-maintenance are safe or blocked.
 
 ## Core Types
 
@@ -100,6 +100,15 @@ The awareness snapshot includes:
 - runtime/session state (session ID, provider IDs, channel IDs, timezone, runtime modules)
 - policy/autonomy state (effective profile, access source, callable tools, configured tools, negative capability text)
 - native web state (`enabled`, `searchMode`, `searchStatus`, callable `web.*` tools)
+- capability state for the current session (`canInspectLocalFiles`, `canRunLocalCommands`, `canEditConfig`, `canEditDocs`, `canEditCode`, `canControlService`, native web availability, blocked reasons)
+- curated local doc references (`README.md`, operations/security/interface docs, `openassist.toml`) with short purpose and when-to-use text
+- maintenance/install context (repo-backed install status, install dir, config path, env path, tracked ref, last known good commit when known, protected paths, preferred lifecycle commands, safe-maintenance rules)
+
+Self-maintenance contract:
+
+- `restricted` and `operator` sessions stay advisory-only for repo/config/docs maintenance
+- only `full-root` sessions with callable tools may make bounded local config/docs/code changes
+- updater-owned or generated paths remain protected and should be changed through lifecycle commands instead of ad-hoc edits
 
 ## Tool Loop Behavior
 

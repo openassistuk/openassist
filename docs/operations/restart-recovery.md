@@ -18,7 +18,7 @@ OpenAssist persists the state needed for safe recovery:
 - scheduler cursors and run history
 - tool invocation audit rows
 - module and clock health records
-- session bootstrap state used for runtime grounding
+- session bootstrap state used for runtime grounding, including the last-seen bounded self-knowledge snapshot for a chat
 
 This is why restart safety is based on durable state, not in-memory retries.
 
@@ -77,9 +77,9 @@ openassist scheduler status
 Chat-side diagnostics:
 
 - send `/status` for local diagnostics without provider dependency
-- `/status` shows the current sender ID, canonical session ID, effective access, and access source
+- `/status` shows the current sender ID, canonical session ID, effective access, local docs/config/install pointers, and self-maintenance limits
 - approved operators can use `/access full` or `/access standard` for their own current chat only
-- use `/profile` to inspect persisted assistant profile state
+- use `/profile` to inspect or update the same global assistant identity that quickstart now captures up front
 
 ## Incident Notes
 

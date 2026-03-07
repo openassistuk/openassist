@@ -1,0 +1,116 @@
+import path from "node:path";
+import type { RuntimeDocRef } from "@openassist/core-types";
+
+export const OPENASSIST_SOFTWARE_IDENTITY =
+  "You are OpenAssist on a real local machine. OpenAssist is a local-first AI gateway runtime that connects model providers, messaging channels, scheduler workflows, recovery, policy-gated host tools, and repo-backed lifecycle commands.";
+
+const CURATED_DOCS: RuntimeDocRef[] = [
+  {
+    path: "README.md",
+    purpose: "Public overview of what OpenAssist is, the installed commands, and the main operator flow.",
+    whenToUse: "Use when explaining the product at a high level or pointing to the main entrypoint docs."
+  },
+  {
+    path: "docs/README.md",
+    purpose: "Docs index for operations, architecture, interfaces, security, migration, and testing.",
+    whenToUse: "Use when directing someone to the right local documentation area."
+  },
+  {
+    path: "docs/architecture/runtime-and-modules.md",
+    purpose: "Runtime architecture, module boundaries, persistence, and session/bootstrap behavior.",
+    whenToUse: "Use when explaining how OpenAssist is structured internally."
+  },
+  {
+    path: "docs/interfaces/tool-calling.md",
+    purpose: "Tool loop contracts, policy gating, provider/tool message shape, and runtime awareness behavior.",
+    whenToUse: "Use when explaining callable tools, tool limits, or provider/tool coordination."
+  },
+  {
+    path: "docs/security/policy-profiles.md",
+    purpose: "Access profiles and what becomes callable in restricted, operator, and full-root sessions.",
+    whenToUse: "Use when explaining capability level, access changes, or why tools are blocked."
+  },
+  {
+    path: "docs/security/threat-model.md",
+    purpose: "Security controls, explicit limits, and what OpenAssist must not do implicitly.",
+    whenToUse: "Use when reasoning about safe self-maintenance, privilege boundaries, or risky actions."
+  },
+  {
+    path: "docs/operations/quickstart-linux-macos.md",
+    purpose: "Install-to-first-reply operator runbook for Linux and macOS.",
+    whenToUse: "Use when explaining onboarding, first reply flow, or beginner lifecycle steps."
+  },
+  {
+    path: "docs/operations/setup-wizard.md",
+    purpose: "Advanced setup editor behavior after quickstart.",
+    whenToUse: "Use when explaining reconfiguration, advanced settings, or post-install changes."
+  },
+  {
+    path: "docs/operations/upgrade-and-rollback.md",
+    purpose: "Repo-backed update model, dry runs, rollback, and when to rerun bootstrap.",
+    whenToUse: "Use when explaining how updates work or how to recover a broken checkout safely."
+  },
+  {
+    path: "openassist.toml",
+    purpose: "Base local config file covering runtime, providers, channels, tools, and paths.",
+    whenToUse: "Use when explaining or editing live local configuration."
+  }
+];
+
+export const RUNTIME_PROTECTED_PATHS = [
+  ".git",
+  "node_modules",
+  "apps/openassist-cli/dist",
+  "apps/openassistd/dist",
+  ".openassist",
+  "~/.config/openassist/install-state.json",
+  "~/.config/openassist/openassistd-launchd-wrapper.sh",
+  "systemd/launchd service templates and wrapper scripts"
+];
+
+export const RUNTIME_SAFE_EDIT_RULES = [
+  "Prefer the smallest reversible fix that matches the user's request.",
+  "Validate after every local change instead of stacking speculative edits.",
+  "Use lifecycle commands for service, upgrade, rollback, and install recovery instead of ad-hoc file surgery.",
+  "Do not edit updater-owned or generated surfaces directly.",
+  "If access or tools are insufficient, explain the limitation instead of pretending to act."
+];
+
+export const RUNTIME_PREFERRED_LIFECYCLE_COMMANDS = [
+  "openassist doctor",
+  "openassist service status",
+  "openassist service restart",
+  "openassist upgrade --dry-run",
+  "openassist upgrade"
+];
+
+export function getRuntimeSelfKnowledgeDocs(): RuntimeDocRef[] {
+  return CURATED_DOCS.map((entry) => ({ ...entry }));
+}
+
+export function canFsToolMutatePath(options: {
+  targetPath: string;
+  workspaceRoot?: string;
+  workspaceOnly?: boolean;
+  allowedWritePaths?: string[];
+}): boolean {
+  const absolutePath = path.resolve(options.targetPath);
+  const workspaceRoot = options.workspaceRoot ? path.resolve(options.workspaceRoot) : undefined;
+  const allowedWritePaths = (options.allowedWritePaths ?? []).map((value) => path.resolve(value));
+
+  if (options.workspaceOnly !== false && workspaceRoot) {
+    const relative = path.relative(workspaceRoot, absolutePath);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      return false;
+    }
+  }
+
+  if (allowedWritePaths.length === 0) {
+    return true;
+  }
+
+  return allowedWritePaths.some((allowedPath) => {
+    const relative = path.relative(allowedPath, absolutePath);
+    return !relative.startsWith("..") && !path.isAbsolute(relative);
+  });
+}

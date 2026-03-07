@@ -4,6 +4,8 @@
 
 OpenAssist upgrades stay repo-backed. The command updates a Git checkout, rebuilds it, restarts the service unless you skip restart, and rolls back automatically when a live upgrade fails after the previous commit has been captured.
 
+Runtime `/status` and the provider self-knowledge pack now surface the same repo-backed update facts when they are known: install directory, config path, env-file path, tracked ref, and last known good commit. Treat the lifecycle commands in this runbook as the supported way to mutate that state instead of editing install-state or generated wrappers directly.
+
 The install record keeps a tracked ref for operator visibility, but target selection still follows the currently checked-out branch unless you pass `--ref`. Detached installs should usually use an explicit `--ref`.
 
 ## Commands

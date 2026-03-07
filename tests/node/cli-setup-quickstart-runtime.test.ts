@@ -104,6 +104,9 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
     "false",
     "127.0.0.1",
     String(bindPort),
+    "OpenAssist",
+    "Pragmatic and concise",
+    "Keep answers practical",
     "openai",
     "openai-main",
     "gpt-5.2",
@@ -148,7 +151,9 @@ describe("cli setup quickstart runtime coverage", () => {
     assert.equal(fs.existsSync(configPath), true);
     assert.equal(fs.existsSync(envPath), true);
     assert.match(fs.readFileSync(configPath, "utf8"), /defaultProviderId = "openai-main"/);
+    assert.match(fs.readFileSync(configPath, "utf8"), /promptOnFirstContact = false/);
     assert.match(fs.readFileSync(configPath, "utf8"), /\[\[runtime\.channels\]\]/);
+    assert.ok(result.summary.some((line) => line.includes("Assistant: OpenAssist")));
     assert.ok(result.summary.some((line) => line.includes("Quickstart complete")));
     assert.ok(result.summary.some((line) => line.includes("First reply checklist:")));
   });

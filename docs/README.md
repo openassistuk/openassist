@@ -17,6 +17,16 @@ Quickstart now also owns the beginner-facing access choice:
 - `Full access for approved operators` is explicit opt-in and requires per-channel approved operator IDs
 - `/status` shows the exact sender ID and canonical session ID you need for actor-specific access inspection later
 
+Quickstart also restores the main assistant identity prompts:
+
+- assistant name
+- assistant persona/character
+- ongoing objectives or preferences
+
+Successful quickstart saves those into the same global profile memory that `/profile` edits later and disables the later first-chat identity reminder by default.
+
+Runtime turns and `/status` now carry a bounded self-knowledge contract so OpenAssist can cite its own local docs, config path, env path, install directory, update track, and safe-maintenance limits without pretending it has permissions it does not have.
+
 First-class channel scope:
 
 - Telegram: private chats, groups, forum topics

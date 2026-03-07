@@ -14,6 +14,7 @@ Runtime-owned components:
 
 - `ContextPlanner`
 - layered runtime-awareness builder/system-message generator
+- curated runtime self-knowledge manifest (local docs, install surfaces, safe-maintenance rules)
 - `DatabasePolicyEngine`
 - `ExecTool`, `FsTool`, `PackageInstallTool`, and `WebTool`
 - `RuntimeToolRouter` and runtime tool schema registry
@@ -131,6 +132,7 @@ Daemon HTTP endpoints map directly to these methods in `apps/openassistd/src/ind
 8. if user sends `/status`, return runtime diagnostics without provider dependency
 9. if user sends `/profile`, return persisted global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`)
 10. first-contact bootstrap prompt can be emitted for `/start`/`/new` when enabled by config (`runtime.assistant.promptOnFirstContact=true`)
+11. quickstart-created installs usually disable that first-contact prompt because the main assistant identity was already captured during onboarding
 
 If max rounds is exceeded, runtime returns a safe operator-visible error message instead of unbounded looping.
 
@@ -138,9 +140,13 @@ Context planner input now includes a second runtime system message containing:
 
 - global assistant profile memory (name/persona/preferences)
 - OpenAssist core identity statement
-- per-session layered runtime awareness snapshot (host/runtime/profile/tool/web state)
+- per-session layered runtime self-knowledge snapshot:
+  - host/runtime/profile/tool/web state
+  - local config/env/install/update facts when known
+  - curated local doc references for lifecycle, security, interfaces, and runtime behavior
+  - explicit safe-maintenance rules and protected lifecycle paths
 
-Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per chat and reused deterministically for future turns. The runtime awareness snapshot is stored inside the existing `session_bootstrap.systemProfile` payload as the last-seen chat snapshot and refreshed when effective access or runtime tool state changes.
+Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per chat and reused deterministically for future turns. The runtime self-knowledge snapshot is stored inside the existing `session_bootstrap.systemProfile` payload as the last-seen chat snapshot and refreshed when assistant identity, install context, effective access, or runtime tool state changes.
 
 ## Config Apply Behavior
 

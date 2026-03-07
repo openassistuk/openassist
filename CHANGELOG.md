@@ -8,6 +8,13 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Runtime self-knowledge and identity-restoration pass:
+  - runtime awareness is now a richer bounded self-knowledge contract with explicit capabilities, curated local doc references, and repo-backed maintenance/install facts
+  - provider turns and `/status` now surface local config path, env-file path, install dir, tracked ref, last known good commit when known, protected lifecycle paths, and safe self-maintenance guidance
+  - runtime now carries a curated local docs map so the assistant can cite repo docs such as `README.md`, `docs/security/policy-profiles.md`, `docs/interfaces/tool-calling.md`, and `docs/operations/upgrade-and-rollback.md`
+  - quickstart once again asks for the main assistant name, persona, and ongoing objectives/preferences before the first real chat
+  - successful quickstart now disables the later first-chat identity reminder by default, while wizard and `/profile` remain the advanced edit paths
+
 - First-class channel attachment and presentation path:
   - `AttachmentRef` now carries durable media metadata (`kind`, `mimeType`, `name`, `sizeBytes`, `localPath`, optional `captionText`, optional `extractedText`)
   - `NormalizedMessage.attachments` now survives recent-message replay through durable `message_attachments` storage

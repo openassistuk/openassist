@@ -1,3 +1,4 @@
+import path from "node:path";
 import type {
   EffectivePolicySource,
   PolicyProfile,
@@ -5,9 +6,30 @@ import type {
   RuntimeWebToolsConfig
 } from "@openassist/core-types";
 import type { WebToolStatus } from "@openassist/tools-web";
+import {
+  OPENASSIST_SOFTWARE_IDENTITY,
+  RUNTIME_PREFERRED_LIFECYCLE_COMMANDS,
+  RUNTIME_PROTECTED_PATHS,
+  RUNTIME_SAFE_EDIT_RULES,
+  canFsToolMutatePath,
+  getRuntimeSelfKnowledgeDocs
+} from "./self-knowledge.js";
 
 function joinOrNone(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "none";
+}
+
+function yesNo(value: boolean): string {
+  return value ? "yes" : "no";
+}
+
+export interface RuntimeInstallKnowledgeInput {
+  repoBackedInstall: boolean;
+  installDir?: string;
+  configPath?: string;
+  envFilePath?: string;
+  trackedRef?: string;
+  lastKnownGoodCommit?: string;
 }
 
 export interface RuntimeAwarenessBuildInput {
@@ -32,6 +54,9 @@ export interface RuntimeAwarenessBuildInput {
   configuredToolNames: string[];
   callableToolNames: string[];
   webStatus: WebToolStatus;
+  workspaceOnly: boolean;
+  allowedWritePaths: string[];
+  installContext?: RuntimeInstallKnowledgeInput;
 }
 
 function buildLimitations(input: RuntimeAwarenessBuildInput): string[] {
@@ -58,17 +83,152 @@ function buildLimitations(input: RuntimeAwarenessBuildInput): string[] {
   return limitations;
 }
 
+function canMutateTarget(
+  input: RuntimeAwarenessBuildInput,
+  targetPath: string | undefined
+): boolean {
+  if (!targetPath) {
+    return false;
+  }
+  if (input.profile !== "full-root") {
+    return false;
+  }
+  if (!input.callableToolNames.includes("fs.write")) {
+    return false;
+  }
+  return canFsToolMutatePath({
+    targetPath,
+    workspaceRoot: input.host.workspaceRoot,
+    workspaceOnly: input.workspaceOnly,
+    allowedWritePaths: input.allowedWritePaths
+  });
+}
+
+function buildBlockedReasons(
+  input: RuntimeAwarenessBuildInput,
+  capabilities: RuntimeAwarenessSnapshot["capabilities"]
+): string[] {
+  const reasons: string[] = [];
+
+  if (input.profile !== "full-root") {
+    reasons.push(
+      `This session is ${input.profile}, so local file edits, shell commands, package installs, and native web tools are advisory-only.`
+    );
+  }
+  if (input.profile === "full-root" && !capabilities.canInspectLocalFiles) {
+    reasons.push("Local file inspection is not callable because fs.read is unavailable in this session.");
+  }
+  if (input.profile === "full-root" && !capabilities.canRunLocalCommands) {
+    reasons.push("Local shell commands are not callable because exec.run is unavailable in this session.");
+  }
+  if (input.profile === "full-root" && !input.callableToolNames.includes("fs.write")) {
+    reasons.push("Local file writes are not callable because fs.write is unavailable in this session.");
+  }
+  if (input.profile === "full-root" && input.callableToolNames.includes("fs.write") && !input.installContext?.configPath) {
+    reasons.push("The runtime does not know the active config path, so safe config self-edits are blocked.");
+  }
+  if (
+    input.profile === "full-root" &&
+    input.installContext?.configPath &&
+    !capabilities.canEditConfig
+  ) {
+    reasons.push("The active config path is outside the current filesystem write scope.");
+  }
+
+  const repoRoot = input.installContext?.installDir;
+  if (input.profile === "full-root" && input.callableToolNames.includes("fs.write") && !repoRoot) {
+    reasons.push("The repo-backed install root is not known, so bounded docs/code edits are blocked.");
+  }
+  if (input.profile === "full-root" && repoRoot && !capabilities.canEditDocs) {
+    reasons.push("The local docs tree is outside the current filesystem write scope.");
+  }
+  if (input.profile === "full-root" && repoRoot && !capabilities.canEditCode) {
+    reasons.push("The local code tree is outside the current filesystem write scope.");
+  }
+  if (!input.webStatus.enabled) {
+    reasons.push("Native web tooling is disabled in runtime config.");
+  } else if (input.profile === "full-root" && input.webStatus.searchStatus === "unavailable") {
+    reasons.push("Native web search has no configured backend right now.");
+  }
+
+  return reasons;
+}
+
+function buildCapabilities(
+  input: RuntimeAwarenessBuildInput
+): RuntimeAwarenessSnapshot["capabilities"] {
+  const canInspectLocalFiles =
+    input.profile === "full-root" && input.callableToolNames.includes("fs.read");
+  const canRunLocalCommands =
+    input.profile === "full-root" && input.callableToolNames.includes("exec.run");
+
+  const installDir = input.installContext?.installDir;
+  const canEditConfig = canMutateTarget(input, input.installContext?.configPath);
+  const canEditDocs = canMutateTarget(
+    input,
+    installDir ? path.join(installDir, "docs", "README.md") : undefined
+  );
+  const canEditCode = canMutateTarget(
+    input,
+    installDir ? path.join(installDir, "packages", "core-runtime", "src", "runtime.ts") : undefined
+  );
+  const canControlService = canRunLocalCommands;
+  const nativeWebAvailable =
+    input.profile === "full-root" &&
+    input.webStatus.enabled &&
+    input.callableToolNames.some((item) => item.startsWith("web.")) &&
+    input.webStatus.searchStatus !== "disabled" &&
+    input.webStatus.searchStatus !== "unavailable";
+
+  const capabilities: RuntimeAwarenessSnapshot["capabilities"] = {
+    canInspectLocalFiles,
+    canRunLocalCommands,
+    canEditConfig,
+    canEditDocs,
+    canEditCode,
+    canControlService,
+    nativeWebAvailable,
+    blockedReasons: []
+  };
+  capabilities.blockedReasons = buildBlockedReasons(input, capabilities);
+  return capabilities;
+}
+
+function buildMaintenance(
+  input: RuntimeAwarenessBuildInput
+): RuntimeAwarenessSnapshot["maintenance"] {
+  const mutableThisSession =
+    input.profile === "full-root" && input.callableToolNames.includes("fs.write");
+  const safeEditRules = [
+    mutableThisSession
+      ? "This session may make bounded local config/docs/code changes when the required tools are callable and the target stays outside protected paths."
+      : "This session may diagnose and advise, but it must not self-edit local config/docs/code through tools at the current access level.",
+    ...RUNTIME_SAFE_EDIT_RULES
+  ];
+
+  return {
+    repoBackedInstall: input.installContext?.repoBackedInstall === true,
+    installDir: input.installContext?.installDir,
+    configPath: input.installContext?.configPath,
+    envFilePath: input.installContext?.envFilePath,
+    trackedRef: input.installContext?.trackedRef,
+    lastKnownGoodCommit: input.installContext?.lastKnownGoodCommit,
+    protectedPaths: [...RUNTIME_PROTECTED_PATHS],
+    safeEditRules,
+    preferredCommands: [...RUNTIME_PREFERRED_LIFECYCLE_COMMANDS]
+  };
+}
+
 export function buildRuntimeAwarenessSnapshot(
   input: RuntimeAwarenessBuildInput
 ): RuntimeAwarenessSnapshot {
   const callableWebTools = input.callableToolNames.filter((item) => item.startsWith("web."));
   return {
-    version: 1,
+    version: 2,
     software: {
       product: "OpenAssist",
       role: "modular local-first AI gateway assistant",
-      identity:
-        "You are running inside OpenAssist on a real local machine. OpenAssist connects providers, channels, scheduler workflows, recovery, policy gating, and host tools."
+      identity: OPENASSIST_SOFTWARE_IDENTITY
     },
     host: {
       ...input.host
@@ -104,7 +264,13 @@ export function buildRuntimeAwarenessSnapshot(
             : input.webStatus.searchStatus === "disabled"
               ? ["Native web tools are disabled in config."]
               : ["Native web search is unavailable until OPENASSIST_TOOLS_WEB_BRAVE_API_KEY is configured or fallback mode is enabled."]
-    }
+    },
+    capabilities: buildCapabilities(input),
+    documentation: {
+      refs: getRuntimeSelfKnowledgeDocs(),
+      note: "Cite these local paths when explaining behavior, configuration, security limits, or update-safe maintenance."
+    },
+    maintenance: buildMaintenance(input)
   };
 }
 
@@ -118,31 +284,26 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
     snapshot.host.workspaceRoot ? `workspace=${snapshot.host.workspaceRoot}` : ""
   ].filter((item) => item.length > 0);
 
-  const autonomyLine = snapshot.policy.autonomyEnabled
-    ? "Autonomous host and web tools are enabled for this session."
-    : "Autonomous host and web tools are disabled for this session.";
-
-  const webLine =
-    snapshot.web.searchStatus === "disabled"
-      ? "Native web tools are disabled in runtime config."
-      : snapshot.web.searchStatus === "available"
-        ? `Native web tools are installed and web search is available (${snapshot.web.searchMode}).`
-        : snapshot.web.searchStatus === "fallback"
-          ? `Native web tools are installed and web search is in fallback mode (${snapshot.web.searchMode}).`
-          : `Native web fetch is installed, but web search is unavailable until OPENASSIST_TOOLS_WEB_BRAVE_API_KEY is configured.`;
+  const docsLines = snapshot.documentation.refs.map(
+    (ref) => `  - ${ref.path}: ${ref.purpose} Use when: ${ref.whenToUse}`
+  );
 
   return [
-    "OpenAssist runtime awareness snapshot",
+    "OpenAssist runtime self-knowledge",
     `- software: ${snapshot.software.identity}`,
     `- host: ${hostParts.join(", ")}`,
     `- runtime: session=${snapshot.runtime.sessionId}, defaultProvider=${snapshot.runtime.defaultProviderId}, providers=${joinOrNone(snapshot.runtime.providerIds)}, channels=${joinOrNone(snapshot.runtime.channelIds)}, timezone=${snapshot.runtime.timezone}`,
     `- subsystems: ${joinOrNone(snapshot.runtime.modules)}`,
-    `- policy: profile=${snapshot.policy.profile}, source=${snapshot.policy.source}; ${autonomyLine}`,
-    `- callable tools now: ${joinOrNone(snapshot.policy.callableToolNames)}`,
-    `- configured tool families: ${joinOrNone(snapshot.policy.configuredToolNames)}`,
-    `- web: ${webLine}`,
-    `- limits: ${joinOrNone(snapshot.policy.limitations)}`,
-    "- instructions: never claim access to unavailable tools; when web tooling is unavailable or not callable, say so explicitly."
+    `- access: profile=${snapshot.policy.profile}, source=${snapshot.policy.source}, callableTools=${joinOrNone(snapshot.policy.callableToolNames)}`,
+    `- capabilities now: inspectFiles=${yesNo(snapshot.capabilities.canInspectLocalFiles)}, runCommands=${yesNo(snapshot.capabilities.canRunLocalCommands)}, editConfig=${yesNo(snapshot.capabilities.canEditConfig)}, editDocs=${yesNo(snapshot.capabilities.canEditDocs)}, editCode=${yesNo(snapshot.capabilities.canEditCode)}, serviceControl=${yesNo(snapshot.capabilities.canControlService)}, nativeWeb=${yesNo(snapshot.capabilities.nativeWebAvailable)}`,
+    `- install context: repoBacked=${yesNo(snapshot.maintenance.repoBackedInstall)}, installDir=${snapshot.maintenance.installDir ?? "(not known)"}, config=${snapshot.maintenance.configPath ?? "(not known)"}, envFile=${snapshot.maintenance.envFilePath ?? "(not known)"}, trackedRef=${snapshot.maintenance.trackedRef ?? "(not known)"}, lastKnownGood=${snapshot.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
+    "- docs map:",
+    ...docsLines,
+    `- protected paths: ${joinOrNone(snapshot.maintenance.protectedPaths)}`,
+    `- safe maintenance rules: ${snapshot.maintenance.safeEditRules.join(" ")}`,
+    `- preferred lifecycle commands: ${joinOrNone(snapshot.maintenance.preferredCommands)}`,
+    `- blocked right now: ${joinOrNone(snapshot.capabilities.blockedReasons)}`,
+    "- instructions: cite the local doc/config paths above when explaining behavior; never claim unavailable tools or permissions; prefer lifecycle commands over manual service/update/install mutations."
   ].join("\n");
 }
 
@@ -150,8 +311,8 @@ export function summarizeRuntimeAwareness(snapshot: RuntimeAwarenessSnapshot): s
   return [
     `profile=${snapshot.policy.profile}`,
     `source=${snapshot.policy.source}`,
-    `autonomy=${snapshot.policy.autonomyEnabled ? "enabled" : "disabled"}`,
-    `callableTools=${joinOrNone(snapshot.policy.callableToolNames)}`,
-    `web=${snapshot.web.searchStatus}`
+    `fileEdits=${snapshot.capabilities.canEditConfig || snapshot.capabilities.canEditDocs || snapshot.capabilities.canEditCode ? "available" : "blocked"}`,
+    `serviceControl=${snapshot.capabilities.canControlService ? "available" : "blocked"}`,
+    `web=${snapshot.capabilities.nativeWebAvailable ? "available" : snapshot.web.searchStatus}`
   ].join(", ");
 }

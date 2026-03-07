@@ -752,7 +752,18 @@ describe("OpenAssistRuntime", () => {
     const provider = new MockProvider();
     const runtime = new OpenAssistRuntime(
       runtimeConfig,
-      { db, logger },
+      {
+        db,
+        logger,
+        installContext: {
+          repoBackedInstall: true,
+          installDir: root,
+          configPath: path.join(root, "openassist.toml"),
+          envFilePath: path.join(root, "openassistd.env"),
+          trackedRef: "main",
+          lastKnownGoodCommit: "abc123"
+        }
+      },
       { providers: [provider], channels: [channel] }
     );
     await runtime.start();
@@ -842,7 +853,18 @@ describe("OpenAssistRuntime", () => {
 
     const runtime = new OpenAssistRuntime(
       runtimeConfig,
-      { db, logger },
+      {
+        db,
+        logger,
+        installContext: {
+          repoBackedInstall: true,
+          installDir: root,
+          configPath: path.join(root, "openassist.toml"),
+          envFilePath: path.join(root, "openassistd.env"),
+          trackedRef: "main",
+          lastKnownGoodCommit: "abc123"
+        }
+      },
       { providers: [provider], channels: [channel] }
     );
     await runtime.start();
@@ -1048,7 +1070,18 @@ describe("OpenAssistRuntime", () => {
 
     const runtime = new OpenAssistRuntime(
       runtimeConfig,
-      { db, logger },
+      {
+        db,
+        logger,
+        installContext: {
+          repoBackedInstall: true,
+          installDir: root,
+          configPath: path.join(root, "openassist.toml"),
+          envFilePath: path.join(root, "openassistd.env"),
+          trackedRef: "main",
+          lastKnownGoodCommit: "abc123"
+        }
+      },
       { providers: [provider], channels: [channel] }
     );
     await runtime.start();
@@ -1068,7 +1101,11 @@ describe("OpenAssistRuntime", () => {
     assert.equal(provider.chatCalls, 0);
     assert.equal(channel.sent.length, 1);
     assert.match(channel.sent[0]?.text ?? "", /openassist local status/i);
+    assert.match(channel.sent[0]?.text ?? "", /what this is:/i);
     assert.match(channel.sent[0]?.text ?? "", /default provider: mock-provider/i);
+    assert.match(channel.sent[0]?.text ?? "", /config path:/i);
+    assert.match(channel.sent[0]?.text ?? "", /local docs\/config map:/i);
+    assert.match(channel.sent[0]?.text ?? "", /trackedRef=main/i);
     assert.match(channel.sent[0]?.text ?? "", /native web:/i);
 
     await runtime.stop();
@@ -1126,7 +1163,18 @@ describe("OpenAssistRuntime", () => {
 
     const runtime = new OpenAssistRuntime(
       runtimeConfig,
-      { db, logger },
+      {
+        db,
+        logger,
+        installContext: {
+          repoBackedInstall: true,
+          installDir: root,
+          configPath: path.join(root, "openassist.toml"),
+          envFilePath: path.join(root, "openassistd.env"),
+          trackedRef: "main",
+          lastKnownGoodCommit: "abc123"
+        }
+      },
       { providers: [provider], channels: [channel] }
     );
     runtime.setProviderApiKey("mock-provider", "key");
@@ -1145,15 +1193,24 @@ describe("OpenAssistRuntime", () => {
     });
 
     assert.equal(provider.requests.length, 1);
-    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /runtime awareness snapshot/i);
+    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /runtime self-knowledge/i);
     assert.match(provider.requests[0]?.messages[1]?.content ?? "", /profile=operator/i);
-    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /callable tools now: none/i);
+    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /docs\/security\/policy-profiles\.md/i);
+    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /installDir=/i);
 
     const bootstrap = db.getSessionBootstrap("telegram-mock:c-awareness");
     assert.ok(bootstrap);
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.policy?.profile ?? ""),
       "operator"
+    );
+    assert.equal(
+      ((bootstrap?.systemProfile.awareness as any)?.version ?? 0),
+      2
+    );
+    assert.equal(
+      ((bootstrap?.systemProfile.awareness as any)?.maintenance?.trackedRef ?? ""),
+      "main"
     );
 
     await runtime.setPolicyProfile("telegram-mock:c-awareness", "full-root");
@@ -1257,7 +1314,7 @@ describe("OpenAssistRuntime", () => {
 
     assert.equal(provider.chatCalls, 0);
     assert.equal(channel.sent.length, 1);
-    assert.match(channel.sent[0]?.text ?? "", /profile setup for this chat/i);
+    assert.match(channel.sent[0]?.text ?? "", /main-agent identity reminder for this chat/i);
     assert.match(channel.sent[0]?.text ?? "", /force=true/i);
 
     const profileLock = db.getSetting<{
@@ -1362,9 +1419,105 @@ describe("OpenAssistRuntime", () => {
 
     assert.equal(provider.chatCalls, 1);
     assert.equal(channel.sent.length, 5);
-    assert.match(channel.sent[4]?.text ?? "", /global profile memory/i);
+    assert.match(channel.sent[4]?.text ?? "", /global main-agent identity/i);
     assert.match(channel.sent[4]?.text ?? "", /name: Nova/i);
     assert.match(channel.sent[4]?.text ?? "", /persona: Direct and technical/i);
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("does not emit the first-contact identity reminder when promptOnFirstContact is disabled", async () => {
+    const root = tempDir("openassist-runtime-profile-prompt-disabled-");
+    roots.push(root);
+
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+
+    const provider = new MockProvider();
+    const channel = new MockChannel();
+    const runtimeConfig: RuntimeConfig = {
+      bindAddress: "127.0.0.1",
+      bindPort: 3344,
+      defaultProviderId: "mock-provider",
+      providers: [
+        {
+          id: "mock-provider",
+          type: "openai-compatible",
+          defaultModel: "x"
+        }
+      ],
+      channels: [
+        {
+          id: "telegram-mock",
+          type: "telegram",
+          enabled: true,
+          settings: {}
+        }
+      ],
+      defaultPolicyProfile: "operator",
+      assistant: {
+        name: "OpenAssist",
+        persona: "Pragmatic and brief",
+        operatorPreferences: "Prefer concise summaries",
+        promptOnFirstContact: false
+      },
+      paths: {
+        dataDir: root,
+        skillsDir: path.join(root, "skills"),
+        logsDir: path.join(root, "logs")
+      },
+      time: {
+        ntpPolicy: "off",
+        ntpCheckIntervalSec: 300,
+        ntpMaxSkewMs: 10_000,
+        ntpHttpSources: [],
+        requireTimezoneConfirmation: false
+      },
+      scheduler: {
+        enabled: false,
+        tickIntervalMs: 1000,
+        heartbeatIntervalSec: 30,
+        defaultMisfirePolicy: "catch-up-once",
+        tasks: []
+      }
+    };
+
+    const runtime = new OpenAssistRuntime(
+      runtimeConfig,
+      {
+        db,
+        logger,
+        installContext: {
+          repoBackedInstall: true,
+          installDir: root,
+          configPath: path.join(root, "openassist.toml"),
+          envFilePath: path.join(root, "openassistd.env"),
+          trackedRef: "main",
+          lastKnownGoodCommit: "abc123"
+        }
+      },
+      { providers: [provider], channels: [channel] }
+    );
+    runtime.setProviderApiKey("mock-provider", "test-key");
+    await runtime.start();
+
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-mock",
+      transportMessageId: "m-start-disabled",
+      conversationKey: "c-profile-disabled",
+      senderId: "u1",
+      text: "/start",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "profile-start-disabled"
+    });
+
+    assert.equal(provider.chatCalls, 1);
+    assert.equal(channel.sent.length, 1);
+    assert.doesNotMatch(channel.sent[0]?.text ?? "", /identity reminder|profile setup for this chat/i);
+    assert.match(channel.sent[0]?.text ?? "", /hello from mock/i);
 
     await runtime.stop();
     db.close();

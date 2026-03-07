@@ -23,6 +23,7 @@ openassist setup quickstart \
 Quickstart owns only the essentials:
 
 - confirm safe runtime defaults
+- choose the main assistant name, persona, and ongoing objectives/preferences
 - choose one primary provider
 - capture API-key auth
 - configure one primary channel
@@ -35,6 +36,7 @@ Quickstart owns only the essentials:
   - `Full access for approved operators`
 - confirm timezone
 - run service install, restart, and health checks unless `--skip-service`
+- disable the later first-chat identity reminder by default because onboarding already captured the main assistant identity
 
 Quickstart success should leave you with:
 
@@ -64,7 +66,6 @@ Quickstart intentionally does not own:
 - scheduler task authoring
 - native web tuning
 - advanced tools and security changes
-- persona or profile editing
 
 ## Wizard
 
@@ -98,6 +99,7 @@ Wizard access behavior:
 Use wizard for:
 
 - advanced runtime changes
+- later edits to the global main assistant identity or re-enabling the first-chat identity reminder
 - additional providers or provider OAuth config
 - additional channels or non-default channel behavior
 - Discord DM allow-lists or other channel-specific scope changes

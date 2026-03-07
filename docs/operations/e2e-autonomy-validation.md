@@ -80,8 +80,10 @@ Expected:
 
 - `/status` reflects the current effective access for that sender
 - `/status` shows the current sender ID and session ID
+- `/status` identifies OpenAssist, shows local config/install pointers, and names the local docs that define lifecycle and security behavior
 - before elevation, callable tools are `none`
 - after elevation, `/status` lists the same callable tools exposed through `openassist tools status`
+- after elevation, `/status` makes it explicit whether bounded local self-maintenance is available or still blocked
 - native web state is visible as `available`, `fallback`, `unavailable`, or `disabled`
 
 ## Scenario 1: File Action Through Chat

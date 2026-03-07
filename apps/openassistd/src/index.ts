@@ -14,6 +14,7 @@ import { OpenAICompatibleProviderAdapter } from "@openassist/providers-openai-co
 import { TelegramChannelAdapter } from "@openassist/channels-telegram";
 import { DiscordChannelAdapter } from "@openassist/channels-discord";
 import { WhatsAppMdChannelAdapter } from "@openassist/channels-whatsapp-md";
+import { loadRuntimeInstallContext } from "./install-context.js";
 import { resolveChannelSettings } from "./channel-settings.js";
 
 function envApiKeyVar(providerId: string): string {
@@ -270,7 +271,15 @@ program
       security: config.security
     };
 
-    const runtime = new OpenAssistRuntime(runtimeConfig, { db, logger }, { providers, channels });
+    const runtime = new OpenAssistRuntime(
+      runtimeConfig,
+      {
+        db,
+        logger,
+        installContext: loadRuntimeInstallContext(configPath)
+      },
+      { providers, channels }
+    );
 
     for (const providerConfig of config.runtime.providers) {
       const varName = envApiKeyVar(providerConfig.id);

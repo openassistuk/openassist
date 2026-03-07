@@ -35,7 +35,8 @@ import { redactSensitiveData, type OpenAssistLogger } from "@openassist/observab
 import {
   buildRuntimeAwarenessSnapshot,
   buildRuntimeAwarenessSystemMessage,
-  summarizeRuntimeAwareness
+  summarizeRuntimeAwareness,
+  type RuntimeInstallKnowledgeInput
 } from "./awareness.js";
 import { ingestInboundAttachments } from "./attachments.js";
 import { renderOutboundEnvelope } from "./channel-rendering.js";
@@ -47,6 +48,7 @@ import {
 } from "./clock-health.js";
 import { DatabasePolicyEngine } from "./policy-engine.js";
 import { SecretBox } from "./secrets.js";
+import { OPENASSIST_SOFTWARE_IDENTITY } from "./self-knowledge.js";
 import { SchedulerWorker } from "./scheduler.js";
 import { runtimeToolSchemas } from "./tool-registry.js";
 import { RuntimeToolRouter, type ToolExecutionRecord } from "./tool-router.js";
@@ -54,6 +56,7 @@ import { RuntimeToolRouter, type ToolExecutionRecord } from "./tool-router.js";
 export interface RuntimeDependencies {
   db: OpenAssistDatabase;
   logger: OpenAssistLogger;
+  installContext?: RuntimeInstallContext;
 }
 
 export interface RuntimeAdapterSet {
@@ -65,10 +68,14 @@ export interface RuntimeAuthMap {
   [providerId: string]: ApiKeyAuth | ProviderAuthHandle;
 }
 
+export interface RuntimeInstallContext extends RuntimeInstallKnowledgeInput {}
+
 function defaultSystemPrompt(): string {
   return [
-    "You are OpenAssist, a modular local-first AI gateway assistant.",
-    "Use the runtime awareness snapshot to stay grounded in what OpenAssist is, where it is running, and what it can and cannot do right now.",
+    "You are OpenAssist, the main local-first AI gateway assistant for this machine.",
+    "Use the runtime self-knowledge pack to stay grounded in what OpenAssist is, where it is running, what tools and permissions are active right now, and which local docs/config/install files define its behavior.",
+    "Be cautiously creative when permissions allow local action: prefer the smallest reversible fix, validate after changes, and stop when access or protected lifecycle boundaries block a safe edit.",
+    "When tools, permissions, or local docs are unavailable, say so explicitly instead of pretending they exist.",
     "Never expose internal reasoning metadata to messaging channels.",
     "Use concise, actionable responses and report errors clearly.",
     "Prefer short sections, bullets, and brief paragraphs over dense walls of text."
@@ -99,8 +106,7 @@ const CONFIRMED_TIMEZONE_SETTING_KEY = "time.confirmedTimezone";
 const GLOBAL_ASSISTANT_PROFILE_SETTING_KEY = "assistant.globalProfile";
 const GLOBAL_ASSISTANT_PROFILE_LOCK_SETTING_KEY = "assistant.globalProfileLock";
 const SESSION_BOOTSTRAP_CORE_IDENTITY = [
-  "OpenAssist is a local-first AI gateway runtime.",
-  "It connects providers, messaging channels, scheduler workflows, and policy-gated host tools.",
+  OPENASSIST_SOFTWARE_IDENTITY,
   "It is restart-safe via durable SQLite state, idempotency keys, and replay workers.",
   "It must never expose internal reasoning traces in channel output."
 ].join(" ");
@@ -345,6 +351,7 @@ export class OpenAssistRuntime {
   private startedAt: string | null = null;
   private startupEpoch = 0;
   private readonly hostSystemProfile: Record<string, unknown>;
+  private readonly installContext: RuntimeInstallContext;
 
   constructor(config: RuntimeConfig, deps: RuntimeDependencies, adapters: RuntimeAdapterSet) {
     const configuredSecretsBackend =
@@ -385,6 +392,10 @@ export class OpenAssistRuntime {
     this.secretBox = new SecretBox({
       dataDir: config.paths.dataDir
     });
+    this.installContext = {
+      repoBackedInstall: false,
+      ...(deps.installContext ?? {})
+    };
     this.effectiveTimezone = config.time.defaultTimezone ?? detectSystemTimezoneCandidate();
     this.hostSystemProfile = {
       platform: os.platform(),
@@ -1553,7 +1564,10 @@ export class OpenAssistRuntime {
       source: resolution.source,
       configuredToolNames,
       callableToolNames,
-      webStatus: this.webTool.getStatus()
+      webStatus: this.webTool.getStatus(),
+      workspaceOnly: this.config.tools?.fs.workspaceOnly ?? true,
+      allowedWritePaths: this.config.tools?.fs.allowedWritePaths ?? [],
+      installContext: this.installContext
     });
   }
 
@@ -1669,11 +1683,12 @@ export class OpenAssistRuntime {
     operatorPreferences: string;
   }): string {
     return [
-      "OpenAssist profile setup for this chat:",
+      "OpenAssist main-agent identity reminder for this chat:",
       "This is the global profile for the main OpenAssist agent.",
       `- name: ${bootstrap.assistantName}`,
       `- persona: ${bootstrap.persona}`,
       `- preferences: ${bootstrap.operatorPreferences || "(none yet)"}`,
+      `- first-chat reminder: ${this.assistantConfig().promptOnFirstContact ? "enabled" : "disabled by current config"}`,
       "Global profile lock-in is enabled by default (first-boot guard).",
       "To update intentionally, use force:",
       "/profile force=true; name=<name>; persona=<style>; prefs=<preferences>"
@@ -1689,10 +1704,11 @@ export class OpenAssistRuntime {
     const lock = this.getGlobalAssistantProfileLock();
     const awareness = this.awarenessFromSystemProfile(bootstrap.systemProfile);
     return [
-      "OpenAssist global profile memory",
+      "OpenAssist global main-agent identity",
       `- name: ${bootstrap.assistantName}`,
       `- persona: ${bootstrap.persona}`,
       `- preferences: ${bootstrap.operatorPreferences || "(none yet)"}`,
+      `- first-chat reminder: ${this.assistantConfig().promptOnFirstContact ? "enabled" : "disabled"}`,
       `- lock: ${lock.locked ? "enabled (first-boot lock-in; force required for updates)" : "disabled"}`,
       `- system: ${this.summarizeStoredSystemProfile(bootstrap.systemProfile)}`,
       ...(awareness ? [`- awareness: ${summarizeRuntimeAwareness(awareness)}`] : []),
@@ -1913,6 +1929,15 @@ export class OpenAssistRuntime {
     });
     const canManageAccess = this.policyEngine.isApprovedOperator(sessionId, senderId);
     const operatorsConfigured = this.policyEngine.hasApprovedOperators(sessionId);
+    const docRefs = awareness.documentation.refs.map((ref) => ref.path).join(", ") || "none";
+    const installSummary = awareness.maintenance.repoBackedInstall
+      ? `repo-backed install at ${awareness.maintenance.installDir ?? "(not known)"}`
+      : "install metadata not recorded as a repo-backed install";
+    const maintenanceSummary = awareness.capabilities.canEditConfig ||
+      awareness.capabilities.canEditDocs ||
+      awareness.capabilities.canEditCode
+      ? "bounded local self-maintenance is available in this session"
+      : "self-maintenance is advisory-only in this session";
 
     return [
       "OpenAssist local status",
@@ -1920,16 +1945,29 @@ export class OpenAssistRuntime {
       `- session id: ${sessionId}`,
       `- default provider: ${this.config.defaultProviderId}`,
       `- assistant: ${assistant.name}`,
+      `- what this is: ${OPENASSIST_SOFTWARE_IDENTITY}`,
       `- current access: ${describeAccessMode(toolsStatus.profile)}`,
       `- access source: ${describeAccessSource(toolsStatus.profileSource)}`,
       `- awareness: ${summarizeRuntimeAwareness(awareness)}`,
+      `- host: platform=${awareness.host.platform}, release=${awareness.host.release}, arch=${awareness.host.arch}, hostname=${awareness.host.hostname}, node=${awareness.host.nodeVersion}`,
       `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
       `- configured tool families: ${toolsStatus.configuredTools.join(", ") || "none"}`,
+      `- can inspect local files: ${awareness.capabilities.canInspectLocalFiles ? "yes" : "no"}`,
+      `- can run local commands: ${awareness.capabilities.canRunLocalCommands ? "yes" : "no"}`,
+      `- can edit local config/docs/code: config=${awareness.capabilities.canEditConfig ? "yes" : "no"}, docs=${awareness.capabilities.canEditDocs ? "yes" : "no"}, code=${awareness.capabilities.canEditCode ? "yes" : "no"}`,
+      `- service control in this session: ${awareness.capabilities.canControlService ? "available" : "blocked"}`,
       `- native web: ${toolsStatus.webTool.searchStatus} (mode=${toolsStatus.webTool.searchMode}, braveConfigured=${toolsStatus.webTool.braveApiConfigured})`,
+      `- local docs/config map: ${docRefs}`,
+      `- config path: ${awareness.maintenance.configPath ?? "(not known)"}`,
+      `- env file path: ${awareness.maintenance.envFilePath ?? "(not known)"}`,
+      `- install/update: ${installSummary}; trackedRef=${awareness.maintenance.trackedRef ?? "(not known)"}; lastKnownGood=${awareness.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
+      `- self-maintenance mode: ${maintenanceSummary}`,
+      `- protected paths: ${awareness.maintenance.protectedPaths.join(", ")}`,
       `- modules: ${moduleSummary}`,
       `- channels: ${channelSummary}`,
       `- time: ${time.clockHealth}, timezone=${time.timezone}, confirmed=${time.timezoneConfirmed}`,
       `- scheduler: ${schedulerState}`,
+      `- blocked reasons: ${awareness.capabilities.blockedReasons.join(" | ") || "none"}`,
       `- access changes in chat: ${
         canManageAccess
           ? "available for this sender (/access full or /access standard)"
@@ -1937,6 +1975,7 @@ export class OpenAssistRuntime {
             ? "not allowed for this sender"
             : "disabled until approved operator IDs are configured"
       }`,
+      `- prefer lifecycle commands: ${awareness.maintenance.preferredCommands.join(", ")}`,
       "- global profile memory: use '/profile' to view or '/profile force=true; name=...; persona=...; prefs=...' to update"
     ].join("\n");
   }

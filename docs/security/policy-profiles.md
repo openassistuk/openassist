@@ -35,6 +35,12 @@ Autonomous chat tool loop gate:
 - global profile-memory command `/profile` is provider-independent and available regardless of profile
 - global profile updates require explicit force confirmation (`/profile force=true; ...`) because first-boot lock-in guard is enabled by default
 
+Self-maintenance implications:
+
+- `restricted` and `operator` may explain local docs/config/update behavior, but they stay advisory-only for self-maintenance
+- `full-root` may use callable runtime tools for bounded local config/docs/code changes when the runtime self-knowledge pack says those surfaces are in scope
+- updater-owned or generated paths remain protected even in `full-root`; use lifecycle commands for install/service/update recovery instead of editing those files directly
+
 Native web tools default to enabled in config, but that does not change the autonomy gate:
 
 - `restricted` and `operator`: native web tools are not callable from chat

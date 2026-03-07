@@ -254,7 +254,29 @@ async function configureRuntimeBase(state: SetupQuickstartState, prompts: Prompt
     min: 1,
     max: 65535
   });
-  console.log("Advanced access mode, path, assistant, scheduler, and native web settings stay in setup wizard.");
+  console.log("Advanced access mode, path, scheduler, and native web settings stay in setup wizard.");
+}
+
+async function configureAssistantIdentity(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
+  stage("Assistant Identity", "Choose what the main OpenAssist agent is called and how it should behave.");
+  const assistant = state.config.runtime.assistant;
+  assistant.name = await promptRequiredText(
+    prompts,
+    "Assistant name shown in chat",
+    assistant.name
+  );
+  assistant.persona = await promptRequiredText(
+    prompts,
+    "Assistant character/persona guidance",
+    assistant.persona
+  );
+  assistant.operatorPreferences = await prompts.input(
+    "Ongoing objectives or preferences to keep in mind (optional)",
+    assistant.operatorPreferences ?? ""
+  );
+  assistant.promptOnFirstContact = false;
+  console.log("Quickstart will use this global assistant identity immediately.");
+  console.log("The later first-chat identity reminder is disabled by default after quickstart. Use setup wizard or /profile force=true; ... if you want to change it later.");
 }
 
 async function promptProvider(
@@ -926,6 +948,7 @@ export async function runSetupQuickstart(
 
   await runPreflight(state, options, dependencies);
   await configureRuntimeBase(state, prompts);
+  await configureAssistantIdentity(state, prompts);
   await configureProviders(state, prompts);
   await configureChannels(state, prompts);
   await configureAccessMode(state, prompts);

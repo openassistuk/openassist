@@ -45,6 +45,14 @@ bash scripts/install/bootstrap.sh --no-auto-install-prereqs
 
 Interactive bootstrap on macOS runs `openassist setup quickstart` after build. Non-interactive bootstrap does not run onboarding, but it still installs the `launchd` service unless `--skip-service` is set.
 
+Quickstart now captures the main assistant identity during onboarding:
+
+- assistant name
+- assistant character/persona
+- ongoing objectives or operator preferences
+
+When quickstart succeeds, it saves those values into the same global assistant profile that `/profile` edits later and disables the later first-chat identity reminder by default.
+
 Expected installer note:
 
 - `pnpm` version notices are informational

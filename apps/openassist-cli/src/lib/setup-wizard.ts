@@ -194,20 +194,20 @@ async function editRuntimeBasics(state: SetupWizardState, prompts: PromptAdapter
   if (process.stdin.isTTY && process.stdout.isTTY) {
     runtime.assistant.name = await promptRequiredText(
       prompts,
-      "Assistant display name",
+      "Main assistant name shown in chats",
       runtime.assistant.name
     );
     runtime.assistant.persona = await promptRequiredText(
       prompts,
-      "Assistant persona guidance",
+      "Main assistant character/persona guidance",
       runtime.assistant.persona
     );
     runtime.assistant.operatorPreferences = await prompts.input(
-      "Operator preferences memory (optional)",
+      "Main assistant ongoing objectives or preferences (optional)",
       runtime.assistant.operatorPreferences ?? ""
     );
     runtime.assistant.promptOnFirstContact = await prompts.confirm(
-      "Prompt first chat users with profile customization tips?",
+      "Show a first-chat reminder about changing the global assistant identity later?",
       runtime.assistant.promptOnFirstContact
     );
   }

@@ -64,8 +64,42 @@ export interface RuntimeToolsConfig {
   web?: RuntimeWebToolsConfig;
 }
 
+export interface RuntimeDocRef {
+  path: string;
+  purpose: string;
+  whenToUse: string;
+}
+
+export interface RuntimeAwarenessCapabilities {
+  canInspectLocalFiles: boolean;
+  canRunLocalCommands: boolean;
+  canEditConfig: boolean;
+  canEditDocs: boolean;
+  canEditCode: boolean;
+  canControlService: boolean;
+  nativeWebAvailable: boolean;
+  blockedReasons: string[];
+}
+
+export interface RuntimeAwarenessDocumentation {
+  refs: RuntimeDocRef[];
+  note: string;
+}
+
+export interface RuntimeAwarenessMaintenance {
+  repoBackedInstall: boolean;
+  installDir?: string;
+  configPath?: string;
+  envFilePath?: string;
+  trackedRef?: string;
+  lastKnownGoodCommit?: string;
+  protectedPaths: string[];
+  safeEditRules: string[];
+  preferredCommands: string[];
+}
+
 export interface RuntimeAwarenessSnapshot {
-  version: 1;
+  version: 2;
   software: {
     product: string;
     role: string;
@@ -104,6 +138,9 @@ export interface RuntimeAwarenessSnapshot {
     callableToolNames: string[];
     notes: string[];
   };
+  capabilities: RuntimeAwarenessCapabilities;
+  documentation: RuntimeAwarenessDocumentation;
+  maintenance: RuntimeAwarenessMaintenance;
 }
 
 export interface RuntimeSecurityConfig {

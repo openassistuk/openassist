@@ -48,6 +48,7 @@ Controls:
 - runtime injects a bounded awareness snapshot on every provider turn
 - the same awareness boundary is exposed to operators via `/status` and `openassist tools status`
 - awareness snapshot includes explicit negative capability text when autonomy is disabled or native web search is unavailable
+- awareness snapshot now also includes a curated local docs/config/install map plus explicit safe-maintenance and protected-path rules
 - awareness snapshots are persisted in `session_bootstrap` without raw secrets and refreshed when effective access/tool state changes
 - `/status` exposes the current sender ID, canonical session ID, effective access, and access source so operators do not need to guess identity formats
 
@@ -99,6 +100,7 @@ Controls:
 - global profile memory updates are explicit (`/profile` command) and auditable through message/event persistence
 - first-boot lock-in guard requires explicit force confirmation (`/profile force=true; ...`) before profile updates are applied
 - first-contact profile prompt is configurable (`runtime.assistant.promptOnFirstContact`) and does not execute host tools
+- quickstart now captures the main assistant identity up front and disables the later first-contact reminder by default on quickstart-created installs
 - global profile + per-session host context are injected as bounded system context only; no secret env values are injected into profile memory payloads
 - per-session host context now includes layered runtime awareness state, but only normalized host/runtime/access/tool metadata is stored
 - `session_bootstrap` remains a last-seen chat snapshot, not a permanent per-actor access store

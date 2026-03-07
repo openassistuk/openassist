@@ -94,6 +94,7 @@ export interface RuntimeAwarenessMaintenance {
   trackedRef?: string;
   lastKnownGoodCommit?: string;
   protectedPaths: string[];
+  protectedSurfaces: string[];
   safeEditRules: string[];
   preferredCommands: string[];
 }

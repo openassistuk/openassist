@@ -10,6 +10,7 @@ import {
   OPENASSIST_SOFTWARE_IDENTITY,
   RUNTIME_PREFERRED_LIFECYCLE_COMMANDS,
   RUNTIME_PROTECTED_PATHS,
+  RUNTIME_PROTECTED_SURFACES,
   RUNTIME_SAFE_EDIT_RULES,
   canFsToolMutatePath,
   getRuntimeSelfKnowledgeDocs
@@ -201,7 +202,7 @@ function buildMaintenance(
     input.profile === "full-root" && input.callableToolNames.includes("fs.write");
   const safeEditRules = [
     mutableThisSession
-      ? "This session may make bounded local config/docs/code changes when the required tools are callable and the target stays outside protected paths."
+      ? "This session may make bounded local config/docs/code changes when the required tools are callable and the target stays outside protected paths and protected lifecycle surfaces."
       : "This session may diagnose and advise, but it must not self-edit local config/docs/code through tools at the current access level.",
     ...RUNTIME_SAFE_EDIT_RULES
   ];
@@ -214,6 +215,7 @@ function buildMaintenance(
     trackedRef: input.installContext?.trackedRef,
     lastKnownGoodCommit: input.installContext?.lastKnownGoodCommit,
     protectedPaths: [...RUNTIME_PROTECTED_PATHS],
+    protectedSurfaces: [...RUNTIME_PROTECTED_SURFACES],
     safeEditRules,
     preferredCommands: [...RUNTIME_PREFERRED_LIFECYCLE_COMMANDS]
   };
@@ -300,6 +302,7 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
     "- docs map:",
     ...docsLines,
     `- protected paths: ${joinOrNone(snapshot.maintenance.protectedPaths)}`,
+    `- protected surfaces: ${joinOrNone(snapshot.maintenance.protectedSurfaces)}`,
     `- safe maintenance rules: ${snapshot.maintenance.safeEditRules.join(" ")}`,
     `- preferred lifecycle commands: ${joinOrNone(snapshot.maintenance.preferredCommands)}`,
     `- blocked right now: ${joinOrNone(snapshot.capabilities.blockedReasons)}`,

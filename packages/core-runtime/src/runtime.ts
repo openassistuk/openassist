@@ -1933,11 +1933,27 @@ export class OpenAssistRuntime {
     const installSummary = awareness.maintenance.repoBackedInstall
       ? `repo-backed install at ${awareness.maintenance.installDir ?? "(not known)"}`
       : "install metadata not recorded as a repo-backed install";
+    const publicInstallSummary = awareness.maintenance.repoBackedInstall
+      ? "repo-backed install metadata recorded"
+      : "install metadata not recorded as a repo-backed install";
     const maintenanceSummary = awareness.capabilities.canEditConfig ||
       awareness.capabilities.canEditDocs ||
       awareness.capabilities.canEditCode
       ? "bounded local self-maintenance is available in this session"
       : "self-maintenance is advisory-only in this session";
+    const lifecycleStatusLines = canManageAccess
+      ? [
+          `- config path: ${awareness.maintenance.configPath ?? "(not known)"}`,
+          `- env file path: ${awareness.maintenance.envFilePath ?? "(not known)"}`,
+          `- install/update: ${installSummary}; trackedRef=${awareness.maintenance.trackedRef ?? "(not known)"}; lastKnownGood=${awareness.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
+          `- protected paths: ${awareness.maintenance.protectedPaths.join(", ") || "none"}`,
+          `- protected surfaces: ${awareness.maintenance.protectedSurfaces.join(", ") || "none"}`
+        ]
+      : [
+          `- install/update: ${publicInstallSummary}`,
+          "- config/env/install detail: hidden in chat for this sender; approved operators can see full lifecycle paths here, and 'openassist doctor' shows them on the host.",
+          "- protected lifecycle detail: hidden in chat for this sender."
+        ];
 
     return [
       "OpenAssist local status",
@@ -1958,11 +1974,8 @@ export class OpenAssistRuntime {
       `- service control in this session: ${awareness.capabilities.canControlService ? "available" : "blocked"}`,
       `- native web: ${toolsStatus.webTool.searchStatus} (mode=${toolsStatus.webTool.searchMode}, braveConfigured=${toolsStatus.webTool.braveApiConfigured})`,
       `- local docs/config map: ${docRefs}`,
-      `- config path: ${awareness.maintenance.configPath ?? "(not known)"}`,
-      `- env file path: ${awareness.maintenance.envFilePath ?? "(not known)"}`,
-      `- install/update: ${installSummary}; trackedRef=${awareness.maintenance.trackedRef ?? "(not known)"}; lastKnownGood=${awareness.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
       `- self-maintenance mode: ${maintenanceSummary}`,
-      `- protected paths: ${awareness.maintenance.protectedPaths.join(", ")}`,
+      ...lifecycleStatusLines,
       `- modules: ${moduleSummary}`,
       `- channels: ${channelSummary}`,
       `- time: ${time.clockHealth}, timezone=${time.timezone}, confirmed=${time.timezoneConfirmed}`,

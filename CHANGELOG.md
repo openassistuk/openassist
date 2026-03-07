@@ -8,6 +8,23 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- General-purpose assistant identity and controlled growth:
+  - `/start` and `/help` are now runtime-owned OpenAssist welcome surfaces that present OpenAssist as the broader assistant for the machine, not only a repo-maintenance bot
+  - `/capabilities` now reports a live capability-domain inventory derived from the active access level, provider, channel, tools, scheduler state, and install context
+  - `/grow` now reports the `extensions-first` growth policy, managed skill/helper counts, safe next actions, and update-safety guidance
+  - runtime awareness snapshot version `3` now includes capability domains, managed growth state, active channel identity, and a broader machine-assistant grounding pack on every provider turn
+  - new host-side growth surfaces:
+    - `openassist skills list [--json]`
+    - `openassist skills install --path <dir>`
+    - `openassist growth status [--json]`
+    - `openassist growth helper add --name <id> --root <path> --installer <kind> --summary <text>`
+  - new daemon growth endpoints:
+    - `GET /v1/skills`
+    - `POST /v1/skills/install`
+    - `GET /v1/growth/status`
+    - `POST /v1/growth/helpers`
+  - durable `managed_capabilities` storage now tracks managed skills and helper tools so runtime, CLI, doctor, and upgrade surfaces can distinguish update-safe growth assets from dirty repo edits
+
 - Shared lifecycle readiness reporting:
   - new CLI lifecycle report builder now drives bootstrap summaries, quickstart summaries, wizard recovery wording, `openassist doctor`, and `openassist upgrade --dry-run`
   - `openassist doctor --json` now exposes the same grouped readiness report shape as the human-readable doctor output for scripting and automation
@@ -95,6 +112,11 @@ The format follows Keep a Changelog conventions and this project currently track
   - GitHub HTTPS auth failures now offer interactive retry/credential-clear/abort choices instead of immediate hard exit
 
 ### Changed
+
+- Runtime positioning and growth guidance:
+  - provider grounding and `/status` now describe OpenAssist as the broader machine assistant for the host while staying truthful about live provider/channel/tool boundaries
+  - runtime awareness, `/grow`, `openassist doctor`, and `openassist upgrade --dry-run` now surface managed growth state, growth directories, and the distinction between durable extensions and dirty repo mutation
+  - direct repo/config/code edits remain available only in `full-root`, but runtime/docs now label that path as advanced or developer work rather than the default durable growth path
 
 - Channel UX and beginner copy pass:
   - quickstart and wizard no longer describe WhatsApp as experimental on beginner paths

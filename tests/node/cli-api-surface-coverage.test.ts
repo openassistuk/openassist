@@ -98,6 +98,65 @@ describe("cli api surface coverage", () => {
         res.end(JSON.stringify({ tools: { enabled: true } }));
         return;
       }
+      if (method === "GET" && pathname === "/v1/skills") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            skills: [
+              {
+                id: "disk-maintenance",
+                version: "1.0.0",
+                description: "Disk maintenance skill"
+              }
+            ]
+          })
+        );
+        return;
+      }
+      if (method === "POST" && pathname === "/v1/skills/install") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            installed: {
+              id: "disk-maintenance",
+              version: "1.0.0",
+              description: "Disk maintenance skill"
+            }
+          })
+        );
+        return;
+      }
+      if (method === "GET" && pathname === "/v1/growth/status") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            growth: {
+              defaultMode: "extensions-first",
+              fullRootCanGrowNow: true,
+              skillsDirectory: "/tmp/openassist/skills",
+              helperToolsDirectory: "/tmp/openassist/helper-tools",
+              updateSafetyNote: "Managed growth survives normal updates more predictably.",
+              installedSkills: [{ id: "disk-maintenance", version: "1.0.0" }],
+              managedHelpers: [{ id: "ripgrep-helper", installer: "manual", updateSafe: true }]
+            }
+          })
+        );
+        return;
+      }
+      if (method === "POST" && pathname === "/v1/growth/helpers") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            helper: {
+              id: "ripgrep-helper",
+              installRoot: "/tmp/openassist/helper-tools/ripgrep",
+              installer: "manual",
+              updateSafe: true
+            }
+          })
+        );
+        return;
+      }
       if (method === "GET" && pathname === "/v1/tools/invocations") {
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify({ invocations: [] }));
@@ -200,6 +259,40 @@ describe("cli api surface coverage", () => {
           baseUrl
         ],
         outputPattern: /enabled/
+      },
+      {
+        args: ["skills", "list", "--base-url", baseUrl],
+        outputPattern: /disk-maintenance/
+      },
+      {
+        args: ["skills", "list", "--json", "--base-url", baseUrl],
+        outputPattern: /\"skills\"/
+      },
+      {
+        args: ["skills", "install", "--path", ".", "--base-url", baseUrl],
+        outputPattern: /Installed managed skill/
+      },
+      {
+        args: ["growth", "status", "--base-url", baseUrl],
+        outputPattern: /extensions-first/
+      },
+      {
+        args: [
+          "growth",
+          "helper",
+          "add",
+          "--name",
+          "ripgrep-helper",
+          "--root",
+          ".",
+          "--installer",
+          "manual",
+          "--summary",
+          "Local search helper",
+          "--base-url",
+          baseUrl
+        ],
+        outputPattern: /Registered helper/
       },
       {
         args: [

@@ -83,7 +83,14 @@ class MockChannel implements ChannelAdapter {
   }
 
   capabilities(): ChannelCapabilities {
-    return { supportsEdits: false, supportsDeletes: false, supportsReadReceipts: false };
+    return {
+      supportsEdits: false,
+      supportsDeletes: false,
+      supportsReadReceipts: false,
+      supportsFormattedText: true,
+      supportsImageAttachments: true,
+      supportsDocumentAttachments: true
+    };
   }
 
   async validateConfig(): Promise<ValidationResult> {

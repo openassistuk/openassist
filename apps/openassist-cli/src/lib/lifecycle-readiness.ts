@@ -91,6 +91,15 @@ export interface LifecycleReportInput {
   dirtyWorkingTree?: boolean;
   localWrapperAvailable?: boolean;
   localWrapperCommand?: string;
+  growth?: {
+    skillsDirectory: string;
+    helperToolsDirectory: string;
+    installedSkillCount: number;
+    managedHelperCount: number;
+    installedSkillIds?: string[];
+    managedHelperIds?: string[];
+    updateSafetyNote: string;
+  };
   bootstrapMode?: "interactive" | "non-interactive";
   onboardingWasRun?: boolean;
   serviceWasSkipped?: boolean;
@@ -372,6 +381,32 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
   }
   if (input.detectedTimezone?.trim()) {
     uniquePush(readyNow, createItem("runtime.timezone", "Detected timezone", input.detectedTimezone.trim()));
+  }
+  if (input.growth) {
+    uniquePush(
+      readyNow,
+      createItem(
+        "growth.assets",
+        "Managed growth assets",
+        `skills=${input.growth.installedSkillCount}${input.growth.installedSkillIds && input.growth.installedSkillIds.length > 0 ? ` (${input.growth.installedSkillIds.join(", ")})` : ""}; helpers=${input.growth.managedHelperCount}${input.growth.managedHelperIds && input.growth.managedHelperIds.length > 0 ? ` (${input.growth.managedHelperIds.join(", ")})` : ""}`
+      )
+    );
+    uniquePush(
+      readyNow,
+      createItem(
+        "growth.directories",
+        "Managed growth directories",
+        `skills=${input.growth.skillsDirectory}; helpers=${input.growth.helperToolsDirectory}`
+      )
+    );
+    uniquePush(
+      readyNow,
+      createItem(
+        "growth.update-safety",
+        "Managed growth update safety",
+        input.growth.updateSafetyNote
+      )
+    );
   }
   if (input.localWrapperAvailable) {
     uniquePush(

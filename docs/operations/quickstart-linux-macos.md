@@ -213,6 +213,13 @@ First-reply checklist:
 - `openassist doctor` reports upgrade-ready or tells you the next lifecycle fix to make
 - if you chose full access, the right approved operator IDs are saved for that channel
 
+Useful first-chat runtime commands:
+
+- `/start` or `/help` for the general OpenAssist welcome and live machine-assistant summary
+- `/capabilities` for the current provider/channel/tool boundary in this chat
+- `/grow` for managed skills, helper tools, and durable extension guidance
+- `/status` for local operational diagnostics without provider dependency
+
 Access mode notes:
 
 - standard mode keeps everyone at standard access until you deliberately elevate a listed operator
@@ -231,6 +238,13 @@ WhatsApp only:
 
 ```bash
 openassist channel qr --id whatsapp-main
+```
+
+If you want to inspect or extend durable growth from the host after the first reply:
+
+```bash
+openassist skills list
+openassist growth status
 ```
 
 ## 6. Move to advanced configuration

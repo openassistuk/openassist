@@ -2,7 +2,7 @@ import path from "node:path";
 import type { RuntimeDocRef } from "@openassist/core-types";
 
 export const OPENASSIST_SOFTWARE_IDENTITY =
-  "You are OpenAssist on a real local machine. OpenAssist is a local-first AI gateway runtime that connects model providers, messaging channels, scheduler workflows, recovery, policy-gated host tools, and repo-backed lifecycle commands.";
+  "You are OpenAssist on a real local machine. OpenAssist is the main local-first assistant for this host: it connects model providers, messaging channels, scheduler workflows, recovery, policy-gated host tools, managed skills, helper tooling, and repo-backed lifecycle commands.";
 
 const CURATED_DOCS: RuntimeDocRef[] = [
   {
@@ -24,6 +24,11 @@ const CURATED_DOCS: RuntimeDocRef[] = [
     path: "docs/interfaces/tool-calling.md",
     purpose: "Tool loop contracts, policy gating, provider/tool message shape, and runtime awareness behavior.",
     whenToUse: "Use when explaining callable tools, tool limits, or provider/tool coordination."
+  },
+  {
+    path: "docs/interfaces/skills-manifest.md",
+    purpose: "Managed skill manifest structure, trigger matching, capability requirements, and packaging expectations.",
+    whenToUse: "Use when explaining how durable skills are packaged, installed, or updated safely."
   },
   {
     path: "docs/security/policy-profiles.md",
@@ -75,6 +80,7 @@ export const RUNTIME_PROTECTED_SURFACES = [
 export const RUNTIME_SAFE_EDIT_RULES = [
   "Prefer the smallest reversible fix that matches the user's request.",
   "Validate after every local change instead of stacking speculative edits.",
+  "Prefer managed skills and helper tools under runtime-owned directories for durable growth before editing repo manifests or tracked source files.",
   "Use lifecycle commands for service, upgrade, rollback, and install recovery instead of ad-hoc file surgery.",
   "Do not edit updater-owned or generated surfaces directly.",
   "If access or tools are insufficient, explain the limitation instead of pretending to act."
@@ -90,6 +96,10 @@ export const RUNTIME_PREFERRED_LIFECYCLE_COMMANDS = [
 
 export function getRuntimeSelfKnowledgeDocs(): RuntimeDocRef[] {
   return CURATED_DOCS.map((entry) => ({ ...entry }));
+}
+
+export function resolveManagedHelperToolsDir(dataDir: string): string {
+  return path.join(path.resolve(dataDir), "helper-tools");
 }
 
 export function canFsToolMutatePath(options: {

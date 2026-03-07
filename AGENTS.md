@@ -86,7 +86,7 @@ When changing installer/setup/service behavior:
    - quickstart-created configs disable the later first-chat identity reminder by default
    - wizard remains the advanced path for editing the same global assistant identity fields and re-enabling the reminder
 
-## Autonomous Tool Loop Rules (V1.5)
+## Autonomous Tool Loop Rules (V1.6)
 
 When touching chat/runtime/provider/tool code:
 
@@ -128,9 +128,15 @@ When touching chat/runtime/provider/tool code:
    - `full-root` means OpenAssist's highest tool profile, not Unix root privileges
 12. preserve runtime self-knowledge discipline:
    - provider turns must carry a bounded curated self-knowledge pack, not a generic or drifting host dump
-   - the same self-knowledge contract must stay aligned across provider grounding, `/status`, and persisted bootstrap awareness
+   - the same self-knowledge contract must stay aligned across provider grounding, `/start`, `/help`, `/capabilities`, `/grow`, `/status`, and persisted bootstrap awareness
+   - runtime self-knowledge must keep OpenAssist positioned as the broader assistant for the machine, not only a repo-maintenance bot, while still staying truthful about the active provider/channel/tool boundary
    - runtime self-knowledge must surface install/config/env/update facts when known, plus stable local doc paths for identity, lifecycle, interface, and security behavior
    - safe self-maintenance rules must be explicit: only `full-root` sessions with callable tools may self-edit config/docs/code, and protected lifecycle paths remain off-limits to ad-hoc edits
+13. preserve controlled-growth discipline:
+   - runtime capability messaging must be derived from live access, provider, channel, tool, scheduler, install, and managed-growth state
+   - durable capability growth defaults to runtime-owned skills and helper-tools directories outside repo-tracked manifests
+   - `managed_capabilities` remains the durable registry for managed skills and helper tools surfaced through chat, CLI, daemon API, and lifecycle output
+   - direct repo/config/code mutation in `full-root` stays an advanced or developer path and must not be presented as the default durable growth mechanism
 
 ## Channel Integration Rules (V1.6)
 

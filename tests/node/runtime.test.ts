@@ -183,7 +183,14 @@ class MockChannel implements ChannelAdapter {
   }
 
   capabilities(): ChannelCapabilities {
-    return { supportsEdits: false, supportsDeletes: false, supportsReadReceipts: false };
+    return {
+      supportsEdits: false,
+      supportsDeletes: false,
+      supportsReadReceipts: false,
+      supportsFormattedText: true,
+      supportsImageAttachments: true,
+      supportsDocumentAttachments: true
+    };
   }
 
   async validateConfig(): Promise<ValidationResult> {
@@ -246,6 +253,37 @@ class BlockingStartChannel extends MockChannel {
 
 function tempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function writeSkillSource(root: string): string {
+  const skillDir = path.join(root, "skill-source");
+  fs.mkdirSync(skillDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(skillDir, "openassist.skill.json"),
+    JSON.stringify(
+      {
+        id: "disk-maintenance",
+        version: "1.0.0",
+        description: "Handles recurring disk-maintenance checks",
+        triggers: ["disk maintenance"],
+        requiredCapabilities: ["tool.exec", "tool.fs.read", "channel.send"],
+        resources: {
+          promptFiles: [],
+          referenceFiles: [],
+          scriptEntrypoints: ["run.mjs"]
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(skillDir, "run.mjs"),
+    "export async function run(input) { return { ok: true, input }; }\n",
+    "utf8"
+  );
+  return skillDir;
 }
 
 async function waitForCondition(
@@ -1104,10 +1142,139 @@ describe("OpenAssistRuntime", () => {
     assert.match(channel.sent[0]?.text ?? "", /what this is:/i);
     assert.match(channel.sent[0]?.text ?? "", /default provider: mock-provider/i);
     assert.match(channel.sent[0]?.text ?? "", /local docs\/config map:/i);
+    assert.match(channel.sent[0]?.text ?? "", /managed growth:/i);
+    assert.match(channel.sent[0]?.text ?? "", /growth directories: hidden in chat for this sender/i);
     assert.match(channel.sent[0]?.text ?? "", /config\/env\/install detail: hidden in chat for this sender/i);
     assert.doesNotMatch(channel.sent[0]?.text ?? "", /config path:/i);
     assert.doesNotMatch(channel.sent[0]?.text ?? "", /trackedRef=main/i);
     assert.match(channel.sent[0]?.text ?? "", /native web:/i);
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("serves runtime-owned /start, /capabilities, and /grow with managed growth state", async () => {
+    const root = tempDir("openassist-runtime-growth-");
+    roots.push(root);
+
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const provider = new MockProvider();
+    const channel = new MockChannel();
+    const runtimeConfig: RuntimeConfig = {
+      bindAddress: "127.0.0.1",
+      bindPort: 3344,
+      defaultProviderId: "mock-provider",
+      providers: [
+        {
+          id: "mock-provider",
+          type: "openai",
+          defaultModel: "gpt-4.1"
+        }
+      ],
+      channels: [
+        {
+          id: "telegram-mock",
+          type: "telegram",
+          enabled: true,
+          settings: {}
+        }
+      ],
+      defaultPolicyProfile: "full-root",
+      paths: {
+        dataDir: root,
+        skillsDir: path.join(root, "skills"),
+        logsDir: path.join(root, "logs")
+      },
+      time: {
+        ntpPolicy: "off",
+        ntpCheckIntervalSec: 300,
+        ntpMaxSkewMs: 10_000,
+        ntpHttpSources: [],
+        requireTimezoneConfirmation: false
+      },
+      scheduler: {
+        enabled: true,
+        tickIntervalMs: 1000,
+        heartbeatIntervalSec: 30,
+        defaultMisfirePolicy: "catch-up-once",
+        tasks: []
+      }
+    };
+
+    const runtime = new OpenAssistRuntime(
+      runtimeConfig,
+      { db, logger },
+      { providers: [provider], channels: [channel] }
+    );
+    runtime.setProviderApiKey("mock-provider", "test-key");
+    await runtime.start();
+    await runtime.installSkillFromPath(writeSkillSource(root));
+    await runtime.registerManagedHelper({
+      id: "ripgrep-helper",
+      installRoot: path.join(root, "helper-tools", "ripgrep"),
+      installer: "manual",
+      summary: "Local search helper"
+    });
+
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-mock",
+      transportMessageId: "m-start-general",
+      conversationKey: "c-growth",
+      senderId: "u1",
+      text: "/start",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "growth-start"
+    });
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-mock",
+      transportMessageId: "m-capabilities",
+      conversationKey: "c-growth",
+      senderId: "u1",
+      text: "/help",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "growth-help"
+    });
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-mock",
+      transportMessageId: "m-capabilities",
+      conversationKey: "c-growth",
+      senderId: "u1",
+      text: "/capabilities",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "growth-capabilities"
+    });
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-mock",
+      transportMessageId: "m-grow",
+      conversationKey: "c-growth",
+      senderId: "u1",
+      text: "/grow",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "growth-grow"
+    });
+
+    assert.equal(provider.chatCalls, 0);
+    assert.equal(channel.sent.length, 4);
+    assert.match(channel.sent[0]?.text ?? "", /I can help with/i);
+    assert.match(channel.sent[0]?.text ?? "", /Capability growth:/i);
+    assert.match(channel.sent[1]?.text ?? "", /Runtime commands/i);
+    assert.match(channel.sent[1]?.text ?? "", /\/grow/i);
+    assert.match(channel.sent[2]?.text ?? "", /OpenAssist live capability inventory/i);
+    assert.match(channel.sent[2]?.text ?? "", /Capability domains/i);
+    assert.match(channel.sent[2]?.text ?? "", /Capability growth: available/i);
+    assert.match(channel.sent[3]?.text ?? "", /OpenAssist controlled growth/i);
+    assert.match(channel.sent[3]?.text ?? "", /disk-maintenance@1\.0\.0/i);
+    assert.match(channel.sent[3]?.text ?? "", /ripgrep-helper/i);
+    assert.match(channel.sent[3]?.text ?? "", /extensions-first/i);
 
     await runtime.stop();
     db.close();
@@ -1207,11 +1374,15 @@ describe("OpenAssistRuntime", () => {
     );
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.version ?? 0),
-      2
+      3
     );
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.maintenance?.trackedRef ?? ""),
       "main"
+    );
+    assert.equal(
+      ((bootstrap?.systemProfile.awareness as any)?.growth?.defaultMode ?? ""),
+      "extensions-first"
     );
 
     await runtime.setPolicyProfile("telegram-mock:c-awareness", "full-root");
@@ -1315,8 +1486,9 @@ describe("OpenAssistRuntime", () => {
 
     assert.equal(provider.chatCalls, 0);
     assert.equal(channel.sent.length, 1);
-    assert.match(channel.sent[0]?.text ?? "", /main-agent identity reminder for this chat/i);
-    assert.match(channel.sent[0]?.text ?? "", /force=true/i);
+    assert.match(channel.sent[0]?.text ?? "", /Hi — I'm OpenAssist on this machine/i);
+    assert.match(channel.sent[0]?.text ?? "", /I can help with/i);
+    assert.match(channel.sent[0]?.text ?? "", /\/capabilities/i);
 
     const profileLock = db.getSetting<{
       locked: boolean;
@@ -1326,6 +1498,23 @@ describe("OpenAssistRuntime", () => {
     }>("assistant.globalProfileLock");
     assert.ok(profileLock);
     assert.equal(profileLock?.locked, true);
+
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-mock",
+      transportMessageId: "m-new",
+      conversationKey: "c-profile",
+      senderId: "u1",
+      text: "/new",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "profile-new"
+    });
+
+    assert.equal(provider.chatCalls, 0);
+    assert.equal(channel.sent.length, 2);
+    assert.match(channel.sent[1]?.text ?? "", /main-agent identity reminder for this chat/i);
+    assert.match(channel.sent[1]?.text ?? "", /force=true/i);
 
     await channel.emit({
       channel: "telegram",
@@ -1340,9 +1529,9 @@ describe("OpenAssistRuntime", () => {
     });
 
     assert.equal(provider.chatCalls, 0);
-    assert.equal(channel.sent.length, 2);
-    assert.match(channel.sent[1]?.text ?? "", /blocked by first-boot lock-in guard/i);
-    assert.match(channel.sent[1]?.text ?? "", /force=true/i);
+    assert.equal(channel.sent.length, 3);
+    assert.match(channel.sent[2]?.text ?? "", /blocked by first-boot lock-in guard/i);
+    assert.match(channel.sent[2]?.text ?? "", /force=true/i);
 
     const blockedProfile = db.getSetting<{
       name: string;
@@ -1367,9 +1556,9 @@ describe("OpenAssistRuntime", () => {
     });
 
     assert.equal(provider.chatCalls, 0);
-    assert.equal(channel.sent.length, 3);
-    assert.match(channel.sent[2]?.text ?? "", /Profile updated/i);
-    assert.match(channel.sent[2]?.text ?? "", /name: Nova/i);
+    assert.equal(channel.sent.length, 4);
+    assert.match(channel.sent[3]?.text ?? "", /Profile updated/i);
+    assert.match(channel.sent[3]?.text ?? "", /name: Nova/i);
 
     const globalProfile = db.getSetting<{
       name: string;
@@ -1403,8 +1592,8 @@ describe("OpenAssistRuntime", () => {
     });
 
     assert.equal(provider.chatCalls, 1);
-    assert.equal(channel.sent.length, 4);
-    assert.equal(channel.sent[3]?.text, "hello from mock");
+    assert.equal(channel.sent.length, 5);
+    assert.equal(channel.sent[4]?.text, "hello from mock");
 
     await channel.emit({
       channel: "telegram",
@@ -1419,10 +1608,10 @@ describe("OpenAssistRuntime", () => {
     });
 
     assert.equal(provider.chatCalls, 1);
-    assert.equal(channel.sent.length, 5);
-    assert.match(channel.sent[4]?.text ?? "", /global main-agent identity/i);
-    assert.match(channel.sent[4]?.text ?? "", /name: Nova/i);
-    assert.match(channel.sent[4]?.text ?? "", /persona: Direct and technical/i);
+    assert.equal(channel.sent.length, 6);
+    assert.match(channel.sent[5]?.text ?? "", /global main-agent identity/i);
+    assert.match(channel.sent[5]?.text ?? "", /name: Nova/i);
+    assert.match(channel.sent[5]?.text ?? "", /persona: Direct and technical/i);
 
     await runtime.stop();
     db.close();
@@ -1515,10 +1704,10 @@ describe("OpenAssistRuntime", () => {
       idempotencyKey: "profile-start-disabled"
     });
 
-    assert.equal(provider.chatCalls, 1);
+    assert.equal(provider.chatCalls, 0);
     assert.equal(channel.sent.length, 1);
     assert.doesNotMatch(channel.sent[0]?.text ?? "", /identity reminder|profile setup for this chat/i);
-    assert.match(channel.sent[0]?.text ?? "", /hello from mock/i);
+    assert.match(channel.sent[0]?.text ?? "", /Hi — I'm OpenAssist on this machine/i);
 
     await runtime.stop();
     db.close();

@@ -69,21 +69,36 @@ Expected:
 - tools status lists enabled tools (`exec.run`, `fs.*`, optional `pkg.install`, and `web.*` when `tools.web.enabled=true`)
 - tools status includes awareness summary and native web backend mode/status
 
+Optional host-side growth check before chat-led growth tests:
+
+```bash
+openassist skills list
+openassist growth status --session telegram-main:ops-room --sender-id 123456789
+```
+
 ## Scenario 0: Awareness Boundary Verification
 
-1. send `/status` in the target chat before enabling `full-root`
-2. confirm the reply says autonomous tools are disabled and no tools are callable
-3. set the session or sender override to `full-root`
-4. send `/status` again
+1. send `/start`, `/help`, and `/capabilities` in the target chat before enabling `full-root`
+2. confirm the replies describe OpenAssist as the machine assistant for this host, but keep autonomous host actions and web tooling limited in the current session
+3. send `/grow`
+4. confirm it describes the `extensions-first` growth policy without claiming that growth actions are available yet
+5. send `/status`
+6. confirm the reply says autonomous tools are disabled and no tools are callable
+7. set the session or sender override to `full-root`
+8. send `/status` and `/grow` again
 
 Expected:
 
+- `/start` and `/help` stay runtime-owned and do not depend on provider availability
+- `/capabilities` lists capability domains that match the current provider, channel, and access state
+- `/grow` reports managed skill/helper counts and only exposes growth directory paths to approved operators
 - `/status` reflects the current effective access for that sender
 - `/status` shows the current sender ID and session ID
 - `/status` identifies OpenAssist, names the local docs that define lifecycle and security behavior, and only reveals full config/env/install filesystem paths for approved operators
 - before elevation, callable tools are `none`
 - after elevation, `/status` lists the same callable tools exposed through `openassist tools status`
 - after elevation, `/status` makes it explicit whether bounded local self-maintenance is available or still blocked
+- after elevation, `/grow` shows whether managed growth actions are available now and points operators to `openassist skills install --path ...` and `openassist growth helper add ...`
 - native web state is visible as `available`, `fallback`, `unavailable`, or `disabled`
 
 ## Scenario 1: File Action Through Chat

@@ -35,6 +35,20 @@ Successful quickstart saves those into the same global profile memory that `/pro
 
 Runtime turns and `/status` now carry a bounded self-knowledge contract so OpenAssist can cite its own local docs, config path, env path, install directory, update track, and safe-maintenance limits without pretending it has permissions it does not have. In chat, the full config/env/install path view is reserved for approved operators; other senders still get the high-level lifecycle summary and host-side command guidance.
 
+Runtime-owned chat surfaces now split the general assistant intro from the operational diagnostics:
+
+- `/start` and `/help`: general OpenAssist welcome plus a truthful summary of what this session can help with
+- `/capabilities`: live capability inventory derived from access, provider, channel, tools, scheduler state, and install context
+- `/grow`: managed skill/helper inventory, update-safety note, and safe next actions
+- `/status`: operational diagnostic surface with sender/session IDs, access source, and lifecycle context
+
+Controlled growth now defaults to `extensions-first`:
+
+- managed skills live under the runtime-owned skills directory
+- managed helper tools live under the runtime-owned helper-tools directory
+- those assets are tracked durably and surfaced through `/grow`, `openassist growth status`, `openassist doctor`, and `openassist upgrade --dry-run`
+- direct repo mutation remains possible in `full-root`, but it is advanced work rather than the default durable growth path
+
 First-class channel scope:
 
 - Telegram: private chats, groups, forum topics
@@ -60,6 +74,10 @@ Primary runbooks:
 - `openassist setup wizard`: advanced section editor
 - `openassist service install`: explicit service install or reinstall
 - `openassist upgrade --dry-run`: resolved update plan without mutation
+- `openassist skills list`: list managed skills known to the runtime
+- `openassist skills install --path <dir>`: install a managed skill from a local directory
+- `openassist growth status`: show managed growth policy, directories, and installed assets
+- `openassist growth helper add --name <id> --root <path> --installer <kind> --summary <text>`: register a managed helper tool
 
 Use `install.sh` or `scripts/install/bootstrap.sh` again when the checkout is no longer trustworthy, `.git` is missing, or build output is missing and you want the installer to rebuild a clean repo-backed install.
 
@@ -69,6 +87,7 @@ Use `install.sh` or `scripts/install/bootstrap.sh` again when the checkout is no
 - Runtime modules: `docs/architecture/runtime-and-modules.md`
 - Provider contract: `docs/interfaces/provider-adapter.md`
 - Channel contract: `docs/interfaces/channel-adapter.md`
+- Skills manifest and managed growth contract: `docs/interfaces/skills-manifest.md`
 - Tool-calling contract: `docs/interfaces/tool-calling.md`
 - Scheduler and time contract: `docs/interfaces/scheduler-and-time.md`
 
@@ -94,4 +113,5 @@ Service smoke note:
 - Current lifecycle ExecPlans:
   - `docs/execplans/access-mode-opt-in-and-beginner-copy.md`
   - `docs/execplans/channel-first-class-integrations.md`
+  - `docs/execplans/general-purpose-assistant-identity-and-growth.md`
 - ExecPlan process: `.agents/PLANS.md`

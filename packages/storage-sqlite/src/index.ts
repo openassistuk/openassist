@@ -4,6 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import type {
   AttachmentRef,
   InboundEnvelope,
+  ManagedCapabilityKind,
+  ManagedCapabilityRecord,
   NormalizedMessage,
   OutboundEnvelope,
   PolicyProfile,
@@ -105,6 +107,15 @@ export interface SessionBootstrapRecord {
 
 export interface MessageAttachmentRecord extends AttachmentRef {
   messageId: number;
+}
+
+export interface ManagedCapabilityUpsertInput {
+  kind: ManagedCapabilityKind;
+  id: string;
+  installRoot: string;
+  installer: string;
+  summary: string;
+  updateSafe: boolean;
 }
 
 export interface OpenAssistDatabaseOptions {
@@ -335,6 +346,18 @@ export class OpenAssistDatabase {
         installed_at TEXT NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS managed_capabilities (
+        kind TEXT NOT NULL,
+        id TEXT NOT NULL,
+        install_root TEXT NOT NULL,
+        installer TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        update_safe INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(kind, id)
+      );
+
       CREATE TABLE IF NOT EXISTS module_health (
         module_id TEXT PRIMARY KEY,
         status TEXT NOT NULL,
@@ -417,6 +440,9 @@ export class OpenAssistDatabase {
 
       CREATE INDEX IF NOT EXISTS idx_messages_session_id_desc
       ON messages(session_id, id DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_managed_capabilities_kind_id
+      ON managed_capabilities(kind, id);
 
       CREATE INDEX IF NOT EXISTS idx_message_attachments_message_id
       ON message_attachments(message_id, id ASC);
@@ -1321,6 +1347,139 @@ export class OpenAssistDatabase {
       version: row.version,
       manifest: parseJson<Record<string, unknown>>(row.manifest_json)
     }));
+  }
+
+  upsertManagedCapability(input: ManagedCapabilityUpsertInput): void {
+    const timestamp = nowIso();
+    this.db
+      .prepare(
+        `
+        INSERT INTO managed_capabilities (
+          kind,
+          id,
+          install_root,
+          installer,
+          summary,
+          update_safe,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(kind, id) DO UPDATE SET
+          install_root = excluded.install_root,
+          installer = excluded.installer,
+          summary = excluded.summary,
+          update_safe = excluded.update_safe,
+          updated_at = excluded.updated_at
+      `
+      )
+      .run(
+        input.kind,
+        input.id,
+        input.installRoot,
+        input.installer,
+        input.summary,
+        input.updateSafe ? 1 : 0,
+        timestamp,
+        timestamp
+      );
+  }
+
+  deleteManagedCapabilitiesNotInSet(kind: ManagedCapabilityKind, ids: string[]): void {
+    if (ids.length === 0) {
+      this.db.prepare(`DELETE FROM managed_capabilities WHERE kind = ?`).run(kind);
+      return;
+    }
+
+    const placeholders = ids.map(() => "?").join(", ");
+    this.db
+      .prepare(
+        `DELETE FROM managed_capabilities WHERE kind = ? AND id NOT IN (${placeholders})`
+      )
+      .run(kind, ...ids);
+  }
+
+  listManagedCapabilities(kind?: ManagedCapabilityKind): ManagedCapabilityRecord[] {
+    const rows = (
+      kind
+        ? this.db
+            .prepare(
+              `
+                SELECT kind, id, install_root, installer, summary, update_safe, created_at, updated_at
+                FROM managed_capabilities
+                WHERE kind = ?
+                ORDER BY kind ASC, id ASC
+              `
+            )
+            .all(kind)
+        : this.db
+            .prepare(
+              `
+                SELECT kind, id, install_root, installer, summary, update_safe, created_at, updated_at
+                FROM managed_capabilities
+                ORDER BY kind ASC, id ASC
+              `
+            )
+            .all()
+    ) as Array<{
+      kind: ManagedCapabilityKind;
+      id: string;
+      install_root: string;
+      installer: string;
+      summary: string;
+      update_safe: number;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+    return rows.map((row) => ({
+      kind: row.kind,
+      id: row.id,
+      installRoot: row.install_root,
+      installer: row.installer,
+      summary: row.summary,
+      updateSafe: row.update_safe === 1,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+  }
+
+  getManagedCapability(kind: ManagedCapabilityKind, id: string): ManagedCapabilityRecord | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT kind, id, install_root, installer, summary, update_safe, created_at, updated_at
+          FROM managed_capabilities
+          WHERE kind = ? AND id = ?
+        `
+      )
+      .get(kind, id) as
+      | {
+          kind: ManagedCapabilityKind;
+          id: string;
+          install_root: string;
+          installer: string;
+          summary: string;
+          update_safe: number;
+          created_at: string;
+          updated_at: string;
+        }
+      | undefined;
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      kind: row.kind,
+      id: row.id,
+      installRoot: row.install_root,
+      installer: row.installer,
+      summary: row.summary,
+      updateSafe: row.update_safe === 1,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
   }
 
   getSetting<T>(key: string): T | null {

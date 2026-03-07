@@ -13,6 +13,7 @@ import { registerServiceCommands } from "./commands/service.js";
 import { registerUpgradeCommand } from "./commands/upgrade.js";
 import { SpawnCommandRunner } from "./lib/command-runner.js";
 import { loadEnvFile } from "./lib/env-file.js";
+import { inspectLocalGrowthState } from "./lib/growth-status.js";
 import { checkHealth } from "./lib/health-check.js";
 import { detectInstallStateFromRepo, loadInstallState } from "./lib/install-state.js";
 import { buildLifecycleReport, renderLifecycleReport } from "./lib/lifecycle-readiness.js";
@@ -181,6 +182,9 @@ program
     let serviceHealthOk = false;
     let serviceHealthDetail: string | undefined;
     let timezoneConfirmed = false;
+    let growthState:
+      | ReturnType<typeof inspectLocalGrowthState>
+      | undefined;
 
     if (configExists) {
       try {
@@ -245,6 +249,7 @@ program
       validationErrors = validation.errors;
       validationWarnings = validation.warnings;
       serviceManagerKind = validation.serviceManagerKind ?? serviceManagerKind;
+      growthState = inspectLocalGrowthState(configPath, parsedConfig, logger);
     }
 
     const report = buildLifecycleReport({
@@ -272,7 +277,18 @@ program
       daemonBuildExists,
       dirtyWorkingTree,
       localWrapperAvailable,
-      localWrapperCommand
+      localWrapperCommand,
+      growth: growthState
+        ? {
+            skillsDirectory: growthState.skillsDirectory,
+            helperToolsDirectory: growthState.helperToolsDirectory,
+            installedSkillCount: growthState.installedSkills.length,
+            managedHelperCount: growthState.managedHelpers.length,
+            installedSkillIds: growthState.installedSkills.map((item) => item.id),
+            managedHelperIds: growthState.managedHelpers.map((item) => item.id),
+            updateSafetyNote: growthState.updateSafetyNote
+          }
+        : undefined
     });
 
     if (Boolean(options.json)) {
@@ -675,6 +691,163 @@ toolsCommand
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`Tools invocations failed: ${message}`);
+      process.exitCode = 1;
+    }
+  });
+
+const skillsCommand = program.command("skills").description("Managed skill operations");
+skillsCommand
+  .command("list")
+  .description("List installed managed skills")
+  .option("--json", "Print full JSON output")
+  .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
+  .action(async (options) => {
+    try {
+      const baseUrl = String(options.baseUrl).replace(/\/+$/, "");
+      const result = await requestJson("GET", `${baseUrl}/v1/skills`);
+      if (result.status >= 400) {
+        throw new Error(`Request failed with status ${result.status}`);
+      }
+      if (Boolean(options.json)) {
+        console.log(JSON.stringify(result.data, null, 2));
+        return;
+      }
+      const skills = ((result.data as { skills?: Array<{ id: string; version: string; description: string }> })?.skills ?? []);
+      console.log("Managed skills");
+      if (skills.length === 0) {
+        console.log("- None.");
+        return;
+      }
+      for (const skill of skills) {
+        console.log(`- ${skill.id}@${skill.version}: ${skill.description}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Skills list failed: ${message}`);
+      process.exitCode = 1;
+    }
+  });
+
+skillsCommand
+  .command("install")
+  .description("Install a managed skill from a local directory")
+  .requiredOption("--path <dir>", "Local skill source directory")
+  .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
+  .action(async (options) => {
+    try {
+      const baseUrl = String(options.baseUrl).replace(/\/+$/, "");
+      const sourcePath = path.resolve(String(options.path));
+      const result = await requestJson("POST", `${baseUrl}/v1/skills/install`, {
+        path: sourcePath
+      });
+      if (result.status >= 400) {
+        throw new Error(`Request failed with status ${result.status}`);
+      }
+      const installed = ((result.data as { installed?: { id: string; version: string; description: string } }).installed);
+      console.log(
+        installed
+          ? `Installed managed skill ${installed.id}@${installed.version}: ${installed.description}`
+          : "Managed skill installed."
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Skills install failed: ${message}`);
+      process.exitCode = 1;
+    }
+  });
+
+const growthCommand = program.command("growth").description("Managed capability growth operations");
+growthCommand
+  .command("status")
+  .description("Show managed growth policy, directories, and installed assets")
+  .option("--json", "Print full JSON output")
+  .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
+  .option("--session <id>", "Session ID for actor-specific growth visibility")
+  .option("--sender-id <id>", "Sender ID for actor-specific growth visibility")
+  .action(async (options) => {
+    try {
+      const baseUrl = String(options.baseUrl).replace(/\/+$/, "");
+      const params = new URLSearchParams();
+      if (options.session) {
+        params.set("sessionId", String(options.session));
+      }
+      if (options.senderId) {
+        params.set("senderId", String(options.senderId));
+      }
+      const query = params.size > 0 ? `?${params.toString()}` : "";
+      const result = await requestJson("GET", `${baseUrl}/v1/growth/status${query}`);
+      if (result.status >= 400) {
+        throw new Error(`Request failed with status ${result.status}`);
+      }
+      if (Boolean(options.json)) {
+        console.log(JSON.stringify(result.data, null, 2));
+        return;
+      }
+      const growth = (result.data as {
+        growth?: {
+          defaultMode: string;
+          fullRootCanGrowNow: boolean;
+          skillsDirectory: string;
+          helperToolsDirectory: string;
+          updateSafetyNote: string;
+          installedSkills: Array<{ id: string; version: string }>;
+          managedHelpers: Array<{ id: string; installer: string; updateSafe: boolean }>;
+        };
+      }).growth;
+      if (!growth) {
+        console.log("Growth status unavailable.");
+        return;
+      }
+      console.log("OpenAssist growth status");
+      console.log(`- Mode: ${growth.defaultMode}`);
+      console.log(`- Growth actions available now: ${growth.fullRootCanGrowNow ? "yes" : "no"}`);
+      console.log(`- Skills directory: ${growth.skillsDirectory}`);
+      console.log(`- Helper tools directory: ${growth.helperToolsDirectory}`);
+      console.log(
+        `- Installed skills: ${growth.installedSkills.length > 0 ? growth.installedSkills.map((item) => `${item.id}@${item.version}`).join(", ") : "none"}`
+      );
+      console.log(
+        `- Managed helpers: ${growth.managedHelpers.length > 0 ? growth.managedHelpers.map((item) => `${item.id} (${item.installer}${item.updateSafe ? ", update-safe" : ""})`).join(", ") : "none"}`
+      );
+      console.log(`- Update safety: ${growth.updateSafetyNote}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Growth status failed: ${message}`);
+      process.exitCode = 1;
+    }
+  });
+
+growthCommand
+  .command("helper")
+  .description("Managed helper-tool registry operations")
+  .command("add")
+  .description("Register a managed helper tool")
+  .requiredOption("--name <id>", "Managed helper identifier")
+  .requiredOption("--root <path>", "Installed helper root path")
+  .requiredOption("--installer <kind>", "Helper installer kind")
+  .requiredOption("--summary <text>", "Short helper summary")
+  .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
+  .action(async (options) => {
+    try {
+      const baseUrl = String(options.baseUrl).replace(/\/+$/, "");
+      const result = await requestJson("POST", `${baseUrl}/v1/growth/helpers`, {
+        id: String(options.name),
+        root: path.resolve(String(options.root)),
+        installer: String(options.installer),
+        summary: String(options.summary)
+      });
+      if (result.status >= 400) {
+        throw new Error(`Request failed with status ${result.status}`);
+      }
+      const helper = (result.data as { helper?: { id: string; installRoot: string; installer: string; updateSafe: boolean } }).helper;
+      console.log(
+        helper
+          ? `Registered helper ${helper.id} at ${helper.installRoot} (${helper.installer}${helper.updateSafe ? ", update-safe" : ""})`
+          : "Managed helper registered."
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Growth helper add failed: ${message}`);
       process.exitCode = 1;
     }
   });

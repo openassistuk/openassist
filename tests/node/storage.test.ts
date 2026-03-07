@@ -245,4 +245,54 @@ describe("OpenAssistDatabase", () => {
 
     db.close();
   });
+
+  it("stores, updates, lists, and prunes managed capabilities", () => {
+    const root = tempDir("openassist-db-managed-capabilities-");
+    roots.push(root);
+
+    const db = new OpenAssistDatabase({
+      dbPath: path.join(root, "openassist.db"),
+      logger: createLogger({ service: "test" })
+    });
+
+    db.upsertManagedCapability({
+      kind: "skill",
+      id: "disk-maintenance",
+      installRoot: path.join(root, "skills", "disk-maintenance"),
+      installer: "skill-path-copy",
+      summary: "Disk maintenance skill",
+      updateSafe: true
+    });
+    db.upsertManagedCapability({
+      kind: "helper-tool",
+      id: "ripgrep-helper",
+      installRoot: path.join(root, "helper-tools", "ripgrep"),
+      installer: "manual",
+      summary: "Local search helper",
+      updateSafe: true
+    });
+
+    const insertedSkill = db.getManagedCapability("skill", "disk-maintenance");
+    assert.ok(insertedSkill);
+    assert.equal(insertedSkill?.summary, "Disk maintenance skill");
+
+    db.upsertManagedCapability({
+      kind: "helper-tool",
+      id: "ripgrep-helper",
+      installRoot: path.join(root, "helper-tools", "ripgrep"),
+      installer: "pkg.install",
+      summary: "Updated helper metadata",
+      updateSafe: false
+    });
+
+    const helpers = db.listManagedCapabilities("helper-tool");
+    assert.equal(helpers.length, 1);
+    assert.equal(helpers[0]?.installer, "pkg.install");
+    assert.equal(helpers[0]?.updateSafe, false);
+
+    db.deleteManagedCapabilitiesNotInSet("skill", []);
+    assert.equal(db.listManagedCapabilities("skill").length, 0);
+
+    db.close();
+  });
 });

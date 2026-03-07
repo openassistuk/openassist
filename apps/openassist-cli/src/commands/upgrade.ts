@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { loadConfig } from "@openassist/config";
+import { createLogger } from "@openassist/observability";
 import type { Command } from "commander";
 import {
   SpawnCommandRunner,
@@ -10,10 +11,13 @@ import {
 } from "../lib/command-runner.js";
 import { checkHealth, waitForHealthy } from "../lib/health-check.js";
 import { buildLifecycleReport } from "../lib/lifecycle-readiness.js";
+import { inspectLocalGrowthState } from "../lib/growth-status.js";
 import { createServiceManager } from "../lib/service-manager.js";
 import { defaultInstallDir, detectDefaultDaemonBaseUrl } from "../lib/runtime-context.js";
 import { detectInstallStateFromRepo, loadInstallState, saveInstallState } from "../lib/install-state.js";
 import { buildUpgradePlan, renderUpgradePlanSummary } from "../lib/upgrade.js";
+
+const logger = createLogger({ service: "openassist-cli" });
 
 interface UpgradeContext {
   installDir: string;
@@ -166,12 +170,16 @@ export function registerUpgradeCommand(program: Command): void {
         const envExists = fs.existsSync(envFilePath);
         let parsedConfig;
         let validationErrors: Array<{ code: string; message: string; hint?: string }> = [];
+        let growthState:
+          | ReturnType<typeof inspectLocalGrowthState>
+          | undefined;
         if (configExists) {
           try {
             parsedConfig = loadConfig({
               baseFile: configPath,
               overlaysDir: path.join(path.dirname(configPath), "config.d")
             }).config;
+            growthState = inspectLocalGrowthState(configPath, parsedConfig, logger);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             validationErrors = [
@@ -214,7 +222,18 @@ export function registerUpgradeCommand(program: Command): void {
           hasPnpm,
           hasNode,
           daemonBuildExists: fs.existsSync(path.join(installDir, "apps", "openassistd", "dist", "index.js")),
-          dirtyWorkingTree
+          dirtyWorkingTree,
+          growth: growthState
+            ? {
+                skillsDirectory: growthState.skillsDirectory,
+                helperToolsDirectory: growthState.helperToolsDirectory,
+                installedSkillCount: growthState.installedSkills.length,
+                managedHelperCount: growthState.managedHelpers.length,
+                installedSkillIds: growthState.installedSkills.map((item) => item.id),
+                managedHelperIds: growthState.managedHelpers.map((item) => item.id),
+                updateSafetyNote: growthState.updateSafetyNote
+              }
+            : undefined
         });
 
         printLines(
@@ -226,6 +245,15 @@ export function registerUpgradeCommand(program: Command): void {
             rollbackTarget: context.oldCommit,
             upgradeReadiness: report.summary.upgradeReadiness,
             upgradeBlockers: report.sections.needsActionBeforeUpgrade,
+            growth: growthState
+              ? {
+                  installedSkillCount: growthState.installedSkills.length,
+                  managedHelperCount: growthState.managedHelpers.length,
+                  skillsDirectory: growthState.skillsDirectory,
+                  helperToolsDirectory: growthState.helperToolsDirectory,
+                  updateSafetyNote: growthState.updateSafetyNote
+                }
+              : undefined,
             plan
           })
         );

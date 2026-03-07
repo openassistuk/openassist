@@ -159,7 +159,10 @@ export class DiscordChannelAdapter implements ChannelAdapter {
     return {
       supportsEdits: true,
       supportsDeletes: true,
-      supportsReadReceipts: false
+      supportsReadReceipts: false,
+      supportsFormattedText: true,
+      supportsImageAttachments: true,
+      supportsDocumentAttachments: true
     };
   }
 

@@ -70,6 +70,23 @@ export interface RuntimeDocRef {
   whenToUse: string;
 }
 
+export type RuntimeCapabilityDomainId =
+  | "local-system"
+  | "files-documents"
+  | "images-attachments"
+  | "web-research"
+  | "recurring-automation"
+  | "capability-growth"
+  | "openassist-lifecycle";
+
+export interface RuntimeCapabilityDomain {
+  id: RuntimeCapabilityDomainId;
+  label: string;
+  available: boolean;
+  reason: string;
+  exampleTasks: string[];
+}
+
 export interface RuntimeAwarenessCapabilities {
   canInspectLocalFiles: boolean;
   canRunLocalCommands: boolean;
@@ -99,8 +116,31 @@ export interface RuntimeAwarenessMaintenance {
   preferredCommands: string[];
 }
 
+export interface RuntimeAwarenessGrowth {
+  defaultMode: "extensions-first";
+  fullRootCanGrowNow: boolean;
+  installedSkillCount: number;
+  managedHelperCount: number;
+  skillsDirectory: string;
+  helperToolsDirectory: string;
+  updateSafetyNote: string;
+}
+
+export type ManagedCapabilityKind = "skill" | "helper-tool";
+
+export interface ManagedCapabilityRecord {
+  kind: ManagedCapabilityKind;
+  id: string;
+  installRoot: string;
+  installer: string;
+  summary: string;
+  updateSafe: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RuntimeAwarenessSnapshot {
-  version: 2;
+  version: 3;
   software: {
     product: string;
     role: string;
@@ -118,6 +158,8 @@ export interface RuntimeAwarenessSnapshot {
     sessionId: string;
     conversationKey: string;
     defaultProviderId: string;
+    activeChannelId: string;
+    activeChannelType: string;
     providerIds: string[];
     channelIds: string[];
     startedAt?: string;
@@ -140,8 +182,10 @@ export interface RuntimeAwarenessSnapshot {
     notes: string[];
   };
   capabilities: RuntimeAwarenessCapabilities;
+  capabilityDomains: RuntimeCapabilityDomain[];
   documentation: RuntimeAwarenessDocumentation;
   maintenance: RuntimeAwarenessMaintenance;
+  growth: RuntimeAwarenessGrowth;
 }
 
 export interface RuntimeSecurityConfig {

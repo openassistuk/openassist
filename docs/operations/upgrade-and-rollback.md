@@ -43,6 +43,9 @@ Dry-run prints the resolved plan before any mutation:
 - current commit
 - tracked ref from install state or repo metadata
 - target ref that will be used
+- managed skill count and managed helper count
+- managed growth directories
+- update-safety note for managed extensions versus dirty repo edits
 - execution mode:
   - pull on the current branch
   - checkout by ref
@@ -59,6 +62,12 @@ The dry-run classification is now explicit:
 - `rerun bootstrap instead`
 
 `openassist upgrade --dry-run` uses the same readiness model as `openassist doctor`, so the grouped blockers and the recommended next command should agree across both commands.
+
+Managed growth note:
+
+- managed skills and registered helper tools are designed to survive normal upgrades
+- `openassist upgrade --dry-run` makes that explicit so operators can distinguish update-safe extensions from dirty repo code changes
+- direct edits to tracked repo files still make the working tree dirty and are not treated as managed growth in this release
 
 Detached checkout note:
 
@@ -146,6 +155,7 @@ Run the next checks that the command prints, or run them directly:
 openassist service health
 openassist channel status
 openassist doctor
+openassist growth status
 ```
 
 If you skipped restart, restart explicitly before treating the upgrade as complete:

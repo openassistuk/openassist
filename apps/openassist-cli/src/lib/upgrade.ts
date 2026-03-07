@@ -23,6 +23,13 @@ export interface RenderUpgradePlanInput {
   rollbackTarget?: string;
   upgradeReadiness: UpgradeReadiness;
   upgradeBlockers: LifecycleReportItem[];
+  growth?: {
+    installedSkillCount: number;
+    managedHelperCount: number;
+    skillsDirectory: string;
+    helperToolsDirectory: string;
+    updateSafetyNote: string;
+  };
   plan: UpgradePlan;
 }
 
@@ -83,6 +90,13 @@ export function renderUpgradePlanSummary(input: RenderUpgradePlanInput): string[
     `- Restart and health checks after update: ${input.plan.skipRestart ? "skipped by option" : "enabled"}`,
     `- Rollback target if the update fails: ${input.rollbackTarget ? abbreviateCommit(input.rollbackTarget) : "(not available)"}`
   ];
+  if (input.growth) {
+    lines.push(
+      `- Managed growth assets: skills=${input.growth.installedSkillCount}, helpers=${input.growth.managedHelperCount}`,
+      `- Managed growth directories: skills=${input.growth.skillsDirectory}; helpers=${input.growth.helperToolsDirectory}`,
+      `- Managed growth update safety: ${input.growth.updateSafetyNote}`
+    );
+  }
 
   lines.push("Needs action before upgrade");
   if (blockers.length === 0) {

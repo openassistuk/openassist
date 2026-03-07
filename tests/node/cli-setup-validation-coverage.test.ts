@@ -105,15 +105,14 @@ describe("cli setup validation and summary coverage", () => {
       });
 
       const errorCodes = new Set(result.errors.map((item) => item.code));
-      const warningCodes = new Set(result.warnings.map((item) => item.code));
-
       assert.equal(errorCodes.has("provider.default_missing"), true);
       assert.equal(errorCodes.has("channel.telegram_token_missing"), true);
       assert.equal(errorCodes.has("channel.discord_token_missing"), true);
       assert.equal(errorCodes.has("channel.env_ref_unresolved"), true);
       assert.equal(errorCodes.has("time.timezone_unconfirmed"), true);
       assert.equal(errorCodes.has("runtime.port_unavailable"), true);
-      assert.equal(warningCodes.has("channel.whatsapp_experimental"), true);
+      const warningCodes = new Set(result.warnings.map((item) => item.code));
+      assert.equal(warningCodes.has("channel.whatsapp_experimental"), false);
     } finally {
       await new Promise<void>((resolve, reject) => {
         holder.close((error) => {

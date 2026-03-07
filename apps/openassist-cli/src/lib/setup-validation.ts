@@ -199,15 +199,6 @@ function validateChannelRequirements(
       }
     }
 
-    if (channel.type === "whatsapp-md" && settings.mode === "experimental") {
-      pushIssue(
-        warnings,
-        "channel.whatsapp_experimental",
-        `Channel '${channel.id}' uses experimental WhatsApp mode.`,
-        "Keep monitoring /v1/channels/status and expect higher maintenance overhead."
-      );
-    }
-
     forEachEnvReference(settings, (varName, keyPath) => {
       if (!hasEnvValue(env, varName)) {
         pushIssue(

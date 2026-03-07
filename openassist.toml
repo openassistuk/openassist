@@ -11,6 +11,12 @@ persona = "Pragmatic, concise, and execution-focused local AI assistant."
 operatorPreferences = ""
 promptOnFirstContact = true
 
+[runtime.attachments]
+maxFilesPerMessage = 4
+maxImageBytes = 10000000
+maxDocumentBytes = 1000000
+maxExtractedChars = 12000
+
 [runtime.time]
 ntpPolicy = "warn-degrade"
 ntpCheckIntervalSec = 300

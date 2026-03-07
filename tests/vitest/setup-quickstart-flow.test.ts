@@ -101,6 +101,7 @@ function minimalDiscordCompatAnswers(extra: string[] = []): string[] {
     "discord-token",
     "not-a-snowflake",
     "123456789012345678,987654321098765432",
+    "",
     "Europe",
     "Europe/London",
     "true",

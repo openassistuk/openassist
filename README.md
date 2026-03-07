@@ -12,6 +12,14 @@ It is designed for a public operator workflow:
 - use an advanced editor only when you need deeper changes
 - upgrade in place with a dry-run plan and automatic rollback on failure
 
+Supported first-class chat surfaces in the current release:
+
+- Telegram: private chats, groups, forum topics
+- Discord: guild text channels, threads, DMs
+- WhatsApp MD: private chats, groups
+
+Channel replies now render with channel-safe formatting, long replies are chunked cleanly, and inbound images plus supported text-like documents are preserved instead of being dropped. Built-in OpenAI and Anthropic providers can inspect inbound images; OpenAI-compatible providers stay text-only and say so explicitly.
+
 `Service Smoke` is a supplemental lifecycle workflow that runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`). It is not a required push or PR gate.
 
 ## Lifecycle
@@ -90,6 +98,7 @@ OAuth client configuration, extra providers, extra channels, scheduler tasks, na
 
 Quickstart blocks invalid or incomplete first-reply state by default. Use `--allow-incomplete` only when you explicitly want to save a degraded setup.
 If you opt into full access, quickstart asks for approved operator IDs for the chosen channel and falls back cleanly to standard mode if you are not ready to enter them yet.
+Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`.
 
 ### 4. Check install and runtime readiness
 
@@ -120,7 +129,7 @@ For Telegram, quickstart keeps the default inline behavior:
 When the bot is online:
 
 1. Send a simple message in the configured chat.
-2. Confirm you receive a reply.
+2. Confirm you receive a reply with readable formatting instead of one dense wall of text.
 3. Send `/status` if you need local diagnostics without depending on provider health.
 4. Copy the sender ID and session ID from `/status` if you want to configure approved operators or inspect actor-specific access from the CLI later.
 
@@ -181,6 +190,11 @@ Bootstrap writes and preserves an install record at `~/.config/openassist/instal
 `openassist service install`, `openassist doctor`, and `openassist upgrade` all read or update the same record instead of drifting independent state.
 
 The install record keeps the tracked ref visible to operators, but `openassist upgrade` still follows the current checked-out branch by default. If the repo is detached, dry-run will show the target ref it resolved, and you should usually pass `--ref` explicitly.
+
+WhatsApp/media install baseline:
+
+- `pnpm-workspace.yaml` now allows the WhatsApp/media build-script dependencies used by the supported path
+- if `pnpm` still reports skipped WhatsApp/media build scripts on your host, approve them before relying on WhatsApp image or document handling
 
 ## Command Reference
 

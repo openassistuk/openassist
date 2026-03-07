@@ -53,8 +53,8 @@ Interactive bootstrap on Linux runs `openassist setup quickstart` after build. N
 Expected installer note:
 
 - `pnpm` version notices are informational
-- ignored optional build-script warnings are expected on normal Telegram or Discord installs
-- those warnings usually matter only for optional WhatsApp/media paths
+- the supported path now includes WhatsApp/media baseline build-script dependencies
+- if `pnpm` still reports skipped WhatsApp/media build scripts on your host, approve them before relying on WhatsApp image or document handling
 
 ## Linux Service Manager Rules
 

@@ -1,7 +1,9 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   DisconnectReason,
+  downloadMediaMessage,
   fetchLatestBaileysVersion,
   makeWASocket,
   useMultiFileAuthState
@@ -9,6 +11,7 @@ import {
 import pino from "pino";
 import { z } from "zod";
 import type {
+  AttachmentRef,
   ChannelAdapter,
   ChannelCapabilities,
   HealthStatus,
@@ -31,6 +34,22 @@ const configSchema = z.object({
 });
 
 export type WhatsAppMdChannelConfig = z.infer<typeof configSchema>;
+
+function sanitizeFileName(value: string | undefined, fallback: string): string {
+  const normalized = (value ?? "").trim();
+  if (normalized.length === 0) {
+    return fallback;
+  }
+  return normalized.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || fallback;
+}
+
+async function persistTempFile(bytes: Uint8Array, fileName: string): Promise<string> {
+  const dir = path.join(os.tmpdir(), "openassist-whatsapp");
+  await fs.promises.mkdir(dir, { recursive: true });
+  const filePath = path.join(dir, `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileName}`);
+  await fs.promises.writeFile(filePath, bytes);
+  return filePath;
+}
 
 function extractText(message: any): string | undefined {
   if (!message) {
@@ -56,6 +75,92 @@ function extractText(message: any): string | undefined {
     return extractText(message.viewOnceMessage.message);
   }
   return undefined;
+}
+
+function unwrapMessage(message: any): any {
+  if (!message) {
+    return undefined;
+  }
+  if (message.ephemeralMessage?.message) {
+    return unwrapMessage(message.ephemeralMessage.message);
+  }
+  if (message.viewOnceMessage?.message) {
+    return unwrapMessage(message.viewOnceMessage.message);
+  }
+  return message;
+}
+
+async function extractAttachments(socket: any, logger: any, message: any): Promise<AttachmentRef[]> {
+  const content = unwrapMessage(message?.message);
+  if (!content) {
+    return [];
+  }
+
+  const attachments: AttachmentRef[] = [];
+  const imageMessage = content.imageMessage;
+  if (imageMessage) {
+    const buffer = await downloadMediaMessage(
+      message,
+      "buffer",
+      {},
+      {
+        logger,
+        reuploadRequest: socket.updateMediaMessage
+      }
+    );
+    if (buffer) {
+      const name = sanitizeFileName(undefined, `whatsapp-image-${message?.key?.id ?? Date.now()}.jpg`);
+      attachments.push({
+        id: String(message?.key?.id ?? name),
+        kind: "image",
+        name,
+        mimeType: typeof imageMessage.mimetype === "string" ? imageMessage.mimetype : "image/jpeg",
+        localPath: await persistTempFile(
+          buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer),
+          name
+        ),
+        sizeBytes: typeof imageMessage.fileLength === "number" ? imageMessage.fileLength : undefined,
+        captionText: typeof imageMessage.caption === "string" ? imageMessage.caption : undefined
+      });
+    }
+  }
+
+  const documentMessage = content.documentMessage;
+  if (documentMessage) {
+    const buffer = await downloadMediaMessage(
+      message,
+      "buffer",
+      {},
+      {
+        logger,
+        reuploadRequest: socket.updateMediaMessage
+      }
+    );
+    if (buffer) {
+      const name = sanitizeFileName(
+        typeof documentMessage.fileName === "string" ? documentMessage.fileName : undefined,
+        `whatsapp-document-${message?.key?.id ?? Date.now()}`
+      );
+      const mimeType =
+        typeof documentMessage.mimetype === "string" ? documentMessage.mimetype : undefined;
+      attachments.push({
+        id: String(message?.key?.id ?? name),
+        kind: mimeType?.startsWith("image/") ? "image" : "document",
+        name,
+        mimeType,
+        localPath: await persistTempFile(
+          buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer),
+          name
+        ),
+        sizeBytes:
+          typeof documentMessage.fileLength === "number" ? documentMessage.fileLength : undefined,
+        captionText:
+          typeof documentMessage.caption === "string" ? documentMessage.caption : undefined
+      });
+    }
+  }
+
+  return attachments;
 }
 
 function normalizeJid(value: string): string {
@@ -134,7 +239,20 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
     }
 
     const jid = normalizeJid(msg.conversationKey);
-    const sent = await this.socket.sendMessage(jid, { text: msg.text });
+    const sendOptions: Record<string, unknown> = {};
+    if (msg.replyToTransportMessageId) {
+      sendOptions.quoted = {
+        key: {
+          remoteJid: jid,
+          fromMe: false,
+          id: msg.replyToTransportMessageId
+        },
+        message: {
+          conversation: ""
+        }
+      };
+    }
+    const sent = await this.socket.sendMessage(jid, { text: msg.text }, sendOptions);
     const sentId = sent?.key?.id ?? `wa-md:${Date.now()}:${jid}`;
 
     return {
@@ -228,7 +346,8 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
         }
 
         const text = extractText(message.message);
-        if (!text) {
+        const attachments = await extractAttachments(this.socket, this.logger, message);
+        if ((!text || text.trim().length === 0) && attachments.length === 0) {
           continue;
         }
 
@@ -240,7 +359,7 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
           conversationKey: remoteJid,
           senderId,
           text,
-          attachments: [],
+          attachments,
           receivedAt: new Date().toISOString(),
           idempotencyKey: `wa-md:${remoteJid}:${messageId}`
         });

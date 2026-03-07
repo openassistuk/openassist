@@ -34,7 +34,8 @@ class PkgProvider implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: true,
       supportsOAuth: false,
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: false
     };
   }
 

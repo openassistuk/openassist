@@ -147,6 +147,37 @@ const channelSchema = z.object({
     .default({})
 }).superRefine((channel, ctx) => {
   for (const [key, value] of Object.entries(channel.settings)) {
+    if (key === "allowedDmUserIds") {
+      if (channel.type !== "discord") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Channel setting 'allowedDmUserIds' is only supported for Discord channels",
+          path: ["settings", key]
+        });
+        continue;
+      }
+
+      if (!Array.isArray(value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Channel setting 'allowedDmUserIds' must be an array of Discord user IDs",
+          path: ["settings", key]
+        });
+        continue;
+      }
+
+      value.forEach((entry, index) => {
+        if (!isDiscordOperatorId(entry)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Discord DM allow-list IDs must be numeric snowflakes",
+            path: ["settings", key, index]
+          });
+        }
+      });
+      continue;
+    }
+
     if (key === "operatorUserIds") {
       if (!Array.isArray(value)) {
         ctx.addIssue({
@@ -262,6 +293,14 @@ const runtimeSchema = z.object({
       promptOnFirstContact: z.boolean().default(true)
     })
     .default({}),
+  attachments: z
+    .object({
+      maxFilesPerMessage: z.number().int().min(1).max(16).default(4),
+      maxImageBytes: z.number().int().positive().max(25_000_000).default(10_000_000),
+      maxDocumentBytes: z.number().int().positive().max(10_000_000).default(1_000_000),
+      maxExtractedChars: z.number().int().positive().max(100_000).default(12_000)
+    })
+    .default({}),
   time: z
     .object({
       defaultTimezone: z
@@ -366,6 +405,7 @@ export function toRuntimeConfig(config: OpenAssistConfig): RuntimeConfig {
     operatorAccessProfile: config.runtime.operatorAccessProfile,
     workspaceRoot: config.runtime.workspaceRoot,
     assistant: config.runtime.assistant,
+    attachments: config.runtime.attachments,
     paths: config.runtime.paths,
     time: config.runtime.time,
     scheduler: config.runtime.scheduler,

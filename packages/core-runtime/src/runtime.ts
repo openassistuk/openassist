@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import os from "node:os";
+import path from "node:path";
 import type {
   ApiKeyAuth,
   ChannelAdapter,
@@ -34,6 +35,8 @@ import {
   buildRuntimeAwarenessSystemMessage,
   summarizeRuntimeAwareness
 } from "./awareness.js";
+import { ingestInboundAttachments } from "./attachments.js";
+import { renderOutboundEnvelope } from "./channel-rendering.js";
 import { ContextPlanner, sanitizeUserOutput } from "./context.js";
 import {
   ClockHealthMonitor,
@@ -65,7 +68,8 @@ function defaultSystemPrompt(): string {
     "You are OpenAssist, a modular local-first AI gateway assistant.",
     "Use the runtime awareness snapshot to stay grounded in what OpenAssist is, where it is running, and what it can and cannot do right now.",
     "Never expose internal reasoning metadata to messaging channels.",
-    "Use concise, actionable responses and report errors clearly."
+    "Use concise, actionable responses and report errors clearly.",
+    "Prefer short sections, bullets, and brief paragraphs over dense walls of text."
   ].join("\n");
 }
 
@@ -124,6 +128,10 @@ function describeAccessSource(source: EffectivePolicySource): string {
     return "approved operator default for this channel";
   }
   return "runtime default";
+}
+
+function encodePathSegment(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
 }
 
 function toDisplayText(value: unknown): string {
@@ -1039,23 +1047,25 @@ export class OpenAssistRuntime {
 
   async handleInbound(envelope: InboundEnvelope): Promise<void> {
     const sessionId = sessionIdFromEnvelope(envelope);
-    const accepted = this.db.recordInbound(sessionId, envelope);
+    const commandText = envelope.text;
+    const preparedInbound = await this.prepareInboundEnvelope(envelope);
+    const accepted = this.db.recordInbound(sessionId, preparedInbound.envelope);
     if (!accepted) {
-      this.logger.info(redactSensitiveData({ envelope }), "duplicate inbound message ignored");
+      this.logger.info(redactSensitiveData({ envelope: preparedInbound.envelope }), "duplicate inbound message ignored");
       return;
     }
 
-    const channel = this.channels.get(envelope.channelId);
+    const channel = this.channels.get(preparedInbound.envelope.channelId);
     if (!channel) {
-      throw new Error(`No channel adapter found for id ${envelope.channelId}`);
+      throw new Error(`No channel adapter found for id ${preparedInbound.envelope.channelId}`);
     }
 
     try {
-      if (this.isOperationalStatusRequest(envelope.text)) {
+      if (this.isOperationalStatusRequest(commandText)) {
         const statusText = sanitizeUserOutput(
-          await this.buildOperationalStatusMessage(sessionId, envelope.senderId)
+          await this.buildOperationalStatusMessage(sessionId, preparedInbound.envelope.senderId)
         );
-        this.db.recordAssistantMessage(sessionId, envelope.conversationKey, {
+        this.db.recordAssistantMessage(sessionId, preparedInbound.envelope.conversationKey, {
           role: "assistant",
           content: statusText
         }, {
@@ -1063,10 +1073,10 @@ export class OpenAssistRuntime {
           source: "runtime.status"
         });
         await this.sendOutboundWithRetry(channel, sessionId, {
-          channel: envelope.channel,
-          conversationKey: envelope.conversationKey,
+          channel: preparedInbound.envelope.channel,
+          conversationKey: preparedInbound.envelope.conversationKey,
           text: statusText,
-          replyToTransportMessageId: envelope.transportMessageId,
+          replyToTransportMessageId: preparedInbound.envelope.transportMessageId,
           metadata: {
             source: "runtime-status"
           }
@@ -1074,30 +1084,30 @@ export class OpenAssistRuntime {
         return;
       }
 
-      if (this.isProfileCommand(envelope.text)) {
-        await this.handleProfileCommand(channel, envelope, sessionId);
+      if (this.isProfileCommand(commandText)) {
+        await this.handleProfileCommand(channel, preparedInbound.envelope, sessionId);
         return;
       }
 
-      if (this.isAccessCommand(envelope.text)) {
-        await this.handleAccessCommand(channel, envelope, sessionId);
+      if (this.isAccessCommand(commandText)) {
+        await this.handleAccessCommand(channel, preparedInbound.envelope, sessionId);
         return;
       }
 
       const profileResolution = await this.policyEngine.resolveProfile({
         sessionId,
-        actorId: envelope.senderId
+        actorId: preparedInbound.envelope.senderId
       });
       const sessionBootstrap = this.ensureSessionBootstrap(
         sessionId,
-        envelope.conversationKey,
+        preparedInbound.envelope.conversationKey,
         profileResolution
       );
-      if (this.shouldSendFirstContactPrompt(envelope.text, sessionBootstrap)) {
+      if (this.shouldSendFirstContactPrompt(commandText, sessionBootstrap)) {
         const prompt = sanitizeUserOutput(this.buildFirstContactPrompt(sessionBootstrap));
         this.db.recordAssistantMessage(
           sessionId,
-          envelope.conversationKey,
+          preparedInbound.envelope.conversationKey,
           {
             role: "assistant",
             content: prompt
@@ -1110,10 +1120,10 @@ export class OpenAssistRuntime {
         this.db.markSessionBootstrapPrompted(sessionId);
 
         await this.sendOutboundWithRetry(channel, sessionId, {
-          channel: envelope.channel,
-          conversationKey: envelope.conversationKey,
+          channel: preparedInbound.envelope.channel,
+          conversationKey: preparedInbound.envelope.conversationKey,
           text: prompt,
-          replyToTransportMessageId: envelope.transportMessageId,
+          replyToTransportMessageId: preparedInbound.envelope.transportMessageId,
           metadata: {
             source: "runtime-profile-prompt"
           }
@@ -1134,15 +1144,22 @@ export class OpenAssistRuntime {
       const model =
         this.config.providers.find((candidate) => candidate.id === provider.id())?.defaultModel ??
         "unknown";
-      const actorId = envelope.senderId;
+      const actorId = preparedInbound.envelope.senderId;
       const toolSchemas = await this.resolveToolSchemasForSession(sessionId, actorId);
       const recentMessages = this.db.getRecentMessages(sessionId, 50);
       const planned = this.contextPlanner.plan(defaultSystemPrompt(), recentMessages);
       let conversationMessages: NormalizedMessage[] = [...planned.messages];
       conversationMessages.splice(1, 0, this.buildSessionBootstrapSystemMessage(sessionBootstrap));
+      const providerInputNotes = this.buildProviderInputNotes(provider, preparedInbound.envelope);
+      if (providerInputNotes.length > 0) {
+        conversationMessages.splice(2, 0, {
+          role: "system",
+          content: providerInputNotes.join("\n")
+        });
+      }
 
       if (planned.snapshotWritten) {
-        this.db.recordAssistantMessage(sessionId, envelope.conversationKey, {
+        this.db.recordAssistantMessage(sessionId, preparedInbound.envelope.conversationKey, {
           role: "assistant",
           content: "[state_snapshot_written]",
           metadata: {
@@ -1172,9 +1189,9 @@ export class OpenAssistRuntime {
             messages: conversationMessages,
             tools: toolSchemas,
             metadata: {
-              channel: envelope.channel,
-              channelId: envelope.channelId,
-              senderId: envelope.senderId,
+              channel: preparedInbound.envelope.channel,
+              channelId: preparedInbound.envelope.channelId,
+              senderId: preparedInbound.envelope.senderId,
               toolRound: String(round)
             }
           },
@@ -1191,7 +1208,7 @@ export class OpenAssistRuntime {
             {
               type: "tool.call.ignored",
               sessionId,
-              conversationKey: envelope.conversationKey,
+              conversationKey: preparedInbound.envelope.conversationKey,
               profile: profileResolution.profile,
               providerId: provider.id(),
               toolCallCount: toolCalls.length
@@ -1224,7 +1241,7 @@ export class OpenAssistRuntime {
             }
           };
           conversationMessages.push(assistantToolCallMessage);
-          this.db.recordAssistantMessage(sessionId, envelope.conversationKey, assistantToolCallMessage, {
+          this.db.recordAssistantMessage(sessionId, preparedInbound.envelope.conversationKey, assistantToolCallMessage, {
             providerId: provider.id(),
             toolCallId: toolCall.id,
             toolName: toolCall.name
@@ -1232,7 +1249,7 @@ export class OpenAssistRuntime {
 
           const execution = await this.executeToolCallWithAudit(
             sessionId,
-            envelope.conversationKey,
+            preparedInbound.envelope.conversationKey,
             actorId,
             toolCall
           );
@@ -1246,7 +1263,7 @@ export class OpenAssistRuntime {
             }
           };
           conversationMessages.push(toolMessage);
-          this.db.recordAssistantMessage(sessionId, envelope.conversationKey, toolMessage, {
+          this.db.recordAssistantMessage(sessionId, preparedInbound.envelope.conversationKey, toolMessage, {
             providerId: provider.id(),
             toolCallId: execution.message.toolCallId,
             toolName: execution.message.name,
@@ -1260,10 +1277,15 @@ export class OpenAssistRuntime {
           "Tool execution reached the maximum round limit for this message. Narrow the request and try again.";
       }
 
-      const safeText = sanitizeUserOutput(responseText);
+      const safeText = sanitizeUserOutput(
+        this.appendOutboundNotes(responseText, [
+          ...preparedInbound.notes,
+          ...this.buildProviderVisibilityNotes(provider, preparedInbound.envelope)
+        ])
+      );
       this.db.recordAssistantMessage(
         sessionId,
-        envelope.conversationKey,
+        preparedInbound.envelope.conversationKey,
         {
           role: "assistant",
           content: safeText,
@@ -1278,10 +1300,10 @@ export class OpenAssistRuntime {
       );
 
       await this.sendOutboundWithRetry(channel, sessionId, {
-        channel: envelope.channel,
-        conversationKey: envelope.conversationKey,
+        channel: preparedInbound.envelope.channel,
+        conversationKey: preparedInbound.envelope.conversationKey,
         text: safeText,
-        replyToTransportMessageId: envelope.transportMessageId,
+        replyToTransportMessageId: preparedInbound.envelope.transportMessageId,
         metadata: {
           providerId: provider.id()
         }
@@ -1292,8 +1314,8 @@ export class OpenAssistRuntime {
       this.logger.error(
         redactSensitiveData({
           sessionId,
-          conversationKey: envelope.conversationKey,
-          channel: envelope.channel,
+          conversationKey: preparedInbound.envelope.conversationKey,
+          channel: preparedInbound.envelope.channel,
           error: errText
         }),
         "inbound processing failed"
@@ -1311,7 +1333,7 @@ export class OpenAssistRuntime {
 
       this.db.recordAssistantMessage(
         sessionId,
-        envelope.conversationKey,
+        preparedInbound.envelope.conversationKey,
         {
           role: "assistant",
           content: diagnosticText
@@ -1323,10 +1345,10 @@ export class OpenAssistRuntime {
       );
 
       await this.sendOutboundWithRetry(channel, sessionId, {
-        channel: envelope.channel,
-        conversationKey: envelope.conversationKey,
+        channel: preparedInbound.envelope.channel,
+        conversationKey: preparedInbound.envelope.conversationKey,
         text: diagnosticText,
-        replyToTransportMessageId: envelope.transportMessageId,
+        replyToTransportMessageId: preparedInbound.envelope.transportMessageId,
         metadata: {
           source: "runtime-diagnostic",
           providerId: this.config.defaultProviderId
@@ -1340,29 +1362,101 @@ export class OpenAssistRuntime {
     sessionId: string,
     outbound: OutboundEnvelope
   ): Promise<void> {
-    try {
-      const sent = await channel.send(outbound);
-      this.db.recordOutbound(sessionId, outbound, sent.transportMessageId);
-    } catch (error) {
-      const errText = error instanceof Error ? error.message : String(error);
-      this.logger.warn(
-        redactSensitiveData({ errText, outbound }),
-        "outbound send failed, enqueuing retry job"
-      );
-      this.recoveryWorker.enqueue(
-        "send_outbound",
-        {
-          channelId: channel.id(),
-          sessionId,
-          envelope: outbound
-        },
-        {
-          maxAttempts: 5,
-          initialDelayMs: 1000,
-          maxDelayMs: 60000
-        }
-      );
+    for (const rendered of renderOutboundEnvelope(outbound)) {
+      try {
+        const sent = await channel.send(rendered);
+        this.db.recordOutbound(sessionId, rendered, sent.transportMessageId);
+      } catch (error) {
+        const errText = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          redactSensitiveData({ errText, outbound: rendered }),
+          "outbound send failed, enqueuing retry job"
+        );
+        this.recoveryWorker.enqueue(
+          "send_outbound",
+          {
+            channelId: channel.id(),
+            sessionId,
+            envelope: rendered
+          },
+          {
+            maxAttempts: 5,
+            initialDelayMs: 1000,
+            maxDelayMs: 60000
+          }
+        );
+      }
     }
+  }
+
+  private attachmentStorageDir(envelope: InboundEnvelope): string {
+    return path.join(
+      this.config.paths.dataDir,
+      "attachments",
+      envelope.channelId,
+      encodePathSegment(envelope.conversationKey),
+      encodePathSegment(envelope.transportMessageId)
+    );
+  }
+
+  private async prepareInboundEnvelope(
+    envelope: InboundEnvelope
+  ): Promise<{ envelope: InboundEnvelope; notes: string[] }> {
+    const ingested = await ingestInboundAttachments({
+      attachmentsConfig: this.config.attachments,
+      attachmentsDir: this.attachmentStorageDir(envelope),
+      envelope,
+      logger: this.logger
+    });
+
+    return {
+      envelope: {
+        ...envelope,
+        text: ingested.content,
+        attachments: ingested.attachments
+      },
+      notes: ingested.notes
+    };
+  }
+
+  private buildProviderInputNotes(
+    provider: ProviderAdapter,
+    envelope: InboundEnvelope
+  ): string[] {
+    const imageCount = envelope.attachments.filter((attachment) => attachment.kind === "image").length;
+    if (imageCount === 0 || provider.capabilities().supportsImageInputs) {
+      return [];
+    }
+
+    return [
+      `Provider constraint: ${provider.id()} cannot inspect image binaries in this session.`,
+      "Only the user's text, captions, attachment summaries, and extracted text from supported documents are available."
+    ];
+  }
+
+  private buildProviderVisibilityNotes(
+    provider: ProviderAdapter,
+    envelope: InboundEnvelope
+  ): string[] {
+    const imageCount = envelope.attachments.filter((attachment) => attachment.kind === "image").length;
+    if (imageCount === 0 || provider.capabilities().supportsImageInputs) {
+      return [];
+    }
+
+    return [
+      `OpenAssist note: ${provider.id()} could not inspect the image binary for this reply, so only your text, captions, and extracted document text were used.`
+    ];
+  }
+
+  private appendOutboundNotes(text: string, notes: string[]): string {
+    const filteredNotes = notes.map((note) => note.trim()).filter((note) => note.length > 0);
+    if (filteredNotes.length === 0) {
+      return text;
+    }
+
+    const noteBlock = `OpenAssist notes:\n${filteredNotes.map((note) => `- ${note}`).join("\n")}`;
+    const trimmed = text.trim();
+    return trimmed.length > 0 ? `${trimmed}\n\n${noteBlock}` : noteBlock;
   }
 
   private isOperationalStatusRequest(text: string | undefined): boolean {

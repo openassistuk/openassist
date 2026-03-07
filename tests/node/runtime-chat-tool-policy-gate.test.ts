@@ -39,7 +39,8 @@ class PolicyAwareProvider implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: true,
       supportsOAuth: false,
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: false
     };
   }
 
@@ -96,7 +97,8 @@ class RogueToolProvider implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: true,
       supportsOAuth: false,
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: false
     };
   }
 

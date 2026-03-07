@@ -158,6 +158,7 @@ function printChannelGuidance(type: OpenAssistConfig["runtime"]["channels"][numb
     console.log("- Allowed chat IDs decide where the bot can reply.");
     console.log("- Approved operator user IDs decide who may use /access full.");
     console.log("- Default behavior is inline memory per chat/group (not per-message threads).");
+    console.log("- Telegram supports formatted replies plus image and text-like document ingest.");
     console.log("- Tip: @userinfobot can help identify chat/user IDs.");
     return;
   }
@@ -165,13 +166,17 @@ function printChannelGuidance(type: OpenAssistConfig["runtime"]["channels"][numb
   if (type === "discord") {
     console.log("Discord setup:");
     console.log("- Create the bot in the Discord Developer Portal and invite it.");
-    console.log("- Allowed channel IDs decide where the bot can reply.");
+    console.log("- Allowed channel IDs decide where the bot can reply in servers and threads.");
+    console.log("- Allowed DM user IDs decide who may use the bot in direct messages.");
     console.log("- Approved operator user IDs decide who may use /access full.");
+    console.log("- Discord supports formatted replies plus image and text-like document ingest.");
     return;
   }
 
   console.log("WhatsApp setup:");
-  console.log("- WhatsApp MD is experimental and requires QR login at first start.");
+  console.log("- WhatsApp MD requires QR login at first start.");
+  console.log("- WhatsApp supports private chats and groups on this channel.");
+  console.log("- WhatsApp supports image and text-like document ingest.");
   console.log("- Approved operator IDs must match the exact sender IDs shown by /status.");
 }
 
@@ -425,8 +430,8 @@ async function addChannel(state: SetupWizardState, prompts: PromptAdapter): Prom
     "Channel type",
     [
       { name: "Telegram (bot token + chat IDs)", value: "telegram" },
-      { name: "Discord (bot token + channel IDs)", value: "discord" },
-      { name: "WhatsApp MD (experimental)", value: "whatsapp-md" }
+      { name: "Discord (bot token + channel IDs or DM user IDs)", value: "discord" },
+      { name: "WhatsApp MD (QR login + chats or groups)", value: "whatsapp-md" }
     ],
     "telegram"
   );
@@ -486,8 +491,15 @@ async function addChannel(state: SetupWizardState, prompts: PromptAdapter): Prom
       /^\d{5,30}$/,
       "Discord channel IDs should be numeric snowflakes"
     );
+    settings.allowedDmUserIds = await promptValidatedCsvIds(
+      prompts,
+      "Allowed Discord DM user IDs (comma separated numeric IDs; blank = disable DMs)",
+      "",
+      /^\d{5,30}$/,
+      "Discord DM user IDs should be numeric snowflakes"
+    );
   } else {
-    settings.mode = (await prompts.confirm("Use experimental mode?", false)) ? "experimental" : "production";
+    settings.mode = "production";
     settings.printQrInTerminal = await prompts.confirm("Print QR code in terminal?", true);
     settings.syncFullHistory = await prompts.confirm("Sync full history?", false);
     settings.maxReconnectAttempts = await promptInteger(prompts, "Max reconnect attempts", 10, {
@@ -594,8 +606,15 @@ async function editChannel(state: SetupWizardState, prompts: PromptAdapter): Pro
       "Discord channel IDs should be numeric snowflakes"
     );
     settings.allowedChannelIds = allowed;
+    settings.allowedDmUserIds = await promptValidatedCsvIds(
+      prompts,
+      "Allowed Discord DM user IDs (comma separated numeric IDs; blank = disable DMs)",
+      Array.isArray(settings.allowedDmUserIds) ? settings.allowedDmUserIds.join(",") : "",
+      /^\d{5,30}$/,
+      "Discord DM user IDs should be numeric snowflakes"
+    );
   } else {
-    settings.mode = (await prompts.confirm("Use experimental mode?", settings.mode === "experimental")) ? "experimental" : "production";
+    settings.mode = "production";
     settings.printQrInTerminal = await prompts.confirm(
       "Print QR code in terminal?",
       settings.printQrInTerminal !== false

@@ -49,6 +49,7 @@ export interface ProviderCapabilities {
   supportsTools: boolean;
   supportsOAuth: boolean;
   supportsApiKeys: boolean;
+  supportsImageInputs: boolean;
   supportedModels?: string[];
 }
 

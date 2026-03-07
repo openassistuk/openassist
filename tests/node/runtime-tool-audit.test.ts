@@ -34,7 +34,8 @@ class BlockingAuditProvider implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: true,
       supportsOAuth: false,
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: false
     };
   }
 

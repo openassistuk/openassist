@@ -179,6 +179,7 @@ openassist time status
 - whether in-chat `/access` switching is available yet
 - whether upgrade prerequisites are satisfied
 - the next command you should run
+- a healthy daemon already bound to the configured port is treated as success, not as a post-setup port-conflict warning
 
 Text output is grouped as:
 

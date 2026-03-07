@@ -384,6 +384,59 @@ describe("setup quickstart validation", () => {
     ]);
   });
 
+  it("skips the bind-port probe only when a caller explicitly asks for it", async () => {
+    const root = tempDir("openassist-quickstart-validation-skip-bind-probe-");
+    const config = createDefaultConfigObject();
+    const bindPort = await getFreePort();
+    config.runtime.bindPort = bindPort;
+    const apiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
+    const server = net.createServer();
+    server.unref();
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(bindPort, "127.0.0.1", () => resolve());
+    });
+
+    try {
+      const strictResult = await validateSetupReadiness({
+        config,
+        env: {
+          [apiKeyVar]: "test-key"
+        },
+        configPath: path.join(root, "openassist.toml"),
+        envFilePath: path.join(root, "openassistd.env"),
+        installDir: root,
+        skipService: true,
+        timezoneConfirmed: true
+      });
+      expect(strictResult.errors.some((item) => item.code === "runtime.port_unavailable")).toBe(true);
+
+      const doctorStyleResult = await validateSetupReadiness({
+        config,
+        env: {
+          [apiKeyVar]: "test-key"
+        },
+        configPath: path.join(root, "openassist.toml"),
+        envFilePath: path.join(root, "openassistd.env"),
+        installDir: root,
+        skipService: true,
+        timezoneConfirmed: true,
+        skipBindAvailabilityCheck: true
+      });
+      expect(doctorStyleResult.errors.some((item) => item.code === "runtime.port_unavailable")).toBe(false);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
   it("warns when a valid OAuth client secret env reference is unset", async () => {
     const root = tempDir("openassist-quickstart-validation-oauth-client-secret-warning-");
     const config = createDefaultConfigObject();

@@ -240,7 +240,8 @@ program
         installDir,
         skipService: false,
         timezoneConfirmed,
-        requireEnabledChannel: true
+        requireEnabledChannel: true,
+        skipBindAvailabilityCheck: serviceHealthOk
       });
       validationErrors = validation.errors;
       validationWarnings = validation.warnings;

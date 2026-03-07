@@ -24,6 +24,7 @@ export interface SetupValidationInput {
   skipService: boolean;
   timezoneConfirmed: boolean;
   requireEnabledChannel?: boolean;
+  skipBindAvailabilityCheck?: boolean;
 }
 
 export interface SetupValidationResult {
@@ -420,14 +421,16 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
     );
   }
 
-  const portIssue = await checkPortAvailability(input.config.runtime.bindAddress, input.config.runtime.bindPort);
-  if (portIssue) {
-    pushIssue(
-      errors,
-      "runtime.port_unavailable",
-      `Unable to bind ${input.config.runtime.bindAddress}:${input.config.runtime.bindPort}.`,
-      portIssue
-    );
+  if (!input.skipBindAvailabilityCheck) {
+    const portIssue = await checkPortAvailability(input.config.runtime.bindAddress, input.config.runtime.bindPort);
+    if (portIssue) {
+      pushIssue(
+        errors,
+        "runtime.port_unavailable",
+        `Unable to bind ${input.config.runtime.bindAddress}:${input.config.runtime.bindPort}.`,
+        portIssue
+      );
+    }
   }
 
   const serviceManagerKind = await validateServiceReadiness(

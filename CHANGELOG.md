@@ -117,6 +117,8 @@ The format follows Keep a Changelog conventions and this project currently track
   - provider grounding and `/status` now describe OpenAssist as the broader machine assistant for the host while staying truthful about live provider/channel/tool boundaries
   - runtime awareness, `/grow`, `openassist doctor`, and `openassist upgrade --dry-run` now surface managed growth state, growth directories, and the distinction between durable extensions and dirty repo mutation
   - direct repo/config/code edits remain available only in `full-root`, but runtime/docs now label that path as advanced or developer work rather than the default durable growth path
+- Lifecycle readiness follow-up:
+  - `openassist doctor` and the final bootstrap summary no longer report a false port-conflict readiness error after successful setup when the healthy daemon is already listening on the configured port
 
 - Channel UX and beginner copy pass:
   - quickstart and wizard no longer describe WhatsApp as experimental on beginner paths

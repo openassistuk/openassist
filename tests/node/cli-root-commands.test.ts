@@ -324,6 +324,117 @@ describe("cli root command coverage", () => {
     }
   });
 
+  it("does not report a port conflict when doctor finds a healthy daemon already listening", async () => {
+    const root = tempDir("openassist-cli-root-healthy-daemon-doctor-");
+    const doctorHome = path.join(root, "home");
+    const doctorConfigPath = path.join(root, "doctor-openassist.toml");
+    const doctorEnvPath = path.join(root, "doctor-openassistd.env");
+    const doctorInstallStatePath = path.join(doctorHome, ".config", "openassist", "install-state.json");
+    const doctorBinDir = path.join(root, "bin");
+
+    const requestedPaths: string[] = [];
+    const server = http.createServer((req, res) => {
+      requestedPaths.push(req.url ?? "");
+      if (req.url === "/v1/health") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ status: "ok" }));
+        return;
+      }
+      if (req.url === "/v1/time/status") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            time: {
+              timezone: "Europe/London",
+              timezoneConfirmed: true,
+              clockHealth: "ok"
+            }
+          })
+        );
+        return;
+      }
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", () => resolve());
+    });
+
+    try {
+      const address = server.address();
+      assert.notEqual(address, null);
+      assert.equal(typeof address, "object");
+      const port = (address as { port: number }).port;
+
+      fs.mkdirSync(path.dirname(doctorInstallStatePath), { recursive: true });
+      fs.mkdirSync(doctorBinDir, { recursive: true });
+      const doctorConfig = createDefaultConfigObject();
+      doctorConfig.runtime.bindAddress = "127.0.0.1";
+      doctorConfig.runtime.bindPort = port;
+      saveConfigObject(doctorConfigPath, doctorConfig);
+      fs.writeFileSync(doctorEnvPath, "# doctor healthy env\n", "utf8");
+      fs.writeFileSync(
+        doctorInstallStatePath,
+        JSON.stringify(
+          {
+            installDir: repoRoot(),
+            repoUrl: "https://github.com/openassistuk/openassist.git",
+            trackedRef: "main",
+            serviceManager: process.platform === "darwin" ? "launchd" : "systemd-user",
+            configPath: doctorConfigPath,
+            envFilePath: doctorEnvPath,
+            lastKnownGoodCommit: "test-commit",
+            updatedAt: "2026-03-06T00:00:00.000Z"
+          },
+          null,
+          2
+        ),
+        "utf8"
+      );
+      if (process.platform === "win32") {
+        fs.writeFileSync(path.join(doctorBinDir, "pnpm.cmd"), "@echo off\r\necho 10.0.0\r\n", "utf8");
+      } else {
+        const pnpmPath = path.join(doctorBinDir, "pnpm");
+        fs.writeFileSync(pnpmPath, "#!/usr/bin/env sh\necho 10.0.0\n", "utf8");
+        fs.chmodSync(pnpmPath, 0o755);
+      }
+
+      const doctor = await runCommand(
+        process.execPath,
+        [
+          path.join(repoRoot(), "node_modules", "tsx", "dist", "cli.mjs"),
+          path.join(repoRoot(), "apps", "openassist-cli", "src", "index.ts"),
+          "doctor"
+        ],
+        repoRoot(),
+        {
+          HOME: doctorHome,
+          USERPROFILE: doctorHome,
+          PATH: `${doctorBinDir}${path.delimiter}${process.env.PATH ?? ""}`,
+          Path: `${doctorBinDir}${path.delimiter}${process.env.Path ?? process.env.PATH ?? ""}`
+        }
+      );
+
+      assert.ok(doctor.code === 0 || doctor.code === 1, doctor.stderr || doctor.stdout);
+      assert.match(doctor.stdout, /Service health\.\s+Health endpoint is responding at http:\/\/127\.0\.0\.1:/);
+      assert.doesNotMatch(doctor.stdout, /Unable to bind/);
+      assert.doesNotMatch(doctor.stdout, /runtime\.port_unavailable/);
+      assert.ok(requestedPaths.includes("/v1/health"), requestedPaths.join(","));
+      assert.ok(requestedPaths.includes("/v1/time/status"), requestedPaths.join(","));
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
   it("exercises remote command failure paths", async () => {
     const badBaseUrl = "http://127.0.0.1:1";
     const cases: Array<{ args: string[]; errorText: RegExp }> = [

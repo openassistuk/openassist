@@ -102,7 +102,9 @@ The awareness snapshot includes:
 - native web state (`enabled`, `searchMode`, `searchStatus`, callable `web.*` tools)
 - capability state for the current session (`canInspectLocalFiles`, `canRunLocalCommands`, `canEditConfig`, `canEditDocs`, `canEditCode`, `canControlService`, native web availability, blocked reasons)
 - curated local doc references (`README.md`, operations/security/interface docs, `openassist.toml`) with short purpose and when-to-use text
-- maintenance/install context (repo-backed install status, install dir, config path, env path, tracked ref, last known good commit when known, protected paths, preferred lifecycle commands, safe-maintenance rules)
+- maintenance/install context (repo-backed install status, install dir, config path, env path, tracked ref, last known good commit when known, protected paths, protected surfaces, preferred lifecycle commands, safe-maintenance rules)
+
+Chat-visible `/status` keeps the same high-level awareness boundary for every sender, but full config/env/install paths are reserved for approved operators in chat. Unapproved senders should still receive the plain-language lifecycle summary plus guidance to use host-side commands such as `openassist doctor`.
 
 Self-maintenance contract:
 

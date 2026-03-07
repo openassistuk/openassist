@@ -276,8 +276,8 @@ program
       {
         db,
         logger,
-        installContext: loadRuntimeInstallContext(configPath)
-      },
+      installContext: loadRuntimeInstallContext(configPath, logger)
+    },
       { providers, channels }
     );
 

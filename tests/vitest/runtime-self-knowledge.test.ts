@@ -84,11 +84,18 @@ describe("runtime self-knowledge", () => {
     expect(snapshot.maintenance.repoBackedInstall).toBe(true);
     expect(snapshot.maintenance.installDir).toBe("/srv/openassist");
     expect(snapshot.maintenance.trackedRef).toBe("main");
+    expect(snapshot.maintenance.protectedPaths).toContain("<installDir>/.git");
+    expect(snapshot.maintenance.protectedPaths.some((entry) => entry.includes("$HOME"))).toBe(true);
+    expect(snapshot.maintenance.protectedPaths.some((entry) => entry.includes("systemd"))).toBe(false);
+    expect(snapshot.maintenance.protectedSurfaces).toContain(
+      "systemd service units and launchd plists managed by lifecycle commands"
+    );
 
     const rendered = buildRuntimeAwarenessSystemMessage(snapshot);
     expect(rendered).toMatch(/OpenAssist runtime self-knowledge/i);
     expect(rendered).toMatch(/docs\/operations\/upgrade-and-rollback\.md/i);
     expect(rendered).toMatch(/config=\/srv\/openassist\/openassist\.toml/i);
+    expect(rendered).toMatch(/protected surfaces:/i);
     expect(rendered).toMatch(/preferred lifecycle commands/i);
   });
 

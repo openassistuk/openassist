@@ -14,6 +14,7 @@ The format follows Keep a Changelog conventions and this project currently track
   - runtime now carries a curated local docs map so the assistant can cite repo docs such as `README.md`, `docs/security/policy-profiles.md`, `docs/interfaces/tool-calling.md`, and `docs/operations/upgrade-and-rollback.md`
   - quickstart once again asks for the main assistant name, persona, and ongoing objectives/preferences before the first real chat
   - successful quickstart now disables the later first-chat identity reminder by default, while wizard and `/profile` remain the advanced edit paths
+  - follow-up hardening now keeps full config/env/install filesystem paths in chat reserved for approved operators, splits protected filesystem paths from descriptive protected lifecycle surfaces, and bounds daemon git install-context probing with a timeout plus warning logs
 
 - First-class channel attachment and presentation path:
   - `AttachmentRef` now carries durable media metadata (`kind`, `mimeType`, `name`, `sizeBytes`, `localPath`, optional `captionText`, optional `extractedText`)

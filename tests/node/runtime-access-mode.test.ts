@@ -200,7 +200,18 @@ describe("runtime access mode", () => {
         operatorAccessProfile: "full-root",
         workspaceOnly: false
       }),
-      { db, logger },
+      {
+        db,
+        logger,
+        installContext: {
+          repoBackedInstall: true,
+          installDir: root,
+          configPath: path.join(root, "openassist.toml"),
+          envFilePath: path.join(root, "openassistd.env"),
+          trackedRef: "main",
+          lastKnownGoodCommit: "abc123"
+        }
+      },
       { providers: [provider], channels: [channel] }
     );
 
@@ -224,10 +235,17 @@ describe("runtime access mode", () => {
     assert.match(channel.sent[0]?.text ?? "", /session id: telegram-main:ops-room/i);
     assert.match(channel.sent[0]?.text ?? "", /current access: Full access/i);
     assert.match(channel.sent[0]?.text ?? "", /access source: approved operator default for this channel/i);
+    assert.match(channel.sent[0]?.text ?? "", /config path: .*openassist\.toml/i);
+    assert.match(channel.sent[0]?.text ?? "", /trackedRef=main/i);
+    assert.match(channel.sent[0]?.text ?? "", /protected surfaces:/i);
 
     assert.match(channel.sent[1]?.text ?? "", /sender id: 222222222/i);
     assert.match(channel.sent[1]?.text ?? "", /current access: Standard access/i);
     assert.match(channel.sent[1]?.text ?? "", /access source: runtime default/i);
+    assert.match(channel.sent[1]?.text ?? "", /config\/env\/install detail: hidden in chat for this sender/i);
+    assert.doesNotMatch(channel.sent[1]?.text ?? "", /config path:/i);
+    assert.doesNotMatch(channel.sent[1]?.text ?? "", /trackedRef=main/i);
+    assert.doesNotMatch(channel.sent[1]?.text ?? "", /protected paths:/i);
 
     await runtime.stop();
     db.close();

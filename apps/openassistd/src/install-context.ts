@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import type { RuntimeInstallContext } from "@openassist/core-runtime";
+import type { OpenAssistLogger } from "@openassist/observability";
 
 interface StoredInstallState {
   installDir?: string;
@@ -11,6 +12,10 @@ interface StoredInstallState {
   trackedRef?: string;
   lastKnownGoodCommit?: string;
 }
+
+type InstallContextLogger = Pick<OpenAssistLogger, "warn">;
+
+export const GIT_SPAWN_TIMEOUT_MS = 1000;
 
 function defaultInstallStatePath(): string {
   return path.join(os.homedir(), ".config", "openassist", "install-state.json");
@@ -50,19 +55,43 @@ function findRepoRoot(startDir: string): string | undefined {
   }
 }
 
-function readGitValue(repoRoot: string | undefined, args: string[]): string | undefined {
+function createGitValueReader(
+  repoRoot: string | undefined,
+  logger?: InstallContextLogger
+): (args: string[]) => string | undefined {
   if (!repoRoot || !fs.existsSync(path.join(repoRoot, ".git"))) {
-    return undefined;
+    return () => undefined;
   }
-  const result = spawnSync("git", ["-C", repoRoot, ...args], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"]
-  });
-  if (result.status !== 0) {
-    return undefined;
-  }
-  const value = result.stdout.trim();
-  return value.length > 0 ? value : undefined;
+
+  let probeFailed = false;
+  return (args: string[]): string | undefined => {
+    if (probeFailed) {
+      return undefined;
+    }
+
+    const result = spawnSync("git", ["-C", repoRoot, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: GIT_SPAWN_TIMEOUT_MS
+    });
+    if (result.error) {
+      probeFailed = true;
+      logger?.warn(
+        {
+          repoRoot,
+          gitArgs: args,
+          error: result.error.message
+        },
+        "runtime install context git probe failed"
+      );
+      return undefined;
+    }
+    if (result.status !== 0) {
+      return undefined;
+    }
+    const value = result.stdout.trim();
+    return value.length > 0 ? value : undefined;
+  };
 }
 
 function matchesStoredConfig(
@@ -83,7 +112,10 @@ function matchesStoredConfig(
   return false;
 }
 
-export function loadRuntimeInstallContext(configPath: string): RuntimeInstallContext {
+export function loadRuntimeInstallContext(
+  configPath: string,
+  logger?: InstallContextLogger
+): RuntimeInstallContext {
   const resolvedConfigPath = path.resolve(configPath);
   const stored = loadStoredInstallState();
   const matchedStored = matchesStoredConfig(stored, resolvedConfigPath) ? stored : undefined;
@@ -96,7 +128,8 @@ export function loadRuntimeInstallContext(configPath: string): RuntimeInstallCon
     findRepoRoot(path.dirname(resolvedConfigPath)) ??
     findRepoRoot(process.cwd());
 
-  const trackedRefRaw = readGitValue(repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const readGitValue = createGitValueReader(repoRoot, logger);
+  const trackedRefRaw = readGitValue(["rev-parse", "--abbrev-ref", "HEAD"]);
   const trackedRef =
     trackedRefRaw && trackedRefRaw !== "HEAD"
       ? trackedRefRaw
@@ -112,9 +145,6 @@ export function loadRuntimeInstallContext(configPath: string): RuntimeInstallCon
       ? path.resolve(matchedStored.envFilePath)
       : resolveEnvFilePath(),
     trackedRef,
-    lastKnownGoodCommit:
-      readGitValue(repoRoot, ["rev-parse", "HEAD"]) ??
-      matchedStored?.lastKnownGoodCommit?.trim() ??
-      undefined
+    lastKnownGoodCommit: readGitValue(["rev-parse", "HEAD"]) ?? matchedStored?.lastKnownGoodCommit?.trim() ?? undefined
   };
 }

@@ -1103,9 +1103,10 @@ describe("OpenAssistRuntime", () => {
     assert.match(channel.sent[0]?.text ?? "", /openassist local status/i);
     assert.match(channel.sent[0]?.text ?? "", /what this is:/i);
     assert.match(channel.sent[0]?.text ?? "", /default provider: mock-provider/i);
-    assert.match(channel.sent[0]?.text ?? "", /config path:/i);
     assert.match(channel.sent[0]?.text ?? "", /local docs\/config map:/i);
-    assert.match(channel.sent[0]?.text ?? "", /trackedRef=main/i);
+    assert.match(channel.sent[0]?.text ?? "", /config\/env\/install detail: hidden in chat for this sender/i);
+    assert.doesNotMatch(channel.sent[0]?.text ?? "", /config path:/i);
+    assert.doesNotMatch(channel.sent[0]?.text ?? "", /trackedRef=main/i);
     assert.match(channel.sent[0]?.text ?? "", /native web:/i);
 
     await runtime.stop();

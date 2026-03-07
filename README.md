@@ -125,6 +125,7 @@ Normal chat turns and `/status` now carry a bounded OpenAssist self-knowledge pa
 - which kinds of self-maintenance are safe right now and which are blocked
 
 This does not weaken the security model. Lower-access sessions stay advisory-only for self-maintenance. Only `full-root` sessions with callable tools may make bounded local config/docs/code changes, and updater-owned paths still stay off-limits to ad-hoc edits.
+In chat, full config/env/install filesystem paths are reserved for approved operators; other senders still get the high-level lifecycle summary plus host-side command guidance.
 
 ### 5. Send the first reply
 

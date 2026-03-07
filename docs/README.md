@@ -25,7 +25,7 @@ Quickstart also restores the main assistant identity prompts:
 
 Successful quickstart saves those into the same global profile memory that `/profile` edits later and disables the later first-chat identity reminder by default.
 
-Runtime turns and `/status` now carry a bounded self-knowledge contract so OpenAssist can cite its own local docs, config path, env path, install directory, update track, and safe-maintenance limits without pretending it has permissions it does not have.
+Runtime turns and `/status` now carry a bounded self-knowledge contract so OpenAssist can cite its own local docs, config path, env path, install directory, update track, and safe-maintenance limits without pretending it has permissions it does not have. In chat, the full config/env/install path view is reserved for approved operators; other senders still get the high-level lifecycle summary and host-side command guidance.
 
 First-class channel scope:
 

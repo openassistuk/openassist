@@ -117,10 +117,6 @@ function openUrlInBrowser(url: string): void {
   spawn("xdg-open", [safeUrl], { detached: true, stdio: "ignore", shell: false }).unref();
 }
 
-function defaultInstallStatePath(): string {
-  return path.join(os.homedir(), ".config", "openassist", "install-state.json");
-}
-
 function commandAvailable(command: string): boolean {
   if (process.platform === "win32") {
     const result = spawnSync("where.exe", [command], {

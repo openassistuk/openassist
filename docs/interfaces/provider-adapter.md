@@ -44,6 +44,13 @@ Provider OAuth config requirements:
 - generation parameters
 - metadata map
 
+Message semantics now include attachment-aware turns:
+
+- `NormalizedMessage.content` stays the bounded text transcript, caption text, and extracted text surface
+- `NormalizedMessage.attachments` carries durable attachment metadata
+- only providers with `ProviderCapabilities.supportsImageInputs=true` may receive image binaries
+- supported text-like documents stay provider-agnostic in this release: runtime injects extracted text into the normal user text context instead of using provider-specific file APIs
+
 Runtime now prepends a bounded runtime-awareness system message on every provider turn. Adapters must preserve system-message order and content exactly; they must not collapse or drop the awareness message because it tells the model what OpenAssist is, what host it is running on, what effective access is active for that sender/chat turn, and which tools are callable right now.
 
 The runtime-awareness payload is now actor-aware in shared chats. For the same chat, one sender may arrive with `full-root` access while another stays `operator`, and provider adapters must preserve that exact system-message boundary on every turn.
@@ -97,7 +104,10 @@ Runtime converts provider/auth/runtime failures into sanitized channel diagnosti
 - Anthropic: `packages/providers-anthropic/src/index.ts`
 - OpenAI-compatible: `packages/providers-openai-compatible/src/index.ts`
 
-All current adapters implement tool-call interoperability for V1.4.
+Current image-input rule:
+
+- OpenAI and Anthropic are first-class image-input providers in the built-in adapter set
+- OpenAI-compatible providers remain text-only for images and must preserve the runtime note that image binaries were not inspected
 
 OpenAI adapter endpoint behavior:
 

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type {
@@ -51,10 +52,31 @@ function parseToolArgs(argumentsJson: string): Record<string, unknown> {
   return {};
 }
 
-function mapMessages(messages: ChatRequest["messages"]): {
+function imageAttachmentsForMessage(message: ChatRequest["messages"][number]) {
+  return (message.attachments ?? []).filter(
+    (attachment) => attachment.kind === "image" && typeof attachment.localPath === "string"
+  );
+}
+
+async function toAnthropicImageBlock(
+  filePath: string,
+  mimeType: string | undefined
+): Promise<Record<string, unknown>> {
+  const bytes = await fs.promises.readFile(filePath);
+  return {
+    type: "image",
+    source: {
+      type: "base64",
+      media_type: mimeType?.trim() || "image/jpeg",
+      data: bytes.toString("base64")
+    }
+  };
+}
+
+async function mapMessages(messages: ChatRequest["messages"]): Promise<{
   system?: string;
   messages: Array<Record<string, unknown>>;
-} {
+}> {
   const systemParts: string[] = [];
   const mapped: Array<Record<string, unknown>> = [];
 
@@ -90,6 +112,26 @@ function mapMessages(messages: ChatRequest["messages"]): {
             input: parseToolArgs(message.metadata?.toolArgumentsJson ?? "{}")
           }
         ]
+      });
+      continue;
+    }
+
+    const imageAttachments = message.role !== "assistant" ? imageAttachmentsForMessage(message) : [];
+    if (imageAttachments.length > 0) {
+      const content: Array<Record<string, unknown>> = [];
+      if (message.content.trim().length > 0) {
+        content.push({
+          type: "text",
+          text: message.content
+        });
+      }
+      for (const attachment of imageAttachments) {
+        content.push(await toAnthropicImageBlock(attachment.localPath!, attachment.mimeType));
+      }
+
+      mapped.push({
+        role: message.role === "assistant" ? "assistant" : "user",
+        content
       });
       continue;
     }
@@ -134,7 +176,8 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: true,
       supportsOAuth: Boolean(this.config.oauth),
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: true
     };
   }
 
@@ -262,7 +305,7 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
       baseURL: this.config.baseUrl
     });
 
-    const mapped = mapMessages(req.messages);
+    const mapped = await mapMessages(req.messages);
     const response = await client.messages.create({
       model: req.model || this.config.defaultModel,
       max_tokens: req.maxTokens ?? 1024,

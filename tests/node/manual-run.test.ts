@@ -28,7 +28,8 @@ class MockProvider implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: false,
       supportsOAuth: false,
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: false
     };
   }
 

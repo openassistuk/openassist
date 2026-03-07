@@ -123,6 +123,35 @@ When touching chat/runtime/provider/tool code:
    - no in-chat path may escalate an unapproved sender
    - `full-root` means OpenAssist's highest tool profile, not Unix root privileges
 
+## Channel Integration Rules (V1.6)
+
+When touching channel/runtime/provider attachment behavior:
+
+1. preserve first-class channel scope:
+   - Telegram: private chats, groups, forum topics
+   - Discord: guild text channels, threads, DMs
+   - WhatsApp MD: private chats, groups
+2. preserve bounded attachment ingest:
+   - runtime-owned attachment policy must enforce `runtime.attachments`
+   - no unbounded file-count, image-size, document-size, or extracted-text growth
+3. preserve durable attachment persistence:
+   - normalized attachment metadata must survive recent-message replay
+   - raw inbound event payloads still remain available for audit
+4. preserve provider capability gating for images:
+   - only providers that explicitly declare `supportsImageInputs=true` may receive image binaries
+   - text-only providers must stay explicit about image limitations; never imply that an image was inspected when it was not
+5. preserve text-context discipline:
+   - `NormalizedMessage.content` remains the bounded text transcript/caption/extracted-text surface
+   - binary/image payloads must not be injected into text context
+6. preserve operator-visible degradation paths:
+   - unsupported or oversized attachments must produce clear notes instead of silent drops
+7. preserve channel-safe outbound presentation:
+   - replies, `/status`, and diagnostics must pass through the shared channel rendering/chunking path
+   - do not send wall-of-text output when the renderer can preserve headings, lists, code fences, and links safely for that channel
+8. preserve secure file handling:
+   - runtime-owned persisted attachments live under `runtime.paths.dataDir`
+   - Unix owner-only permissions remain required where the host supports them
+
 ## Security Rules
 
 - Keep loopback bind default unless an approved plan changes it.

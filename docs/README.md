@@ -17,6 +17,14 @@ Quickstart now also owns the beginner-facing access choice:
 - `Full access for approved operators` is explicit opt-in and requires per-channel approved operator IDs
 - `/status` shows the exact sender ID and canonical session ID you need for actor-specific access inspection later
 
+First-class channel scope:
+
+- Telegram: private chats, groups, forum topics
+- Discord: guild text channels, threads, DMs
+- WhatsApp MD: private chats, groups
+
+Inbound images and supported text-like documents now flow through the runtime as durable attachment metadata. OpenAI and Anthropic can inspect inbound images; OpenAI-compatible providers stay text-only and surface an explicit note when image understanding is unavailable.
+
 Primary runbooks:
 
 - Fastest operator path: `docs/operations/quickstart-linux-macos.md`
@@ -64,5 +72,7 @@ Service smoke note:
 
 ## Planning
 
-- Current lifecycle ExecPlan: `docs/execplans/access-mode-opt-in-and-beginner-copy.md`
+- Current lifecycle ExecPlans:
+  - `docs/execplans/access-mode-opt-in-and-beginner-copy.md`
+  - `docs/execplans/channel-first-class-integrations.md`
 - ExecPlan process: `.agents/PLANS.md`

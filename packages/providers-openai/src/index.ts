@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import OpenAI from "openai";
 import { z } from "zod";
 import type {
@@ -104,6 +105,18 @@ function mapMessages(messages: ChatRequest["messages"]): Array<Record<string, un
   });
 }
 
+function imageAttachmentsForMessage(message: ChatRequest["messages"][number]) {
+  return (message.attachments ?? []).filter(
+    (attachment) => attachment.kind === "image" && typeof attachment.localPath === "string"
+  );
+}
+
+async function toDataUrl(filePath: string, mimeType: string | undefined): Promise<string> {
+  const bytes = await fs.promises.readFile(filePath);
+  const resolvedMime = mimeType?.trim() || "image/jpeg";
+  return `data:${resolvedMime};base64,${bytes.toString("base64")}`;
+}
+
 function mapTools(tools: ChatRequest["tools"]): Array<Record<string, unknown>> | undefined {
   if (tools.length === 0) {
     return undefined;
@@ -118,8 +131,8 @@ function mapTools(tools: ChatRequest["tools"]): Array<Record<string, unknown>> |
   }));
 }
 
-function mapResponsesInput(messages: ChatRequest["messages"]): Array<Record<string, unknown>> {
-  return messages.map((message) => {
+async function mapResponsesInput(messages: ChatRequest["messages"]): Promise<Array<Record<string, unknown>>> {
+  return Promise.all(messages.map(async (message) => {
     if (message.role === "assistant" && message.toolCallId && message.toolName) {
       return {
         type: "function_call",
@@ -138,6 +151,28 @@ function mapResponsesInput(messages: ChatRequest["messages"]): Array<Record<stri
     }
 
     if (message.role === "assistant" || message.role === "system" || message.role === "user") {
+      const imageAttachments = message.role === "user" ? imageAttachmentsForMessage(message) : [];
+      if (imageAttachments.length > 0) {
+        const content: Array<Record<string, unknown>> = [];
+        if (message.content.trim().length > 0) {
+          content.push({
+            type: "input_text",
+            text: message.content
+          });
+        }
+        for (const attachment of imageAttachments) {
+          content.push({
+            type: "input_image",
+            image_url: await toDataUrl(attachment.localPath!, attachment.mimeType)
+          });
+        }
+        return {
+          type: "message",
+          role: message.role,
+          content
+        };
+      }
+
       return {
         type: "message",
         role: message.role,
@@ -150,7 +185,11 @@ function mapResponsesInput(messages: ChatRequest["messages"]): Array<Record<stri
       role: "user",
       content: message.content
     };
-  });
+  }));
+}
+
+function hasImageInputs(messages: ChatRequest["messages"]): boolean {
+  return messages.some((message) => imageAttachmentsForMessage(message).length > 0);
 }
 
 function mapResponsesTools(tools: ChatRequest["tools"]): Array<Record<string, unknown>> | undefined {
@@ -287,7 +326,8 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: true,
       supportsOAuth: Boolean(this.config.oauth),
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: true
     };
   }
 
@@ -416,14 +456,14 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
     });
 
     const model = req.model || this.config.defaultModel;
-    const useResponsesApi = shouldPreferResponsesApi(model);
+    const useResponsesApi = shouldPreferResponsesApi(model) || hasImageInputs(req.messages);
 
     if (useResponsesApi) {
       const response = await client.responses.create({
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
-        input: mapResponsesInput(req.messages) as any,
+        input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
       } as any);
@@ -450,7 +490,7 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
-        input: mapResponsesInput(req.messages) as any,
+        input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
       } as any);

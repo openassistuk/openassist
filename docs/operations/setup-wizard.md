@@ -26,6 +26,10 @@ Quickstart owns only the essentials:
 - choose one primary provider
 - capture API-key auth
 - configure one primary channel
+- keep channel setup in the supported first-class scope:
+  - Telegram private chats, groups, forum topics
+  - Discord guild text channels, threads, DMs
+  - WhatsApp private chats and groups
 - choose an access mode:
   - `Standard mode (recommended)`
   - `Full access for approved operators`
@@ -87,6 +91,7 @@ Wizard access behavior:
 
 - `Basic runtime and access mode` lets you choose `Standard mode`, `Full access for approved operators`, or `Custom advanced access settings`
 - `Channels, allowlists, and operator access` keeps chat allowlists separate from approved operator accounts
+- Discord DM allow-lists stay separate from guild or thread allow-lists so beginners can tell “where the bot may reply” from “which direct-message users may use it”
 - approved operator IDs decide who may use `/access full` or receive automatic full access defaults on that channel
 - channel allowlists still decide who may message the bot at all
 
@@ -95,6 +100,7 @@ Use wizard for:
 - advanced runtime changes
 - additional providers or provider OAuth config
 - additional channels or non-default channel behavior
+- Discord DM allow-lists or other channel-specific scope changes
 - scheduler task and timing changes
 - native web settings
 - advanced tools, workspace, and security posture

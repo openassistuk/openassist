@@ -75,6 +75,17 @@ Controls:
 - replay queue semantics
 - scheduler keys `scheduler:<taskId>:<scheduledFor>`
 
+### Attachment ingest misuse or media overclaiming
+
+Controls:
+
+- runtime-owned attachment policy enforces bounded file count, image size, document size, and extracted-text length
+- persisted attachments live under `runtime.paths.dataDir` with owner-only Unix permissions where the host supports them
+- attachment metadata is durable for replay, but image binaries stay out of normal text context
+- only providers that declare `supportsImageInputs=true` receive image binaries
+- text-only providers get an explicit runtime note when image understanding is unavailable
+- unsupported or oversized attachments produce operator-visible notes instead of silent drops
+
 ### Reasoning/internal-trace leakage to channels
 
 Controls:
@@ -153,3 +164,4 @@ Controls:
 - review `openassist tools invocations` during incident triage and after privileged automation runs
 - use `openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>` to confirm callable tools and native web mode before enabling sensitive sessions
 - use in-channel `/status` for quick local diagnostics; avoid pasting raw service logs containing secrets into public channels
+- when enabling Discord DMs, keep `allowedDmUserIds` narrow and explicit instead of opening DMs broadly

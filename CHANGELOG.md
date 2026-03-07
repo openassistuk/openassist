@@ -8,6 +8,19 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- First-class channel attachment and presentation path:
+  - `AttachmentRef` now carries durable media metadata (`kind`, `mimeType`, `name`, `sizeBytes`, `localPath`, optional `captionText`, optional `extractedText`)
+  - `NormalizedMessage.attachments` now survives recent-message replay through durable `message_attachments` storage
+  - runtime-owned attachment policy now persists inbound files under `runtime.paths.dataDir`, extracts bounded text from supported text-like documents, and emits visible notes for unsupported or oversized attachments
+- First-class channel transport behavior:
+  - Telegram now ingests photos and supported documents, keeps private chats/groups/forum topics first-class, and sends HTML-formatted replies
+  - Discord now supports guild text channels, thread channels, and explicit DM allow-lists via `channels[*].settings.allowedDmUserIds`
+  - WhatsApp MD now ingests images and supported documents, keeps private chats/groups first-class, and sends quoted replies when replying in chat
+- First-class provider image capability contract:
+  - `ProviderCapabilities.supportsImageInputs` now makes image-input support explicit
+  - built-in OpenAI and Anthropic adapters now map inbound images into provider-native request shapes
+  - built-in OpenAI-compatible adapters stay text-only for images
+
 - Actor-aware access-mode controls across setup, chat, CLI, API, and runtime:
   - `runtime.operatorAccessProfile` plus per-channel `channels[*].settings.operatorUserIds`
   - canonical session IDs now use `<channelId>:<conversationKey>` for new writes and operator examples
@@ -70,6 +83,15 @@ The format follows Keep a Changelog conventions and this project currently track
   - GitHub HTTPS auth failures now offer interactive retry/credential-clear/abort choices instead of immediate hard exit
 
 ### Changed
+
+- Channel UX and beginner copy pass:
+  - quickstart and wizard no longer describe WhatsApp as experimental on beginner paths
+  - quickstart and wizard now describe Telegram, Discord, and WhatsApp as first-class channel choices with clearer guidance for groups, topics, DMs, QR login, and attachment support
+  - Discord setup now includes explicit DM allow-list prompts instead of implying DMs are open automatically
+  - chat replies, `/status`, and runtime diagnostics now pass through shared channel-aware rendering and chunking so channels receive readable sections instead of dense plain-text walls
+- Installer and build-policy alignment for supported media paths:
+  - `pnpm-workspace.yaml` now allows the supported WhatsApp/media build-script baseline (`@whiskeysockets/baileys`, `sharp`) alongside existing required build dependencies
+  - bootstrap/install docs now explain skipped WhatsApp/media build scripts in supported-path language instead of calling them optional extras
 
 - Beginner-facing access and lifecycle wording pass:
   - quickstart and wizard now present `Standard mode (recommended)` and `Full access for approved operators` instead of forcing raw policy jargon onto new operators

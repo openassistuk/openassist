@@ -199,6 +199,46 @@ describe("config schema security validation", () => {
     expect(() => parseConfig(input)).not.toThrow();
   });
 
+  it("accepts Discord DM allow-lists and attachment limits", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).attachments = {
+      maxFilesPerMessage: 3,
+      maxImageBytes: 9_000_000,
+      maxDocumentBytes: 500_000,
+      maxExtractedChars: 8000
+    };
+    (input.runtime as any).channels = [
+      {
+        id: "discord-main",
+        type: "discord",
+        enabled: true,
+        settings: {
+          botToken: "env:OPENASSIST_CHANNEL_DISCORD_MAIN_BOT_TOKEN",
+          allowedDmUserIds: ["123456789012345678"]
+        }
+      }
+    ];
+
+    expect(() => parseConfig(input)).not.toThrow();
+  });
+
+  it("rejects Discord DM allow-lists on non-Discord channels", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).channels = [
+      {
+        id: "telegram-main",
+        type: "telegram",
+        enabled: true,
+        settings: {
+          botToken: "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN",
+          allowedDmUserIds: ["123456789012345678"]
+        }
+      }
+    ];
+
+    expect(() => parseConfig(input)).toThrow(/allowedDmUserIds/);
+  });
+
   it("rejects channel IDs that use reserved session delimiters", () => {
     const input = baseConfigInput();
     (input.runtime as any).channels = [

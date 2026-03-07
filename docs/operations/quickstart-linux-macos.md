@@ -48,8 +48,9 @@ Bootstrap behavior:
 - interactive bootstrap runs quickstart after the build
 - non-interactive bootstrap does not run quickstart for you
 - non-interactive bootstrap still installs the service unless you pass `--skip-service`
-- `pnpm` version notices and ignored optional build-script warnings are expected on normal Telegram or Discord installs
-- those warnings usually matter only if you are testing optional WhatsApp/media paths
+- `pnpm` version notices are informational
+- the supported path now includes WhatsApp/media baseline build-script dependencies
+- if `pnpm` still reports skipped WhatsApp/media build scripts on your host, approve them before relying on WhatsApp image or document handling
 
 If you are installing from a local checkout instead of GitHub:
 
@@ -91,6 +92,7 @@ What quickstart configures:
 - runtime defaults for the first reply
 - one primary provider
 - one primary channel
+- first-class Telegram, Discord, or WhatsApp chat setup with readable replies and attachment ingest
 - one access mode choice:
   - `Standard mode (recommended)`
   - `Full access for approved operators`
@@ -126,6 +128,8 @@ Provider and channel guidance:
 - provider OAuth client configuration stays in `openassist setup wizard`
 - after OAuth is configured, use `openassist auth start --provider <provider-id> --account default --open-browser`
 - Telegram defaults remain inline chat memory and inline responses unless you change them later
+- Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`
+- OpenAI and Anthropic can inspect inbound images; OpenAI-compatible providers will answer from text/captions only and tell you when image understanding is unavailable
 
 ## 4. Validate lifecycle readiness
 
@@ -156,9 +160,16 @@ After quickstart completes:
 
 1. Open the configured Telegram, Discord, or WhatsApp destination.
 2. Send a simple message.
-3. Confirm the bot replies.
+3. Confirm the bot replies with readable formatting rather than one dense wall of text.
 4. Send `/status` if you need local diagnostics without provider dependency.
 5. Copy the `sender id` and `session id` from `/status` if you plan to configure approved operators or inspect actor-specific access later.
+
+Channel-specific scope:
+
+- Telegram supports private chats, groups, and forum topics
+- Discord supports guild text channels, thread channels, and DMs
+- WhatsApp MD supports private chats and groups
+- supported documents in this release are text-like uploads such as `.txt`, `.md`, `.csv`, `.json`, `.yaml`, and `.log`
 
 First-reply checklist:
 

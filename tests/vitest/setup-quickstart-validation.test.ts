@@ -351,7 +351,7 @@ describe("setup quickstart validation", () => {
       const errorCodes = new Set(result.errors.map((item) => item.code));
       const warningCodes = new Set(result.warnings.map((item) => item.code));
       expect(errorCodes.has("runtime.port_unavailable")).toBe(true);
-      expect(warningCodes.has("channel.whatsapp_experimental")).toBe(true);
+      expect(warningCodes.has("channel.whatsapp_experimental")).toBe(false);
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.close((error) => {

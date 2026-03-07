@@ -16,6 +16,13 @@ export interface RuntimeAssistantConfig {
   promptOnFirstContact: boolean;
 }
 
+export interface RuntimeAttachmentConfig {
+  maxFilesPerMessage: number;
+  maxImageBytes: number;
+  maxDocumentBytes: number;
+  maxExtractedChars: number;
+}
+
 export interface RuntimeFsToolsConfig {
   workspaceOnly: boolean;
   allowedReadPaths: string[];
@@ -114,6 +121,7 @@ export interface RuntimeConfig {
   operatorAccessProfile: Extract<PolicyProfile, "operator" | "full-root">;
   workspaceRoot?: string;
   assistant?: RuntimeAssistantConfig;
+  attachments?: RuntimeAttachmentConfig;
   paths: RuntimePaths;
   time: TimeConfig;
   scheduler: SchedulerConfig;

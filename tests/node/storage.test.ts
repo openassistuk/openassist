@@ -105,6 +105,53 @@ describe("OpenAssistDatabase", () => {
     db.close();
   });
 
+  it("round-trips attachment metadata for recent-message replay", () => {
+    const root = tempDir("openassist-storage-attachments-");
+    roots.push(root);
+
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const attachmentPath = path.join(root, "attachments", "note.txt");
+    fs.mkdirSync(path.dirname(attachmentPath), { recursive: true });
+    fs.writeFileSync(attachmentPath, "hello from attachment", "utf8");
+
+    const sessionId = "telegram-main:c1";
+    const envelope = {
+      channel: "telegram" as const,
+      channelId: "telegram-main",
+      transportMessageId: "1",
+      conversationKey: "c1",
+      senderId: "u1",
+      text: "see attached",
+      attachments: [
+        {
+          id: "attachment-1",
+          kind: "document" as const,
+          name: "note.txt",
+          mimeType: "text/plain",
+          localPath: attachmentPath,
+          sizeBytes: 21,
+          captionText: "see attached",
+          extractedText: "hello from attachment"
+        }
+      ],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "idemp-attachment-1"
+    };
+
+    const accepted = db.recordInbound(sessionId, envelope);
+    assert.equal(accepted, true);
+
+    const rows = db.getRecentMessages(sessionId, 10);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.attachments?.length, 1);
+    assert.equal(rows[0]?.attachments?.[0]?.name, "note.txt");
+    assert.equal(rows[0]?.attachments?.[0]?.localPath, attachmentPath);
+    assert.equal(rows[0]?.attachments?.[0]?.extractedText, "hello from attachment");
+
+    db.close();
+  });
+
   it("stores and updates session bootstrap memory", () => {
     const root = tempDir("openassist-db-session-bootstrap-");
     roots.push(root);

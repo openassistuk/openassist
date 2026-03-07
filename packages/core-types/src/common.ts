@@ -6,12 +6,18 @@ export interface JsonObject {
 
 export type HealthStatus = "healthy" | "degraded" | "unhealthy";
 
+export type AttachmentKind = "document" | "image";
+
 export interface AttachmentRef {
   id: string;
+  kind: AttachmentKind;
   name?: string;
   mimeType?: string;
   url?: string;
+  localPath?: string;
   sizeBytes?: number;
+  captionText?: string;
+  extractedText?: string;
 }
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
@@ -20,6 +26,7 @@ export interface NormalizedMessage {
   id?: string;
   role: MessageRole;
   content: string;
+  attachments?: AttachmentRef[];
   createdAt?: string;
   metadata?: Record<string, string>;
   internalTrace?: string;

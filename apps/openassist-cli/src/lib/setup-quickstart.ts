@@ -386,6 +386,7 @@ function printChannelGuidance(type: OpenAssistConfig["runtime"]["channels"][numb
     console.log("- Add the bot to the chat/group where you want to use OpenAssist.");
     console.log("- Send one message in that chat, then capture the numeric chat ID.");
     console.log("- Default behavior is inline chat memory per chat/group (not per-message threads).");
+    console.log("- Telegram replies support readable formatting, images, and text-like document uploads.");
     console.log("- Tip: @userinfobot can show user/chat IDs quickly.");
     return;
   }
@@ -393,14 +394,17 @@ function printChannelGuidance(type: OpenAssistConfig["runtime"]["channels"][numb
   if (type === "discord") {
     console.log("Discord setup:");
     console.log("- Create a bot application in the Discord Developer Portal.");
-    console.log("- Invite the bot to your server/channel with message permissions.");
-    console.log("- Use channel IDs (Developer Mode) for allow-list filtering.");
+    console.log("- Invite the bot to the server, channel, or DM flow you want to use.");
+    console.log("- Use channel IDs (Developer Mode) for server and thread allow-list filtering.");
+    console.log("- Use DM user IDs if you want to allow direct messages.");
+    console.log("- Discord replies preserve readable structure and support image/text-like attachment ingest.");
     return;
   }
 
   console.log("WhatsApp setup:");
-  console.log("- WhatsApp MD is marked experimental in V1.");
-  console.log("- First startup will require QR login from a real WhatsApp account.");
+  console.log("- First startup requires QR login from a real WhatsApp account.");
+  console.log("- OpenAssist supports private chats and groups on this channel.");
+  console.log("- WhatsApp replies keep readable formatting and can ingest images and text-like documents.");
 }
 
 async function configureSingleChannel(state: SetupQuickstartState, prompts: PromptAdapter): Promise<void> {
@@ -410,9 +414,9 @@ async function configureSingleChannel(state: SetupQuickstartState, prompts: Prom
   const type = await prompts.select<OpenAssistConfig["runtime"]["channels"][number]["type"]>(
     "Channel type",
     [
-      { name: "Telegram (Bot token + chat IDs)", value: "telegram" },
-      { name: "Discord (Bot token + channel IDs)", value: "discord" },
-      { name: "WhatsApp MD (experimental)", value: "whatsapp-md" }
+      { name: "Telegram (bot token + chat IDs)", value: "telegram" },
+      { name: "Discord (bot token + channel IDs or DM user IDs)", value: "discord" },
+      { name: "WhatsApp MD (QR login + chats or groups)", value: "whatsapp-md" }
     ],
     existingPrimary?.type ?? "telegram"
   );
@@ -471,6 +475,14 @@ async function configureSingleChannel(state: SetupQuickstartState, prompts: Prom
         "Discord channel IDs should be numeric snowflakes"
       );
       settings.allowedChannelIds = allowed;
+      console.log("Leave DM user IDs blank to keep Discord direct messages disabled.");
+      settings.allowedDmUserIds = await promptValidatedCsvIds(
+        prompts,
+        "Allowed Discord DM user IDs (comma separated numeric IDs; blank = disable DMs)",
+        Array.isArray(settings.allowedDmUserIds) ? settings.allowedDmUserIds.join(",") : "",
+        /^\d{5,30}$/,
+        "Discord DM user IDs should be numeric snowflakes"
+      );
       delete settings.allowedChatIds;
     }
   } else {

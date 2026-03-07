@@ -159,6 +159,12 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
         operatorPreferences: "",
         promptOnFirstContact: true
       },
+      attachments: {
+        maxFilesPerMessage: 4,
+        maxImageBytes: 10_000_000,
+        maxDocumentBytes: 1_000_000,
+        maxExtractedChars: 12_000
+      },
       time: {
         ntpPolicy: "warn-degrade",
         ntpCheckIntervalSec: 300,

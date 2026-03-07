@@ -197,7 +197,7 @@ print_bootstrap_summary() {
   fi
   echo "Still worth knowing:"
   echo "  - pnpm version notices are informational"
-  echo "  - ignored optional build-script warnings are expected unless you need optional WhatsApp/media extras"
+  echo "  - if pnpm reports skipped build scripts for WhatsApp/media dependencies, approve them before relying on WhatsApp image or document handling"
 
   echo "Next step:"
   if [[ "${INTERACTIVE}" -eq 1 && "${SKIP_SERVICE}" -eq 1 ]]; then
@@ -870,7 +870,7 @@ fi
 echo "Installing dependencies..."
 pnpm --dir "${INSTALL_DIR}" install --frozen-lockfile
 echo "Install note: pnpm version notices and ignored optional build-script warnings are expected on normal Telegram or Discord installs."
-echo "They usually matter only if you are testing optional WhatsApp/media paths."
+echo "If pnpm still reports skipped WhatsApp/media build scripts, approve them before relying on WhatsApp image or document handling."
 
 echo "Building workspace..."
 pnpm --dir "${INSTALL_DIR}" -r build

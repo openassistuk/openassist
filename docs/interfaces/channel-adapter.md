@@ -23,7 +23,7 @@ Every adapter must implement:
 - transport message ID
 - conversation key
 - sender ID
-- optional text and attachments
+- optional text plus attachment metadata
 - receive timestamp
 - idempotency key
 
@@ -31,11 +31,18 @@ Idempotency keys must be stable for the same transport event.
 
 `channelId` is now the canonical routing identity for runtime session tracking. Runtime session IDs use `<channelId>:<conversationKey>`, not just the transport type.
 
+Attachment rules:
+
+- adapters normalize inbound images and supported text-like documents into `AttachmentRef[]`
+- adapters may use temporary local files for downloaded media, but runtime remains the owner of final persisted attachment storage under `runtime.paths.dataDir`
+- adapters must not silently drop unsupported or oversized attachments; runtime must be able to surface a clear operator note
+- Discord direct-message support is explicit and audited through `channels[*].settings.allowedDmUserIds`
+
 ## Outbound Envelope Contract
 
 `OutboundEnvelope` includes:
 
-- channel ID
+- channel type
 - conversation key
 - text body
 - optional reply target transport message ID
@@ -69,3 +76,9 @@ Adapters must provide:
 - Telegram: `packages/channels-telegram/src/index.ts`
 - Discord: `packages/channels-discord/src/index.ts`
 - WhatsApp MD: `packages/channels-whatsapp-md/src/index.ts`
+
+Supported first-class scope:
+
+- Telegram: private chats, groups, forum topics; inbound photos and supported documents; outbound HTML rendering
+- Discord: guild text channels, threads, DMs; inbound image and supported document attachments; outbound text-based channel sends with reply references
+- WhatsApp MD: private chats and groups; inbound image and supported document messages; outbound quoted replies where supported

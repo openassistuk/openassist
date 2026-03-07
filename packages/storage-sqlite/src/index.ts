@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type {
+  AttachmentRef,
   InboundEnvelope,
   NormalizedMessage,
   OutboundEnvelope,
@@ -100,6 +101,10 @@ export interface SessionBootstrapRecord {
   firstContactPrompted: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MessageAttachmentRecord extends AttachmentRef {
+  messageId: number;
 }
 
 export interface OpenAssistDatabaseOptions {
@@ -221,6 +226,22 @@ export class OpenAssistDatabase {
         internal_trace TEXT,
         created_at TEXT NOT NULL,
         FOREIGN KEY(session_id) REFERENCES sessions(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS message_attachments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id INTEGER NOT NULL,
+        attachment_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        name TEXT,
+        mime_type TEXT,
+        url TEXT,
+        local_path TEXT,
+        size_bytes INTEGER,
+        caption_text TEXT,
+        extracted_text TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS events (
@@ -397,6 +418,9 @@ export class OpenAssistDatabase {
       CREATE INDEX IF NOT EXISTS idx_messages_session_id_desc
       ON messages(session_id, id DESC);
 
+      CREATE INDEX IF NOT EXISTS idx_message_attachments_message_id
+      ON message_attachments(message_id, id ASC);
+
       CREATE INDEX IF NOT EXISTS idx_jobs_status_run_after
       ON jobs(status, run_after);
 
@@ -445,6 +469,112 @@ export class OpenAssistDatabase {
     return this.insertIdempotencyKey(`scheduler:${taskId}:${scheduledFor}`);
   }
 
+  hasIdempotencyKey(key: string): boolean {
+    const row = this.db
+      .prepare(`SELECT 1 FROM idempotency_keys WHERE key = ? LIMIT 1`)
+      .get(key) as { 1?: number } | undefined;
+    return row !== undefined;
+  }
+
+  private persistMessageAttachments(messageId: number, attachments: AttachmentRef[], createdAt: string): void {
+    if (attachments.length === 0) {
+      return;
+    }
+
+    const statement = this.db.prepare(
+      `
+        INSERT INTO message_attachments (
+          message_id,
+          attachment_id,
+          kind,
+          name,
+          mime_type,
+          url,
+          local_path,
+          size_bytes,
+          caption_text,
+          extracted_text,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `
+    );
+
+    for (const attachment of attachments) {
+      statement.run(
+        messageId,
+        attachment.id,
+        attachment.kind,
+        attachment.name ?? null,
+        attachment.mimeType ?? null,
+        attachment.url ?? null,
+        attachment.localPath ?? null,
+        attachment.sizeBytes ?? null,
+        attachment.captionText ?? null,
+        attachment.extractedText ?? null,
+        createdAt
+      );
+    }
+  }
+
+  private getMessageAttachments(messageIds: number[]): Map<number, AttachmentRef[]> {
+    const map = new Map<number, AttachmentRef[]>();
+    if (messageIds.length === 0) {
+      return map;
+    }
+
+    const placeholders = messageIds.map(() => "?").join(", ");
+    const rows = this.db
+      .prepare(
+        `
+          SELECT
+            message_id,
+            attachment_id,
+            kind,
+            name,
+            mime_type,
+            url,
+            local_path,
+            size_bytes,
+            caption_text,
+            extracted_text
+          FROM message_attachments
+          WHERE message_id IN (${placeholders})
+          ORDER BY id ASC
+        `
+      )
+      .all(...messageIds) as Array<{
+      message_id: number;
+      attachment_id: string;
+      kind: AttachmentRef["kind"];
+      name: string | null;
+      mime_type: string | null;
+      url: string | null;
+      local_path: string | null;
+      size_bytes: number | null;
+      caption_text: string | null;
+      extracted_text: string | null;
+    }>;
+
+    for (const row of rows) {
+      const existing = map.get(row.message_id) ?? [];
+      existing.push({
+        id: row.attachment_id,
+        kind: row.kind,
+        name: row.name ?? undefined,
+        mimeType: row.mime_type ?? undefined,
+        url: row.url ?? undefined,
+        localPath: row.local_path ?? undefined,
+        sizeBytes: row.size_bytes ?? undefined,
+        captionText: row.caption_text ?? undefined,
+        extractedText: row.extracted_text ?? undefined
+      });
+      map.set(row.message_id, existing);
+    }
+
+    return map;
+  }
+
   recordInbound(sessionId: string, envelope: InboundEnvelope): boolean {
     return this.runInTransaction(() => {
       if (!this.insertIdempotencyKey(envelope.idempotencyKey)) {
@@ -453,7 +583,7 @@ export class OpenAssistDatabase {
 
       this.ensureSession(sessionId, envelope.conversationKey);
 
-      this.db
+      const inserted = this.db
         .prepare(
           `
           INSERT INTO messages (session_id, conversation_key, role, content, metadata_json, created_at)
@@ -472,6 +602,11 @@ export class OpenAssistDatabase {
           }),
           envelope.receivedAt
         );
+      this.persistMessageAttachments(
+        Number(inserted.lastInsertRowid),
+        envelope.attachments ?? [],
+        envelope.receivedAt
+      );
 
       this.db
         .prepare(
@@ -493,6 +628,7 @@ export class OpenAssistDatabase {
     metadata: Record<string, unknown> = {}
   ): void {
     this.ensureSession(sessionId, conversationKey);
+    const createdAt = nowIso();
     const mergedMetadata: Record<string, unknown> = {
       ...metadata,
       ...(message.metadata ?? {})
@@ -503,7 +639,7 @@ export class OpenAssistDatabase {
     if (message.toolName) {
       mergedMetadata.toolName = message.toolName;
     }
-    this.db
+    const inserted = this.db
       .prepare(
         `
         INSERT INTO messages (session_id, conversation_key, role, content, metadata_json, internal_trace, created_at)
@@ -517,8 +653,13 @@ export class OpenAssistDatabase {
         message.content,
         JSON.stringify(mergedMetadata),
         message.internalTrace ?? null,
-        nowIso()
+        createdAt
       );
+    this.persistMessageAttachments(
+      Number(inserted.lastInsertRowid),
+      message.attachments ?? [],
+      createdAt
+    );
   }
 
   recordOutbound(sessionId: string, envelope: OutboundEnvelope, transportMessageId: string): void {
@@ -543,7 +684,7 @@ export class OpenAssistDatabase {
     const rows = this.db
       .prepare(
         `
-        SELECT role, content, metadata_json, internal_trace, created_at
+        SELECT id, role, content, metadata_json, internal_trace, created_at
         FROM messages
         WHERE session_id = ?
         ORDER BY id DESC
@@ -551,12 +692,14 @@ export class OpenAssistDatabase {
       `
       )
       .all(sessionId, limit) as Array<{
+      id: number;
       role: string;
       content: string;
       metadata_json: string | null;
       internal_trace: string | null;
       created_at: string;
     }>;
+    const attachmentsByMessageId = this.getMessageAttachments(rows.map((row) => row.id));
 
     return rows
       .reverse()
@@ -565,6 +708,7 @@ export class OpenAssistDatabase {
         return {
           role: row.role as NormalizedMessage["role"],
           content: row.content,
+          attachments: attachmentsByMessageId.get(row.id) ?? undefined,
           createdAt: row.created_at,
           metadata,
           internalTrace: row.internal_trace ?? undefined,

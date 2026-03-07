@@ -221,6 +221,9 @@ program
             botToken: String(settings.botToken ?? ""),
             allowedChannelIds: Array.isArray(settings.allowedChannelIds)
               ? (settings.allowedChannelIds as string[])
+              : [],
+            allowedDmUserIds: Array.isArray(settings.allowedDmUserIds)
+              ? (settings.allowedDmUserIds as string[])
               : []
           });
         }

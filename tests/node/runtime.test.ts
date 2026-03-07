@@ -39,7 +39,8 @@ class MockProvider implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: false,
       supportsOAuth: false,
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: false
     };
   }
 
@@ -94,7 +95,8 @@ class MockToolLoopProvider implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: true,
       supportsOAuth: false,
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: false
     };
   }
 
@@ -142,7 +144,8 @@ class MockStrictToolContextProvider implements ProviderAdapter {
       supportsStreaming: false,
       supportsTools: false,
       supportsOAuth: false,
-      supportsApiKeys: true
+      supportsApiKeys: true,
+      supportsImageInputs: false
     };
   }
 

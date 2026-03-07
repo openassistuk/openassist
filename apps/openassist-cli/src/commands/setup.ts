@@ -52,11 +52,11 @@ export function registerSetupCommands(program: Command): void {
         }
 
         if (Boolean(options.skipPostChecks)) {
-          console.log("Skipped post-save service and health checks (--skip-post-checks).");
+          console.log("Skipped lifecycle checks after save (--skip-post-checks).");
           return;
         }
 
-        console.log("Running advanced post-save service restart and health checks...");
+        console.log("Running lifecycle checks after save...");
         try {
           const postSave = await runSetupWizardPostSaveChecks(
             {
@@ -69,7 +69,8 @@ export function registerSetupCommands(program: Command): void {
           );
 
           if (!postSave.completed && postSave.reason === "service-not-installed") {
-            console.log("Post-save checks skipped because service is not installed.");
+            console.log("Needs action before first reply:");
+            console.log("- Service is not installed yet for this config.");
             console.log(
               `Install it with: openassist service install --install-dir "${installDir}" --config "${configPath}" --env-file "${envFilePath}"`
             );
@@ -78,13 +79,15 @@ export function registerSetupCommands(program: Command): void {
 
           if (!postSave.completed && postSave.reason === "service-manager-unsupported") {
             console.log(
-              "Post-save checks skipped because service lifecycle is unsupported on this platform."
+              "Needs action before first reply:"
             );
+            console.log("- Service lifecycle is unsupported on this platform for the current OpenAssist release.");
             return;
           }
 
           if (!postSave.completed && postSave.reason === "post-checks-skipped") {
-            console.log("Post-save checks were skipped by operator choice.");
+            console.log("Needs action before first reply:");
+            console.log("- Lifecycle checks were skipped by operator choice after save.");
             if (postSave.lastError) {
               console.log(`Last check error: ${postSave.lastError}`);
             }

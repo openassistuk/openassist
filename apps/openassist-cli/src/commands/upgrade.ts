@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { loadConfig } from "@openassist/config";
 import type { Command } from "commander";
 import {
   SpawnCommandRunner,
@@ -8,6 +9,7 @@ import {
   runStreamingOrThrow
 } from "../lib/command-runner.js";
 import { checkHealth, waitForHealthy } from "../lib/health-check.js";
+import { buildLifecycleReport } from "../lib/lifecycle-readiness.js";
 import { createServiceManager } from "../lib/service-manager.js";
 import { defaultInstallDir, detectDefaultDaemonBaseUrl } from "../lib/runtime-context.js";
 import { detectInstallStateFromRepo, loadInstallState, saveInstallState } from "../lib/install-state.js";
@@ -35,18 +37,25 @@ async function detectCurrentCommit(runner: SpawnCommandRunner, cwd: string): Pro
 }
 
 async function ensureGitClean(runner: SpawnCommandRunner, cwd: string): Promise<void> {
-  const result = await runOrThrow(runner, "git", ["status", "--porcelain"], { cwd });
-  if (result.stdout.trim().length > 0) {
+  const dirty = await isGitDirty(runner, cwd);
+  if (dirty) {
     throw new Error(
       "OpenAssist found local code changes in the install directory. Commit or stash them before updating. If this checkout is no longer trustworthy, run bootstrap again in a fresh install directory."
     );
   }
 }
 
-async function verifyBinary(runner: SpawnCommandRunner, command: string): Promise<void> {
-  const result = await runner.run(command, ["--version"]);
-  if (result.code !== 0) {
-    throw new Error(`Required command is unavailable: ${command}`);
+async function isGitDirty(runner: SpawnCommandRunner, cwd: string): Promise<boolean> {
+  const result = await runOrThrow(runner, "git", ["status", "--porcelain"], { cwd });
+  return result.stdout.trim().length > 0;
+}
+
+async function binaryAvailable(runner: SpawnCommandRunner, command: string): Promise<boolean> {
+  try {
+    const result = await runner.run(command, ["--version"]);
+    return result.code === 0;
+  } catch {
+    return false;
   }
 }
 
@@ -80,9 +89,9 @@ async function performRollback(
   context: UpgradeContext,
   skipRestart: boolean,
   baseUrl: string
-): Promise<void> {
+) : Promise<{ restoredCommit?: string; serviceHealthRechecked: boolean }> {
   if (!context.oldCommit) {
-    return;
+    return { restoredCommit: undefined, serviceHealthRechecked: false };
   }
 
   console.error(`Update failed. Rolling back to ${context.oldCommit}...`);
@@ -105,7 +114,15 @@ async function performRollback(
         `Rollback restart succeeded but health is still failing (status=${health.status} body=${health.bodyText})`
       );
     }
+    return {
+      restoredCommit: context.oldCommit,
+      serviceHealthRechecked: true
+    };
   }
+  return {
+    restoredCommit: context.oldCommit,
+    serviceHealthRechecked: false
+  };
 }
 
 export function registerUpgradeCommand(program: Command): void {
@@ -141,17 +158,36 @@ export function registerUpgradeCommand(program: Command): void {
       const dryRun = Boolean(options.dryRun);
 
       try {
-        await verifyBinary(runner, "git");
-        await verifyBinary(runner, "pnpm");
-        await verifyBinary(runner, "node");
-        ensureRepoBackedInstall(installDir);
-
+        const hasGit = await binaryAvailable(runner, "git");
+        const hasPnpm = await binaryAvailable(runner, "pnpm");
+        const hasNode = await binaryAvailable(runner, "node");
+        const repoBacked = fs.existsSync(path.join(installDir, ".git"));
+        const configExists = fs.existsSync(configPath);
+        const envExists = fs.existsSync(envFilePath);
+        let parsedConfig;
+        let validationErrors: Array<{ code: string; message: string; hint?: string }> = [];
+        if (configExists) {
+          try {
+            parsedConfig = loadConfig({
+              baseFile: configPath,
+              overlaysDir: path.join(path.dirname(configPath), "config.d")
+            }).config;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            validationErrors = [
+              {
+                code: "config.read_failed",
+                message: `OpenAssist could not load the config file: ${message}`,
+                hint: "Fix the config file before upgrading."
+              }
+            ];
+          }
+        }
         const repoMetadata = detectInstallStateFromRepo(installDir);
         context.trackedRef = repoMetadata.trackedRef ?? context.trackedRef;
         context.repoUrl = repoMetadata.repoUrl ?? context.repoUrl;
-
-        context.currentBranch = await detectCurrentBranch(runner, installDir);
-        context.oldCommit = await detectCurrentCommit(runner, installDir);
+        context.currentBranch = repoBacked && hasGit ? await detectCurrentBranch(runner, installDir) : "HEAD";
+        context.oldCommit = repoBacked && hasGit ? await detectCurrentCommit(runner, installDir) : "(unknown)";
         const plan = buildUpgradePlan({
           optionRef: context.targetRef || undefined,
           currentBranch: context.currentBranch,
@@ -160,6 +196,26 @@ export function registerUpgradeCommand(program: Command): void {
         });
         context.targetRef = plan.targetRef;
         const baseUrl = detectDefaultDaemonBaseUrl(configPath);
+        const dirtyWorkingTree = repoBacked && hasGit ? await isGitDirty(runner, installDir) : false;
+        const report = buildLifecycleReport({
+          installDir,
+          configPath,
+          envFilePath,
+          installStatePresent: Boolean(installState),
+          repoBacked,
+          configExists,
+          envExists,
+          repoUrl: context.repoUrl,
+          trackedRef: context.trackedRef,
+          currentCommit: context.oldCommit,
+          config: parsedConfig,
+          validationErrors,
+          hasGit,
+          hasPnpm,
+          hasNode,
+          daemonBuildExists: fs.existsSync(path.join(installDir, "apps", "openassistd", "dist", "index.js")),
+          dirtyWorkingTree
+        });
 
         printLines(
           renderUpgradePlanSummary({
@@ -168,9 +224,31 @@ export function registerUpgradeCommand(program: Command): void {
             currentCommit: context.oldCommit,
             trackedRef: context.trackedRef,
             rollbackTarget: context.oldCommit,
+            upgradeReadiness: report.summary.upgradeReadiness,
+            upgradeBlockers: report.sections.needsActionBeforeUpgrade,
             plan
           })
         );
+
+        if (report.summary.upgradeReadiness !== "safe-to-continue") {
+          if (dryRun) {
+            console.log(
+              `Dry-run complete. Upgrade is not ready yet: ${
+                report.summary.upgradeReadiness === "rerun-bootstrap"
+                  ? "rerun bootstrap instead"
+                  : "fix the reported blockers before updating"
+              }.`
+            );
+            console.log(`- Recommended next command: ${report.recommendedNextCommand.command}`);
+            process.exitCode = 1;
+            return;
+          }
+
+          throw new Error(
+            report.sections.needsActionBeforeUpgrade[0]?.detail ??
+              "Upgrade is not ready yet. Run openassist doctor for the grouped lifecycle report."
+          );
+        }
 
         await ensureGitClean(runner, installDir);
         await runOrThrow(runner, "git", ["fetch", "origin", context.targetRef], {
@@ -178,14 +256,14 @@ export function registerUpgradeCommand(program: Command): void {
         });
 
         if (dryRun) {
-          console.log("Dry-run complete. The update can be applied safely with the same install directory and target ref shown above.");
+          console.log("Dry-run complete. Upgrade is safe to continue with the install directory and update track shown above.");
           if (context.currentBranch === "HEAD") {
             console.log(
               "- This install is currently on a detached commit, so the dry-run resolved the target ref explicitly to keep the update predictable."
             );
           }
           console.log(
-            "- When you are ready, rerun openassist upgrade without --dry-run."
+            "- When you are ready, rerun: openassist upgrade"
           );
           printUpgradeNextSteps(baseUrl, skipRestart);
           return;
@@ -253,8 +331,9 @@ export function registerUpgradeCommand(program: Command): void {
             const service = createServiceManager(runner);
             const installed = await service.isInstalled();
             const baseUrl = detectDefaultDaemonBaseUrl(context.configPath);
-            await performRollback(runner, installed, context, skipRestart, baseUrl);
-            console.error("Rollback completed.");
+            const rollback = await performRollback(runner, installed, context, skipRestart, baseUrl);
+            console.error(`Rollback restored: ${rollback.restoredCommit ?? "(unknown commit)"}`);
+            console.error(`Service health rechecked: ${rollback.serviceHealthRechecked ? "yes" : "no"}`);
             const rollbackMetadata = detectInstallStateFromRepo(context.installDir);
             saveInstallState({
               installDir: context.installDir,
@@ -269,6 +348,7 @@ export function registerUpgradeCommand(program: Command): void {
               envFilePath: context.envFilePath,
               lastKnownGoodCommit: context.oldCommit ?? ""
             });
+            console.error("Next command after rollback: openassist doctor");
             printUpgradeNextSteps(baseUrl, skipRestart);
           } catch (rollbackError) {
             const rollbackMessage =

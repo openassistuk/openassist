@@ -1,28 +1,10 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { OpenAssistConfig } from "@openassist/config";
-import { toProviderApiKeyEnvVar, toWebBraveApiKeyEnvVar } from "./config-edit.js";
-import { detectSetupAccessMode, getOperatorUserIds } from "./setup-access.js";
-
-function collectChannelEnvRefs(
-  settings: Record<string, string | number | boolean | string[]>,
-  refs: Set<string>
-): void {
-  for (const value of Object.values(settings)) {
-    if (typeof value === "string" && value.startsWith("env:")) {
-      refs.add(value.slice(4).trim());
-      continue;
-    }
-
-    if (Array.isArray(value)) {
-      for (const entry of value) {
-        if (typeof entry === "string" && entry.startsWith("env:")) {
-          refs.add(entry.slice(4).trim());
-        }
-      }
-    }
-  }
-}
+import { buildLifecycleReport } from "./lifecycle-readiness.js";
 
 export interface SetupSummaryInput {
+  installDir: string;
   configPath: string;
   envFilePath: string;
   backupPath?: string;
@@ -31,23 +13,27 @@ export interface SetupSummaryInput {
   warningCount: number;
   skippedService: boolean;
   healthOk: boolean;
+  postSaveError?: string;
 }
 
 export function buildSetupSummary(input: SetupSummaryInput): string[] {
-  const envRefs = new Set<string>();
-  for (const provider of input.config.runtime.providers) {
-    envRefs.add(toProviderApiKeyEnvVar(provider.id));
-  }
-  if (input.config.tools.web.searchMode !== "fallback-only") {
-    envRefs.add(toWebBraveApiKeyEnvVar());
-  }
-  for (const channel of input.config.runtime.channels) {
-    collectChannelEnvRefs(channel.settings, envRefs);
-  }
-
   const primaryChannel = input.config.runtime.channels.find((channel) => channel.enabled);
-  const accessMode = detectSetupAccessMode(input.config);
-  const primaryOperatorIds = getOperatorUserIds(primaryChannel);
+  const report = buildLifecycleReport({
+    installDir: input.installDir,
+    configPath: input.configPath,
+    envFilePath: input.envFilePath,
+    installStatePresent: true,
+    repoBacked: fs.existsSync(path.join(input.installDir, ".git")),
+    configExists: true,
+    envExists: true,
+    config: input.config,
+    trackedRef: "main",
+    serviceWasSkipped: input.skippedService,
+    serviceHealthOk: input.healthOk,
+    serviceHealthDetail: input.postSaveError,
+    daemonBuildExists: fs.existsSync(path.join(input.installDir, "apps", "openassistd", "dist", "index.js")),
+    hasNode: true
+  });
   const firstReplyGuidance =
     primaryChannel?.type === "telegram"
       ? "Send a message in a Telegram chat where the bot was added, then run /status if you need diagnostics."
@@ -58,57 +44,41 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
           : "Finish channel setup, then send a first test message and run /status if you need diagnostics.";
 
   const lines: string[] = [];
-  lines.push("Quickstart complete");
+  lines.push("Quickstart saved");
+  lines.push(`- First reply destination: ${report.context.firstReplyDestination}`);
+  lines.push(`- Access mode: ${report.context.accessMode}`);
+  lines.push(`- Service state: ${report.context.serviceState}`);
+  lines.push(`- Assistant identity: ${input.config.runtime.assistant.name}`);
+  lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
+  lines.push("Ready now");
   lines.push(`- Config saved: ${input.configPath}`);
   lines.push(`- Env file saved: ${input.envFilePath}`);
   if (input.backupPath) {
     lines.push(`- Backup: ${input.backupPath}`);
   }
-  lines.push(`- Assistant: ${input.config.runtime.assistant.name}`);
-  lines.push(`- Persona: ${input.config.runtime.assistant.persona}`);
-  lines.push(`- Ongoing objectives: ${input.config.runtime.assistant.operatorPreferences || "(none)"}`);
-  lines.push(
-    `- First-chat identity reminder: ${
-      input.config.runtime.assistant.promptOnFirstContact ? "enabled" : "disabled"
-    }`
-  );
   lines.push(`- Primary provider: ${input.config.runtime.defaultProviderId}`);
   lines.push(`- Primary channel: ${primaryChannel ? `${primaryChannel.id} (${primaryChannel.type})` : "(not configured)"}`);
-  lines.push(
-    `- Access mode: ${
-      accessMode === "full-access"
-        ? "Full access for approved operators"
-        : accessMode === "custom"
-          ? "Custom advanced access settings"
-          : "Standard mode"
-    }`
-  );
-  if (primaryChannel) {
-    lines.push(`- Approved operator IDs on primary channel: ${primaryOperatorIds.join(", ") || "(none)"}`);
+  if (input.changedEnvKeys.length > 0) {
+    lines.push(`- Updated env keys: ${input.changedEnvKeys.join(", ")}`);
   }
-  lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
-  lines.push(
-    `- Service status: ${
-      input.skippedService ? "not checked yet (--skip-service)" : input.healthOk ? "healthy" : "needs attention"
-    }`
-  );
-  lines.push(`- Env keys updated: ${input.changedEnvKeys.join(", ") || "(none)"}`);
-  lines.push(`- Secret refs in config: ${Array.from(envRefs).sort().join(", ") || "(none)"}`);
   if (input.warningCount > 0) {
     lines.push(`- Validation warnings: ${input.warningCount}`);
   }
   lines.push("First reply checklist:");
   lines.push(`- ${firstReplyGuidance}`);
   lines.push("- In chat, run /status to see the exact sender ID and session ID for access troubleshooting.");
-  if (accessMode === "full-access") {
+  if (report.context.accessMode === "Full access for approved operators") {
     lines.push("- Approved operators will receive full access automatically in this channel. Use /access standard if you want to drop back to standard access for this chat.");
   } else {
     lines.push("- Standard mode is active. Add approved operator IDs later if you want to use /access full in chat.");
   }
-  lines.push("- Use /profile to inspect or intentionally update the global assistant identity later.");
-  lines.push("- Verify daemon health: openassist service health");
+  if (!input.skippedService) {
+    lines.push("- Verify daemon health: openassist service health");
+  }
   lines.push("- Check channel status if there is no reply: openassist channel status");
+  lines.push("Advanced settings handoff:");
   lines.push("- Use the advanced editor for more settings: openassist setup wizard");
+  lines.push("- Use /profile to inspect or intentionally update the global assistant identity later.");
 
   return lines;
 }

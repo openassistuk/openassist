@@ -131,6 +131,7 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
     "Europe",
     "Europe/London",
     "true",
+    "save",
     ...extra
   ];
 }

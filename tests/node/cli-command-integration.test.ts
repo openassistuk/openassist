@@ -12,11 +12,13 @@ function tempDir(prefix: string): string {
 async function runCommand(
   command: string,
   args: string[],
-  cwd: string
+  cwd: string,
+  env?: NodeJS.ProcessEnv
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
+      env: env ? { ...process.env, ...env } : process.env,
       stdio: ["ignore", "pipe", "pipe"],
       shell: false
     });
@@ -43,10 +45,14 @@ function repoRoot(): string {
   return path.resolve(".");
 }
 
-async function runCli(args: string[], cwd: string): Promise<{ code: number; stdout: string; stderr: string }> {
+async function runCli(
+  args: string[],
+  cwd: string,
+  env?: NodeJS.ProcessEnv
+): Promise<{ code: number; stdout: string; stderr: string }> {
   const tsxCli = path.join(repoRoot(), "apps", "openassist-cli", "src", "index.ts");
   const tsxEntrypoint = path.join(repoRoot(), "node_modules", "tsx", "dist", "cli.mjs");
-  return runCommand(process.execPath, [tsxEntrypoint, tsxCli, ...args], cwd);
+  return runCommand(process.execPath, [tsxEntrypoint, tsxCli, ...args], cwd, env);
 }
 
 describe("cli command integration", () => {
@@ -56,11 +62,13 @@ describe("cli command integration", () => {
     assert.ok(result.stdout.includes("\"runtime\""), result.stdout);
   });
 
-  it("runs upgrade dry-run on a clean cloned working tree", async () => {
+  it("runs upgrade dry-run on a clean built working tree", async () => {
     const root = tempDir("openassist-upgrade-dryrun-");
     const cloneDir = path.join(root, "repo");
     const cloneResult = await runCommand("git", ["clone", "--depth", "1", repoRoot(), cloneDir], repoRoot());
     assert.equal(cloneResult.code, 0, cloneResult.stderr || cloneResult.stdout);
+    fs.mkdirSync(path.join(cloneDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(cloneDir, "apps", "openassistd", "dist", "index.js"), "// built for dry-run\n", "utf8");
 
     // CI checkouts can be detached and may not have origin/main fetched; using HEAD keeps dry-run deterministic.
     const result = await runCli(
@@ -68,14 +76,42 @@ describe("cli command integration", () => {
       repoRoot()
     );
     assert.equal(result.code, 0, result.stderr || result.stdout);
-    assert.ok(result.stdout.includes("Update plan"), result.stdout);
+    assert.ok(result.stdout.includes("Update readiness"), result.stdout);
     assert.ok(result.stdout.includes("- Target update track: HEAD"), result.stdout);
+    assert.ok(result.stdout.includes("Needs action before upgrade"), result.stdout);
     assert.ok(
       result.stdout.includes(
-        "The update can be applied safely with the same install directory and target ref shown above."
+        "Dry-run complete. Upgrade is safe to continue with the install directory and update track shown above."
       ),
       result.stdout
     );
+    assert.ok(result.stdout.includes("- When you are ready, rerun: openassist upgrade"), result.stdout);
+  });
+
+  it("reports missing update prerequisites instead of crashing when helper binaries are unavailable", async () => {
+    const root = tempDir("openassist-upgrade-missing-binaries-");
+    const cloneDir = path.join(root, "repo");
+    const emptyBinDir = path.join(root, "empty-bin");
+    const cloneResult = await runCommand("git", ["clone", "--depth", "1", repoRoot(), cloneDir], repoRoot());
+    assert.equal(cloneResult.code, 0, cloneResult.stderr || cloneResult.stdout);
+    fs.mkdirSync(path.join(cloneDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(cloneDir, "apps", "openassistd", "dist", "index.js"), "// built for dry-run\n", "utf8");
+    fs.mkdirSync(emptyBinDir, { recursive: true });
+
+    const result = await runCli(
+      ["upgrade", "--dry-run", "--install-dir", cloneDir, "--ref", "HEAD"],
+      repoRoot(),
+      {
+        PATH: emptyBinDir,
+        Path: emptyBinDir
+      }
+    );
+
+    assert.equal(result.code, 1, result.stderr || result.stdout);
+    assert.ok(result.stdout.includes("Update prerequisites"), result.stdout);
+    assert.ok(result.stdout.includes("git=missing"), result.stdout);
+    assert.ok(result.stdout.includes("pnpm=missing"), result.stdout);
+    assert.ok(result.stdout.includes("node=missing"), result.stdout);
   });
 
   it("runs service install dry-run on supported platforms", async (t) => {

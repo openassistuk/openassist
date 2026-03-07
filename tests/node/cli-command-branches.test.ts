@@ -219,11 +219,14 @@ describe("cli command branch coverage", () => {
     assert.equal(result.code, 0, result.stderr || result.stdout);
 
     fs.writeFileSync(path.join(gitRepo, "README.md"), "dirty\n", "utf8");
+    fs.mkdirSync(path.join(gitRepo, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(gitRepo, "apps", "openassistd", "dist", "index.js"), "// built for dry-run\n", "utf8");
 
     const dirty = await runCli(["upgrade", "--dry-run", "--install-dir", gitRepo]);
     assert.equal(dirty.code, 1, dirty.stderr || dirty.stdout);
-    assert.match(dirty.stderr, /local code changes/i);
-    assert.match(dirty.stderr, /Commit or stash .* before updating/i);
+    assert.match(dirty.stdout, /Update readiness/);
+    assert.match(dirty.stdout, /Local code changes/i);
+    assert.match(dirty.stdout, /Commit or stash the local changes, then rerun: openassist upgrade --dry-run/i);
 
     const missing = await runCli([
       "upgrade",
@@ -232,6 +235,9 @@ describe("cli command branch coverage", () => {
       path.join(gitRepo, "does-not-exist")
     ]);
     assert.equal(missing.code, 1, missing.stderr || missing.stdout);
-    assert.match(missing.stderr, /Update failed/);
+    assert.match(missing.stdout, /Update readiness/);
+    assert.match(missing.stdout, /Repo-backed install/i);
+    assert.match(missing.stdout, /rerun bootstrap instead/i);
+    assert.match(missing.stdout, /scripts\/install\/bootstrap\.sh --install-dir/i);
   });
 });

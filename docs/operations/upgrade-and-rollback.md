@@ -52,6 +52,14 @@ Dry-run prints the resolved plan before any mutation:
 
 It then tells you the exact live command and the next validation commands to run.
 
+The dry-run classification is now explicit:
+
+- `safe to continue`
+- `fix before updating`
+- `rerun bootstrap instead`
+
+`openassist upgrade --dry-run` uses the same readiness model as `openassist doctor`, so the grouped blockers and the recommended next command should agree across both commands.
+
 Detached checkout note:
 
 - if dry-run shows `Current branch: HEAD`, the repo is detached
@@ -124,7 +132,11 @@ If the upgrade fails after the previous commit is known, OpenAssist:
 4. restarts the service, unless restart was skipped
 5. reruns the health gate
 
-The command prints rollback status and the immediate validation commands to run next.
+The command now always prints:
+
+- what rollback restored
+- whether service health was rechecked
+- what to run next
 
 ## After a Successful Upgrade
 

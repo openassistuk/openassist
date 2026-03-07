@@ -56,11 +56,13 @@ describe("upgrade state machine planning", () => {
         currentCommit: "1234567890abcdef",
         trackedRef: "main",
         rollbackTarget: "1234567890abcdef",
+        upgradeReadiness: "safe-to-continue",
+        upgradeBlockers: [],
         plan
       })
     ).toEqual([
-      "Update plan",
-      "- Install style: repo-backed checkout",
+      "Update readiness",
+      "- Status: safe to continue",
       "- OpenAssist location: /tmp/openassist",
       "- Current branch: main",
       "- Current commit: 1234567890ab",
@@ -68,7 +70,9 @@ describe("upgrade state machine planning", () => {
       "- Target update track: main",
       "- Update method: fast-forward pull on the current branch",
       "- Restart and health checks after update: skipped by option",
-      "- Rollback target if the update fails: 1234567890ab"
+      "- Rollback target if the update fails: 1234567890ab",
+      "Needs action before upgrade",
+      "- None."
     ]);
   });
 });

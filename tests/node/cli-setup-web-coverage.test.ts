@@ -88,7 +88,8 @@ function minimalQuickstartAnswers(bindPort: number): string[] {
     "123,456",
     "Europe",
     "Europe/London",
-    "true"
+    "true",
+    "save"
   ];
 }
 
@@ -132,6 +133,7 @@ describe("cli native web setup coverage", () => {
     assert.equal(hybrid.warnings.some((issue) => issue.code === "tools.web_hybrid_fallback_only"), true);
 
     const summary = buildSetupSummary({
+      installDir: root,
       configPath: path.join(root, "openassist.toml"),
       envFilePath: path.join(root, "openassistd.env"),
       config,
@@ -140,12 +142,13 @@ describe("cli native web setup coverage", () => {
       skippedService: true,
       healthOk: false
     });
-    assert.equal(summary.some((line) => line.includes(`Env keys updated: ${braveVar}`)), true);
-    assert.equal(summary.some((line) => line.includes("Secret refs in config:")), true);
+    assert.equal(summary.some((line) => line.includes(`Updated env keys: ${braveVar}`)), true);
+    assert.equal(summary.some((line) => line.includes("Access mode: Standard mode (recommended)")), true);
     assert.equal(summary.some((line) => line.includes("Validation warnings:")), true);
 
     config.tools.web.enabled = false;
     const disabledSummary = buildSetupSummary({
+      installDir: root,
       configPath: path.join(root, "openassist.toml"),
       envFilePath: path.join(root, "openassistd.env"),
       config,

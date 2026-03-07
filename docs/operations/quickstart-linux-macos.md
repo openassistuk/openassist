@@ -45,6 +45,10 @@ Bootstrap behavior:
 - prints a lifecycle plan before it mutates anything
 - writes install state to `~/.config/openassist/install-state.json`
 - prints a short readiness summary with the exact next command when it stops early
+- always ends with the same fixed summary sections:
+  - `Ready now`
+  - `Needs action`
+  - `Next command`
 - interactive bootstrap runs quickstart after the build
 - non-interactive bootstrap does not run quickstart for you
 - non-interactive bootstrap still installs the service unless you pass `--skip-service`
@@ -98,6 +102,7 @@ What quickstart configures:
   - `Standard mode (recommended)`
   - `Full access for approved operators`
 - timezone confirmation
+- one required review step before save
 - service install, restart, and health checks unless `--skip-service`
 - disables the later first-chat identity reminder by default because onboarding already captured the main assistant identity
 
@@ -124,6 +129,24 @@ Quickstart rules:
 - if you opt into full access before you know those IDs, quickstart offers a clear return path back to standard mode instead of failing
 - the assistant identity captured here is the same global main-agent identity that `/profile` edits later
 
+Review-before-save actions:
+
+- `Save`
+- `Edit runtime`
+- `Edit assistant identity`
+- `Edit provider`
+- `Edit channel`
+- `Edit timezone`
+- `Abort`
+
+If validation fails, quickstart now groups repair guidance by operator task:
+
+- provider auth
+- channel auth or routing
+- timezone or time
+- service or health
+- access or operator IDs
+
 Provider and channel guidance:
 
 - quickstart is API-key-first because it is the fastest path to the first reply
@@ -137,6 +160,7 @@ Provider and channel guidance:
 
 ```bash
 openassist doctor
+openassist doctor --json
 openassist service status
 openassist service health
 openassist channel status
@@ -155,6 +179,14 @@ openassist time status
 - whether in-chat `/access` switching is available yet
 - whether upgrade prerequisites are satisfied
 - the next command you should run
+
+Text output is grouped as:
+
+- `Ready now`
+- `Needs action before first reply`
+- `Needs action before full access`
+- `Needs action before upgrade`
+- `Recommended next command`
 
 ## 5. Send the first reply
 

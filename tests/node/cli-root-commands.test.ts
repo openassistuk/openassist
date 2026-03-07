@@ -122,12 +122,41 @@ describe("cli root command coverage", () => {
     );
     assert.ok(doctor.code === 0 || doctor.code === 1, doctor.stderr || doctor.stdout);
     assert.match(doctor.stdout, /OpenAssist lifecycle doctor/);
-    assert.match(doctor.stdout, /PASS  Install record/);
-    assert.match(doctor.stdout, /PASS  Repo-backed install/);
-    assert.match(doctor.stdout, /Update prerequisites/);
-    assert.match(doctor.stdout, /Upgrade readiness/);
-    assert.match(doctor.stdout, /Next step:/);
-    assert.match(doctor.stdout, /openassist (upgrade --dry-run|doctor)/);
+    assert.match(doctor.stdout, /Ready now/);
+    assert.match(doctor.stdout, /Needs action before first reply/);
+    assert.match(doctor.stdout, /Needs action before full access/);
+    assert.match(doctor.stdout, /Needs action before upgrade/);
+    assert.match(doctor.stdout, /Recommended next command/);
+    assert.match(doctor.stdout, /Install record/);
+    assert.match(doctor.stdout, /Update track/);
+    assert.match(doctor.stdout, /openassist (upgrade --dry-run|doctor|setup wizard)/);
+
+    const doctorJson = await runCommand(
+      process.execPath,
+      [
+        path.join(repoRoot(), "node_modules", "tsx", "dist", "cli.mjs"),
+        path.join(repoRoot(), "apps", "openassist-cli", "src", "index.ts"),
+        "doctor",
+        "--json"
+      ],
+      repoRoot(),
+      {
+        HOME: doctorHome,
+        USERPROFILE: doctorHome,
+        PATH: `${doctorBinDir}${path.delimiter}${process.env.PATH ?? ""}`,
+        Path: `${doctorBinDir}${path.delimiter}${process.env.Path ?? process.env.PATH ?? ""}`
+      }
+    );
+    assert.ok(doctorJson.code === 0 || doctorJson.code === 1, doctorJson.stderr || doctorJson.stdout);
+    const parsedDoctorJson = JSON.parse(doctorJson.stdout) as {
+      version: number;
+      sections: Record<string, unknown>;
+      recommendedNextCommand: { command: string };
+    };
+    assert.equal(parsedDoctorJson.version, 1);
+    assert.equal(typeof parsedDoctorJson.sections.readyNow, "object");
+    assert.equal(typeof parsedDoctorJson.sections.needsActionBeforeUpgrade, "object");
+    assert.equal(typeof parsedDoctorJson.recommendedNextCommand.command, "string");
 
     const policySet = await runCli([
       "policy-set",
@@ -193,7 +222,14 @@ describe("cli root command coverage", () => {
     const doctorInstallStatePath = path.join(doctorHome, ".config", "openassist", "install-state.json");
     const doctorBinDir = path.join(root, "bin");
 
+    const requestedPaths: string[] = [];
     const server = http.createServer((req, res) => {
+      requestedPaths.push(req.url ?? "");
+      if (req.url === "/v1/health") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ status: "ok" }));
+        return;
+      }
       if (req.url === "/v1/time/status") {
         res.writeHead(200, { "content-type": "application/json" });
         res.end(
@@ -271,8 +307,10 @@ describe("cli root command coverage", () => {
       );
 
       assert.ok(doctor.code === 0 || doctor.code === 1, doctor.stderr || doctor.stdout);
-      assert.match(doctor.stdout, /PASS  Time check API/);
-      assert.match(doctor.stdout, /Europe\/London \/ confirmed=true \/ clock=ok/);
+      assert.match(doctor.stdout, /Service health/);
+      assert.match(doctor.stdout, /Health endpoint is responding at http:\/\/127\.0\.0\.1:/);
+      assert.ok(requestedPaths.includes("/v1/health"), requestedPaths.join(","));
+      assert.ok(requestedPaths.includes("/v1/time/status"), requestedPaths.join(","));
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.close((error) => {

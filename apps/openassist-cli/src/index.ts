@@ -12,10 +12,13 @@ import { registerSetupCommands } from "./commands/setup.js";
 import { registerServiceCommands } from "./commands/service.js";
 import { registerUpgradeCommand } from "./commands/upgrade.js";
 import { SpawnCommandRunner } from "./lib/command-runner.js";
+import { loadEnvFile } from "./lib/env-file.js";
+import { checkHealth } from "./lib/health-check.js";
 import { detectInstallStateFromRepo, loadInstallState } from "./lib/install-state.js";
+import { buildLifecycleReport, renderLifecycleReport } from "./lib/lifecycle-readiness.js";
 import { detectDefaultDaemonBaseUrl } from "./lib/runtime-context.js";
 import { createServiceManager, detectServiceManagerKind } from "./lib/service-manager.js";
-import { detectSetupAccessMode, getOperatorUserIds } from "./lib/setup-access.js";
+import { validateSetupReadiness, type SetupValidationIssue } from "./lib/setup-validation.js";
 
 const logger = createLogger({ service: "openassist-cli" });
 const workspaceCwd = process.env.INIT_CWD ? path.resolve(process.env.INIT_CWD) : process.cwd();
@@ -141,155 +144,79 @@ registerUpgradeCommand(program);
 program
   .command("doctor")
   .description("Check install, setup, and upgrade readiness")
-  .action(async () => {
-    console.log("OpenAssist lifecycle doctor");
+  .option("--json", "Output the grouped lifecycle report as JSON")
+  .action(async (options) => {
     const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const installStatePath = defaultInstallStatePath();
     const installState = loadInstallState();
     const installDir = installState?.installDir ?? defaultInstallDir();
     const configPath = installState?.configPath ?? resolveFromWorkspace("openassist.toml");
     const envFilePath = installState?.envFilePath ?? defaultEnvFilePath();
+    const configExists = fs.existsSync(configPath);
+    const envExists = fs.existsSync(envFilePath);
+    const repoBacked = fs.existsSync(path.join(installDir, ".git"));
     const repoMetadata = detectInstallStateFromRepo(installDir);
     const trackedRef = installState?.trackedRef ?? repoMetadata.trackedRef ?? "main";
-    const repoUrl = installState?.repoUrl ?? repoMetadata.repoUrl ?? "(not recorded)";
-    const currentCommit = repoMetadata.lastKnownGoodCommit ?? installState?.lastKnownGoodCommit ?? "(unknown)";
+    const currentCommit = repoMetadata.lastKnownGoodCommit ?? installState?.lastKnownGoodCommit ?? "";
+    const daemonBuildExists = fs.existsSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"));
     const daemonBaseUrl = detectDefaultDaemonBaseUrl(configPath);
     const hasGit = commandAvailable("git");
     const hasPnpm = commandAvailable("pnpm");
-    const repoBacked = fs.existsSync(path.join(installDir, ".git"));
+    const hasNode = commandAvailable("node");
+    const localWrapperAvailable = commandAvailable("openassist");
+    const localWrapperCommand = path.join(os.homedir(), ".local", "bin", "openassist");
+    let dirtyWorkingTree = false;
+    if (repoBacked) {
+      const result = spawnSync("git", ["-C", installDir, "status", "--porcelain"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"]
+      });
+      dirtyWorkingTree = result.status === 0 && result.stdout.trim().length > 0;
+    }
+
     let parsedConfig: Awaited<ReturnType<typeof loadCliRuntimeConfig>>["config"] | undefined;
-    if (fs.existsSync(configPath)) {
+    let validationErrors: SetupValidationIssue[] = [];
+    let validationWarnings: SetupValidationIssue[] = [];
+    let serviceManagerKind: ReturnType<typeof detectServiceManagerKind> | "unsupported" | undefined;
+    let serviceInstalled: boolean | undefined;
+    let serviceHealthOk = false;
+    let serviceHealthDetail: string | undefined;
+    let timezoneConfirmed = false;
+
+    if (configExists) {
       try {
         parsedConfig = loadCliRuntimeConfig(configPath).config;
-      } catch {
-        parsedConfig = undefined;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        validationErrors = [
+          {
+            code: "config.read_failed",
+            message: `OpenAssist could not load the config file: ${message}`,
+            hint: "Fix the config file, then rerun: openassist doctor"
+          }
+        ];
       }
-    }
-    const checks = [
-      {
-        name: "Node.js",
-        ok: Number(process.versions.node.split(".")[0]) >= 22,
-        detail: process.version,
-        required: true
-      },
-      {
-        name: "Install record",
-        ok: Boolean(installState),
-        detail: installState ? installStatePath : `${installStatePath} (missing)`,
-        required: false
-      },
-      {
-        name: "Repo-backed install",
-        ok: repoBacked,
-        detail: installDir,
-        required: true
-      },
-      {
-        name: "Config file",
-        ok: fs.existsSync(configPath),
-        detail: configPath,
-        required: true
-      },
-      {
-        name: "Env file",
-        ok: fs.existsSync(envFilePath),
-        detail: envFilePath,
-        required: false
-      },
-      {
-        name: "Update track",
-        ok: trackedRef.length > 0,
-        detail: trackedRef,
-        required: false
-      },
-      {
-        name: "Repo URL",
-        ok: repoUrl !== "(not recorded)",
-        detail: repoUrl,
-        required: false
-      },
-      {
-        name: "Current commit",
-        ok: currentCommit !== "(unknown)",
-        detail: currentCommit,
-        required: false
-      },
-      {
-        name: "Detected timezone",
-        ok: typeof detectedTimezone === "string" && detectedTimezone.length > 0,
-        detail: detectedTimezone || "unknown",
-        required: false
-      },
-      {
-        name: "Update prerequisites",
-        ok: hasGit && hasPnpm,
-        detail: `git=${hasGit ? "ok" : "missing"}, pnpm=${hasPnpm ? "ok" : "missing"}`,
-        required: true
-      }
-    ];
-
-    if (parsedConfig) {
-      const accessMode = detectSetupAccessMode(parsedConfig);
-      const enabledChannels = parsedConfig.runtime.channels.filter((channel) => channel.enabled);
-      const enabledWithOperators = enabledChannels.filter((channel) => getOperatorUserIds(channel).length > 0);
-      checks.push({
-        name: "Access mode",
-        ok: true,
-        detail:
-          accessMode === "full-access"
-            ? "Full access for approved operators"
-            : accessMode === "custom"
-              ? "Custom advanced access settings"
-              : "Standard mode",
-        required: false
-      });
-      checks.push({
-        name: "Approved operator IDs",
-        ok: enabledWithOperators.length > 0,
-        detail:
-          enabledWithOperators.length > 0
-            ? enabledWithOperators
-                .map((channel) => `${channel.id}=${getOperatorUserIds(channel).length}`)
-                .join(", ")
-            : "none on enabled channels",
-        required: false
-      });
-      checks.push({
-        name: "In-chat /access controls",
-        ok: enabledWithOperators.length > 0,
-        detail:
-          enabledWithOperators.length > 0
-            ? "available for listed operator IDs"
-            : "disabled until operator IDs are configured",
-        required: false
-      });
     }
 
     try {
-      const serviceKind = detectServiceManagerKind();
-      let installedDetail: string;
-      let installedOk = false;
+      serviceManagerKind = detectServiceManagerKind();
       try {
         const service = createServiceManager(new SpawnCommandRunner());
-        installedOk = await service.isInstalled();
-        installedDetail = `${serviceKind} / installed=${installedOk ? "yes" : "no"}`;
+        serviceInstalled = await service.isInstalled();
       } catch {
-        installedDetail = `${serviceKind} / install state unavailable`;
+        serviceInstalled = undefined;
       }
-      checks.push({
-        name: "Service manager",
-        ok: true,
-        detail: installedDetail,
-        required: false
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      checks.push({
-        name: "Service manager",
-        ok: false,
-        detail: message,
-        required: false
-      });
+    } catch {
+      serviceManagerKind = "unsupported";
+    }
+
+    try {
+      const health = await checkHealth(daemonBaseUrl);
+      serviceHealthOk = health.ok;
+      serviceHealthDetail = health.ok
+        ? `Health endpoint is responding at ${health.baseUrl ?? daemonBaseUrl}`
+        : `Health endpoint returned status ${health.status} at ${health.baseUrl ?? daemonBaseUrl}`;
+    } catch {
+      serviceHealthDetail = `Daemon not reachable at ${daemonBaseUrl}`;
     }
 
     try {
@@ -298,62 +225,69 @@ program
         const data = result.data as {
           time?: { timezone?: string; timezoneConfirmed?: boolean; clockHealth?: string };
         };
-        checks.push({
-        name: "Time check API",
-        ok: true,
-        detail: `${data.time?.timezone ?? "unknown"} / confirmed=${String(
-          data.time?.timezoneConfirmed ?? false
-          )} / clock=${data.time?.clockHealth ?? "unknown"}`,
-          required: false
-        });
-      } else {
-        checks.push({
-          name: "Time check API",
-          ok: false,
-          detail: `daemon responded ${result.status}`,
-          required: false
-        });
+        timezoneConfirmed = data.time?.timezoneConfirmed === true;
       }
     } catch {
-      checks.push({
-        name: "Time check API",
-        ok: false,
-        detail: `daemon not reachable at ${daemonBaseUrl}`,
-        required: false
-      });
+      timezoneConfirmed = false;
     }
 
-    const upgradeReady =
-      checks.find((check) => check.name === "Node.js")?.ok === true &&
-      checks.find((check) => check.name === "Repo-backed install")?.ok === true &&
-      checks.find((check) => check.name === "Config file")?.ok === true &&
-      checks.find((check) => check.name === "Update prerequisites")?.ok === true;
+    if (parsedConfig) {
+      const validation = await validateSetupReadiness({
+        config: parsedConfig,
+        env: loadEnvFile(envFilePath),
+        configPath,
+        envFilePath,
+        installDir,
+        skipService: false,
+        timezoneConfirmed,
+        requireEnabledChannel: true
+      });
+      validationErrors = validation.errors;
+      validationWarnings = validation.warnings;
+      serviceManagerKind = validation.serviceManagerKind ?? serviceManagerKind;
+    }
 
-    checks.push({
-      name: "Upgrade readiness",
-      ok: upgradeReady,
-      detail: upgradeReady
-        ? `run openassist upgrade --dry-run --install-dir "${installDir}"`
-        : "fix the failed checks above before upgrading",
-      required: false
+    const report = buildLifecycleReport({
+      installDir,
+      configPath,
+      envFilePath,
+      installStatePresent: Boolean(installState),
+      repoBacked,
+      configExists,
+      envExists,
+      repoUrl: installState?.repoUrl ?? repoMetadata.repoUrl,
+      trackedRef,
+      currentCommit,
+      detectedTimezone,
+      config: parsedConfig,
+      serviceManagerKind,
+      serviceInstalled,
+      serviceHealthOk,
+      serviceHealthDetail,
+      validationErrors,
+      validationWarnings,
+      hasGit,
+      hasPnpm,
+      hasNode,
+      daemonBuildExists,
+      dirtyWorkingTree,
+      localWrapperAvailable,
+      localWrapperCommand
     });
 
-    for (const check of checks) {
-      const prefix = check.ok ? "PASS" : check.required ? "FAIL" : "WARN";
-      console.log(`${prefix}  ${check.name} (${check.detail})`);
-    }
-
-    console.log("Next step:");
-    if (!fs.existsSync(configPath)) {
-      console.log(`- Run setup quickstart: openassist setup quickstart --install-dir "${installDir}" --config "${configPath}" --env-file "${envFilePath}"`);
-    } else if (!upgradeReady) {
-      console.log("- Repair the failed lifecycle checks, then rerun: openassist doctor");
+    if (Boolean(options.json)) {
+      console.log(JSON.stringify(report, null, 2));
     } else {
-      console.log(`- Validate the next update safely: openassist upgrade --dry-run --install-dir "${installDir}"`);
+      for (const line of renderLifecycleReport(report)) {
+        console.log(line);
+      }
     }
 
-    const failures = checks.filter((check) => check.required && !check.ok);
-    if (failures.length > 0) {
+    if (
+      report.summary.installReadiness === "needs-action" ||
+      report.summary.firstReplyReadiness === "needs-action" ||
+      report.summary.upgradeReadiness !== "safe-to-continue"
+    ) {
       process.exitCode = 1;
     }
   });

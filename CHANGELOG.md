@@ -8,6 +8,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Shared lifecycle readiness reporting:
+  - new CLI lifecycle report builder now drives bootstrap summaries, quickstart summaries, wizard recovery wording, `openassist doctor`, and `openassist upgrade --dry-run`
+  - `openassist doctor --json` now exposes the same grouped readiness report shape as the human-readable doctor output for scripting and automation
+
 - Runtime self-knowledge and identity-restoration pass:
   - runtime awareness is now a richer bounded self-knowledge contract with explicit capabilities, curated local doc references, and repo-backed maintenance/install facts
   - provider turns and `/status` now surface local config path, env-file path, install dir, tracked ref, last known good commit when known, protected lifecycle paths, and safe self-maintenance guidance
@@ -112,8 +116,10 @@ The format follows Keep a Changelog conventions and this project currently track
   - install-state persistence is now normalized across bootstrap, service install, and upgrade so tracked ref, repo metadata, config/env paths, service manager, and last known good commit do not drift
   - `openassist doctor` now reports lifecycle readiness, install-state presence, tracked ref, repo path details, service-manager state, and upgrade readiness in operator language
   - `openassist setup quickstart` now stays focused on first success: one provider, one channel, simple guided timezone confirmation, service health, and a first-reply checklist
+  - quickstart now requires a review-before-save step and groups repair guidance by operator task (`provider auth`, `channel auth or routing`, `timezone or time`, `service or health`, `access or operator IDs`)
   - `openassist setup wizard` now presents clearer advanced sections for runtime defaults, providers, channels, scheduling, and advanced tools/security
   - `openassist upgrade --dry-run` and live upgrade now print the resolved target plan before mutation, including update method, restart behavior, and rollback target
+  - bootstrap, doctor, quickstart, and upgrade now answer lifecycle questions in one consistent order: what is ready now, what still needs action, and which command to run next
   - lifecycle docs were rewritten around the canonical flow: install -> quickstart -> wizard -> upgrade
   - install and upgrade runbooks now explicitly cover repo-backed checkouts, tracked refs, detached-checkout guidance, first-reply checklists, service-manager behavior, and rerun-bootstrap cases for missing `.git` or missing build output
 - CodeQL workflow actions upgraded from `github/codeql-action@v3` to `@v4` to remove deprecation risk while preserving existing required-check job names.

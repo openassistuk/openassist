@@ -184,30 +184,131 @@ EOF
 }
 
 print_bootstrap_summary() {
+  local doctor_json=""
+  doctor_json="$(node "${INSTALL_DIR}/apps/openassist-cli/dist/index.js" doctor --json 2>/dev/null || true)"
+  if [[ -n "${doctor_json}" ]]; then
+    OPENASSIST_DOCTOR_JSON="${doctor_json}" \
+    OPENASSIST_BOOTSTRAP_MODE="$(bootstrap_mode)" \
+    OPENASSIST_INTERACTIVE="${INTERACTIVE}" \
+    OPENASSIST_SKIP_SERVICE="${SKIP_SERVICE}" \
+    OPENASSIST_AUTO_INSTALL_PREREQS="${AUTO_INSTALL_PREREQS}" \
+    OPENASSIST_ALLOW_DIRTY="${ALLOW_DIRTY}" \
+    OPENASSIST_INSTALL_DIR="${INSTALL_DIR}" \
+    OPENASSIST_CONFIG_PATH="${CONFIG_PATH}" \
+    OPENASSIST_ENV_FILE="${ENV_FILE}" \
+    OPENASSIST_LOCAL_WRAPPER="${LOCAL_BIN_DIR}/openassist" \
+    node <<'EOF'
+let report = {};
+try {
+  const raw = process.env.OPENASSIST_DOCTOR_JSON || "";
+  const trimmed = raw.trim();
+  if (trimmed.length > 0 && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
+    report = JSON.parse(trimmed);
+  }
+} catch (error) {
+  console.error(
+    `Warning: bootstrap could not parse doctor --json output (${error instanceof Error ? error.message : String(error)}). Falling back to a minimal summary.`
+  );
+}
+const ready = [];
+const needs = [];
+const readyItems = Array.isArray(report?.sections?.readyNow) ? report.sections.readyNow : [];
+const firstReplyItems = Array.isArray(report?.sections?.needsActionBeforeFirstReply)
+  ? report.sections.needsActionBeforeFirstReply
+  : [];
+const fullAccessItems = Array.isArray(report?.sections?.needsActionBeforeFullAccess)
+  ? report.sections.needsActionBeforeFullAccess
+  : [];
+const upgradeItems = Array.isArray(report?.sections?.needsActionBeforeUpgrade)
+  ? report.sections.needsActionBeforeUpgrade
+  : [];
+
+for (const item of readyItems) {
+  ready.push(`  - ${item.label}: ${item.detail}`);
+}
+for (const item of [...firstReplyItems, ...fullAccessItems, ...upgradeItems]) {
+  const suffix = item.nextStep ? ` Next step: ${item.nextStep}` : "";
+  needs.push(`  - ${item.label}: ${item.detail}.${suffix}`.trimEnd());
+}
+
+if (process.env.OPENASSIST_AUTO_INSTALL_PREREQS === "0") {
+  ready.push("  - Prerequisite auto-install was disabled, so bootstrap left package fixes under operator control.");
+}
+if (process.env.OPENASSIST_ALLOW_DIRTY === "1") {
+  ready.push("  - Bootstrap was allowed to continue with local code changes in the checkout.");
+}
+
+const localWrapper = process.env.OPENASSIST_LOCAL_WRAPPER || "openassist";
+const wrapperReady = readyItems.some((item) => item.id === "wrappers.path");
+if (!wrapperReady) {
+  needs.unshift(`  - This shell may need a new login shell before 'openassist' is on PATH. Fallback: ${localWrapper}`);
+}
+
+ready.push("  - pnpm version notices are informational.");
+needs.push(
+  "  - Before WhatsApp or media use: if pnpm reported skipped build scripts, approve them before relying on WhatsApp image or document handling."
+);
+
+if (process.env.OPENASSIST_INTERACTIVE !== "1") {
+  needs.unshift(
+    `  - Guided onboarding was not run because bootstrap stayed non-interactive. Next step: openassist setup quickstart --install-dir "${process.env.OPENASSIST_INSTALL_DIR}" --config "${process.env.OPENASSIST_CONFIG_PATH}" --env-file "${process.env.OPENASSIST_ENV_FILE}"`
+  );
+}
+if (process.env.OPENASSIST_SKIP_SERVICE === "1") {
+  needs.unshift(
+    `  - Service install and health checks were skipped. Next step: openassist service install --install-dir "${process.env.OPENASSIST_INSTALL_DIR}" --config "${process.env.OPENASSIST_CONFIG_PATH}" --env-file "${process.env.OPENASSIST_ENV_FILE}"`
+  );
+}
+
+let nextCommand = "openassist service health";
+if (process.env.OPENASSIST_SKIP_SERVICE === "1") {
+  nextCommand = `openassist service install --install-dir "${process.env.OPENASSIST_INSTALL_DIR}" --config "${process.env.OPENASSIST_CONFIG_PATH}" --env-file "${process.env.OPENASSIST_ENV_FILE}"`;
+} else if (process.env.OPENASSIST_INTERACTIVE !== "1") {
+  nextCommand = `openassist setup quickstart --install-dir "${process.env.OPENASSIST_INSTALL_DIR}" --config "${process.env.OPENASSIST_CONFIG_PATH}" --env-file "${process.env.OPENASSIST_ENV_FILE}"`;
+} else if (firstReplyItems.length > 0) {
+  nextCommand = firstReplyItems[0]?.nextStep || "openassist doctor";
+}
+
+console.log("");
+console.log("Bootstrap complete.");
+console.log("Ready now");
+if (ready.length === 0) {
+  console.log("  - None.");
+} else {
+  for (const line of ready) {
+    console.log(line);
+  }
+}
+console.log("Needs action");
+if (needs.length === 0) {
+  console.log("  - None.");
+} else {
+  for (const line of needs) {
+    console.log(line);
+  }
+}
+console.log("Next command");
+console.log(`  - ${nextCommand}`);
+EOF
+    return
+  fi
+
   echo ""
   echo "Bootstrap complete."
-  echo "Ready now:"
-  echo "  - repo checkout built at ${INSTALL_DIR}"
-  echo "  - config file available at ${CONFIG_PATH}"
-  echo "  - env file available at ${ENV_FILE}"
-  echo "  - install record written to ${STATE_FILE}"
-  echo "  - local wrappers available at ${LOCAL_BIN_DIR}/openassist and ${LOCAL_BIN_DIR}/openassistd"
-  if [[ "${GLOBAL_WRAPPERS_INSTALLED}" -eq 1 ]]; then
-    echo "  - global wrappers linked at ${GLOBAL_BIN_DIR}/openassist and ${GLOBAL_BIN_DIR}/openassistd"
-  fi
-  echo "Still worth knowing:"
-  echo "  - pnpm version notices are informational"
-  echo "  - if pnpm reports skipped build scripts for WhatsApp/media dependencies, approve them before relying on WhatsApp image or document handling"
-
-  echo "Next step:"
+  echo "Ready now"
+  echo "  - Repo checkout built at ${INSTALL_DIR}"
+  echo "  - Config file available at ${CONFIG_PATH}"
+  echo "  - Env file available at ${ENV_FILE}"
+  echo "Needs action"
   if [[ "${INTERACTIVE}" -eq 1 && "${SKIP_SERVICE}" -eq 1 ]]; then
-    echo "  - install and start the service: openassist service install --install-dir \"${INSTALL_DIR}\" --config \"${CONFIG_PATH}\" --env-file \"${ENV_FILE}\""
+    echo "  - Service install and health checks were skipped."
   elif [[ "${INTERACTIVE}" -ne 1 ]]; then
-    echo "  - finish first-run onboarding: openassist setup quickstart --install-dir \"${INSTALL_DIR}\" --config \"${CONFIG_PATH}\" --env-file \"${ENV_FILE}\""
+    echo "  - Guided onboarding was not run because bootstrap stayed non-interactive."
   else
-    echo "  - verify daemon health: openassist service health"
+    echo "  - None."
   fi
-  echo "  - if 'openassist' is not found in this shell, run: ${LOCAL_BIN_DIR}/openassist --help"
+  echo "Next command"
+  echo "  - ${LOCAL_BIN_DIR}/openassist --help"
 }
 
 print_bootstrap_plan

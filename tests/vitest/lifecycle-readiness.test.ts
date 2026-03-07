@@ -85,6 +85,23 @@ describe("lifecycle readiness", () => {
     ]);
   });
 
+  it("maps web-tool credential issues into the provider auth repair bucket", () => {
+    const buckets = groupValidationIssuesByLifecycleBucket([
+      {
+        code: "tools.web_brave_api_key_missing",
+        message: "Brave Search API key is missing",
+        hint: "Set the Brave API key env var"
+      },
+      {
+        code: "runtime.bind_address_invalid",
+        message: "Bind address is invalid",
+        hint: "Choose a valid bind address"
+      }
+    ]);
+
+    expect(buckets.map((bucket) => bucket.id)).toEqual(["provider-auth", "service-health"]);
+  });
+
   it("recommends rerunning bootstrap before quickstart when upgrade readiness requires it", () => {
     const report = buildLifecycleReport(
       createInput({

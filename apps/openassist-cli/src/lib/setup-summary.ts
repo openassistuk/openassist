@@ -50,7 +50,7 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   lines.push(`- Service state: ${report.context.serviceState}`);
   lines.push(`- Assistant identity: ${input.config.runtime.assistant.name}`);
   lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
-  lines.push("Ready now:");
+  lines.push("Ready now");
   lines.push(`- Config saved: ${input.configPath}`);
   lines.push(`- Env file saved: ${input.envFilePath}`);
   if (input.backupPath) {

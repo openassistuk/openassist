@@ -50,6 +50,7 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("# >>> openassist path >>>"));
     assert.ok(script.includes("PATH profile updated for OpenAssist wrappers:"));
     assert.ok(script.includes("doctor --json"));
+    assert.ok(script.includes("bootstrap could not parse doctor --json output"));
     assert.ok(script.includes("Bootstrap complete."));
     assert.ok(script.includes("Ready now"));
     assert.ok(script.includes("Needs action"));

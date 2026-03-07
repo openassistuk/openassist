@@ -198,7 +198,18 @@ print_bootstrap_summary() {
     OPENASSIST_ENV_FILE="${ENV_FILE}" \
     OPENASSIST_LOCAL_WRAPPER="${LOCAL_BIN_DIR}/openassist" \
     node <<'EOF'
-const report = JSON.parse(process.env.OPENASSIST_DOCTOR_JSON || "{}");
+let report = {};
+try {
+  const raw = process.env.OPENASSIST_DOCTOR_JSON || "";
+  const trimmed = raw.trim();
+  if (trimmed.length > 0 && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
+    report = JSON.parse(trimmed);
+  }
+} catch (error) {
+  console.error(
+    `Warning: bootstrap could not parse doctor --json output (${error instanceof Error ? error.message : String(error)}). Falling back to a minimal summary.`
+  );
+}
 const ready = [];
 const needs = [];
 const readyItems = Array.isArray(report?.sections?.readyNow) ? report.sections.readyNow : [];

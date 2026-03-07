@@ -51,8 +51,12 @@ async function isGitDirty(runner: SpawnCommandRunner, cwd: string): Promise<bool
 }
 
 async function binaryAvailable(runner: SpawnCommandRunner, command: string): Promise<boolean> {
-  const result = await runner.run(command, ["--version"]);
-  return result.code === 0;
+  try {
+    const result = await runner.run(command, ["--version"]);
+    return result.code === 0;
+  } catch {
+    return false;
+  }
 }
 
 function ensureRepoBackedInstall(installDir: string): void {

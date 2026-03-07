@@ -165,6 +165,9 @@ function mapIssueToBucketId(issue: SetupValidationIssue): LifecycleRepairBucketI
   if (issue.code.startsWith("provider.")) {
     return "provider-auth";
   }
+  if (issue.code.startsWith("tools.web_")) {
+    return "provider-auth";
+  }
   if (issue.code.startsWith("channel.")) {
     return "channel-auth-routing";
   }
@@ -173,6 +176,15 @@ function mapIssueToBucketId(issue: SetupValidationIssue): LifecycleRepairBucketI
   }
   if (issue.code.startsWith("time.")) {
     return "timezone-time";
+  }
+  if (
+    issue.code.startsWith("service.") ||
+    issue.code.startsWith("runtime.") ||
+    issue.code.startsWith("paths.") ||
+    issue.code.startsWith("config.") ||
+    issue.code.startsWith("tools.")
+  ) {
+    return "service-health";
   }
   return "service-health";
 }

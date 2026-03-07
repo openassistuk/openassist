@@ -13,6 +13,7 @@ import { registerServiceCommands } from "./commands/service.js";
 import { registerUpgradeCommand } from "./commands/upgrade.js";
 import { SpawnCommandRunner } from "./lib/command-runner.js";
 import { loadEnvFile } from "./lib/env-file.js";
+import { checkHealth } from "./lib/health-check.js";
 import { detectInstallStateFromRepo, loadInstallState } from "./lib/install-state.js";
 import { buildLifecycleReport, renderLifecycleReport } from "./lib/lifecycle-readiness.js";
 import { detectDefaultDaemonBaseUrl } from "./lib/runtime-context.js";
@@ -178,7 +179,7 @@ program
     let serviceManagerKind: ReturnType<typeof detectServiceManagerKind> | "unsupported" | undefined;
     let serviceInstalled: boolean | undefined;
     let serviceHealthOk = false;
-    let serviceHealthDetail = `Daemon not reachable at ${daemonBaseUrl}`;
+    let serviceHealthDetail: string | undefined;
     let timezoneConfirmed = false;
 
     if (configExists) {
@@ -209,21 +210,25 @@ program
     }
 
     try {
+      const health = await checkHealth(daemonBaseUrl);
+      serviceHealthOk = health.ok;
+      serviceHealthDetail = health.ok
+        ? `Health endpoint is responding at ${health.baseUrl ?? daemonBaseUrl}`
+        : `Health endpoint returned status ${health.status} at ${health.baseUrl ?? daemonBaseUrl}`;
+    } catch {
+      serviceHealthDetail = `Daemon not reachable at ${daemonBaseUrl}`;
+    }
+
+    try {
       const result = await requestJson("GET", `${daemonBaseUrl}/v1/time/status`);
       if (result.status < 400) {
         const data = result.data as {
           time?: { timezone?: string; timezoneConfirmed?: boolean; clockHealth?: string };
         };
         timezoneConfirmed = data.time?.timezoneConfirmed === true;
-        serviceHealthOk = true;
-        serviceHealthDetail = `${data.time?.timezone ?? "unknown"} / confirmed=${String(
-          data.time?.timezoneConfirmed ?? false
-        )} / clock=${data.time?.clockHealth ?? "unknown"}`;
-      } else {
-        serviceHealthDetail = `Daemon responded ${result.status} at ${daemonBaseUrl}`;
       }
     } catch {
-      serviceHealthDetail = `Daemon not reachable at ${daemonBaseUrl}`;
+      timezoneConfirmed = false;
     }
 
     if (parsedConfig) {

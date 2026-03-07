@@ -49,6 +49,7 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /# >>> openassist path >>>/);
     assert.match(script, /PATH profile updated for OpenAssist wrappers:/);
     assert.match(script, /doctor --json/);
+    assert.match(script, /bootstrap could not parse doctor --json output/);
     assert.match(script, /Bootstrap complete\./);
     assert.match(script, /Ready now/);
     assert.match(script, /Needs action/);

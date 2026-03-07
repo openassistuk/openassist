@@ -178,6 +178,7 @@ program
     let serviceHealthOk = false;
     let serviceHealthDetail: string | undefined;
     let timezoneConfirmed = false;
+    let timeStatusReachable = false;
     let growthState:
       | ReturnType<typeof inspectLocalGrowthState>
       | undefined;
@@ -225,9 +226,11 @@ program
         const data = result.data as {
           time?: { timezone?: string; timezoneConfirmed?: boolean; clockHealth?: string };
         };
+        timeStatusReachable = typeof data.time === "object" && data.time !== null;
         timezoneConfirmed = data.time?.timezoneConfirmed === true;
       }
     } catch {
+      timeStatusReachable = false;
       timezoneConfirmed = false;
     }
 
@@ -241,7 +244,7 @@ program
         skipService: false,
         timezoneConfirmed,
         requireEnabledChannel: true,
-        skipBindAvailabilityCheck: serviceHealthOk
+        skipBindAvailabilityCheck: serviceHealthOk && timeStatusReachable
       });
       validationErrors = validation.errors;
       validationWarnings = validation.warnings;

@@ -562,6 +562,7 @@ describe("setup quickstart branch behavior", () => {
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.bindPort = await getFreePort();
 
     const prompts = new ScriptedPromptAdapter([
       "true",

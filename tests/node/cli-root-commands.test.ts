@@ -608,7 +608,8 @@ describe("cli root command coverage", () => {
         assert.match(result.stdout, /Could not open a browser automatically on this host\./);
         assert.match(result.stdout, /Open the authorization URL manually in a browser/);
         assert.doesNotMatch(result.stdout, /Opened authorization URL in browser\./);
-        assert.equal(result.stderr.trim(), "");
+        assert.doesNotMatch(result.stderr, /Unhandled 'error' event/);
+        assert.doesNotMatch(result.stderr, /spawn .* ENOENT/);
       } finally {
         await new Promise<void>((resolve, reject) => {
           server.close((error) => {

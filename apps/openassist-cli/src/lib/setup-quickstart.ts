@@ -1243,7 +1243,7 @@ async function runServiceStep(
         console.error(`Account linking still needs attention: ${message}`);
         console.error(`- Retry account login for ${oauthError.providerId} now.`);
         console.error(
-          `- Host fallback: openassist auth start --provider ${oauthError.providerId} --account default --open-browser`
+          `- Host fallback: openassist auth start --provider ${oauthError.providerId} --account default --open-browser --base-url ${baseUrl}`
         );
         console.error(
           `- Check linked account state: openassist auth status --provider ${oauthError.providerId} --base-url ${baseUrl}`

@@ -407,6 +407,9 @@ describe("setup quickstart oauth path", () => {
       const errorOutput = errorSpy.mock.calls.flat().join("\n");
       expect(errorOutput).toContain("Account linking still needs attention");
       expect(errorOutput).toContain("The daemon is already healthy. This is an account-linking step, not a service failure.");
+      expect(errorOutput).toMatch(
+        /openassist auth start --provider codex-main --account default --open-browser --base-url http:\/\/127\.0\.0\.1:\d+/
+      );
       expect(errorOutput).not.toContain("Service + health step failed");
       expect(errorOutput).not.toContain("systemctl status openassistd.service");
     } finally {

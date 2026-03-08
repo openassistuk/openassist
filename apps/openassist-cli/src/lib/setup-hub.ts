@@ -71,10 +71,7 @@ async function promptHubAction(prompts: PromptAdapter, initial: SetupHubAction):
     console.log("");
     console.log("OpenAssist setup");
     console.log(menu);
-    const raw = await prompts.input(
-      "Choose an option by number or name",
-      String(defaultIndex + 1)
-    );
+    const raw = await prompts.input("Choose an option by number or name", String(defaultIndex + 1));
     const trimmed = raw.trim();
     if (trimmed.length === 0) {
       return initial;
@@ -83,7 +80,10 @@ async function promptHubAction(prompts: PromptAdapter, initial: SetupHubAction):
     if (Number.isInteger(numeric) && numeric >= 1 && numeric <= hubActions.length) {
       return hubActions[numeric - 1].value;
     }
-    const matched = hubActions.find((choice) => choice.value === trimmed);
+    const normalized = trimmed.toLowerCase();
+    const matched = hubActions.find(
+      (choice) => choice.value === normalized || choice.label.toLowerCase() === normalized
+    );
     if (matched) {
       return matched.value;
     }

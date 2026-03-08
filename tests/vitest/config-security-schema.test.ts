@@ -11,7 +11,7 @@ function baseConfigInput(): Record<string, unknown> {
         {
           id: "openai-main",
           type: "openai",
-          defaultModel: "gpt-5.2"
+          defaultModel: "gpt-5.4"
         }
       ],
       channels: [],
@@ -112,7 +112,7 @@ describe("config schema security validation", () => {
       {
         id: "openai-main",
         type: "openai",
-        defaultModel: "gpt-5.2",
+        defaultModel: "gpt-5.4",
         oauth: {
           authorizeUrl: "https://example.test/oauth/authorize",
           tokenUrl: "https://example.test/oauth/token",
@@ -154,13 +154,13 @@ describe("config schema security validation", () => {
       {
         id: "openai-main",
         type: "openai",
-        defaultModel: "gpt-5.2",
+        defaultModel: "gpt-5.4",
         reasoningEffort: "medium"
       },
       {
         id: "anthropic-main",
         type: "anthropic",
-        defaultModel: "claude-sonnet-4-20250514",
+        defaultModel: "claude-sonnet-4-6",
         thinkingBudgetTokens: 4096
       }
     ];
@@ -205,7 +205,7 @@ describe("config schema security validation", () => {
       {
         id: "anthropic-main",
         type: "anthropic",
-        defaultModel: "claude-sonnet-4-20250514",
+        defaultModel: "claude-sonnet-4-6",
         thinkingBudgetTokens: 512
       }
     ];

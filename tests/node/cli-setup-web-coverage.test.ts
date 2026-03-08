@@ -79,7 +79,7 @@ function minimalQuickstartAnswers(bindPort: number): string[] {
     "",
     "openai",
     "openai-main",
-    "gpt-5.2",
+    "gpt-5.4",
     "",
     "openai-key",
     "telegram",

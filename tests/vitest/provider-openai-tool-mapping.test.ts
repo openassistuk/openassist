@@ -219,7 +219,7 @@ describe("openai provider tool mapping", () => {
 
     const adapter = new OpenAIProviderAdapter({
       id: "openai-main",
-      defaultModel: "gpt-5.2",
+      defaultModel: "gpt-5.4",
       baseUrl: `http://127.0.0.1:${address.port}/v1`,
       reasoningEffort: "high"
     });
@@ -227,7 +227,7 @@ describe("openai provider tool mapping", () => {
     const response = await adapter.chat(
       {
         ...baseRequest(),
-        model: "gpt-5.2"
+        model: "gpt-5.4"
       },
       {
         providerId: "openai-main",

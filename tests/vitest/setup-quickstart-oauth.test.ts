@@ -121,7 +121,7 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
     "Keep answers practical",
     "openai",
     "openai-main",
-    "gpt-5.2",
+    "gpt-5.4",
     "",
     "openai-api-key",
     "telegram",
@@ -151,7 +151,7 @@ describe("setup quickstart oauth path", () => {
       {
         id: "openai-main",
         type: "openai",
-        defaultModel: "gpt-5.2",
+        defaultModel: "gpt-5.4",
         oauth: {
           authorizeUrl: "https://example.test/oauth/authorize",
           tokenUrl: "https://example.test/oauth/token",

@@ -66,9 +66,9 @@ When quickstart succeeds, it writes those values into the same global assistant 
 
 Expected installer note:
 
-- `pnpm` version notices are informational
-- the supported path now includes WhatsApp/media baseline build-script dependencies
-- if `pnpm` still reports skipped WhatsApp/media build scripts on your host, approve them before relying on WhatsApp image or document handling
+- OpenAssist pins a tested `pnpm` release for consistent installs, so a newer `pnpm` update notice does not block setup
+- Telegram and Discord installs do not need extra build-script approval
+- if `pnpm` still reports skipped WhatsApp/media build scripts on your host, approve them before using WhatsApp image or document features
 
 ## Linux Service Manager Rules
 

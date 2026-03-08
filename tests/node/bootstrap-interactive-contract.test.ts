@@ -32,7 +32,8 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /Node\.js is still <22 after package install; attempting fallback install via npm\+n/);
     assert.match(script, /npm install -g n/);
     assert.match(script, /n 22/);
-    assert.match(script, /corepack prepare pnpm@10.26.0 --activate/);
+    assert.match(script, /PINNED_PNPM_VERSION="10.31.0"/);
+    assert.match(script, /corepack prepare "pnpm@\$\{PINNED_PNPM_VERSION\}" --activate/);
     assert.match(script, /run_git_step/);
     assert.match(script, /Git fast-forward failed for ref/);
     assert.match(script, /merge --ff-only "refs\/remotes\/origin\/\$\{REF\}"/);
@@ -42,6 +43,9 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /GitHub HTTPS authentication fails/);
     assert.match(script, /Running guided lifecycle setup/);
     assert.match(script, /"setup"/);
+    assert.match(script, /if \[\[ "\$\{INTERACTIVE\}" -ne 1 && ! -f "\$\{CONFIG_PATH\}" \]\]/);
+    assert.match(script, /node "\$\{INSTALL_DIR\}\/apps\/openassist-cli\/dist\/index\.js" init --config "\$\{CONFIG_PATH\}"/);
+    assert.doesNotMatch(script, /pnpm --dir "\$\{INSTALL_DIR\}" --filter @openassist\/openassist-cli start -- init --config "\$\{CONFIG_PATH\}"/);
     assert.match(script, /ensure_local_bin_on_path/);
     assert.match(script, /install_global_wrappers_if_possible/);
     assert.match(script, /GLOBAL_BIN_DIR="\$\{OPENASSIST_GLOBAL_BIN_DIR:-\/usr\/local\/bin\}"/);
@@ -54,8 +58,8 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /Ready now/);
     assert.match(script, /Needs action/);
     assert.match(script, /Next command/);
-    assert.match(script, /pnpm version notices are informational/);
-    assert.match(script, /approve them before relying on WhatsApp image or document handling/);
+    assert.match(script, /pins a tested pnpm release for consistent installs/);
+    assert.match(script, /Approve skipped WhatsApp\/media build scripts only before using WhatsApp image or document features/);
     assert.match(
       script,
       /Guided onboarding was not run because bootstrap stayed non-interactive\. Next step: \$\{setupCommand\}/

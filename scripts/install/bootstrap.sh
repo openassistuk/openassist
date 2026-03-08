@@ -251,7 +251,7 @@ needs.push(
 
 if (process.env.OPENASSIST_INTERACTIVE !== "1") {
   needs.unshift(
-    `  - Guided onboarding was not run because bootstrap stayed non-interactive. Next step: openassist setup quickstart --install-dir "${process.env.OPENASSIST_INSTALL_DIR}" --config "${process.env.OPENASSIST_CONFIG_PATH}" --env-file "${process.env.OPENASSIST_ENV_FILE}"`
+    `  - Guided onboarding was not run because bootstrap stayed non-interactive. Next step: openassist setup`
   );
 }
 if (process.env.OPENASSIST_SKIP_SERVICE === "1") {
@@ -264,7 +264,7 @@ let nextCommand = "openassist service health";
 if (process.env.OPENASSIST_SKIP_SERVICE === "1") {
   nextCommand = `openassist service install --install-dir "${process.env.OPENASSIST_INSTALL_DIR}" --config "${process.env.OPENASSIST_CONFIG_PATH}" --env-file "${process.env.OPENASSIST_ENV_FILE}"`;
 } else if (process.env.OPENASSIST_INTERACTIVE !== "1") {
-  nextCommand = `openassist setup quickstart --install-dir "${process.env.OPENASSIST_INSTALL_DIR}" --config "${process.env.OPENASSIST_CONFIG_PATH}" --env-file "${process.env.OPENASSIST_ENV_FILE}"`;
+  nextCommand = "openassist setup";
 } else if (firstReplyItems.length > 0) {
   nextCommand = firstReplyItems[0]?.nextStep || "openassist doctor";
 }
@@ -976,7 +976,7 @@ echo "If pnpm still reports skipped WhatsApp/media build scripts, approve them b
 echo "Building workspace..."
 pnpm --dir "${INSTALL_DIR}" -r build
 
-CONFIG_PATH="${INSTALL_DIR}/openassist.toml"
+CONFIG_PATH="${HOME}/.config/openassist/openassist.toml"
 ENV_FILE="${HOME}/.config/openassist/openassistd.env"
 STATE_FILE="${HOME}/.config/openassist/install-state.json"
 mkdir -p "$(dirname "${ENV_FILE}")"
@@ -1035,21 +1035,20 @@ elif [[ "$(id -u)" -eq 0 ]]; then
 fi
 
 if [[ "${INTERACTIVE}" -eq 1 ]]; then
-  echo "Running guided onboarding quickstart..."
-  QUICKSTART_ARGS=(
+  echo "Running guided lifecycle setup..."
+  SETUP_ARGS=(
     "setup"
-    "quickstart"
     "--install-dir" "${INSTALL_DIR}"
     "--config" "${CONFIG_PATH}"
     "--env-file" "${ENV_FILE}"
   )
   if [[ "${SKIP_SERVICE}" -eq 1 ]]; then
-    QUICKSTART_ARGS+=("--skip-service")
+    SETUP_ARGS+=("--skip-service")
   fi
   if [[ "${ALLOW_INCOMPLETE}" -eq 1 ]]; then
-    QUICKSTART_ARGS+=("--allow-incomplete")
+    SETUP_ARGS+=("--allow-incomplete")
   fi
-  "${LOCAL_BIN_DIR}/openassist" "${QUICKSTART_ARGS[@]}"
+  "${LOCAL_BIN_DIR}/openassist" "${SETUP_ARGS[@]}"
 elif [[ "${SKIP_SERVICE}" -ne 1 ]]; then
   echo "Installing service..."
   pnpm --dir "${INSTALL_DIR}" --filter @openassist/openassist-cli start -- service install \

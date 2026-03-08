@@ -17,6 +17,7 @@ It is designed to help with the host it runs on, not just with its own repo:
 It is designed for a public operator workflow:
 
 - install from GitHub into a repo-backed checkout
+- run one beginner-first lifecycle hub with `openassist setup`
 - reach a first real reply with one provider and one channel
 - use an advanced editor only when you need deeper changes
 - upgrade in place with a dry-run plan and automatic rollback on failure
@@ -36,8 +37,8 @@ Channel replies now render with channel-safe formatting, long replies are chunke
 OpenAssist now has one canonical operator path:
 
 1. Install OpenAssist with `install.sh` or `scripts/install/bootstrap.sh`.
-2. Run `openassist setup quickstart` to get one provider, one channel, healthy service state, and a clear first-reply checklist.
-3. Use `openassist setup wizard` for advanced runtime, provider, channel, scheduler, and tool/security changes.
+2. Run `openassist setup` and choose `First-time setup` to reach one provider, one channel, healthy service state, and a clear first-reply checklist.
+3. Use `openassist setup wizard` only when you need deeper runtime, provider, channel, scheduler, or tool/security changes.
 4. Use `openassist upgrade --dry-run` before every update, then `openassist upgrade` when the plan looks correct.
 
 ## Fast Start
@@ -67,8 +68,8 @@ Its final summary now always ends in the same operator order used by the CLI lif
 
 Bootstrap mode matters:
 
-- interactive TTY bootstrap runs `openassist setup quickstart` after the build
-- non-interactive bootstrap leaves onboarding for a later `openassist setup quickstart` run
+- interactive TTY bootstrap runs bare `openassist setup` after the build
+- non-interactive bootstrap leaves onboarding for a later `openassist setup` or `openassist setup quickstart` run
 - non-interactive bootstrap still installs the service unless you pass `--skip-service`
 
 ### 2. Verify wrappers
@@ -87,16 +88,32 @@ $HOME/.local/bin/openassist --help
 
 ### 3. Finish first-run onboarding
 
-If bootstrap stopped early or you installed non-interactively, run quickstart explicitly:
+The default beginner entrypoint is now bare `openassist setup`:
+
+```bash
+openassist setup
+```
+
+On a TTY, that opens the lifecycle hub with these choices:
+
+- first-time setup
+- check and repair this install
+- advanced configuration
+- service and health actions
+- safe update planning
+- show file locations and lifecycle status
+- exit
+
+If you want the direct scripted first-reply path instead, quickstart is still available:
 
 ```bash
 openassist setup quickstart \
   --install-dir "$HOME/openassist" \
-  --config "$HOME/openassist/openassist.toml" \
+  --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Quickstart is intentionally minimal:
+Quickstart remains intentionally minimal:
 
 - confirm runtime defaults for the first reply
 - choose the main assistant name, persona, and ongoing objectives before the first chat
@@ -132,6 +149,19 @@ Quickstart writes the same global main-agent identity that `/profile` manages la
 
 OAuth client configuration, extra providers, extra channels, scheduler tasks, native web tuning, and deeper runtime policy changes stay in `openassist setup wizard`.
 
+Fresh installs now keep normal writable operator state outside the repo checkout:
+
+- config: `~/.config/openassist/openassist.toml`
+- overlays: `~/.config/openassist/config.d`
+- env file: `~/.config/openassist/openassistd.env`
+- install state: `~/.config/openassist/install-state.json`
+- runtime data: `~/.local/share/openassist/data`
+- runtime logs: `~/.local/share/openassist/logs`
+- managed skills: `~/.local/share/openassist/skills`
+- managed helper tools: `~/.local/share/openassist/data/helper-tools`
+
+If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), it now migrates that state into the canonical home-state layout when the target home paths are empty or compatible. A timestamped backup bundle is written under `~/.local/share/openassist/migration-backups/<timestamp>` before the migration changes anything.
+
 Quickstart blocks invalid or incomplete first-reply state by default. Use `--allow-incomplete` only when you explicitly want to save a degraded setup.
 If you opt into full access, quickstart asks for approved operator IDs for the chosen channel and falls back cleanly to standard mode if you are not ready to enter them yet.
 Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`.
@@ -146,15 +176,13 @@ openassist service health
 openassist channel status
 ```
 
-`openassist doctor` now uses the same grouped lifecycle model as bootstrap, quickstart, and upgrade. It always reports in this order:
+`openassist doctor` now uses the same shared lifecycle model as bootstrap, setup, and upgrade. Human-readable output always reports in this order:
 
 - `Ready now`
-- `Needs action before first reply`
-- `Needs action before full access`
-- `Needs action before upgrade`
-- `Recommended next command`
+- `Needs action`
+- `Next command`
 
-Use `openassist doctor --json` when you want the same grouped report shape for automation or scripting.
+Use `openassist doctor --json` when you want the machine-readable grouped report. The JSON report is now `version: 2` and keeps the grouped sections while adding per-item `stage` metadata.
 
 ## Runtime Awareness and Growth
 
@@ -227,7 +255,7 @@ When the bot is online:
 
 ```bash
 openassist setup wizard \
-  --config "$HOME/openassist/openassist.toml" \
+  --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env" \
   --install-dir "$HOME/openassist"
 ```
@@ -290,6 +318,8 @@ Bootstrap writes and preserves an install record at `~/.config/openassist/instal
 
 `openassist service install`, `openassist doctor`, and `openassist upgrade` all read or update the same record instead of drifting independent state.
 
+The repo checkout is now code-first by default. The root [`openassist.toml`](openassist.toml) file is a source-development sample, not the default operator config path for installed lifecycle commands.
+
 The install record keeps the tracked ref visible to operators, but `openassist upgrade` still follows the current checked-out branch by default. If the repo is detached, dry-run will show the target ref it resolved, and you should usually pass `--ref` explicitly.
 
 WhatsApp/media install baseline:
@@ -303,9 +333,10 @@ Core lifecycle:
 
 ```bash
 openassist doctor
+openassist setup
 openassist setup quickstart
 openassist setup wizard
-openassist service install --install-dir "$HOME/openassist" --config "$HOME/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
+openassist service install --install-dir "$HOME/openassist" --config "$HOME/.config/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
 openassist upgrade --dry-run --install-dir "$HOME/openassist"
 ```
 

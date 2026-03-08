@@ -1,9 +1,16 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { loadConfig } from "@openassist/config";
+import {
+  defaultConfigOverlaysDir,
+  defaultConfigPath as defaultOperatorConfigPath,
+  defaultDataDir,
+  defaultEnvFilePath as defaultOperatorEnvFilePath,
+  defaultInstallDir as defaultOperatorInstallDir,
+  defaultInstallStatePath as defaultOperatorInstallStatePath,
+  loadConfig
+} from "@openassist/config";
 import { preferredLocalHealthBaseUrl } from "./health-check.js";
 
 export const workspaceCwd = process.env.INIT_CWD ? path.resolve(process.env.INIT_CWD) : process.cwd();
@@ -19,24 +26,32 @@ export function resolveDbPath(dbPath?: string): string {
   if (dbPath) {
     return resolveFromWorkspace(dbPath);
   }
-  return resolveFromWorkspace(".openassist/data/openassist.db");
+  return path.join(defaultDataDir(), "openassist.db");
 }
 
 export function defaultInstallDir(): string {
-  return path.join(os.homedir(), "openassist");
+  return defaultOperatorInstallDir();
+}
+
+export function defaultConfigPath(): string {
+  return defaultOperatorConfigPath();
+}
+
+export function defaultConfigOverlaysPath(): string {
+  return defaultConfigOverlaysDir();
 }
 
 export function defaultEnvFilePath(): string {
-  return path.join(os.homedir(), ".config", "openassist", "openassistd.env");
+  return defaultOperatorEnvFilePath();
 }
 
 export function defaultInstallStatePath(): string {
-  return path.join(os.homedir(), ".config", "openassist", "install-state.json");
+  return defaultOperatorInstallStatePath();
 }
 
-export function detectDefaultDaemonBaseUrl(configPath = "openassist.toml"): string {
+export function detectDefaultDaemonBaseUrl(configPath = defaultConfigPath()): string {
   try {
-    const resolvedConfigPath = resolveFromWorkspace(configPath);
+    const resolvedConfigPath = path.isAbsolute(configPath) ? configPath : resolveFromWorkspace(configPath);
     const configDir = path.dirname(resolvedConfigPath);
     const { config } = loadConfig({
       baseFile: resolvedConfigPath,

@@ -5,6 +5,7 @@ import type { SetupValidationIssue } from "./setup-validation.js";
 
 export type LifecycleSimpleReadiness = "ready" | "needs-action";
 export type UpgradeReadiness = "safe-to-continue" | "fix-before-updating" | "rerun-bootstrap";
+export type LifecycleStage = "install" | "first-reply" | "full-access" | "upgrade";
 export type LifecycleRepairBucketId =
   | "provider-auth"
   | "channel-auth-routing"
@@ -14,6 +15,7 @@ export type LifecycleRepairBucketId =
 
 export interface LifecycleReportItem {
   id: string;
+  stage: LifecycleStage;
   label: string;
   detail: string;
   reason?: string;
@@ -45,7 +47,7 @@ export interface LifecycleRecommendedAction {
 }
 
 export interface LifecycleReport {
-  version: 1;
+  version: 2;
   summary: LifecycleReportSummary;
   context: {
     installDir: string;
@@ -89,6 +91,8 @@ export interface LifecycleReportInput {
   hasNode?: boolean;
   daemonBuildExists?: boolean;
   dirtyWorkingTree?: boolean;
+  legacyDefaultLayoutStatus?: "ready" | "blocked";
+  legacyDefaultLayoutReason?: string;
   localWrapperAvailable?: boolean;
   localWrapperCommand?: string;
   growth?: {
@@ -162,12 +166,20 @@ function describeServiceState(
 
 function createItem(
   id: string,
+  stage: LifecycleStage,
   label: string,
   detail: string,
   reason?: string,
   nextStep?: string
 ): LifecycleReportItem {
-  return { id, label, detail, ...(reason ? { reason } : {}), ...(nextStep ? { nextStep } : {}) };
+  return {
+    id,
+    stage,
+    label,
+    detail,
+    ...(reason ? { reason } : {}),
+    ...(nextStep ? { nextStep } : {})
+  };
 }
 
 function mapIssueToBucketId(issue: SetupValidationIssue): LifecycleRepairBucketId {
@@ -247,14 +259,15 @@ export function groupValidationIssuesByLifecycleBucket(
 function appendBucketIssues(
   target: LifecycleReportItem[],
   prefix: string,
-  buckets: LifecycleRepairBucket[]
+  buckets: LifecycleRepairBucket[],
+  stage: LifecycleStage
 ): void {
   for (const bucket of buckets) {
     const detail = bucket.issues.map((issue) => issue.message).join(" ");
     const nextStep = bucket.issues
       .map((issue) => issue.hint)
       .find((hint): hint is string => typeof hint === "string" && hint.trim().length > 0);
-    target.push(createItem(`${prefix}.${bucket.id}`, bucket.label, detail, undefined, nextStep));
+    target.push(createItem(`${prefix}.${bucket.id}`, stage, bucket.label, detail, undefined, nextStep));
   }
 }
 
@@ -267,6 +280,7 @@ function buildUpgradeBlockerItems(input: LifecycleReportInput): {
     items.push(
       createItem(
         "upgrade.repo-backed-required",
+        "upgrade",
         "Repo-backed install",
         "This install directory is missing its Git checkout, so in-place update is not safe here.",
         "OpenAssist upgrade only works against the tracked repository checkout.",
@@ -280,6 +294,7 @@ function buildUpgradeBlockerItems(input: LifecycleReportInput): {
     items.push(
       createItem(
         "upgrade.build-output-missing",
+        "upgrade",
         "Built daemon output",
         "The daemon build output is missing from this install, so upgrade should hand back to bootstrap instead of guessing.",
         undefined,
@@ -289,10 +304,25 @@ function buildUpgradeBlockerItems(input: LifecycleReportInput): {
     return { items, readiness: "rerun-bootstrap" };
   }
 
+  if (!input.installStatePresent && !input.configExists && !input.envExists) {
+    items.push(
+      createItem(
+        "upgrade.lifecycle-state-missing",
+        "upgrade",
+        "Install lifecycle state",
+        "This checkout does not have the normal OpenAssist operator config, env file, or install record yet, so upgrade should hand back to bootstrap first.",
+        undefined,
+        `Re-run bootstrap for this install directory: scripts/install/bootstrap.sh --install-dir "${input.installDir}"`
+      )
+    );
+    return { items, readiness: "rerun-bootstrap" };
+  }
+
   if (input.hasGit === false || input.hasPnpm === false || input.hasNode === false) {
     items.push(
       createItem(
         "upgrade.prerequisites",
+        "upgrade",
         "Update prerequisites",
         `Required commands must be available before updating (git=${input.hasGit !== false ? "ok" : "missing"}, pnpm=${input.hasPnpm !== false ? "ok" : "missing"}, node=${input.hasNode !== false ? "ok" : "missing"}).`,
         undefined,
@@ -305,6 +335,7 @@ function buildUpgradeBlockerItems(input: LifecycleReportInput): {
     items.push(
       createItem(
         "upgrade.config",
+        "upgrade",
         "Config file",
         "OpenAssist cannot verify the active install without the main config file.",
         undefined,
@@ -317,6 +348,7 @@ function buildUpgradeBlockerItems(input: LifecycleReportInput): {
     items.push(
       createItem(
         "upgrade.local-changes",
+        "upgrade",
         "Local code changes",
         "The install directory has uncommitted changes, so upgrade would stop to avoid overwriting local work.",
         undefined,
@@ -360,33 +392,35 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
   readyNow.push(
     createItem(
       "install.location",
+      "install",
       "Install location",
       `${input.installDir}${input.repoBacked ? " (repo-backed checkout)" : ""}`
     )
   );
-  readyNow.push(createItem("config.path", "Config path", input.configPath));
-  readyNow.push(createItem("env.path", "Env path", input.envFilePath));
+  readyNow.push(createItem("config.path", "install", "Config path", input.configPath));
+  readyNow.push(createItem("env.path", "install", "Env path", input.envFilePath));
 
   if (input.installStatePresent) {
     uniquePush(
       readyNow,
-      createItem("install.record", "Install record", "Install state is present and readable.")
+      createItem("install.record", "install", "Install record", "Install state is present and readable.")
     );
   }
   if (input.trackedRef?.trim()) {
-    uniquePush(readyNow, createItem("install.track", "Update track", input.trackedRef.trim()));
+    uniquePush(readyNow, createItem("install.track", "upgrade", "Update track", input.trackedRef.trim()));
   }
   if (input.currentCommit?.trim()) {
-    uniquePush(readyNow, createItem("install.commit", "Current commit", input.currentCommit.trim()));
+    uniquePush(readyNow, createItem("install.commit", "upgrade", "Current commit", input.currentCommit.trim()));
   }
   if (input.detectedTimezone?.trim()) {
-    uniquePush(readyNow, createItem("runtime.timezone", "Detected timezone", input.detectedTimezone.trim()));
+    uniquePush(readyNow, createItem("runtime.timezone", "install", "Detected timezone", input.detectedTimezone.trim()));
   }
   if (input.growth) {
     uniquePush(
       readyNow,
       createItem(
         "growth.assets",
+        "upgrade",
         "Managed growth assets",
         `skills=${input.growth.installedSkillCount}${input.growth.installedSkillIds && input.growth.installedSkillIds.length > 0 ? ` (${input.growth.installedSkillIds.join(", ")})` : ""}; helpers=${input.growth.managedHelperCount}${input.growth.managedHelperIds && input.growth.managedHelperIds.length > 0 ? ` (${input.growth.managedHelperIds.join(", ")})` : ""}`
       )
@@ -395,6 +429,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       readyNow,
       createItem(
         "growth.directories",
+        "upgrade",
         "Managed growth directories",
         `skills=${input.growth.skillsDirectory}; helpers=${input.growth.helperToolsDirectory}`
       )
@@ -403,6 +438,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       readyNow,
       createItem(
         "growth.update-safety",
+        "upgrade",
         "Managed growth update safety",
         input.growth.updateSafetyNote
       )
@@ -411,13 +447,14 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
   if (input.localWrapperAvailable) {
     uniquePush(
       readyNow,
-      createItem("wrappers.path", "CLI wrapper", "This shell can already run 'openassist'.")
+      createItem("wrappers.path", "install", "CLI wrapper", "This shell can already run 'openassist'.")
     );
   } else if (input.localWrapperCommand) {
     uniquePush(
       needsActionBeforeFirstReply,
       createItem(
         "wrappers.path",
+        "install",
         "CLI wrapper",
         "This shell does not see 'openassist' on PATH yet.",
         "Start a new shell, or use the fallback wrapper directly for the next command.",
@@ -431,20 +468,21 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       needsActionBeforeFirstReply,
       createItem(
         "setup.quickstart",
+        "first-reply",
         "First-run setup",
         "Quickstart has not written the main config yet, so OpenAssist is not ready for a first reply.",
         undefined,
-        `openassist setup quickstart --install-dir "${input.installDir}" --config "${input.configPath}" --env-file "${input.envFilePath}"`
+        "openassist setup"
       )
     );
   } else {
     uniquePush(
       readyNow,
-      createItem("first-reply.destination", "First reply destination", describeFirstReplyDestination(input.config))
+      createItem("first-reply.destination", "first-reply", "First reply destination", describeFirstReplyDestination(input.config))
     );
     uniquePush(
       readyNow,
-      createItem("access.mode", "Access mode", describeAccessMode(input.config))
+      createItem("access.mode", "full-access", "Access mode", describeAccessMode(input.config))
     );
   }
 
@@ -453,17 +491,18 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       needsActionBeforeFirstReply,
       createItem(
         "setup.env",
+        "first-reply",
         "Env file",
         "The env file is missing, so provider or channel secrets may not be available at runtime.",
         undefined,
-        `openassist setup quickstart --install-dir "${input.installDir}" --config "${input.configPath}" --env-file "${input.envFilePath}"`
+        "openassist setup"
       )
     );
   }
 
-  appendBucketIssues(needsActionBeforeFirstReply, "first-reply", firstReplyBuckets);
-  appendBucketIssues(needsActionBeforeFullAccess, "full-access", accessBuckets);
-  appendBucketIssues(needsActionBeforeFullAccess, "full-access-warning", accessWarnings);
+  appendBucketIssues(needsActionBeforeFirstReply, "first-reply", firstReplyBuckets, "first-reply");
+  appendBucketIssues(needsActionBeforeFullAccess, "full-access", accessBuckets, "full-access");
+  appendBucketIssues(needsActionBeforeFullAccess, "full-access-warning", accessWarnings, "full-access");
 
   const enabledChannels = input.config?.runtime.channels.filter((channel) => channel.enabled) ?? [];
   const operatorReadyChannels = enabledChannels.filter((channel) => getOperatorUserIds(channel).length > 0);
@@ -472,6 +511,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       readyNow,
       createItem(
         "full-access.operators",
+        "full-access",
         "Approved operators",
         operatorReadyChannels.map((channel) => `${channel.id}=${getOperatorUserIds(channel).length}`).join(", ")
       )
@@ -483,6 +523,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       readyNow,
       createItem(
         "service.manager",
+        "install",
         "Service manager",
         input.serviceInstalled === undefined
           ? input.serviceManagerKind
@@ -496,6 +537,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       needsActionBeforeFirstReply,
       createItem(
         "service.skipped",
+        "first-reply",
         "Service and health checks",
         "Bootstrap or quickstart skipped service install/restart checks, so first reply readiness is not confirmed yet.",
         undefined,
@@ -507,6 +549,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       readyNow,
       createItem(
         "service.health",
+        "first-reply",
         "Service health",
         input.serviceHealthDetail ?? "Daemon health checks passed."
       )
@@ -516,6 +559,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       needsActionBeforeFirstReply,
       createItem(
         "service.health",
+        "first-reply",
         "Service health",
         input.serviceHealthDetail ?? "Daemon health checks still need attention before the first reply path is trustworthy.",
         undefined,
@@ -529,10 +573,11 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       needsActionBeforeFirstReply,
       createItem(
         "bootstrap.non-interactive",
+        "first-reply",
         "Interactive onboarding",
         "Bootstrap stopped in non-interactive mode before quickstart onboarding ran.",
         undefined,
-        `openassist setup quickstart --install-dir "${input.installDir}" --config "${input.configPath}" --env-file "${input.envFilePath}"`
+        "openassist setup"
       )
     );
   }
@@ -542,6 +587,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       readyNow,
       createItem(
         "bootstrap.prereqs",
+        "install",
         "Prerequisite install policy",
         "Bootstrap left prerequisite installation under operator control because auto-install was disabled."
       )
@@ -552,6 +598,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       readyNow,
       createItem(
         "bootstrap.dirty",
+        "upgrade",
         "Dirty checkout policy",
         "Bootstrap was allowed to proceed with local code changes in the checkout."
       )
@@ -559,16 +606,37 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
   }
 
   const { items: upgradeItems, readiness: upgradeReadiness } = buildUpgradeBlockerItems(input);
+  if (input.legacyDefaultLayoutStatus) {
+    upgradeItems.unshift(
+      createItem(
+        "upgrade.legacy-layout",
+        "upgrade",
+        "Legacy repo-local operator state",
+        input.legacyDefaultLayoutStatus === "ready"
+          ? "This install still uses the old repo-local config or runtime-state layout. Move it to the home-state layout before treating upgrade output as final."
+          : input.legacyDefaultLayoutReason ?? "Legacy repo-local operator state needs manual attention before upgrade.",
+        undefined,
+        "openassist setup"
+      )
+    );
+  }
+  const effectiveUpgradeReadiness: UpgradeReadiness =
+    input.legacyDefaultLayoutStatus ? "fix-before-updating" : upgradeReadiness;
 
   const recommendedNextCommand: LifecycleRecommendedAction = upgradeReadiness === "rerun-bootstrap"
     ? {
         kind: "rerun-bootstrap",
         command: `scripts/install/bootstrap.sh --install-dir "${input.installDir}"`
       }
+    : input.legacyDefaultLayoutStatus
+      ? {
+          kind: "repair-first-reply",
+          command: "openassist setup"
+        }
     : !input.configExists
       ? {
           kind: "run-quickstart",
-          command: `openassist setup quickstart --install-dir "${input.installDir}" --config "${input.configPath}" --env-file "${input.envFilePath}"`
+          command: "openassist setup"
         }
       : needsActionBeforeFirstReply.length > 0
         ? {
@@ -586,7 +654,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
             };
 
   return {
-    version: 1,
+    version: 2,
     summary: {
       installReadiness:
         input.repoBacked && input.configExists && input.hasNode !== false ? "ready" : "needs-action",
@@ -594,7 +662,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       serviceReadiness:
         input.serviceWasSkipped || input.serviceHealthOk === false ? "needs-action" : "ready",
       accessModeReadiness: needsActionBeforeFullAccess.length === 0 ? "ready" : "needs-action",
-      upgradeReadiness
+      upgradeReadiness: effectiveUpgradeReadiness
     },
     context: {
       installDir: input.installDir,
@@ -639,13 +707,16 @@ function renderSection(title: string, items: LifecycleReportItem[]): string[] {
 }
 
 export function renderLifecycleReport(report: LifecycleReport, heading = "OpenAssist lifecycle doctor"): string[] {
+  const needsAction = [
+    ...report.sections.needsActionBeforeFirstReply,
+    ...report.sections.needsActionBeforeFullAccess,
+    ...report.sections.needsActionBeforeUpgrade
+  ];
   return [
     heading,
     ...renderSection("Ready now", report.sections.readyNow),
-    ...renderSection("Needs action before first reply", report.sections.needsActionBeforeFirstReply),
-    ...renderSection("Needs action before full access", report.sections.needsActionBeforeFullAccess),
-    ...renderSection("Needs action before upgrade", report.sections.needsActionBeforeUpgrade),
-    "Recommended next command",
+    ...renderSection("Needs action", needsAction),
+    "Next command",
     `- ${report.recommendedNextCommand.command}`
   ];
 }

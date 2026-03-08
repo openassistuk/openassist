@@ -30,6 +30,7 @@ import {
   resolveDbPath,
   resolveFromWorkspace
 } from "../../apps/openassist-cli/src/lib/runtime-context.js";
+import { defaultDataDir } from "../../packages/config/src/operator-paths.js";
 
 function tempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -54,7 +55,7 @@ describe("cli lib coverage helpers", () => {
 
     assert.equal(path.isAbsolute(configPath), true);
     assert.equal(path.isAbsolute(absolute), true);
-    assert.equal(dbPath.endsWith(path.join(".openassist", "data", "openassist.db")), true);
+    assert.equal(dbPath, path.join(defaultDataDir(), "openassist.db"));
     assert.equal(defaultInstallDir().includes("openassist"), true);
     assert.equal(defaultEnvFilePath().includes(path.join(".config", "openassist")), true);
     assert.equal(defaultInstallStatePath().includes(path.join(".config", "openassist")), true);

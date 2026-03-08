@@ -75,17 +75,18 @@ describe("cli command integration", () => {
       ["upgrade", "--dry-run", "--install-dir", cloneDir, "--ref", "HEAD"],
       repoRoot()
     );
-    assert.equal(result.code, 0, result.stderr || result.stdout);
+    assert.equal(result.code, 1, result.stderr || result.stdout);
     assert.ok(result.stdout.includes("Update readiness"), result.stdout);
     assert.ok(result.stdout.includes("- Target update track: HEAD"), result.stdout);
-    assert.ok(result.stdout.includes("Needs action before upgrade"), result.stdout);
+    assert.ok(result.stdout.includes("Needs action"), result.stdout);
     assert.ok(
       result.stdout.includes(
-        "Dry-run complete. Upgrade is safe to continue with the install directory and update track shown above."
+        "Dry-run complete. Upgrade is not ready yet: fix the reported blockers before updating."
       ),
       result.stdout
     );
-    assert.ok(result.stdout.includes("- When you are ready, rerun: openassist upgrade"), result.stdout);
+    assert.ok(result.stdout.includes("- openassist setup"), result.stdout);
+    assert.ok(result.stdout.includes("- Recommended next command: openassist setup"), result.stdout);
   });
 
   it("reports missing update prerequisites instead of crashing when helper binaries are unavailable", async () => {

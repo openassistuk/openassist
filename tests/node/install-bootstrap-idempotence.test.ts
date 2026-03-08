@@ -40,7 +40,7 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("merge --ff-only \"refs/remotes/origin/${REF}\""));
     assert.ok(!script.includes("pull --ff-only origin \"${REF}\""));
     assert.ok(script.includes("pnpm --dir \"${INSTALL_DIR}\" install --frozen-lockfile"));
-    assert.ok(script.includes("Running guided onboarding quickstart"));
+    assert.ok(script.includes("Running guided lifecycle setup"));
     assert.ok(script.includes("LOCAL_BIN_DIR=\"${HOME}/.local/bin\""));
     assert.ok(script.includes("GLOBAL_BIN_DIR=\"${OPENASSIST_GLOBAL_BIN_DIR:-/usr/local/bin}\""));
     assert.ok(script.includes("ensure_local_bin_on_path"));

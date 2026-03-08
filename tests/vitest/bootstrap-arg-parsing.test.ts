@@ -24,7 +24,7 @@ describe("bootstrap argument parsing contract", () => {
     expect(script.includes("pull --ff-only origin \"${REF}\"")).toBe(false);
     expect(script.includes("Clear cached GitHub HTTPS credentials and retry")).toBe(true);
     expect(script.includes("GitHub HTTPS authentication fails")).toBe(true);
-    expect(script.includes("Running guided onboarding quickstart")).toBe(true);
-    expect(script.includes("\"${LOCAL_BIN_DIR}/openassist\" \"${QUICKSTART_ARGS[@]}\"")).toBe(true);
+    expect(script.includes("Running guided lifecycle setup")).toBe(true);
+    expect(script.includes("\"${LOCAL_BIN_DIR}/openassist\" \"${SETUP_ARGS[@]}\"")).toBe(true);
   });
 });

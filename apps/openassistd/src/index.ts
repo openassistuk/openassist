@@ -3,7 +3,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { Command } from "commander";
-import { loadConfig } from "@openassist/config";
+import { defaultConfigPath, loadConfig, resolveConfigOverlaysDir } from "@openassist/config";
 import { OpenAssistRuntime } from "@openassist/core-runtime";
 import type { RuntimeConfig } from "@openassist/core-types";
 import { createLogger } from "@openassist/observability";
@@ -124,15 +124,14 @@ program
 program
   .command("run")
   .description("Run OpenAssist daemon")
-  .option("--config <path>", "Path to openassist.toml", "openassist.toml")
+  .option("--config <path>", "Path to openassist.toml", defaultConfigPath())
   .action(async (options) => {
     const configPath = resolveFromWorkspace(options.config);
-    const configDir = path.dirname(configPath);
 
     const logger = createLogger({ service: "openassistd" });
     const { config, loadedFiles } = loadConfig({
       baseFile: configPath,
-      overlaysDir: path.join(configDir, "config.d")
+      overlaysDir: resolveConfigOverlaysDir(configPath)
     });
 
     ensureDirectories([

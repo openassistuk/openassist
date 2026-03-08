@@ -43,8 +43,8 @@ function createInput(overrides: Partial<LifecycleReportInput> = {}): LifecycleRe
     daemonBuildExists: true,
     dirtyWorkingTree: false,
     growth: {
-      skillsDirectory: "/srv/openassist/.openassist/skills",
-      helperToolsDirectory: "/srv/openassist/.openassist/data/helper-tools",
+      skillsDirectory: "/home/operator/.local/share/openassist/skills",
+      helperToolsDirectory: "/home/operator/.local/share/openassist/data/helper-tools",
       installedSkillCount: 1,
       managedHelperCount: 1,
       installedSkillIds: ["disk-maintenance"],
@@ -143,18 +143,21 @@ describe("lifecycle readiness", () => {
     const report = buildLifecycleReport(createInput());
     const lines = renderLifecycleReport(report);
 
-    expect(report.version).toBe(1);
+    expect(report.version).toBe(2);
     expect(report.summary.firstReplyReadiness).toBe("ready");
     expect(report.summary.upgradeReadiness).toBe("safe-to-continue");
     expect(report.sections.readyNow.length).toBeGreaterThan(0);
     expect(report.sections.needsActionBeforeFirstReply).toEqual([]);
+    expect(
+      report.sections.readyNow.every((item) =>
+        ["install", "first-reply", "full-access", "upgrade"].includes(item.stage)
+      )
+    ).toBe(true);
     expect(report.recommendedNextCommand.command).toContain("openassist upgrade --dry-run");
     expect(lines[0]).toBe("OpenAssist lifecycle doctor");
     expect(lines).toContain("Ready now");
-    expect(lines).toContain("Needs action before first reply");
-    expect(lines).toContain("Needs action before full access");
-    expect(lines).toContain("Needs action before upgrade");
-    expect(lines).toContain("Recommended next command");
+    expect(lines).toContain("Needs action");
+    expect(lines).toContain("Next command");
     expect(lines.some((line) => line.includes("Install location"))).toBe(true);
     expect(lines.some((line) => line.includes("Managed growth assets"))).toBe(true);
     expect(lines.some((line) => line.includes("openassist upgrade --dry-run"))).toBe(true);

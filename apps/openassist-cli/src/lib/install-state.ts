@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { defaultEnvFilePath, defaultInstallDir, defaultInstallStatePath } from "./runtime-context.js";
+import {
+  defaultConfigPath,
+  defaultEnvFilePath,
+  defaultInstallDir,
+  defaultInstallStatePath
+} from "./runtime-context.js";
 
 export type ServiceManagerKind = "systemd-user" | "systemd-system" | "launchd";
 
@@ -29,7 +34,7 @@ function normalizeState(input: Partial<InstallState>): InstallState {
     repoUrl: input.repoUrl ?? "",
     trackedRef: input.trackedRef ?? "main",
     serviceManager: input.serviceManager ?? defaultServiceManager,
-    configPath: input.configPath ?? path.join(installDir, "openassist.toml"),
+    configPath: input.configPath ?? defaultConfigPath(),
     envFilePath: input.envFilePath ?? defaultEnvFilePath(),
     lastKnownGoodCommit: input.lastKnownGoodCommit ?? "",
     updatedAt: input.updatedAt ?? new Date().toISOString()

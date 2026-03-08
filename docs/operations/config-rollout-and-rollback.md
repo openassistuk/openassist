@@ -6,30 +6,35 @@ OpenAssist uses layered TOML config with schema validation and generation tracki
 
 Load order:
 
-1. base file (`openassist.toml`)
-2. overlays (`config.d/*.toml`, lexicographic)
+1. base file (default: `~/.config/openassist/openassist.toml`)
+2. overlays (default: `~/.config/openassist/config.d/*.toml`, lexicographic)
 
 Relevant implementation:
 
 - loader: `packages/config/src/loader.ts`
 - schema: `packages/config/src/schema.ts`
 
+Fresh installs now keep writable operator config outside the repo checkout by default. The repo-root `openassist.toml` file is a source-development sample, not the installed default path.
+
 ## Validation Commands
 
 Installed command path:
 
 ```bash
-openassist config validate --config <path-to-openassist.toml>
+openassist config validate --config ~/.config/openassist/openassist.toml
 ```
 
 Interactive paths:
 
 ```bash
-openassist setup quickstart --config <path-to-openassist.toml> --env-file <path-to-openassistd.env> --skip-service
-openassist setup wizard --config <path-to-openassist.toml> --env-file <path-to-openassistd.env>
+openassist setup
+openassist setup quickstart --config ~/.config/openassist/openassist.toml --env-file ~/.config/openassist/openassistd.env --skip-service
+openassist setup wizard --config ~/.config/openassist/openassist.toml --env-file ~/.config/openassist/openassistd.env
 ```
 
-Use `setup quickstart` for strict validation-driven onboarding, and `setup wizard` for targeted section edits.
+Use bare `setup` for the beginner-facing lifecycle hub, `setup quickstart` for strict validation-driven onboarding, and `setup wizard` for targeted advanced section edits.
+
+If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), it will migrate that state into the canonical home-state layout when the target home paths are empty or compatible. Migration writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/` before it changes anything.
 
 ## Time and Scheduler Keys
 

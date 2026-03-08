@@ -3,6 +3,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { defaultDataDir } from "../../packages/config/src/operator-paths.js";
 import {
   defaultEnvFilePath,
   defaultInstallDir,
@@ -25,7 +26,7 @@ describe("runtime-context", () => {
     const dbPath = resolveDbPath();
 
     expect(path.isAbsolute(configPath)).toBe(true);
-    expect(dbPath.endsWith(path.join(".openassist", "data", "openassist.db"))).toBe(true);
+    expect(dbPath).toBe(path.join(defaultDataDir(), "openassist.db"));
   });
 
   it("returns fallback daemon base url when config cannot be loaded", () => {

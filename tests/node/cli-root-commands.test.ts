@@ -123,13 +123,11 @@ describe("cli root command coverage", () => {
     assert.ok(doctor.code === 0 || doctor.code === 1, doctor.stderr || doctor.stdout);
     assert.match(doctor.stdout, /OpenAssist lifecycle doctor/);
     assert.match(doctor.stdout, /Ready now/);
-    assert.match(doctor.stdout, /Needs action before first reply/);
-    assert.match(doctor.stdout, /Needs action before full access/);
-    assert.match(doctor.stdout, /Needs action before upgrade/);
-    assert.match(doctor.stdout, /Recommended next command/);
+    assert.match(doctor.stdout, /Needs action/);
+    assert.match(doctor.stdout, /Next command/);
     assert.match(doctor.stdout, /Install record/);
     assert.match(doctor.stdout, /Update track/);
-    assert.match(doctor.stdout, /openassist (upgrade --dry-run|doctor|setup wizard)/);
+    assert.match(doctor.stdout, /openassist (upgrade --dry-run|doctor|setup|setup wizard)/);
 
     const doctorJson = await runCommand(
       process.execPath,
@@ -153,7 +151,7 @@ describe("cli root command coverage", () => {
       sections: Record<string, unknown>;
       recommendedNextCommand: { command: string };
     };
-    assert.equal(parsedDoctorJson.version, 1);
+    assert.equal(parsedDoctorJson.version, 2);
     assert.equal(typeof parsedDoctorJson.sections.readyNow, "object");
     assert.equal(typeof parsedDoctorJson.sections.needsActionBeforeUpgrade, "object");
     assert.equal(typeof parsedDoctorJson.recommendedNextCommand.command, "string");
@@ -164,12 +162,14 @@ describe("cli root command coverage", () => {
       "s-1",
       "--profile",
       "operator",
+      "--config",
+      "openassist.toml",
       "--db",
       dbPath
     ]);
     assert.equal(policySet.code, 0, policySet.stderr || policySet.stdout);
 
-    const policyGet = await runCli(["policy-get", "--session", "s-1", "--db", dbPath]);
+    const policyGet = await runCli(["policy-get", "--session", "s-1", "--config", "openassist.toml", "--db", dbPath]);
     assert.equal(policyGet.code, 0, policyGet.stderr || policyGet.stdout);
     assert.match(policyGet.stdout, /operator/);
 
@@ -181,6 +181,8 @@ describe("cli root command coverage", () => {
       "123456789",
       "--profile",
       "full-root",
+      "--config",
+      "openassist.toml",
       "--db",
       dbPath
     ]);
@@ -193,6 +195,8 @@ describe("cli root command coverage", () => {
       "telegram-main:ops-room",
       "--sender-id",
       "123456789",
+      "--config",
+      "openassist.toml",
       "--db",
       dbPath
     ]);
@@ -206,6 +210,8 @@ describe("cli root command coverage", () => {
       "--sender-id",
       "123456789",
       "--json",
+      "--config",
+      "openassist.toml",
       "--db",
       dbPath
     ]);

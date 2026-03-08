@@ -4,6 +4,8 @@
 
 OpenAssist upgrades stay repo-backed. The command updates a Git checkout, rebuilds it, restarts the service unless you skip restart, and rolls back automatically when a live upgrade fails after the previous commit has been captured.
 
+Fresh installs now keep normal operator config, env files, logs, data, skills, and helper tools outside the repo checkout. That means `upgrade --dry-run` is now focused on real repo code changes, damaged installs, or legacy repo-local operator layouts instead of warning about ordinary operator state that should never have lived in the checkout.
+
 Runtime `/status` and the provider self-knowledge pack now surface the same repo-backed update facts when they are known: install directory, config path, env-file path, tracked ref, and last known good commit. Treat the lifecycle commands in this runbook as the supported way to mutate that state instead of editing install-state or generated wrappers directly.
 
 The install record keeps a tracked ref for operator visibility, but target selection still follows the currently checked-out branch unless you pass `--ref`. Detached installs should usually use an explicit `--ref`.
@@ -61,7 +63,13 @@ The dry-run classification is now explicit:
 - `fix before updating`
 - `rerun bootstrap instead`
 
-`openassist upgrade --dry-run` uses the same readiness model as `openassist doctor`, so the grouped blockers and the recommended next command should agree across both commands.
+`openassist upgrade --dry-run` uses the same readiness model as `openassist doctor`, so the blockers and the recommended next command should agree across both commands. Human-readable lifecycle output now always uses:
+
+- `Ready now`
+- `Needs action`
+- `Next command`
+
+`openassist doctor --json` keeps the grouped machine-readable lifecycle structure for automation and uses report `version: 2` with per-item `stage` metadata.
 
 Managed growth note:
 
@@ -102,6 +110,8 @@ Use `install.sh` or `scripts/install/bootstrap.sh` again when:
 - you want to move a detached install back onto a known branch through the installer flow
 - you want a fresh install directory
 - the repo metadata is no longer coherent enough for a safe in-place update
+
+If the install still uses the recognized old repo-local operator layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), `doctor` and `upgrade --dry-run` will route you back to `openassist setup` first so the operator state can move into the canonical home-state layout before you trust upgrade output.
 
 ## Local Code Changes
 

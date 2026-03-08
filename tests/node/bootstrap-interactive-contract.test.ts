@@ -40,8 +40,8 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /Choose next step for repository authentication recovery/);
     assert.match(script, /Clear cached GitHub HTTPS credentials and retry/);
     assert.match(script, /GitHub HTTPS authentication fails/);
-    assert.match(script, /Running guided onboarding quickstart/);
-    assert.match(script, /setup"\s+"quickstart/);
+    assert.match(script, /Running guided lifecycle setup/);
+    assert.match(script, /"setup"/);
     assert.match(script, /ensure_local_bin_on_path/);
     assert.match(script, /install_global_wrappers_if_possible/);
     assert.match(script, /GLOBAL_BIN_DIR="\$\{OPENASSIST_GLOBAL_BIN_DIR:-\/usr\/local\/bin\}"/);

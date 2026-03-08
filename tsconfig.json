@@ -12,6 +12,7 @@
     { "path": "packages/tools-web" },
     { "path": "packages/skills-engine" },
     { "path": "packages/providers-openai" },
+    { "path": "packages/providers-codex" },
     { "path": "packages/providers-anthropic" },
     { "path": "packages/providers-openai-compatible" },
     { "path": "packages/channels-telegram" },

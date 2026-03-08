@@ -6,6 +6,8 @@ import type {
   AttachmentRef,
   ApiKeyAuth,
   ChannelAdapter,
+  ChatRequest,
+  ChatResponse,
   EffectivePolicySource,
   InboundEnvelope,
   ManagedCapabilityRecord,
@@ -591,6 +593,112 @@ export class OpenAssistRuntime {
     this.auth.set(handle.providerId, handle);
   }
 
+  private serializeOAuthHandle(handle: ProviderAuthHandle): string {
+    return this.secretBox.encrypt(
+      JSON.stringify({
+        accessToken: handle.accessToken,
+        refreshToken: handle.refreshToken,
+        tokenType: handle.tokenType,
+        scopes: handle.scopes
+      })
+    );
+  }
+
+  private persistOAuthHandle(handle: ProviderAuthHandle): void {
+    this.db.upsertOauthAccount(
+      handle.providerId,
+      handle.accountId,
+      this.serializeOAuthHandle(handle),
+      handle.expiresAt
+    );
+    this.auth.set(handle.providerId, handle);
+  }
+
+  private isOAuthAuthHandle(auth: ApiKeyAuth | ProviderAuthHandle): auth is ProviderAuthHandle {
+    return "accountId" in auth;
+  }
+
+  private isOAuthRefreshDue(auth: ProviderAuthHandle): boolean {
+    if (!auth.expiresAt) {
+      return false;
+    }
+    const expiresAtMs = new Date(auth.expiresAt).getTime();
+    if (!Number.isFinite(expiresAtMs)) {
+      return false;
+    }
+    return expiresAtMs <= Date.now() + 5 * 60_000;
+  }
+
+  private isUnauthorizedProviderError(error: unknown): boolean {
+    if (typeof error === "object" && error !== null) {
+      const maybeStatus = (error as { status?: unknown }).status;
+      if (maybeStatus === 401) {
+        return true;
+      }
+    }
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return (
+      message.includes("401") ||
+      message.includes("unauthorized") ||
+      message.includes("invalid api key") ||
+      message.includes("invalid_api_key") ||
+      message.includes("authentication")
+    );
+  }
+
+  private async maybeRefreshOAuthAuth(
+    provider: ProviderAdapter,
+    auth: ProviderAuthHandle,
+    forceRefresh: boolean
+  ): Promise<ProviderAuthHandle> {
+    if (!provider.refreshOAuthAuth) {
+      return auth;
+    }
+    if (!forceRefresh && !this.isOAuthRefreshDue(auth)) {
+      return auth;
+    }
+    const refreshed = await provider.refreshOAuthAuth(auth);
+    if (!refreshed.accessToken) {
+      throw new Error(`OAuth refresh for provider ${provider.id()} did not return access token`);
+    }
+    this.persistOAuthHandle(refreshed);
+    return refreshed;
+  }
+
+  private async resolveProviderAuth(
+    provider: ProviderAdapter,
+    forceRefresh = false
+  ): Promise<ApiKeyAuth | ProviderAuthHandle> {
+    const current = this.auth.get(provider.id());
+    if (!current) {
+      throw new Error(`Missing authentication for provider ${provider.id()}`);
+    }
+    if (!this.isOAuthAuthHandle(current)) {
+      return current;
+    }
+    return this.maybeRefreshOAuthAuth(provider, current, forceRefresh);
+  }
+
+  private async chatWithProvider(
+    provider: ProviderAdapter,
+    request: ChatRequest
+  ): Promise<ChatResponse> {
+    const auth = await this.resolveProviderAuth(provider);
+    try {
+      return await provider.chat(request, auth);
+    } catch (error) {
+      if (
+        !this.isOAuthAuthHandle(auth) ||
+        !provider.refreshOAuthAuth ||
+        !this.isUnauthorizedProviderError(error)
+      ) {
+        throw error;
+      }
+      const refreshed = await this.resolveProviderAuth(provider, true);
+      return provider.chat(request, refreshed);
+    }
+  }
+
   async startOAuthLogin(
     providerId: string,
     accountId: string,
@@ -611,8 +719,11 @@ export class OpenAssistRuntime {
     const verifier = randomToken(32);
     const challenge = pkceChallenge(verifier);
     const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
+    const configuredProvider = this.config.providers.find((item) => item.id === providerId);
     const providerScopes =
-      this.config.providers.find((item) => item.id === providerId)?.oauth?.scopes ?? [];
+      configuredProvider && "oauth" in configuredProvider
+        ? configuredProvider.oauth?.scopes ?? []
+        : [];
 
     const start = await provider.startOAuthLogin({
       accountId,
@@ -682,17 +793,7 @@ export class OpenAssistRuntime {
       throw new Error("OAuth completion did not return access token");
     }
 
-    const encrypted = this.secretBox.encrypt(
-      JSON.stringify({
-        accessToken: handle.accessToken,
-        refreshToken: handle.refreshToken,
-        tokenType: handle.tokenType,
-        scopes: handle.scopes
-      })
-    );
-
-    this.db.upsertOauthAccount(providerId, handle.accountId, encrypted, handle.expiresAt);
-    this.auth.set(providerId, handle);
+    this.persistOAuthHandle(handle);
 
     return {
       providerId,
@@ -1092,7 +1193,8 @@ export class OpenAssistRuntime {
   private loadStoredOauthAccounts(): void {
     const rows = this.db.listOauthAccounts();
     for (const row of rows) {
-      if (this.auth.has(row.providerId)) {
+      const current = this.auth.get(row.providerId);
+      if (current && !this.isOAuthAuthHandle(current)) {
         continue;
       }
       try {
@@ -1104,17 +1206,21 @@ export class OpenAssistRuntime {
           scopes?: string[];
         };
 
-        if (!parsed.accessToken) {
+        if (!parsed.accessToken && !parsed.refreshToken) {
           continue;
         }
-        if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) {
+        if (
+          row.expiresAt &&
+          new Date(row.expiresAt).getTime() < Date.now() &&
+          !parsed.refreshToken
+        ) {
           continue;
         }
 
         this.auth.set(row.providerId, {
           providerId: row.providerId,
           accountId: row.accountId,
-          accessToken: parsed.accessToken,
+          ...(parsed.accessToken ? { accessToken: parsed.accessToken } : {}),
           refreshToken: parsed.refreshToken,
           tokenType: parsed.tokenType,
           scopes: parsed.scopes,
@@ -1356,11 +1462,6 @@ export class OpenAssistRuntime {
         throw new Error(`Default provider ${this.config.defaultProviderId} not found`);
       }
 
-      const auth = this.auth.get(provider.id());
-      if (!auth) {
-        throw new Error(`Missing authentication for provider ${provider.id()}`);
-      }
-
       const model =
         this.config.providers.find((candidate) => candidate.id === provider.id())?.defaultModel ??
         "unknown";
@@ -1403,7 +1504,8 @@ export class OpenAssistRuntime {
           envelope.conversationKey
         );
 
-        const response = await provider.chat(
+        const response = await this.chatWithProvider(
+          provider,
           {
             sessionId,
             model,
@@ -1415,8 +1517,7 @@ export class OpenAssistRuntime {
               senderId: preparedInbound.envelope.senderId,
               toolRound: String(round)
             }
-          },
-          auth
+          }
         );
 
         responseUsage = response.usage;
@@ -2759,17 +2860,13 @@ export class OpenAssistRuntime {
       throw new Error(`Provider ${providerId} not found for scheduled prompt task`);
     }
 
-    const auth = this.auth.get(provider.id());
-    if (!auth) {
-      throw new Error(`Missing auth for provider ${provider.id()} in scheduled prompt task`);
-    }
-
     const providerModel =
       task.action.model ??
       this.config.providers.find((item) => item.id === provider.id())?.defaultModel ??
       "unknown";
 
-    const response = await provider.chat(
+    const response = await this.chatWithProvider(
+      provider,
       {
         sessionId: `scheduler:${task.id}`,
         model: providerModel,
@@ -2790,8 +2887,7 @@ export class OpenAssistRuntime {
           scheduledFor,
           ...(task.action.metadata ?? {})
         }
-      },
-      auth
+      }
     );
 
     const safeText = sanitizeUserOutput(response.output.content);

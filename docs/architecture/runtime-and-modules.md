@@ -10,6 +10,13 @@ Runtime is built from:
 - durable dependencies (`OpenAssistDatabase`, logger)
 - loaded provider and channel adapter instances
 
+Current first-class provider routes in runtime config are:
+
+- `openai` for OpenAI API-key auth
+- `codex` for the separate OpenAI account-login route
+- `anthropic`
+- `openai-compatible`
+
 Runtime-owned components:
 
 - `ContextPlanner`

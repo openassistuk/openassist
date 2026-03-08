@@ -112,7 +112,7 @@ function createFakeService(): ServiceManagerAdapter {
   };
 }
 
-function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[] {
+function validCodexQuickstartAnswers(bindPort: number, extra: string[] = []): string[] {
   return [
     "false",
     "127.0.0.1",
@@ -120,11 +120,10 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
     "OpenAssist",
     "Pragmatic and concise",
     "Keep answers practical",
-    "openai",
-    "openai-main",
+    "codex",
+    "codex-main",
     "gpt-5.4",
     "",
-    "openai-api-key",
     "telegram",
     "telegram-main",
     "telegram-token",
@@ -138,7 +137,7 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
 }
 
 describe("cli setup quickstart oauth coverage", () => {
-  it("keeps API-key-first onboarding while allowing post-health oauth account linking", async () => {
+  it("supports Codex account linking during quickstart after daemon health checks pass", async () => {
     const root = tempDir("openassist-node-quickstart-oauth-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -150,19 +149,12 @@ describe("cli setup quickstart oauth coverage", () => {
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
     state.config.runtime.providers = [
       {
-        id: "openai-main",
-        type: "openai",
-        defaultModel: "gpt-5.4",
-        oauth: {
-          authorizeUrl: "https://example.test/oauth/authorize",
-          tokenUrl: "https://example.test/oauth/token",
-          clientId: "client-123",
-          clientSecretEnv: "OPENASSIST_PROVIDER_OPENAI_MAIN_OAUTH_CLIENT_SECRET",
-          scopes: ["openid", "profile"]
-        }
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-5.4"
       }
     ];
-    state.config.runtime.defaultProviderId = "openai-main";
+    state.config.runtime.defaultProviderId = "codex-main";
 
     const requestCalls: Array<{ method: string; url: string }> = [];
     const restoreTty = setTty(true);
@@ -180,7 +172,14 @@ describe("cli setup quickstart oauth coverage", () => {
           requireTty: false,
           preflightCommandChecks: false
         },
-        new ScriptedPromptAdapter(validQuickstartAnswers(bindPort, [...validationContinuationAnswers, "true", "true"])),
+        new ScriptedPromptAdapter(
+          validCodexQuickstartAnswers(bindPort, [
+            ...validationContinuationAnswers,
+            "true",
+            "true",
+            "https://127.0.0.1:3344/v1/oauth/codex-main/callback?state=state-codex&code=auth-code-1"
+          ])
+        ),
         {
           createServiceManagerFn: () => createFakeService(),
           waitForHealthyFn: async (baseUrl) => ({
@@ -195,7 +194,25 @@ describe("cli setup quickstart oauth coverage", () => {
               return {
                 status: 200,
                 data: {
-                  authorizationUrl: "https://example.test/oauth/start"
+                  authorizationUrl: "https://example.test/oauth/start",
+                  state: "state-codex"
+                }
+              };
+            }
+            if (url.endsWith("/complete")) {
+              return {
+                status: 200,
+                data: {
+                  accountId: "default",
+                  expiresAt: new Date(Date.now() + 60_000).toISOString()
+                }
+              };
+            }
+            if (url.endsWith("/status")) {
+              return {
+                status: 200,
+                data: {
+                  accounts: [{ accountId: "default" }]
                 }
               };
             }
@@ -208,8 +225,8 @@ describe("cli setup quickstart oauth coverage", () => {
       );
 
       assert.equal(result.saved, true);
-      assert.equal(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY, "openai-api-key");
-      assert.equal(state.config.runtime.providers[0]?.oauth?.clientId, "client-123");
+      assert.equal(state.env.OPENASSIST_PROVIDER_CODEX_MAIN_API_KEY, undefined);
+      assert.equal(state.config.runtime.providers[0]?.type, "codex");
       assert.equal(
         requestCalls.some(
           (entry) => entry.method === "POST" && entry.url.includes("/v1/time/timezone/confirm")
@@ -218,7 +235,19 @@ describe("cli setup quickstart oauth coverage", () => {
       );
       assert.equal(
         requestCalls.some(
-          (entry) => entry.method === "POST" && entry.url.includes("/v1/oauth/openai-main/start")
+          (entry) => entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/start")
+        ),
+        true
+      );
+      assert.equal(
+        requestCalls.some(
+          (entry) => entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/complete")
+        ),
+        true
+      );
+      assert.equal(
+        requestCalls.some(
+          (entry) => entry.method === "GET" && entry.url.includes("/v1/oauth/codex-main/status")
         ),
         true
       );

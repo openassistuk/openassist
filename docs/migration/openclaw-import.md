@@ -27,10 +27,16 @@ Required source file:
 ### Provider mapping
 
 - names containing `anthropic` or `claude` map to type `anthropic`
+- names containing `codex` map to type `codex`
 - names containing `openai` map to type `openai`
 - all other provider names map to type `openai-compatible`
 
 Mapped fields: `id`, `type`, `defaultModel`, optional `baseUrl`.
+
+Codex mapping note:
+
+- imported Codex providers should keep Codex-family models on the new `codex` route
+- the importer does not silently convert arbitrary OpenAI account-login assumptions into a generic `openai` API-key route
 
 ### Channel mapping
 

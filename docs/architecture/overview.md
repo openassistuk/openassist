@@ -24,6 +24,13 @@ Both planes use the same SQLite durability layer, idempotency model, policy mode
 - Integrations: `packages/providers-*`, `packages/channels-*`, `packages/tools-*`, `packages/skills-engine`
 - Operator surfaces: `apps/openassistd`, `apps/openassist-cli`
 
+Current first-class provider routes are implemented as separate adapter packages:
+
+- `packages/providers-openai`
+- `packages/providers-codex`
+- `packages/providers-anthropic`
+- `packages/providers-openai-compatible`
+
 Operator CLI includes dual setup surfaces:
 
 - strict onboarding: `setup quickstart`

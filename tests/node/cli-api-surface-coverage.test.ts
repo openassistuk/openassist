@@ -174,6 +174,39 @@ describe("cli api surface coverage", () => {
         );
         return;
       }
+      if (method === "POST" && pathname === "/v1/oauth/codex-main/start") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            authorizationUrl: "https://example.test/codex/authorize",
+            state: "state-codex",
+            accountId: "default",
+            expiresAt: "2026-03-04T00:00:00.000Z"
+          })
+        );
+        return;
+      }
+      if (method === "POST" && pathname === "/v1/oauth/codex-main/complete") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            accountId: "default",
+            expiresAt: "2026-03-05T00:00:00.000Z"
+          })
+        );
+        return;
+      }
+      if (method === "DELETE" && pathname === "/v1/oauth/codex-main/account/default/disconnect") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            providerId: "codex-main",
+            accountId: "default",
+            removed: true
+          })
+        );
+        return;
+      }
       if (method === "POST" && pathname === "/v1/oauth/openai-main/complete") {
         res.writeHead(200, { "content-type": "application/json" });
         res.end(
@@ -312,6 +345,10 @@ describe("cli api surface coverage", () => {
         outputPattern: /Authorization URL/
       },
       {
+        args: ["auth", "start", "--provider", "codex-main", "--account", "default", "--base-url", baseUrl],
+        outputPattern: /Authorization URL/
+      },
+      {
         args: [
           "auth",
           "complete",
@@ -329,9 +366,37 @@ describe("cli api surface coverage", () => {
       {
         args: [
           "auth",
+          "complete",
+          "--provider",
+          "codex-main",
+          "--state",
+          "state-codex",
+          "--code",
+          "code-codex",
+          "--base-url",
+          baseUrl
+        ],
+        outputPattern: /OAuth linked/
+      },
+      {
+        args: [
+          "auth",
           "disconnect",
           "--provider",
           "openai-main",
+          "--account",
+          "default",
+          "--base-url",
+          baseUrl
+        ],
+        outputPattern: /Disconnected account/
+      },
+      {
+        args: [
+          "auth",
+          "disconnect",
+          "--provider",
+          "codex-main",
           "--account",
           "default",
           "--base-url",

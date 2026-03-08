@@ -74,6 +74,11 @@ function supportsAnthropicThinking(model: string): boolean {
   );
 }
 
+function supportsCodexRouteModel(model: string): boolean {
+  const normalized = model.trim().toLowerCase();
+  return normalized === "gpt-5.4" || normalized.includes("codex");
+}
+
 function forEachEnvReference(
   settings: Record<string, string | number | boolean | string[]>,
   visit: (varName: string, keyPath: string) => void
@@ -152,12 +157,30 @@ function validateProviderRequirements(
   const defaultApiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
   if (!hasEnvValue(env, defaultApiKeyVar)) {
     const defaultProvider = config.runtime.providers.find((provider) => provider.id === config.runtime.defaultProviderId);
-    if (defaultProvider?.oauth && (defaultProvider.type === "openai" || defaultProvider.type === "anthropic")) {
+    if (defaultProvider?.type === "codex") {
+      pushIssue(
+        warnings,
+        "provider.default_codex_account_link_pending",
+        `The primary provider '${config.runtime.defaultProviderId}' uses the Codex account-login route and still needs a linked account.`,
+        `Complete Codex account login after daemon startup: openassist auth start --provider ${config.runtime.defaultProviderId} --account default --open-browser`
+      );
+      return;
+    }
+    if (
+      defaultProvider &&
+      "oauth" in defaultProvider &&
+      defaultProvider.oauth &&
+      (defaultProvider.type === "openai" || defaultProvider.type === "anthropic")
+    ) {
       pushIssue(
         warnings,
         "provider.default_oauth_pending",
-        `Default provider '${config.runtime.defaultProviderId}' has OAuth configured but no API key env var ${defaultApiKeyVar}.`,
-        `Complete account link after daemon startup: openassist auth start --provider ${config.runtime.defaultProviderId} --account default --open-browser`
+        defaultProvider.type === "openai"
+          ? `Default provider '${config.runtime.defaultProviderId}' uses legacy OpenAI OAuth compatibility with no API key env var ${defaultApiKeyVar}.`
+          : `Default provider '${config.runtime.defaultProviderId}' has OAuth configured but no API key env var ${defaultApiKeyVar}.`,
+        defaultProvider.type === "openai"
+          ? `Legacy OpenAI OAuth still loads, but new account-login installs should move to a separate codex provider. Start account link with: openassist auth start --provider ${config.runtime.defaultProviderId} --account default --open-browser`
+          : `Complete account link after daemon startup: openassist auth start --provider ${config.runtime.defaultProviderId} --account default --open-browser`
       );
       return;
     }
@@ -170,7 +193,16 @@ function validateProviderRequirements(
   }
 
   for (const provider of config.runtime.providers) {
-    const oauth = provider.oauth;
+    if (provider.type === "openai" && "oauth" in provider && provider.oauth) {
+      pushIssue(
+        warnings,
+        "provider.openai_oauth_legacy",
+        `Provider '${provider.id}' still uses legacy OpenAI OAuth compatibility on the openai route.`,
+        "Keep it only for backward compatibility. New account-login providers should use type='codex'."
+      );
+    }
+
+    const oauth = "oauth" in provider ? provider.oauth : undefined;
     if (!oauth?.clientSecretEnv) {
       continue;
     }
@@ -215,6 +247,16 @@ function validateProviderReasoningRequirements(
         "provider.anthropic_thinking_model_unsupported",
         `Provider '${provider.id}' sets an Anthropic thinking budget, but model '${provider.defaultModel}' is not on the built-in thinking-capable allow-list.`,
         "Use a Claude 3.7, Claude Sonnet 4.x, or Claude Opus 4.x model for extended thinking, or leave the budget unset."
+      );
+      continue;
+    }
+
+    if (provider.type === "codex" && !supportsCodexRouteModel(provider.defaultModel)) {
+      pushIssue(
+        warnings,
+        "provider.codex_model_unsupported",
+        `Provider '${provider.id}' uses the Codex account-login route, but model '${provider.defaultModel}' is not on the built-in Codex route allow-list.`,
+        "Use gpt-5.4 or a Codex-family model on the codex route."
       );
     }
   }

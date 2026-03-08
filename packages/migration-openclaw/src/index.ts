@@ -23,8 +23,11 @@ function asRecord(value: unknown): Record<string, unknown> {
   return {};
 }
 
-function mapProviderType(name: string): "openai" | "anthropic" | "openai-compatible" {
+function mapProviderType(name: string): "openai" | "codex" | "anthropic" | "openai-compatible" {
   const lowered = name.toLowerCase();
+  if (lowered.includes("codex")) {
+    return "codex";
+  }
   if (lowered.includes("anthropic") || lowered.includes("claude")) {
     return "anthropic";
   }

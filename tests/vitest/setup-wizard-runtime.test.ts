@@ -315,4 +315,40 @@ describe("setup wizard runtime flow", () => {
       thinkingBudgetTokens: 4096
     });
   });
+
+  it("supports adding and editing the codex provider route without prompting for an API key", async () => {
+    const root = tempDir("openassist-vitest-setup-codex-provider-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const state = loadSetupWizardState(configPath, envPath);
+
+    const prompts = new ScriptedPromptAdapter([
+      "providers",
+      "add",
+      "codex-main",
+      "codex",
+      "gpt-5.4",
+      "",
+      "edit",
+      "codex-main",
+      "gpt-5.4",
+      "",
+      "back",
+      "save"
+    ]);
+
+    const result = await runSetupWizard(state, prompts, {
+      requireTty: false
+    });
+
+    expect(result.saved).toBe(true);
+    expect(
+      state.config.runtime.providers.find((provider) => provider.id === "codex-main")
+    ).toMatchObject({
+      id: "codex-main",
+      type: "codex",
+      defaultModel: "gpt-5.4"
+    });
+    expect(Object.keys(state.env).some((key) => key.includes("CODEX_MAIN_API_KEY"))).toBe(false);
+  });
 });

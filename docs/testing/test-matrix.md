@@ -71,6 +71,7 @@ Current suite files under `tests/vitest/`:
 - `pnpm-workspace-policy.test.ts`
 - `prompt-validation.test.ts`
 - `provider-anthropic-tool-mapping.test.ts`
+- `provider-codex-auth.test.ts`
 - `provider-openai-compatible-tool-mapping.test.ts`
 - `provider-openai-tool-mapping.test.ts`
 - `runtime-attachments-rendering.test.ts`
@@ -132,6 +133,7 @@ Current suite files under `tests/node/`:
 - `policy-engine.test.ts`
 - `runtime-access-mode.test.ts`
 - `runtime-attachments.test.ts`
+- `runtime-codex-auth.test.ts`
 - `runtime-chat-tool-exec.test.ts`
 - `runtime-chat-tool-policy-gate.test.ts`
 - `runtime-pkg-install-sudo.test.ts`
@@ -228,7 +230,7 @@ Current suite files under `tests/node/`:
 25. Guardrail blocks are visible and deterministic for destructive command patterns.
 26. `/status` and `openassist tools status` show the same awareness boundary the model receives, including callable tools and native web backend state.
 27. Native web tools remain bounded: `web.search`/`web.fetch` work only in `full-root`, stay within HTTP/redirect/byte/result caps, and return structured unavailable guidance when no backend is configured.
-28. Provider tool-call mapping contracts (OpenAI/Anthropic/OpenAI-compatible) remain interoperable.
+28. Provider tool-call mapping contracts (OpenAI/Codex/Anthropic/OpenAI-compatible) remain interoperable.
 29. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
 30. Root `README.md`, root `AGENTS.md`, the lifecycle docs, and `docs/testing/test-matrix.md` all describe the same current command, path, workflow, and troubleshooting reality.
 

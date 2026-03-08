@@ -20,6 +20,7 @@
     "@openassist/config": "workspace:*",
     "@openassist/observability": "workspace:*",
     "@openassist/providers-anthropic": "workspace:*",
+    "@openassist/providers-codex": "workspace:*",
     "@openassist/storage-sqlite": "workspace:*",
     "@openassist/channels-whatsapp-md": "workspace:*",
     "@openassist/providers-openai": "workspace:*",

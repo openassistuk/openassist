@@ -35,6 +35,10 @@ The format follows Keep a Changelog conventions and this project currently track
   - new CLI lifecycle report builder now drives bootstrap summaries, quickstart summaries, wizard recovery wording, `openassist doctor`, and `openassist upgrade --dry-run`
   - `openassist doctor --json` now exposes the same grouped readiness report shape as the human-readable doctor output for scripting and automation
 
+### Changed
+
+- Provider defaults now keep OpenAI on the current flagship API model `gpt-5.4` and update Anthropic onboarding examples/default prompts to the current Sonnet API model `claude-sonnet-4-6`, so new installs offer current real API model IDs instead of older snapshots or aliases.
+
 - Runtime self-knowledge and identity-restoration pass:
   - runtime awareness is now a richer bounded self-knowledge contract with explicit capabilities, curated local doc references, and repo-backed maintenance/install facts
   - provider turns and `/status` now surface local config path, env-file path, install dir, tracked ref, last known good commit when known, protected lifecycle paths, and safe self-maintenance guidance

@@ -85,7 +85,7 @@ describe("setup-wizard branch coverage", () => {
     state.config.runtime.providers.push({
       id: "anthropic-main",
       type: "anthropic",
-      defaultModel: "claude-sonnet-4-5",
+      defaultModel: "claude-sonnet-4-6",
       baseUrl: "https://api.anthropic.com"
     });
     state.config.runtime.channels.push({
@@ -106,7 +106,7 @@ describe("setup-wizard branch coverage", () => {
       "providers",
       "edit",
       "anthropic-main",
-      "claude-sonnet-4-5",
+      "claude-sonnet-4-6",
       "",
       "",
       "true",
@@ -156,7 +156,7 @@ describe("setup-wizard branch coverage", () => {
       "backfill",
       "prompt",
       "openai-main",
-      "gpt-5.2",
+      "gpt-5.4",
       "Provide status",
       "false",
       "120",

@@ -9,7 +9,7 @@ import { AnthropicProviderAdapter } from "../../packages/providers-anthropic/src
 function baseRequest(): ChatRequest {
   return {
     sessionId: "telegram:c1",
-    model: "claude-sonnet-4-5",
+    model: "claude-sonnet-4-6",
     messages: [
       { role: "system", content: "system text" },
       { role: "user", content: "user text" },
@@ -92,7 +92,7 @@ describe("anthropic provider tool mapping", () => {
                 text: ""
               }
             ],
-            model: "claude-sonnet-4-5",
+            model: "claude-sonnet-4-6",
             stop_reason: "tool_use",
             usage: {
               input_tokens: 20,
@@ -114,7 +114,7 @@ describe("anthropic provider tool mapping", () => {
 
     const adapter = new AnthropicProviderAdapter({
       id: "anthropic-main",
-      defaultModel: "claude-sonnet-4-5",
+      defaultModel: "claude-sonnet-4-6",
       baseUrl: `http://127.0.0.1:${address.port}`,
       thinkingBudgetTokens: 4096
     });
@@ -177,7 +177,7 @@ describe("anthropic provider tool mapping", () => {
             type: "message",
             role: "assistant",
             content: [{ type: "text", text: "image handled" }],
-            model: "claude-sonnet-4-5",
+            model: "claude-sonnet-4-6",
             stop_reason: "end_turn",
             usage: {
               input_tokens: 20,
@@ -204,14 +204,14 @@ describe("anthropic provider tool mapping", () => {
 
     const adapter = new AnthropicProviderAdapter({
       id: "anthropic-main",
-      defaultModel: "claude-sonnet-4-5",
+      defaultModel: "claude-sonnet-4-6",
       baseUrl: `http://127.0.0.1:${address.port}`
     });
 
     await adapter.chat(
       {
         sessionId: "telegram:c1",
-        model: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-6",
         messages: [
           { role: "system", content: "system text" },
           {
@@ -278,7 +278,7 @@ describe("anthropic provider tool mapping", () => {
                 text: ""
               }
             ],
-            model: "claude-sonnet-4-5",
+            model: "claude-sonnet-4-6",
             stop_reason: "tool_use",
             usage: {
               input_tokens: 20,
@@ -300,7 +300,7 @@ describe("anthropic provider tool mapping", () => {
 
     const adapter = new AnthropicProviderAdapter({
       id: "anthropic-main",
-      defaultModel: "claude-sonnet-4-5",
+      defaultModel: "claude-sonnet-4-6",
       baseUrl: `http://127.0.0.1:${address.port}`,
       thinkingBudgetTokens: 4096
     });

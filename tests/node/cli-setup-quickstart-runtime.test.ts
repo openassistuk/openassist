@@ -109,7 +109,7 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
     "Keep answers practical",
     "openai",
     "openai-main",
-    "gpt-5.2",
+    "gpt-5.4",
     "",
     "openai-key",
     "telegram",

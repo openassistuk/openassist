@@ -104,21 +104,21 @@ function defaultProviderForType(type: ProviderType): { id: string; model: string
   if (type === "anthropic") {
     return {
       id: "anthropic-main",
-      model: "claude-sonnet-4-5"
+      model: "claude-sonnet-4-6"
     };
   }
 
   if (type === "openai-compatible") {
     return {
       id: "compat-main",
-      model: "gpt-5.2",
+      model: "gpt-5.4",
       baseUrl: "http://127.0.0.1:11434/v1"
     };
   }
 
   return {
     id: "openai-main",
-    model: "gpt-5.2"
+    model: "gpt-5.4"
   };
 }
 

@@ -34,7 +34,7 @@ function runtimeConfig(policy: RuntimeConfig["time"]["ntpPolicy"]): RuntimeConfi
       {
         id: "openai-main",
         type: "openai",
-        defaultModel: "gpt-5.2"
+        defaultModel: "gpt-5.4"
       }
     ],
     channels: [],

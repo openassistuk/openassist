@@ -22,7 +22,7 @@ describe("setup wizard state transforms", () => {
     state.config.runtime.providers.push({
       id: "anthropic-main",
       type: "anthropic",
-      defaultModel: "claude-sonnet-4-5"
+      defaultModel: "claude-sonnet-4-6"
     });
     state.config.runtime.channels.push({
       id: "telegram-main",

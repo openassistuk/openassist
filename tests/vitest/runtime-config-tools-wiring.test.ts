@@ -12,7 +12,7 @@ describe("runtime config tools wiring", () => {
           {
             id: "openai-main",
             type: "openai",
-            defaultModel: "gpt-5.2"
+            defaultModel: "gpt-5.4"
           }
         ],
         channels: [],

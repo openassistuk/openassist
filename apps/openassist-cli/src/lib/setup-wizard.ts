@@ -344,7 +344,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
   const defaultModel = await promptRequiredText(
     prompts,
     "Default model",
-    providerType === "anthropic" ? "claude-sonnet-4-5" : "gpt-5.2"
+    providerType === "anthropic" ? "claude-sonnet-4-6" : "gpt-5.4"
   );
   const baseUrl = await prompts.input("Base URL (optional)", "");
   if (providerType === "openai") {

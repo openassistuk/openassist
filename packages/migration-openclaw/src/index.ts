@@ -81,7 +81,7 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
         return {
           id,
           type: mapProviderType(String(record.type ?? id)),
-          defaultModel: typeof record.model === "string" ? record.model : "gpt-5.2",
+          defaultModel: typeof record.model === "string" ? record.model : "gpt-5.4",
           ...(baseUrl ? { baseUrl } : {})
         };
       })
@@ -89,7 +89,7 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
         {
           id: "openai-main",
           type: "openai" as const,
-          defaultModel: "gpt-5.2"
+          defaultModel: "gpt-5.4"
         }
       ];
 

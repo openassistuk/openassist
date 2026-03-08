@@ -121,7 +121,8 @@ describe("openai provider tool mapping", () => {
     const adapter = new OpenAIProviderAdapter({
       id: "openai-main",
       defaultModel: "gpt-4o-mini",
-      baseUrl: `http://127.0.0.1:${address.port}/v1`
+      baseUrl: `http://127.0.0.1:${address.port}/v1`,
+      reasoningEffort: "high"
     });
 
     const response = await adapter.chat(baseRequest(), {
@@ -149,6 +150,7 @@ describe("openai provider tool mapping", () => {
           item.role === "assistant" && Array.isArray(item.tool_calls) && item.tool_calls.length === 1
       )
     ).toBe(true);
+    expect("reasoning" in (capturedPayload ?? {})).toBe(false);
 
     server.close();
   });
@@ -218,7 +220,8 @@ describe("openai provider tool mapping", () => {
     const adapter = new OpenAIProviderAdapter({
       id: "openai-main",
       defaultModel: "gpt-5.2",
-      baseUrl: `http://127.0.0.1:${address.port}/v1`
+      baseUrl: `http://127.0.0.1:${address.port}/v1`,
+      reasoningEffort: "high"
     });
 
     const response = await adapter.chat(
@@ -244,6 +247,7 @@ describe("openai provider tool mapping", () => {
     const input = (capturedResponsesPayload?.input as Array<any>) ?? [];
     expect(tools[0]?.name).toBe(encodedFsRead);
     expect(tools[0]?.name.includes(".")).toBe(false);
+    expect(capturedResponsesPayload?.reasoning).toEqual({ effort: "high" });
     expect(input.some((item) => item.type === "function_call_output" && item.call_id === "call-1")).toBe(
       true
     );
@@ -297,7 +301,8 @@ describe("openai provider tool mapping", () => {
     const adapter = new OpenAIProviderAdapter({
       id: "openai-main",
       defaultModel: "gpt-4o-mini",
-      baseUrl: `http://127.0.0.1:${address.port}/v1`
+      baseUrl: `http://127.0.0.1:${address.port}/v1`,
+      reasoningEffort: "medium"
     });
 
     await adapter.chat(
@@ -334,6 +339,7 @@ describe("openai provider tool mapping", () => {
     expect(Array.isArray(userMessage?.content)).toBe(true);
     expect(userMessage?.content?.some((item: any) => item.type === "input_text")).toBe(true);
     expect(userMessage?.content?.some((item: any) => item.type === "input_image")).toBe(true);
+    expect("reasoning" in (capturedResponsesPayload ?? {})).toBe(false);
 
     server.close();
   });

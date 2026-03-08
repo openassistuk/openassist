@@ -115,7 +115,8 @@ describe("anthropic provider tool mapping", () => {
     const adapter = new AnthropicProviderAdapter({
       id: "anthropic-main",
       defaultModel: "claude-sonnet-4-5",
-      baseUrl: `http://127.0.0.1:${address.port}`
+      baseUrl: `http://127.0.0.1:${address.port}`,
+      thinkingBudgetTokens: 4096
     });
 
     const response = await adapter.chat(baseRequest(), {
@@ -130,10 +131,15 @@ describe("anthropic provider tool mapping", () => {
         argumentsJson: "{\"command\":\"echo ok\"}"
       }
     ]);
+    expect(response.output.metadata).toBeUndefined();
 
     const tools = (capturedPayload?.tools as Array<any>) ?? [];
     const messages = (capturedPayload?.messages as Array<any>) ?? [];
     expect(capturedPayload?.system).toBe("system text");
+    expect(capturedPayload?.thinking).toEqual({
+      type: "enabled",
+      budget_tokens: 4096
+    });
     expect(tools[0]?.name).toBe("fs.read");
     expect(
       messages.some(
@@ -236,6 +242,129 @@ describe("anthropic provider tool mapping", () => {
     expect(Array.isArray(userMessage?.content)).toBe(true);
     expect(userMessage?.content?.some((item: any) => item.type === "text")).toBe(true);
     expect(userMessage?.content?.some((item: any) => item.type === "image")).toBe(true);
+
+    server.close();
+  });
+
+  it("stores replay metadata for thinking blocks and replays them without duplicating tool_use placeholders", async () => {
+    let capturedPayloads: Array<Record<string, unknown>> = [];
+    const server = http.createServer(async (req, res) => {
+      if (req.method === "POST" && (req.url === "/v1/messages" || req.url === "/messages")) {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        capturedPayloads.push(JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            id: "anthropic-replay-1",
+            type: "message",
+            role: "assistant",
+            content: [
+              {
+                type: "thinking",
+                thinking: "step-by-step",
+                signature: "sig-1"
+              },
+              {
+                type: "tool_use",
+                id: "tool-use-2",
+                name: "exec.run",
+                input: { command: "echo ok" }
+              },
+              {
+                type: "text",
+                text: ""
+              }
+            ],
+            model: "claude-sonnet-4-5",
+            stop_reason: "tool_use",
+            usage: {
+              input_tokens: 20,
+              output_tokens: 8
+            }
+          })
+        );
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("failed to bind test server");
+    }
+
+    const adapter = new AnthropicProviderAdapter({
+      id: "anthropic-main",
+      defaultModel: "claude-sonnet-4-5",
+      baseUrl: `http://127.0.0.1:${address.port}`,
+      thinkingBudgetTokens: 4096
+    });
+
+    const firstResponse = await adapter.chat(baseRequest(), {
+      providerId: "anthropic-main",
+      apiKey: "key"
+    });
+
+    expect(firstResponse.output.metadata).toMatchObject({
+      providerReplayKind: "anthropic-content-blocks"
+    });
+    const replayJson = firstResponse.output.metadata?.providerReplayJson;
+    expect(typeof replayJson).toBe("string");
+
+    await adapter.chat(
+      {
+        ...baseRequest(),
+        messages: [
+          { role: "system", content: "system text" },
+          { role: "user", content: "user text" },
+          {
+            role: "assistant",
+            content: "",
+            metadata: {
+              providerReplayKind: "anthropic-content-blocks",
+              providerReplayJson: replayJson!
+            }
+          },
+          {
+            role: "assistant",
+            content: "",
+            toolCallId: "tool-use-2",
+            toolName: "exec.run",
+            metadata: {
+              toolArgumentsJson: "{\"command\":\"echo ok\"}"
+            }
+          },
+          {
+            role: "tool",
+            content: "ok",
+            toolCallId: "tool-use-2",
+            metadata: {
+              isError: "false"
+            }
+          }
+        ]
+      },
+      {
+        providerId: "anthropic-main",
+        apiKey: "key"
+      }
+    );
+
+    expect(capturedPayloads).toHaveLength(2);
+    const secondMessages = (capturedPayloads[1]?.messages as Array<any>) ?? [];
+    const assistantReplayMessages = secondMessages.filter((item) => item.role === "assistant");
+    expect(assistantReplayMessages).toHaveLength(1);
+    expect(assistantReplayMessages[0]?.content).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "thinking" }),
+        expect.objectContaining({ type: "tool_use", id: "tool-use-2", name: "exec.run" })
+      ])
+    );
 
     server.close();
   });

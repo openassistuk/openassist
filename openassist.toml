@@ -44,6 +44,15 @@ logsDir = ".openassist/logs"
 id = "openai-main"
 type = "openai"
 defaultModel = "gpt-5.2"
+# Optional for supported OpenAI Responses-model families:
+# reasoningEffort = "medium"
+
+# Example Anthropic provider with extended thinking:
+# [[runtime.providers]]
+# id = "anthropic-main"
+# type = "anthropic"
+# defaultModel = "claude-sonnet-4-5"
+# thinkingBudgetTokens = 4096
 
 # Example OAuth configuration (official provider-documented flows only):
 # [runtime.providers.oauth]

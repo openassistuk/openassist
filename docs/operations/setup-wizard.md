@@ -101,7 +101,7 @@ openassist setup wizard \
 Wizard sections:
 
 - basic runtime and defaults
-- providers and model access
+- providers, models, and advanced provider controls
 - channels and chat destinations
 - scheduling and time
 - advanced tools and security
@@ -121,11 +121,24 @@ Use wizard for:
 - advanced runtime changes
 - later edits to the global main assistant identity or re-enabling the first-chat identity reminder
 - additional providers or provider OAuth config
+- advanced provider-native reasoning controls:
+  - OpenAI `reasoningEffort` (`Default`, `low`, `medium`, `high`)
+  - Anthropic `thinkingBudgetTokens` (blank disables it)
+  - OpenAI-compatible stays unchanged in this release
 - additional channels or non-default channel behavior
 - Discord DM allow-lists or other channel-specific scope changes
 - scheduler task and timing changes
 - native web settings
 - advanced tools, workspace, and security posture
+
+Provider reasoning-control notes:
+
+- These controls live in wizard, not quickstart.
+- Safe default is unset, which means OpenAssist sends no provider-specific reasoning/thinking parameter.
+- OpenAssist omits unsupported request fields automatically:
+  - OpenAI reasoning effort is only sent on supported Responses API model families.
+  - Anthropic thinking budget is only sent on supported thinking-capable Claude families.
+- If your configured default model does not match a supported family, setup validation warns but still saves safely.
 
 Wizard is safe to re-run after install, after a successful quickstart, and after upgrades when you need to edit advanced settings instead of redoing first-run onboarding.
 

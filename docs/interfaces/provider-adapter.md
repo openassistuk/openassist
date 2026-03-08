@@ -111,11 +111,30 @@ Current image-input rule:
 - OpenAI and Anthropic are first-class image-input providers in the built-in adapter set
 - OpenAI-compatible providers remain text-only for images and must preserve the runtime note that image binaries were not inspected
 
+Provider-native reasoning controls:
+
+- OpenAI providers may optionally set `reasoningEffort = "low" | "medium" | "high"` in config.
+- Anthropic providers may optionally set `thinkingBudgetTokens = <integer>` in config.
+- OpenAI-compatible providers do not expose a public reasoning control in this release.
+- Safe default is unset: when the field is omitted, adapters do not send any reasoning or thinking parameter.
+- Adapters must omit unsupported reasoning fields instead of risking provider API errors:
+  - OpenAI reasoning effort is sent only on supported Responses API model families.
+  - Anthropic thinking budget is sent only on supported thinking-capable Claude families.
+- Setup validation may warn when a configured default model does not match the built-in allow-list, but runtime still stays safe by omitting the field.
+
 OpenAI adapter endpoint behavior:
 
 - Chat-completions remains supported for chat-capable OpenAI models.
 - GPT-5/codex-class models are routed through the OpenAI Responses API.
 - If chat-completions returns a model/endpoint mismatch (for example "not a chat model"), adapter falls back to Responses API automatically.
+- `reasoningEffort` is only attached on the supported Responses API path. It is never sent on chat-completions requests.
+
+Anthropic thinking replay behavior:
+
+- When Anthropic returns provider-native thinking blocks, the adapter stores reserved replay metadata on the normalized assistant output.
+- Runtime persists that metadata on assistant messages during tool turns and final assistant messages.
+- On later Anthropic follow-up calls, the adapter reconstructs the original assistant content blocks from replay metadata instead of relying only on synthetic tool-call placeholders.
+- Internal thinking content remains provider-side replay state only. It must never appear in channel-visible output.
 
 ## Compatibility Rule
 

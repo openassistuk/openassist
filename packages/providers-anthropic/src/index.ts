@@ -18,6 +18,7 @@ const configSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
+  thinkingBudgetTokens: z.number().int().min(1024).max(32_000).optional(),
   oauth: z
     .object({
       authorizeUrl: z.string().url(),
@@ -39,6 +40,10 @@ const configSchema = z.object({
 });
 
 export interface AnthropicProviderConfig extends z.infer<typeof configSchema> {}
+
+const ANTHROPIC_REPLAY_KIND = "anthropic-content-blocks";
+const PROVIDER_REPLAY_KIND_KEY = "providerReplayKind";
+const PROVIDER_REPLAY_JSON_KEY = "providerReplayJson";
 
 function parseToolArgs(argumentsJson: string): Record<string, unknown> {
   try {
@@ -73,16 +78,94 @@ async function toAnthropicImageBlock(
   };
 }
 
+function parseAnthropicReplayBlocks(
+  message: ChatRequest["messages"][number]
+): Array<Record<string, unknown>> | undefined {
+  if (message.role !== "assistant") {
+    return undefined;
+  }
+  if (message.metadata?.[PROVIDER_REPLAY_KIND_KEY] !== ANTHROPIC_REPLAY_KIND) {
+    return undefined;
+  }
+
+  const raw = message.metadata?.[PROVIDER_REPLAY_JSON_KEY];
+  if (typeof raw !== "string" || raw.trim().length === 0) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return undefined;
+    }
+    return parsed.filter(
+      (entry): entry is Record<string, unknown> =>
+        typeof entry === "object" && entry !== null && !Array.isArray(entry)
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+function replayMetadataForResponseContent(content: Array<any>): Record<string, string> | undefined {
+  if (!content.some((block) => block?.type === "thinking" || block?.type === "redacted_thinking")) {
+    return undefined;
+  }
+
+  return {
+    [PROVIDER_REPLAY_KIND_KEY]: ANTHROPIC_REPLAY_KIND,
+    [PROVIDER_REPLAY_JSON_KEY]: JSON.stringify(content)
+  };
+}
+
+function supportsAnthropicThinking(model: string): boolean {
+  const normalized = model.trim().toLowerCase();
+  return (
+    normalized.includes("claude-3-7") ||
+    normalized.includes("claude-sonnet-4") ||
+    normalized.includes("claude-opus-4") ||
+    normalized.includes("claude-4")
+  );
+}
+
+function thinkingPayload(
+  model: string,
+  budgetTokens: number | undefined
+): { type: "enabled"; budget_tokens: number } | undefined {
+  if (!budgetTokens || !supportsAnthropicThinking(model)) {
+    return undefined;
+  }
+  return {
+    type: "enabled",
+    budget_tokens: budgetTokens
+  };
+}
+
 async function mapMessages(messages: ChatRequest["messages"]): Promise<{
   system?: string;
   messages: Array<Record<string, unknown>>;
 }> {
   const systemParts: string[] = [];
   const mapped: Array<Record<string, unknown>> = [];
+  const replayedToolCalls = new Set<string>();
 
   for (const message of messages) {
     if (message.role === "system") {
       systemParts.push(message.content);
+      continue;
+    }
+
+    const replayBlocks = parseAnthropicReplayBlocks(message);
+    if (replayBlocks) {
+      for (const block of replayBlocks) {
+        if (block.type === "tool_use" && typeof block.id === "string") {
+          replayedToolCalls.add(block.id);
+        }
+      }
+      mapped.push({
+        role: "assistant",
+        content: replayBlocks
+      });
       continue;
     }
 
@@ -102,6 +185,9 @@ async function mapMessages(messages: ChatRequest["messages"]): Promise<{
     }
 
     if (message.role === "assistant" && message.toolCallId && message.toolName) {
+      if (replayedToolCalls.has(message.toolCallId)) {
+        continue;
+      }
       mapped.push({
         role: "assistant",
         content: [
@@ -306,10 +392,12 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
     });
 
     const mapped = await mapMessages(req.messages);
+    const model = req.model || this.config.defaultModel;
     const response = await client.messages.create({
-      model: req.model || this.config.defaultModel,
+      model,
       max_tokens: req.maxTokens ?? 1024,
       temperature: req.temperature,
+      thinking: thinkingPayload(model, this.config.thinkingBudgetTokens) as any,
       messages: mapped.messages as any,
       system: mapped.system,
       tools: mapTools(req.tools) as any
@@ -328,7 +416,8 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
     return {
       output: {
         role: "assistant",
-        content
+        content,
+        metadata: replayMetadataForResponseContent(response.content)
       },
       usage: {
         inputTokens: response.usage.input_tokens,

@@ -45,9 +45,8 @@ function isWhatsAppOperatorId(value: string): boolean {
   return value.trim().length > 0;
 }
 
-const providerSchema = z.object({
+const providerBaseSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(["openai", "anthropic", "openai-compatible"]),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
   oauth: z
@@ -67,6 +66,20 @@ const providerSchema = z.object({
     .optional(),
   metadata: z.record(z.unknown()).optional()
 });
+
+const providerSchema = z.discriminatedUnion("type", [
+  providerBaseSchema.extend({
+    type: z.literal("openai"),
+    reasoningEffort: z.enum(["low", "medium", "high"]).optional()
+  }),
+  providerBaseSchema.extend({
+    type: z.literal("anthropic"),
+    thinkingBudgetTokens: z.number().int().min(1024).max(32_000).optional()
+  }),
+  providerBaseSchema.extend({
+    type: z.literal("openai-compatible")
+  })
+]);
 
 const scheduledOutputSchema = z
   .object({

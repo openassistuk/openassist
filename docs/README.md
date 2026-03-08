@@ -33,6 +33,13 @@ Quickstart also restores the main assistant identity prompts:
 
 Successful quickstart saves those into the same global profile memory that `/profile` edits later and disables the later first-chat identity reminder by default.
 
+Advanced provider reasoning controls stay in `openassist setup wizard`:
+
+- OpenAI providers can set `reasoningEffort` for supported Responses API model families
+- Anthropic providers can set `thinkingBudgetTokens` for supported thinking-capable Claude families
+- OpenAI-compatible providers stay unchanged in this release
+- leaving the setting unset is the safe default and sends no provider-specific reasoning parameter
+
 Runtime turns and `/status` now carry a bounded self-knowledge contract so OpenAssist can cite its own local docs, config path, env path, install directory, update track, and safe-maintenance limits without pretending it has permissions it does not have. In chat, the full config/env/install path view is reserved for approved operators; other senders still get the high-level lifecycle summary and host-side command guidance.
 
 Runtime-owned chat surfaces now split the general assistant intro from the operational diagnostics:
@@ -114,4 +121,5 @@ Service smoke note:
   - `docs/execplans/access-mode-opt-in-and-beginner-copy.md`
   - `docs/execplans/channel-first-class-integrations.md`
   - `docs/execplans/general-purpose-assistant-identity-and-growth.md`
+  - `docs/execplans/provider-reasoning-controls.md`
 - ExecPlan process: `.agents/PLANS.md`

@@ -1393,6 +1393,7 @@ export class OpenAssistRuntime {
       let responseUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
       let finalFinishReason: string | undefined;
       let finalResponseId: string | undefined;
+      let finalResponseMetadata: Record<string, string> | undefined;
       let finalResolved = false;
 
       for (let round = 0; round < DEFAULT_MAX_TOOL_ROUNDS; round += 1) {
@@ -1421,6 +1422,7 @@ export class OpenAssistRuntime {
         responseUsage = response.usage;
         finalFinishReason = response.finishReason;
         finalResponseId = response.rawProviderResponseId;
+        finalResponseMetadata = response.output.metadata;
 
         const toolCalls = response.toolCalls ?? [];
         if (toolCalls.length > 0 && toolSchemas.length === 0) {
@@ -1450,14 +1452,15 @@ export class OpenAssistRuntime {
           break;
         }
 
-        for (const toolCall of toolCalls) {
+        for (const [toolCallIndex, toolCall] of toolCalls.entries()) {
           const assistantToolCallMessage: NormalizedMessage = {
             role: "assistant",
             content: "",
             toolCallId: toolCall.id,
             toolName: toolCall.name,
             metadata: {
-              toolArgumentsJson: toolCall.argumentsJson
+              toolArgumentsJson: toolCall.argumentsJson,
+              ...(toolCallIndex === 0 ? (response.output.metadata ?? {}) : {})
             }
           };
           conversationMessages.push(assistantToolCallMessage);
@@ -1509,7 +1512,8 @@ export class OpenAssistRuntime {
         {
           role: "assistant",
           content: safeText,
-          internalTrace: undefined
+          internalTrace: undefined,
+          metadata: finalResponseMetadata
         },
         {
           providerId: provider.id(),

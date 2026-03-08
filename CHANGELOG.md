@@ -8,6 +8,12 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Provider-native reasoning controls:
+  - `openassist setup wizard` now exposes OpenAI `reasoningEffort` (`low`, `medium`, `high`, or unset) and Anthropic `thinkingBudgetTokens` (blank to disable)
+  - built-in OpenAI adapters now send reasoning effort only on supported Responses API model families
+  - built-in Anthropic adapters now send thinking budgets only on supported thinking-capable Claude families
+  - Anthropic tool turns now preserve provider replay metadata so thinking-enabled follow-up calls can reconstruct provider-native content blocks without leaking internal reasoning to channels
+
 - General-purpose assistant identity and controlled growth:
   - `/start` and `/help` are now runtime-owned OpenAssist welcome surfaces that present OpenAssist as the broader assistant for the machine, not only a repo-maintenance bot
   - `/capabilities` now reports a live capability-domain inventory derived from the active access level, provider, channel, tools, scheduler state, and install context

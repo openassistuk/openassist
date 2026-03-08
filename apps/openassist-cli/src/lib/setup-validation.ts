@@ -52,6 +52,28 @@ function hasEnvValue(env: Record<string, string>, varName: string): boolean {
   return typeof current === "string" && current.trim().length > 0;
 }
 
+function supportsOpenAIReasoningEffort(model: string): boolean {
+  const normalized = model.trim().toLowerCase();
+  return (
+    normalized.startsWith("gpt-5") ||
+    normalized.includes("codex") ||
+    normalized.startsWith("o1") ||
+    normalized.startsWith("o2") ||
+    normalized.startsWith("o3") ||
+    normalized.startsWith("o4")
+  );
+}
+
+function supportsAnthropicThinking(model: string): boolean {
+  const normalized = model.trim().toLowerCase();
+  return (
+    normalized.includes("claude-3-7") ||
+    normalized.includes("claude-sonnet-4") ||
+    normalized.includes("claude-opus-4") ||
+    normalized.includes("claude-4")
+  );
+}
+
 function forEachEnvReference(
   settings: Record<string, string | number | boolean | string[]>,
   visit: (varName: string, keyPath: string) => void
@@ -159,6 +181,40 @@ function validateProviderRequirements(
         "provider.oauth_client_secret_unset",
         `Provider '${provider.id}' OAuth client secret env var ${oauth.clientSecretEnv} is not set.`,
         "Set the variable before running OAuth token exchange."
+      );
+    }
+  }
+}
+
+function validateProviderReasoningRequirements(
+  config: OpenAssistConfig,
+  warnings: SetupValidationIssue[]
+): void {
+  for (const provider of config.runtime.providers) {
+    if (
+      provider.type === "openai" &&
+      provider.reasoningEffort &&
+      !supportsOpenAIReasoningEffort(provider.defaultModel)
+    ) {
+      pushIssue(
+        warnings,
+        "provider.openai_reasoning_model_unsupported",
+        `Provider '${provider.id}' sets OpenAI reasoning effort '${provider.reasoningEffort}', but model '${provider.defaultModel}' is not on the built-in reasoning-effort allow-list.`,
+        "Use a GPT-5, codex, or o-series model for reasoning effort, or leave the setting unset so OpenAssist can rely on provider defaults."
+      );
+      continue;
+    }
+
+    if (
+      provider.type === "anthropic" &&
+      typeof provider.thinkingBudgetTokens === "number" &&
+      !supportsAnthropicThinking(provider.defaultModel)
+    ) {
+      pushIssue(
+        warnings,
+        "provider.anthropic_thinking_model_unsupported",
+        `Provider '${provider.id}' sets an Anthropic thinking budget, but model '${provider.defaultModel}' is not on the built-in thinking-capable allow-list.`,
+        "Use a Claude 3.7, Claude Sonnet 4.x, or Claude Opus 4.x model for extended thinking, or leave the budget unset."
       );
     }
   }
@@ -404,6 +460,7 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
   }
 
   validateProviderRequirements(input.config, input.env, errors, warnings);
+  validateProviderReasoningRequirements(input.config, warnings);
   validateChannelRequirements(input.config, input.env, errors, warnings);
   if (input.requireEnabledChannel) {
     validateChannelPresence(input.config, errors);

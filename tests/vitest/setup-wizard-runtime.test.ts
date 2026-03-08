@@ -220,6 +220,7 @@ describe("setup wizard runtime flow", () => {
       "openai-main",
       "gpt-5.2",
       "",
+      "default",
       "true",
       longApiKey,
       "back",
@@ -273,5 +274,45 @@ describe("setup wizard runtime flow", () => {
     expect(state.config.runtime.operatorAccessProfile).toBe("full-root");
     expect(state.config.tools.fs.workspaceOnly).toBe(false);
     expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toEqual(["123456789"]);
+  });
+
+  it("persists provider-native reasoning controls through wizard add and edit flows", async () => {
+    const root = tempDir("openassist-vitest-setup-provider-reasoning-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const state = loadSetupWizardState(configPath, envPath);
+
+    const prompts = new ScriptedPromptAdapter([
+      "providers",
+      "edit",
+      "openai-main",
+      "gpt-5.2",
+      "",
+      "high",
+      "false",
+      "add",
+      "anthropic-main",
+      "anthropic",
+      "claude-sonnet-4-5",
+      "",
+      "4096",
+      "false",
+      "back",
+      "save"
+    ]);
+
+    const result = await runSetupWizard(state, prompts, {
+      requireTty: false
+    });
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.providers.find((provider) => provider.id === "openai-main")).toMatchObject({
+      reasoningEffort: "high"
+    });
+    expect(
+      state.config.runtime.providers.find((provider) => provider.id === "anthropic-main")
+    ).toMatchObject({
+      thinkingBudgetTokens: 4096
+    });
   });
 });

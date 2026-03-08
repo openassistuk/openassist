@@ -174,6 +174,85 @@ class MockStrictToolContextProvider implements ProviderAdapter {
   }
 }
 
+class MockReplayMetadataToolProvider implements ProviderAdapter {
+  public requests: ChatRequest[] = [];
+  private readonly targetPath: string;
+  private calls = 0;
+
+  constructor(targetPath: string) {
+    this.targetPath = targetPath;
+  }
+
+  id(): string {
+    return "mock-provider";
+  }
+
+  capabilities(): ProviderCapabilities {
+    return {
+      supportsStreaming: false,
+      supportsTools: true,
+      supportsOAuth: false,
+      supportsApiKeys: true,
+      supportsImageInputs: false
+    };
+  }
+
+  async validateConfig(): Promise<ValidationResult> {
+    return { valid: true, errors: [] };
+  }
+
+  async chat(req: ChatRequest): Promise<ChatResponse> {
+    this.calls += 1;
+    this.requests.push(req);
+    if (this.calls === 1) {
+      return {
+        output: {
+          role: "assistant",
+          content: "",
+          metadata: {
+            providerReplayKind: "anthropic-content-blocks",
+            providerReplayJson: JSON.stringify([
+              {
+                type: "thinking",
+                thinking: "plan",
+                signature: "sig-1"
+              },
+              {
+                type: "tool_use",
+                id: "tool-1",
+                name: "fs.write",
+                input: {
+                  path: this.targetPath,
+                  content: "hello-from-replay-tool"
+                }
+              }
+            ])
+          }
+        },
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        toolCalls: [
+          {
+            id: "tool-1",
+            name: "fs.write",
+            argumentsJson: JSON.stringify({
+              path: this.targetPath,
+              content: "hello-from-replay-tool"
+            })
+          }
+        ]
+      };
+    }
+
+    return {
+      output: {
+        role: "assistant",
+        content: "replay metadata preserved"
+      },
+      usage: { inputTokens: 2, outputTokens: 2, totalTokens: 4 }
+    };
+  }
+}
+
 class MockChannel implements ChannelAdapter {
   public sent: OutboundEnvelope[] = [];
   private handler: ((msg: InboundEnvelope) => Promise<void>) | null = null;
@@ -615,6 +694,110 @@ describe("OpenAssistRuntime", () => {
     assert.equal(channel.sent[0]?.text, "tool run complete");
     assert.equal(fs.readFileSync(targetPath, "utf8"), "hello-from-tool");
     assert.equal(runtime.listToolInvocations("telegram-mock:c1", 10)[0]?.status, "succeeded");
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("preserves provider replay metadata across tool turns for follow-up provider calls", async () => {
+    const root = tempDir("openassist-runtime-replay-metadata-");
+    roots.push(root);
+    const targetPath = path.join(root, "replay-tool.txt");
+
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const channel = new MockChannel();
+    const provider = new MockReplayMetadataToolProvider(targetPath);
+    const runtimeConfig: RuntimeConfig = {
+      bindAddress: "127.0.0.1",
+      bindPort: 3344,
+      defaultProviderId: "mock-provider",
+      providers: [
+        {
+          id: "mock-provider",
+          type: "openai-compatible",
+          defaultModel: "x"
+        }
+      ],
+      channels: [
+        {
+          id: "telegram-mock",
+          type: "telegram",
+          enabled: true,
+          settings: {}
+        }
+      ],
+      defaultPolicyProfile: "full-root",
+      paths: {
+        dataDir: root,
+        skillsDir: path.join(root, "skills"),
+        logsDir: path.join(root, "logs")
+      },
+      time: {
+        ntpPolicy: "off",
+        ntpCheckIntervalSec: 300,
+        ntpMaxSkewMs: 10_000,
+        ntpHttpSources: [],
+        requireTimezoneConfirmation: false
+      },
+      scheduler: {
+        enabled: false,
+        tickIntervalMs: 1000,
+        heartbeatIntervalSec: 30,
+        defaultMisfirePolicy: "catch-up-once",
+        tasks: []
+      },
+      tools: {
+        fs: {
+          workspaceOnly: false,
+          allowedReadPaths: [],
+          allowedWritePaths: []
+        },
+        exec: {
+          defaultTimeoutMs: 60_000,
+          guardrails: {
+            mode: "minimal",
+            extraBlockedPatterns: []
+          }
+        },
+        pkg: {
+          enabled: false,
+          preferStructuredInstall: true,
+          allowExecFallback: true,
+          sudoNonInteractive: true,
+          allowedManagers: []
+        }
+      }
+    };
+
+    const runtime = new OpenAssistRuntime(runtimeConfig, { db, logger }, { providers: [provider], channels: [channel] });
+    runtime.setProviderApiKey("mock-provider", "test-key");
+    await runtime.start();
+
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-mock",
+      transportMessageId: "m-replay",
+      conversationKey: "c-replay",
+      senderId: "u1",
+      text: "use a tool",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "x-replay"
+    });
+
+    assert.equal(provider.requests.length, 2);
+    const secondRequestMessages = provider.requests[1]?.messages ?? [];
+    const replayedAssistantMessage = secondRequestMessages.find(
+      (message) =>
+        message.role === "assistant" &&
+        message.toolCallId === "tool-1" &&
+        message.metadata?.providerReplayKind === "anthropic-content-blocks"
+    );
+    assert.ok(replayedAssistantMessage);
+    assert.match(replayedAssistantMessage?.metadata?.providerReplayJson ?? "", /tool_use/);
+    assert.equal(fs.readFileSync(targetPath, "utf8"), "hello-from-replay-tool");
+    assert.equal(channel.sent[0]?.text, "replay metadata preserved");
 
     await runtime.stop();
     db.close();

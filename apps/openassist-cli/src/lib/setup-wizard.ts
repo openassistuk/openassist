@@ -95,6 +95,68 @@ function parseCsv(value: string): string[] {
     .filter((item) => item.length > 0);
 }
 
+type ReasoningEffortPromptChoice = "default" | OpenAIReasoningEffort;
+type OpenAIReasoningEffort = "low" | "medium" | "high";
+
+async function promptOpenAIReasoningEffort(
+  prompts: PromptAdapter,
+  initial?: OpenAIReasoningEffort
+): Promise<OpenAIReasoningEffort | undefined> {
+  console.log("- OpenAI reasoning effort is only sent on supported Responses API model families.");
+  console.log("- Leave it on Default to keep provider defaults and avoid unsupported request fields.");
+  const selected = await prompts.select<ReasoningEffortPromptChoice>(
+    "OpenAI reasoning effort",
+    [
+      { name: "Default (do not send a reasoning parameter)", value: "default" },
+      { name: "low", value: "low" },
+      { name: "medium", value: "medium" },
+      { name: "high", value: "high" }
+    ],
+    initial ?? "default"
+  );
+  return selected === "default" ? undefined : selected;
+}
+
+async function promptOptionalPositiveInteger(
+  prompts: PromptAdapter,
+  message: string,
+  options: { min: number; max: number; emptyHint: string },
+  initial?: number
+): Promise<number | undefined> {
+  while (true) {
+    const raw = await prompts.input(message, initial ? String(initial) : "");
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      return undefined;
+    }
+    if (/^\d+$/.test(trimmed)) {
+      const value = Number.parseInt(trimmed, 10);
+      if (value >= options.min && value <= options.max) {
+        return value;
+      }
+    }
+    console.error(`Enter a whole number between ${options.min} and ${options.max}, or leave blank to ${options.emptyHint}.`);
+  }
+}
+
+async function promptAnthropicThinkingBudget(
+  prompts: PromptAdapter,
+  initial?: number
+): Promise<number | undefined> {
+  console.log("- Anthropic thinking budget is only sent on supported thinking-capable Claude models.");
+  console.log("- Leave it blank to disable extended thinking for this provider.");
+  return promptOptionalPositiveInteger(
+    prompts,
+    "Anthropic thinking budget tokens (blank disables it)",
+    {
+      min: 1024,
+      max: 32000,
+      emptyHint: "disable extended thinking"
+    },
+    initial
+  );
+}
+
 function validateCsvIds(
   input: string,
   pattern: RegExp
@@ -283,13 +345,32 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
     providerType === "anthropic" ? "claude-sonnet-4-5" : "gpt-5.2"
   );
   const baseUrl = await prompts.input("Base URL (optional)", "");
-
-  state.config.runtime.providers.push({
-    id: providerId,
-    type: providerType,
-    defaultModel,
-    ...(baseUrl ? { baseUrl } : {})
-  });
+  if (providerType === "openai") {
+    const reasoningEffort = await promptOpenAIReasoningEffort(prompts);
+    state.config.runtime.providers.push({
+      id: providerId,
+      type: providerType,
+      defaultModel,
+      ...(baseUrl ? { baseUrl } : {}),
+      ...(reasoningEffort ? { reasoningEffort } : {})
+    });
+  } else if (providerType === "anthropic") {
+    const thinkingBudgetTokens = await promptAnthropicThinkingBudget(prompts);
+    state.config.runtime.providers.push({
+      id: providerId,
+      type: providerType,
+      defaultModel,
+      ...(baseUrl ? { baseUrl } : {}),
+      ...(typeof thinkingBudgetTokens === "number" ? { thinkingBudgetTokens } : {})
+    });
+  } else {
+    state.config.runtime.providers.push({
+      id: providerId,
+      type: providerType,
+      defaultModel,
+      ...(baseUrl ? { baseUrl } : {})
+    });
+  }
 
   if (providerSupportsOAuth(providerType)) {
     console.log(
@@ -334,6 +415,24 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
     provider.baseUrl = baseUrl;
   } else {
     delete provider.baseUrl;
+  }
+
+  if (provider.type === "openai") {
+    const reasoningEffort = await promptOpenAIReasoningEffort(prompts, provider.reasoningEffort);
+    if (reasoningEffort) {
+      provider.reasoningEffort = reasoningEffort;
+    } else {
+      delete provider.reasoningEffort;
+    }
+  }
+
+  if (provider.type === "anthropic") {
+    const thinkingBudgetTokens = await promptAnthropicThinkingBudget(prompts, provider.thinkingBudgetTokens);
+    if (typeof thinkingBudgetTokens === "number") {
+      provider.thinkingBudgetTokens = thinkingBudgetTokens;
+    } else {
+      delete provider.thinkingBudgetTokens;
+    }
   }
 
   const updateApiKey = await prompts.confirm("Update API key in env file?", false);

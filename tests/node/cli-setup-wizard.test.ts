@@ -83,6 +83,7 @@ describe("cli setup wizard", () => {
       "anthropic",
       "claude-sonnet-4-5",
       "",
+      "",
       "true",
       "anthropic-key",
       "default",

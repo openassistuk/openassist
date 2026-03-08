@@ -34,13 +34,17 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("Node.js is still <22 after package install; attempting fallback install via npm+n"));
     assert.ok(script.includes("npm install -g n"));
     assert.ok(script.includes("n 22"));
-    assert.ok(script.includes("corepack prepare pnpm@10.26.0 --activate"));
+    assert.ok(script.includes('PINNED_PNPM_VERSION="10.31.0"'));
+    assert.ok(script.includes('corepack prepare "pnpm@${PINNED_PNPM_VERSION}" --activate'));
     assert.ok(script.includes("git -C \"${INSTALL_DIR}\" status --porcelain"));
     assert.ok(script.includes("Git fast-forward failed for ref"));
     assert.ok(script.includes("merge --ff-only \"refs/remotes/origin/${REF}\""));
     assert.ok(!script.includes("pull --ff-only origin \"${REF}\""));
     assert.ok(script.includes("pnpm --dir \"${INSTALL_DIR}\" install --frozen-lockfile"));
     assert.ok(script.includes("Running guided lifecycle setup"));
+    assert.ok(script.includes('if [[ "${INTERACTIVE}" -ne 1 && ! -f "${CONFIG_PATH}" ]]'));
+    assert.ok(script.includes('"${LOCAL_BIN_DIR}/openassist" init --config "${CONFIG_PATH}"'));
+    assert.ok(!script.includes('pnpm --dir "${INSTALL_DIR}" --filter @openassist/openassist-cli start -- init --config "${CONFIG_PATH}"'));
     assert.ok(script.includes("LOCAL_BIN_DIR=\"${HOME}/.local/bin\""));
     assert.ok(script.includes("GLOBAL_BIN_DIR=\"${OPENASSIST_GLOBAL_BIN_DIR:-/usr/local/bin}\""));
     assert.ok(script.includes("ensure_local_bin_on_path"));
@@ -55,8 +59,8 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("Ready now"));
     assert.ok(script.includes("Needs action"));
     assert.ok(script.includes("Next command"));
-    assert.ok(script.includes("pnpm version notices are informational."));
-    assert.ok(script.includes("approve them before relying on WhatsApp image or document handling."));
+    assert.ok(script.includes("pins a tested pnpm release for consistent installs"));
+    assert.ok(script.includes("Approve skipped WhatsApp/media build scripts only before using WhatsApp image or document features."));
     assert.ok(script.includes("Guided onboarding was not run because bootstrap stayed non-interactive. Next step: ${setupCommand}"));
     assert.ok(
       script.includes('openassist setup --install-dir \\"${INSTALL_DIR}\\" --config \\"${CONFIG_PATH}\\" --env-file \\"${ENV_FILE}\\"')

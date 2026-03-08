@@ -13,6 +13,7 @@ ALLOW_DIRTY=0
 AUTO_INSTALL_PREREQS=1
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 GLOBAL_BIN_DIR="${OPENASSIST_GLOBAL_BIN_DIR:-/usr/local/bin}"
+PINNED_PNPM_VERSION="10.31.0"
 
 # When this script is piped from curl in an interactive shell, stdin is often
 # a pipe instead of a TTY. Reattach stdin to /dev/tty so interactive setup can
@@ -255,9 +256,9 @@ if (!wrapperReady) {
   needs.unshift(`  - This shell may need a new login shell before 'openassist' is on PATH. Fallback: ${localWrapper}`);
 }
 
-ready.push("  - pnpm version notices are informational.");
+ready.push("  - OpenAssist pins a tested pnpm release for consistent installs. Update notices do not block setup.");
 needs.push(
-  "  - Before WhatsApp or media use: if pnpm reported skipped build scripts, approve them before relying on WhatsApp image or document handling."
+  "  - Before using WhatsApp image or document features: if pnpm reported skipped build scripts, approve them first."
 );
 
 if (process.env.OPENASSIST_INTERACTIVE !== "1") {
@@ -498,7 +499,7 @@ install_node_runtime() {
 install_pnpm_runtime() {
   if command -v corepack >/dev/null 2>&1; then
     corepack enable
-    corepack prepare pnpm@10.26.0 --activate
+    corepack prepare "pnpm@${PINNED_PNPM_VERSION}" --activate
     return
   fi
 
@@ -684,7 +685,7 @@ print_prereq_troubleshooting() {
       echo "  brew update"
       echo "  brew install git node@22"
       echo "  brew link --overwrite --force node@22"
-      echo "  corepack enable && corepack prepare pnpm@10.26.0 --activate"
+      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
     fi
     return
   fi
@@ -696,28 +697,28 @@ print_prereq_troubleshooting() {
       echo "  sudo apt-get install -y curl ca-certificates gnupg git"
       echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -"
       echo "  sudo apt-get install -y nodejs"
-      echo "  corepack enable && corepack prepare pnpm@10.26.0 --activate"
+      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
       ;;
     dnf|yum)
       echo "Try these commands manually:"
       echo "  sudo ${pkg_manager} install -y git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@10.26.0 --activate"
+      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
       ;;
     pacman)
       echo "Try these commands manually:"
       echo "  sudo pacman -Sy --noconfirm git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@10.26.0 --activate"
+      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
       ;;
     zypper)
       echo "Try these commands manually:"
       echo "  sudo zypper --non-interactive refresh"
       echo "  sudo zypper --non-interactive install git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@10.26.0 --activate"
+      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
       ;;
     apk)
       echo "Try these commands manually:"
       echo "  sudo apk add --no-cache git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@10.26.0 --activate"
+      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
       ;;
     *)
       echo "No known automatic troubleshooting commands for this platform/package-manager pair."
@@ -985,8 +986,8 @@ fi
 
 echo "Installing dependencies..."
 pnpm --dir "${INSTALL_DIR}" install --frozen-lockfile
-echo "Install note: pnpm version notices and ignored optional build-script warnings are expected on normal Telegram or Discord installs."
-echo "If pnpm still reports skipped WhatsApp/media build scripts, approve them before relying on WhatsApp image or document handling."
+echo "Install note: OpenAssist pins a tested pnpm release for consistent installs. If pnpm shows an update notice, you can ignore it for this install."
+echo "Install note: Telegram and Discord do not need extra build-script approval. Approve skipped WhatsApp/media build scripts only before using WhatsApp image or document features."
 
 echo "Building workspace..."
 pnpm --dir "${INSTALL_DIR}" -r build
@@ -996,8 +997,8 @@ ENV_FILE="${HOME}/.config/openassist/openassistd.env"
 STATE_FILE="${HOME}/.config/openassist/install-state.json"
 mkdir -p "$(dirname "${ENV_FILE}")"
 
-if [[ ! -f "${CONFIG_PATH}" ]]; then
-  pnpm --dir "${INSTALL_DIR}" --filter @openassist/openassist-cli start -- init --config "${CONFIG_PATH}"
+if [[ "${INTERACTIVE}" -ne 1 && ! -f "${CONFIG_PATH}" ]]; then
+  "${LOCAL_BIN_DIR}/openassist" init --config "${CONFIG_PATH}"
 fi
 
 if [[ ! -f "${ENV_FILE}" ]]; then

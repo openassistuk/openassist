@@ -75,6 +75,12 @@ The format follows Keep a Changelog conventions and this project currently track
   - added a supplemental manual/scheduled `Lifecycle E2E Smoke` workflow for stronger bootstrap/home-state/doctor/upgrade dry-run validation on Linux and macOS
   - bare `openassist setup` non-TTY guidance now preserves explicit `--install-dir`, `--config`, and `--env-file` values in its printed fallback commands
 
+- Bootstrap setup-hub handoff and installer hygiene:
+  - interactive bootstrap no longer tries to pre-seed config through the stale `pnpm ... start -- init --config ...` path before opening the lifecycle hub
+  - non-interactive bootstrap still creates a default config before service install, but now does it through the direct `openassist init --config ...` command path
+  - bootstrap and install docs now explain the pinned `pnpm` release and WhatsApp/media build-script note in more operator-friendly language
+  - the repo, bootstrap, and workflow pins now use `pnpm@10.31.0`
+
 - Provider defaults now keep OpenAI on the current flagship API model `gpt-5.4` and update Anthropic onboarding examples/default prompts to the current Sonnet API model `claude-sonnet-4-6`, so new installs offer current real API model IDs instead of older snapshots or aliases.
 
 - Runtime self-knowledge and identity-restoration pass:

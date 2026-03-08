@@ -2,6 +2,8 @@
 
 OpenAssist is designed so restart and reboot events do not silently lose durable intent.
 
+Use `docs/operations/common-troubleshooting.md` when you want the operator-facing repair commands without reading the deeper restart model first.
+
 The lifecycle commands in this repo now rely on the same persistent install and runtime state:
 
 - bootstrap writes install state

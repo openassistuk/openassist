@@ -3,8 +3,11 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { resolveOperatorPaths } from "../../packages/config/src/operator-paths.js";
 import type { PromptAdapter } from "../../apps/openassist-cli/src/lib/setup-wizard.js";
 import { runSetupHub } from "../../apps/openassist-cli/src/lib/setup-hub.js";
+import { createDefaultConfigObject, saveConfigObject } from "../../apps/openassist-cli/src/lib/config-edit.js";
+import { saveInstallState } from "../../apps/openassist-cli/src/lib/install-state.js";
 
 function tempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -88,6 +91,18 @@ function minimalTelegramAnswers(bindPort: number): string[] {
   ];
 }
 
+function writeLegacyDefaultLayout(installDir: string): void {
+  const config = createDefaultConfigObject();
+  config.runtime.paths.dataDir = ".openassist/data";
+  config.runtime.paths.logsDir = ".openassist/logs";
+  config.runtime.paths.skillsDir = ".openassist/skills";
+  saveConfigObject(path.join(installDir, "openassist.toml"), config);
+  fs.mkdirSync(path.join(installDir, "config.d"), { recursive: true });
+  fs.writeFileSync(path.join(installDir, "config.d", "extra.toml"), "[runtime]\n", "utf8");
+  fs.mkdirSync(path.join(installDir, ".openassist", "data"), { recursive: true });
+  fs.writeFileSync(path.join(installDir, ".openassist", "data", "openassist.db"), "", "utf8");
+}
+
 const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
 const stdoutDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
 
@@ -132,6 +147,28 @@ describe("setup hub", () => {
     expect(errorSpy.mock.calls.flat().join("\n")).toContain("openassist setup wizard");
   });
 
+  it("prints custom scriptable guidance when bare setup is used without a TTY", async () => {
+    const installDir = tempDir("openassist-setup-hub-custom-install-");
+    const configPath = path.join(tempDir("openassist-setup-hub-custom-config-"), "custom.toml");
+    const envFilePath = path.join(tempDir("openassist-setup-hub-custom-env-"), "custom.env");
+    Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: false });
+    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: false });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await runSetupHub(
+      {
+        installDir,
+        configPath,
+        envFilePath
+      },
+      new ScriptedPromptAdapter([])
+    );
+
+    const output = errorSpy.mock.calls.flat().join("\n");
+    expect(output).toContain(`openassist setup quickstart --install-dir "${installDir}" --config "${configPath}" --env-file "${envFilePath}"`);
+    expect(output).toContain(`openassist setup wizard --install-dir "${installDir}" --config "${configPath}" --env-file "${envFilePath}"`);
+  });
+
   it("routes first-time setup through the bare setup hub", async () => {
     const root = tempDir("openassist-setup-hub-first-time-");
     const configPath = path.join(root, "openassist.toml");
@@ -154,6 +191,60 @@ describe("setup hub", () => {
 
     expect(fs.existsSync(configPath)).toBe(true);
     expect(fs.existsSync(envFilePath)).toBe(true);
+    expect(logSpy.mock.calls.flat().join("\n")).toContain("Quickstart saved");
+  });
+
+  it("auto-migrates the recognized repo-local layout before first-time setup continues", async () => {
+    const homeDir = tempDir("openassist-setup-hub-migrate-home-");
+    const installDir = tempDir("openassist-setup-hub-migrate-install-");
+    const operatorPaths = resolveOperatorPaths({ homeDir, installDir });
+    writeLegacyDefaultLayout(installDir);
+    saveInstallState(
+      {
+        installDir,
+        configPath: path.join(installDir, "openassist.toml"),
+        envFilePath: operatorPaths.envFilePath,
+        trackedRef: "main"
+      },
+      operatorPaths.installStatePath
+    );
+    const bindPort = await getFreePort();
+    const previousHome = process.env.HOME;
+    const previousUserProfile = process.env.USERPROFILE;
+    process.env.HOME = homeDir;
+    process.env.USERPROFILE = homeDir;
+    Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: true });
+    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      await runSetupHub(
+        {
+          installDir,
+          configPath: operatorPaths.configPath,
+          envFilePath: operatorPaths.envFilePath,
+          skipService: true
+        },
+        new ScriptedPromptAdapter(["first-time", ...minimalTelegramAnswers(bindPort)])
+      );
+    } finally {
+      if (previousHome === undefined) {
+        delete process.env.HOME;
+      } else {
+        process.env.HOME = previousHome;
+      }
+      if (previousUserProfile === undefined) {
+        delete process.env.USERPROFILE;
+      } else {
+        process.env.USERPROFILE = previousUserProfile;
+      }
+    }
+
+    expect(fs.existsSync(operatorPaths.configPath)).toBe(true);
+    expect(fs.existsSync(path.join(operatorPaths.overlaysDir, "extra.toml"))).toBe(true);
+    expect(fs.existsSync(path.join(operatorPaths.dataDir, "openassist.db"))).toBe(true);
+    expect(fs.existsSync(path.join(installDir, ".openassist"))).toBe(false);
+    expect(logSpy.mock.calls.flat().join("\n")).toContain("Migrated repo-local operator state");
     expect(logSpy.mock.calls.flat().join("\n")).toContain("Quickstart saved");
   });
 });

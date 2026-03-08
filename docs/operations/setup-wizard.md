@@ -8,6 +8,8 @@ OpenAssist has two setup paths on purpose.
 
 They are not interchangeable.
 
+If setup or repair still goes sideways after using the right path, use `docs/operations/common-troubleshooting.md` for the shared recovery commands.
+
 Use the bare hub when you want the default beginner path:
 
 ```bash

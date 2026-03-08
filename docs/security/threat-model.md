@@ -172,7 +172,7 @@ Controls:
 
 ## Operational Security Notes
 
-- use `openassist setup quickstart` for first-time setup to enforce strict validation gates
+- use bare `openassist setup` for first-time setup; use `openassist setup quickstart` when you want the direct strict-validation path without the lifecycle hub
 - keep `~/.config/openassist/openassistd.env` at mode `0600` on Unix hosts
 - use `openassist policy-set --session <channelId>:<conversationKey> --profile full-root` only for sessions that require autonomous host actions
 - use `openassist policy-set --session <channelId>:<conversationKey> --sender-id <sender-id> --profile full-root` when only one approved operator in a shared chat needs elevation

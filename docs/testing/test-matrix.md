@@ -2,6 +2,8 @@
 
 This document defines local and CI validation expectations.
 
+The normal Node integration gate now includes docs-truth validation, so stale root-doc links, mismatched workflow statements, and stale test inventories are expected to fail before merge instead of waiting for release review.
+
 ## Primary Local Gate
 
 Run this before merge:
@@ -10,7 +12,7 @@ Run this before merge:
 pnpm verify:all
 ```
 
-`verify:all` executes strict workflow lint, build, type/lint checks, test suites, and coverage gates.
+`verify:all` executes workflow lint, build, lint, typecheck, both test runners, and both coverage gates.
 
 ## Local Command Breakdown
 
@@ -42,109 +44,159 @@ Node integration gate (`pnpm test:coverage:node`):
 
 Current suite files under `tests/vitest/`:
 
-- `clock-health-eval.test.ts`
-- `clock-health-branches.test.ts`
-- `scheduler-worker.test.ts`
-- `scheduler-branches.test.ts`
-- `scheduler-cron.test.ts`
-- `scheduler-interval.test.ts`
-- `misfire-policy.test.ts`
-- `time-validation.test.ts`
-- `setup-wizard-runtime.test.ts`
-- `setup-wizard-transform.test.ts`
-- `setup-wizard-branches.test.ts`
-- `setup-quickstart-validation.test.ts`
-- `setup-quickstart-flow.test.ts`
-- `setup-quickstart-branches.test.ts`
-- `prompt-validation.test.ts`
 - `bootstrap-arg-parsing.test.ts`
-- `service-manager-linux.test.ts`
-- `service-manager-macos.test.ts`
-- `service-manager-adapter.test.ts`
-- `upgrade-state-machine.test.ts`
-- `command-runner.test.ts`
-- `env-file.test.ts`
-- `runtime-context.test.ts`
-- `install-state.test.ts`
-- `health-check.test.ts`
+- `channel-adapter-send.test.ts`
 - `channel-env-resolution.test.ts`
-- `context.test.ts`
-- `migration.test.ts`
+- `clock-health-branches.test.ts`
+- `clock-health-eval.test.ts`
+- `command-runner.test.ts`
 - `config-security-schema.test.ts`
+- `context.test.ts`
+- `env-file.test.ts`
 - `exec-guardrails.test.ts`
 - `fs-tool-delete.test.ts`
 - `fs-tool-write.test.ts`
-- `pkg-install-tool.test.ts`
-- `web-tool.test.ts`
-- `tool-loop-runtime.test.ts`
-- `runtime-config-tools-wiring.test.ts`
-- `runtime-self-knowledge.test.ts`
+- `git-dirty.test.ts`
+- `health-check.test.ts`
+- `install-context.test.ts`
+- `install-state.test.ts`
+- `lifecycle-readiness.test.ts`
+- `migration.test.ts`
+- `misfire-policy.test.ts`
 - `observability-redaction.test.ts`
-- `secrets-box.test.ts`
-- `setup-post-save.test.ts`
-- `setup-quickstart-oauth.test.ts`
-- `provider-openai-tool-mapping.test.ts`
+- `operator-layout.test.ts`
+- `operator-paths.test.ts`
+- `pkg-install-tool.test.ts`
+- `pnpm-workspace-policy.test.ts`
+- `prompt-validation.test.ts`
 - `provider-anthropic-tool-mapping.test.ts`
 - `provider-openai-compatible-tool-mapping.test.ts`
-- `pnpm-workspace-policy.test.ts`
+- `provider-openai-tool-mapping.test.ts`
+- `runtime-attachments-rendering.test.ts`
+- `runtime-config-tools-wiring.test.ts`
+- `runtime-context.test.ts`
+- `runtime-self-knowledge.test.ts`
+- `scheduler-branches.test.ts`
+- `scheduler-cron.test.ts`
+- `scheduler-interval.test.ts`
+- `scheduler-worker.test.ts`
+- `secrets-box.test.ts`
+- `service-manager-adapter.test.ts`
+- `service-manager-linux.test.ts`
+- `service-manager-macos.test.ts`
+- `setup-hub-actions.test.ts`
+- `setup-hub.test.ts`
+- `setup-post-save.test.ts`
+- `setup-quickstart-branches.test.ts`
+- `setup-quickstart-flow.test.ts`
+- `setup-quickstart-oauth.test.ts`
+- `setup-quickstart-validation.test.ts`
+- `setup-wizard-branches.test.ts`
+- `setup-wizard-runtime.test.ts`
+- `setup-wizard-transform.test.ts`
+- `time-validation.test.ts`
+- `tool-loop-runtime.test.ts`
+- `upgrade-state-machine.test.ts`
+- `web-tool.test.ts`
 
 ## Integration Suites (Node test runner)
 
 Current suite files under `tests/node/`:
 
+- `bootstrap-interactive-contract.test.ts`
 - `cli-api-surface-coverage.test.ts`
-- `cli-root-commands.test.ts`
-- `cli-command-integration.test.ts`
 - `cli-command-branches.test.ts`
-- `cli-setup-validation-coverage.test.ts`
+- `cli-command-integration.test.ts`
+- `cli-docs-truth.test.ts`
+- `cli-growth-status-coverage.test.ts`
 - `cli-lib-coverage.test.ts`
+- `cli-lifecycle-home-state-blackbox.test.ts`
+- `cli-operator-layout-coverage.test.ts`
 - `cli-prompt-validation-coverage.test.ts`
-- `cli-setup-quickstart.test.ts`
-- `cli-setup-quickstart-oauth.test.ts`
-- `cli-setup-quickstart-runtime.test.ts`
-- `cli-setup-post-save-recovery.test.ts`
-- `cli-setup-wizard.test.ts`
-- `cli-setup-web-coverage.test.ts`
+- `cli-root-commands.test.ts`
 - `cli-service-lifecycle.test.ts`
 - `cli-service-manager-coverage.test.ts`
+- `cli-setup-hub-coverage.test.ts`
+- `cli-setup-post-save-recovery.test.ts`
+- `cli-setup-quickstart-oauth.test.ts`
+- `cli-setup-quickstart-runtime.test.ts`
+- `cli-setup-quickstart.test.ts`
+- `cli-setup-validation-coverage.test.ts`
+- `cli-setup-web-coverage.test.ts`
+- `cli-setup-wizard.test.ts`
 - `cli-upgrade-rollback.test.ts`
-- `workflow-lint-script.test.ts`
 - `install-bootstrap-idempotence.test.ts`
-- `bootstrap-interactive-contract.test.ts`
 - `install-curl-entrypoint-contract.test.ts`
-- `systemd-template-contract.test.ts`
-- `runtime.test.ts`
+- `manual-run.test.ts`
+- `policy-engine.test.ts`
+- `runtime-access-mode.test.ts`
+- `runtime-attachments.test.ts`
 - `runtime-chat-tool-exec.test.ts`
 - `runtime-chat-tool-policy-gate.test.ts`
-- `runtime-tool-audit.test.ts`
 - `runtime-pkg-install-sudo.test.ts`
 - `runtime-provider-tool-contracts.test.ts`
+- `runtime-tool-audit.test.ts`
+- `runtime.test.ts`
 - `scheduler-runtime.test.ts`
-- `manual-run.test.ts`
 - `storage.test.ts`
+- `systemd-template-contract.test.ts`
+- `workflow-lint-script.test.ts`
+
+## Docs-Truth Validation
+
+`tests/node/cli-docs-truth.test.ts` now validates:
+
+- command examples in `README.md`, `docs/README.md`, and the main lifecycle docs resolve to real `openassist` commands
+- root-doc links resolve to real in-repo paths
+- workflow statements match `.github/workflows/ci.yml`, `.github/workflows/service-smoke.yml`, and `.github/workflows/lifecycle-e2e-smoke.yml`
+- this file matches the exact on-disk `tests/node/*.test.ts` and `tests/vitest/*.test.ts` inventories
 
 ## Required CI Workflows
 
 ### CI (`.github/workflows/ci.yml`)
 
-- workflow lint job (`pnpm lint:workflows`)
-- quality and coverage matrix running `pnpm ci:strict` on:
-  - `ubuntu-latest`
-  - `macos-latest`
-  - `windows-latest`
+- trigger model:
+  - `push` on `main`
+  - `pull_request`
+  - `workflow_dispatch`
+  - scheduled cadence (`daily` at `04:30 UTC`)
+- jobs:
+  - workflow lint (`pnpm lint:workflows`)
+  - quality and coverage matrix (`pnpm ci:strict`) on:
+    - `ubuntu-latest`
+    - `macos-latest`
+    - `windows-latest`
 
 ### Service Smoke (`.github/workflows/service-smoke.yml`)
 
 - trigger model:
   - `workflow_dispatch` (manual)
-  - scheduled cadence (Mon/Thu 06:00 UTC)
+  - scheduled cadence (`Mon`/`Thu` at `06:00 UTC`)
 - supplemental signal:
   - validates lifecycle dry-run behavior outside required per-push/PR gates
   - useful for periodic drift detection on hosted runners
 - dry-run lifecycle checks on:
   - `ubuntu-latest`
   - `macos-latest`
-- includes service install dry-run and upgrade dry-run
+- includes service install dry-run, service status, and upgrade dry-run
+
+### Lifecycle E2E Smoke (`.github/workflows/lifecycle-e2e-smoke.yml`)
+
+- trigger model:
+  - `workflow_dispatch` (manual)
+  - scheduled cadence (`Tue`/`Sat` at `07:00 UTC`)
+- supplemental signal:
+  - validates a stronger bootstrap/home-state/install-state/doctor/upgrade path outside required per-push/PR gates
+  - useful for catching lifecycle drift that dry-run-only smoke would miss
+- bootstrap/home-state lifecycle checks on:
+  - `ubuntu-latest`
+  - `macos-latest`
+- verifies:
+  - non-interactive bootstrap onboarding handoff
+  - home-state config/env/install-state paths
+  - `openassist doctor` and `openassist doctor --json`
+  - `openassist upgrade --dry-run`
+  - clean repo status after normal operator-state creation outside the checkout
 
 ## Manual Acceptance Checklist
 
@@ -152,27 +204,32 @@ Current suite files under `tests/node/`:
 2. Bootstrap prerequisite preflight detects missing `git`/`node`/`pnpm`, auto-installs when enabled, and provides retry/manual-fix troubleshooting flow on failures.
 3. Bootstrap private-repo auth failures provide interactive recovery choices (`retry`, `clear cached credentials`, `abort`) rather than immediate hard-exit.
 4. Direct CLI wrappers (`openassist`, `openassistd`) execute successfully.
-5. Setup quickstart enforces strict validation by default and writes schema-valid config/env output.
-6. Setup wizard remains functional for advanced section edits and post-save checks support retry/skip/abort recovery.
-7. Service install/start/status/restart/logs/health all behave on target platform.
-8. Upgrade success path advances commit and remains healthy.
-9. Upgrade failure path performs rollback and restores health.
-10. Time status and timezone confirmation behave as configured.
-11. Scheduler status/tasks/manual-run behave and persist run records.
-12. Restart across scheduled windows respects misfire policy and dedup behavior.
-13. Channel and OAuth command surfaces return clear diagnostics on failures.
-14. In-channel `/status` returns runtime diagnostics without provider dependency and includes local docs/config/install pointers plus the current self-maintenance boundary.
-15. In-channel `/profile` returns global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`).
-16. Quickstart captures the main assistant name, persona, and ongoing objectives, and a quickstart-created install disables the later first-contact identity reminder by default.
-17. Global assistant profile memory persists across sessions, and session bootstrap host profile context is injected deterministically into runtime context.
-18. Provider/auth/runtime chat failures return sanitized operational diagnostic replies to channel.
-19. Chat-driven tool loop executes end-to-end in `full-root` sessions and remains disabled in `operator/restricted`.
-20. Tool invocation audit rows persist complete lifecycle (`running -> succeeded/failed/blocked`).
-21. Guardrail blocks are visible and deterministic for destructive command patterns.
-22. `/status` and `openassist tools status` show the same awareness boundary the model receives, including callable tools and native web backend state.
-23. Native web tools remain bounded: `web.search`/`web.fetch`/`web.run` work only in `full-root`, stay within HTTP/redirect/byte/result caps, and return structured unavailable guidance when no backend is configured.
-24. Provider tool-call mapping contracts (OpenAI/Anthropic/OpenAI-compatible) remain interoperable.
-25. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
+5. Bare `openassist setup` opens the lifecycle hub on a TTY and refuses non-TTY mutation while printing scriptable guidance.
+6. Setup quickstart enforces strict validation by default and writes schema-valid config/env output.
+7. Setup wizard remains functional for advanced section edits and post-save checks support retry/skip/abort recovery.
+8. Recognized legacy repo-local installs migrate safely into the home-state layout when targets are compatible, and conflicting targets stop with guided recovery instead of partial mutation.
+9. Service install/start/status/restart/logs/health all behave on target platform.
+10. `openassist doctor` and `openassist doctor --json` agree on the grouped lifecycle assessment.
+11. Upgrade dry-run stays clean when operator state lives outside the repo, and real repo code changes still block live update.
+12. Upgrade success path advances commit and remains healthy.
+13. Upgrade failure path performs rollback and restores health.
+14. Time status and timezone confirmation behave as configured.
+15. Scheduler status/tasks/manual-run behave and persist run records.
+16. Restart across scheduled windows respects misfire policy and dedup behavior.
+17. Channel and OAuth command surfaces return clear diagnostics on failures.
+18. In-channel `/status` returns runtime diagnostics without provider dependency and includes local docs/config/install pointers plus the current self-maintenance boundary.
+19. In-channel `/profile` returns global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`).
+20. Quickstart captures the main assistant name, persona, and ongoing objectives, and a quickstart-created install disables the later first-contact identity reminder by default.
+21. Global assistant profile memory persists across sessions, and session bootstrap host profile context is injected deterministically into runtime context.
+22. Provider/auth/runtime chat failures return sanitized operational diagnostic replies to channel.
+23. Chat-driven tool loop executes end-to-end in `full-root` sessions and remains disabled in `operator/restricted`.
+24. Tool invocation audit rows persist complete lifecycle (`running -> succeeded/failed/blocked`).
+25. Guardrail blocks are visible and deterministic for destructive command patterns.
+26. `/status` and `openassist tools status` show the same awareness boundary the model receives, including callable tools and native web backend state.
+27. Native web tools remain bounded: `web.search`/`web.fetch` work only in `full-root`, stay within HTTP/redirect/byte/result caps, and return structured unavailable guidance when no backend is configured.
+28. Provider tool-call mapping contracts (OpenAI/Anthropic/OpenAI-compatible) remain interoperable.
+29. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
+30. Root `README.md`, root `AGENTS.md`, the lifecycle docs, and `docs/testing/test-matrix.md` all describe the same current command, path, workflow, and troubleshooting reality.
 
 ## Remaining Gaps
 

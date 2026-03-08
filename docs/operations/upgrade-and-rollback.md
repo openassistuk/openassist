@@ -2,6 +2,8 @@
 
 `openassist upgrade` is the supported in-place update path for an installed OpenAssist checkout.
 
+If dry-run or rollback output still feels unclear, use `docs/operations/common-troubleshooting.md` for the shared repair routes.
+
 OpenAssist upgrades stay repo-backed. The command updates a Git checkout, rebuilds it, restarts the service unless you skip restart, and rolls back automatically when a live upgrade fails after the previous commit has been captured.
 
 Fresh installs now keep normal operator config, env files, logs, data, skills, and helper tools outside the repo checkout. That means `upgrade --dry-run` is now focused on real repo code changes, damaged installs, or legacy repo-local operator layouts instead of warning about ordinary operator state that should never have lived in the checkout.

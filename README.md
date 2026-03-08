@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)
 [![Service Smoke](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml)
+[![Lifecycle E2E Smoke](https://github.com/openassistuk/openassist/actions/workflows/lifecycle-e2e-smoke.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/lifecycle-e2e-smoke.yml)
 
 OpenAssist is a local-first machine assistant built around one daemon, `openassistd`, and one operator CLI, `openassist`.
 
@@ -30,7 +31,11 @@ Supported first-class chat surfaces in the current release:
 
 Channel replies now render with channel-safe formatting, long replies are chunked cleanly, and inbound images plus supported text-like documents are preserved instead of being dropped. Built-in OpenAI and Anthropic providers can inspect inbound images; OpenAI-compatible providers stay text-only and say so explicitly.
 
-`Service Smoke` is a supplemental lifecycle workflow that runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`). It is not a required push or PR gate.
+Supplemental lifecycle workflows:
+
+- `Service Smoke` runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`) for dry-run service and upgrade checks.
+- `Lifecycle E2E Smoke` runs on manual dispatch and schedule (`Tue`/`Sat` at `07:00 UTC`) for stronger bootstrap, home-state, doctor, and upgrade dry-run verification.
+- neither workflow is a required push or PR gate
 
 ## Lifecycle
 
@@ -44,6 +49,7 @@ OpenAssist now has one canonical operator path:
 ## Fast Start
 
 Full runbook: [`docs/operations/quickstart-linux-macos.md`](docs/operations/quickstart-linux-macos.md)
+Common troubleshooting: [`docs/operations/common-troubleshooting.md`](docs/operations/common-troubleshooting.md)
 
 ### 1. Install from GitHub
 
@@ -160,7 +166,7 @@ Fresh installs now keep normal writable operator state outside the repo checkout
 - managed skills: `~/.local/share/openassist/skills`
 - managed helper tools: `~/.local/share/openassist/data/helper-tools`
 
-If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), it now migrates that state into the canonical home-state layout when the target home paths are empty or compatible. A timestamped backup bundle is written under `~/.local/share/openassist/migration-backups/<timestamp>` before the migration changes anything.
+If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) during `openassist setup`, `openassist setup quickstart`, or `openassist setup wizard`, it migrates that state into the canonical home-state layout when the target home paths are empty or compatible. A timestamped backup bundle is written under `~/.local/share/openassist/migration-backups/<timestamp>` before the migration changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and route you back to setup instead of migrating it in place.
 
 Quickstart blocks invalid or incomplete first-reply state by default. Use `--allow-incomplete` only when you explicitly want to save a degraded setup.
 If you opt into full access, quickstart asks for approved operator IDs for the chosen channel and falls back cleanly to standard mode if you are not ready to enter them yet.
@@ -183,6 +189,29 @@ openassist channel status
 - `Next command`
 
 Use `openassist doctor --json` when you want the machine-readable grouped report. The JSON report is now `version: 2` and keeps the grouped sections while adding per-item `stage` metadata.
+
+## Troubleshooting
+
+Start with the central runbook:
+
+- [`docs/operations/common-troubleshooting.md`](docs/operations/common-troubleshooting.md)
+
+Typical host-side triage:
+
+```bash
+openassist doctor
+openassist service status
+openassist service health
+openassist channel status
+```
+
+Use the troubleshooting runbook when:
+
+- bootstrap stopped before onboarding
+- bare `openassist setup` is running in non-TTY automation
+- service checks fail after quickstart or wizard
+- `/status` and host-side access checks disagree
+- `openassist upgrade --dry-run` reports migration, dirtiness, or rerun-bootstrap blockers
 
 ## Runtime Awareness and Growth
 
@@ -398,6 +427,7 @@ Source-checkout alternatives are documented, but the installed commands above ar
 ## Docs
 
 - Lifecycle runbook: [`docs/operations/quickstart-linux-macos.md`](docs/operations/quickstart-linux-macos.md)
+- Common troubleshooting: [`docs/operations/common-troubleshooting.md`](docs/operations/common-troubleshooting.md)
 - Linux install details: [`docs/operations/install-linux.md`](docs/operations/install-linux.md)
 - macOS install details: [`docs/operations/install-macos.md`](docs/operations/install-macos.md)
 - Quickstart vs wizard: [`docs/operations/setup-wizard.md`](docs/operations/setup-wizard.md)
@@ -425,3 +455,15 @@ Local merge gate:
 ```bash
 pnpm verify:all
 ```
+
+That gate now includes a docs-truth validation pass, so stale command examples, broken root-doc links, or mismatched workflow/test-matrix claims fail alongside code regressions.
+
+Required PR CI:
+
+- workflow lint
+- quality-and-coverage on `ubuntu-latest`, `macos-latest`, and `windows-latest`
+
+Supplemental smoke:
+
+- `.github/workflows/service-smoke.yml` is dry-run lifecycle smoke on Linux/macOS and remains manual/scheduled only
+- `.github/workflows/lifecycle-e2e-smoke.yml` is a stronger home-state/bootstrap lifecycle smoke on Linux/macOS and remains manual/scheduled only

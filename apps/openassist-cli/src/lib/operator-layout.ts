@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import {
   resolveOperatorPaths,
   type OpenAssistConfig,
@@ -223,6 +224,29 @@ function removeIfExists(target: string): void {
   fs.rmSync(target, { recursive: true, force: true });
 }
 
+function restoreTrackedRepoPath(installDir: string, relativePath: string): boolean {
+  if (!exists(path.join(installDir, ".git"))) {
+    return false;
+  }
+  const normalizedRelativePath = relativePath.replace(/\\/g, "/");
+  const result = spawnSync("git", ["-C", installDir, "checkout", "--", normalizedRelativePath], {
+    stdio: "ignore"
+  });
+  return result.status === 0;
+}
+
+function cleanupLegacyArtifacts(detection: LegacyDefaultLayoutDetection): void {
+  removeIfExists(detection.legacy.stateRoot);
+  if (!restoreTrackedRepoPath(detection.installDir, path.relative(detection.installDir, detection.legacy.configPath))) {
+    removeIfExists(detection.legacy.configPath);
+  }
+  removeIfExists(detection.legacy.overlaysDir);
+  restoreTrackedRepoPath(
+    detection.installDir,
+    path.join(path.relative(detection.installDir, detection.legacy.overlaysDir), ".gitkeep")
+  );
+}
+
 export async function migrateLegacyDefaultLayout(
   detection: LegacyDefaultLayoutDetection
 ): Promise<LegacyDefaultLayoutMigrationResult> {
@@ -269,35 +293,54 @@ export async function migrateLegacyDefaultLayout(
   let cleanedLegacyArtifacts = false;
   let message = `Migrated repo-local operator state into ${detection.operator.configDir}.`;
   const buildExists = exists(path.join(detection.installDir, "apps", "openassistd", "dist", "index.js"));
-  if (buildExists) {
+  if (!buildExists) {
+    cleanupLegacyArtifacts(detection);
+    cleanedLegacyArtifacts = true;
+    message = `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state because no built daemon is present yet.`;
+  } else {
+    const runner = new SpawnCommandRunner();
+    let service: ReturnType<typeof createServiceManager> | undefined;
     try {
-      const runner = new SpawnCommandRunner();
-      const service = createServiceManager(runner);
-      if (await service.isInstalled()) {
-        await service.install({
-          installDir: detection.installDir,
-          configPath: detection.operator.configPath,
-          envFilePath: detection.operator.envFilePath,
-          repoRoot: detection.installDir
+      service = createServiceManager(runner);
+    } catch {
+      service = undefined;
+    }
+
+    if (!service) {
+      cleanupLegacyArtifacts(detection);
+      cleanedLegacyArtifacts = true;
+      message = `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state because no managed service refresh is available on this host.`;
+    } else {
+      try {
+        const installed = await service.isInstalled();
+        if (installed) {
+          await service.install({
+            installDir: detection.installDir,
+            configPath: detection.operator.configPath,
+            envFilePath: detection.operator.envFilePath,
+            repoRoot: detection.installDir
         });
         await service.restart();
-        const health = await waitForHealthy(
-          detectDefaultDaemonBaseUrl(detection.operator.configPath),
-          60_000,
-          2_000
-        );
-        if (health.ok) {
-          removeIfExists(detection.legacy.configPath);
-          removeIfExists(detection.legacy.overlaysDir);
-          removeIfExists(detection.legacy.stateRoot);
-          cleanedLegacyArtifacts = true;
-          message = `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state after a healthy restart.`;
+          const health = await waitForHealthy(
+            detectDefaultDaemonBaseUrl(detection.operator.configPath),
+            60_000,
+            2_000
+          );
+          if (health.ok) {
+            cleanupLegacyArtifacts(detection);
+            cleanedLegacyArtifacts = true;
+            message = `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state after a healthy restart.`;
+          } else {
+            message = `Migrated repo-local operator state into ${detection.operator.configDir}, but kept old repo-local files because service health was not confirmed yet.`;
+          }
         } else {
-          message = `Migrated repo-local operator state into ${detection.operator.configDir}, but kept old repo-local files because service health was not confirmed yet.`;
+          cleanupLegacyArtifacts(detection);
+          cleanedLegacyArtifacts = true;
+          message = `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state because no service is installed yet.`;
         }
+      } catch (error) {
+        message = `Migrated repo-local operator state into ${detection.operator.configDir}, but kept old repo-local files because service refresh did not complete: ${error instanceof Error ? error.message : String(error)}`;
       }
-    } catch (error) {
-      message = `Migrated repo-local operator state into ${detection.operator.configDir}, but kept old repo-local files because service refresh did not complete: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 

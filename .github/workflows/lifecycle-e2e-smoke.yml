@@ -1,0 +1,120 @@
+name: Lifecycle E2E Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 2,6"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lifecycle-e2e-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lifecycle-home-state:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Prepare temp HOME and install paths
+        shell: bash
+        run: |
+          echo "OPENASSIST_SMOKE_HOME=$RUNNER_TEMP/openassist-home" >> "$GITHUB_ENV"
+          echo "OPENASSIST_SMOKE_INSTALL_DIR=$RUNNER_TEMP/openassist-install" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/openassist-home" "$RUNNER_TEMP/openassist-install"
+
+      - name: Bootstrap non-interactive install
+        shell: bash
+        env:
+          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+        run: |
+          bash scripts/install/bootstrap.sh \
+            --non-interactive \
+            --skip-service \
+            --install-dir "$OPENASSIST_SMOKE_INSTALL_DIR" \
+            --repo-url "https://github.com/${{ github.repository }}.git" \
+            --ref "${{ github.ref_name }}" \
+            2>&1 | tee "$RUNNER_TEMP/bootstrap.log"
+
+          grep -F "Guided onboarding was not run because bootstrap stayed non-interactive." "$RUNNER_TEMP/bootstrap.log"
+          grep -F "openassist setup --install-dir \"$OPENASSIST_SMOKE_INSTALL_DIR\" --config \"$HOME/.config/openassist/openassist.toml\" --env-file \"$HOME/.config/openassist/openassistd.env\"" "$RUNNER_TEMP/bootstrap.log"
+
+      - name: Verify home-state defaults and wrapper install
+        shell: bash
+        env:
+          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+        run: |
+          test -d "$OPENASSIST_SMOKE_INSTALL_DIR/.git"
+          test -f "$HOME/.config/openassist/install-state.json"
+          test -x "$HOME/.local/bin/openassist"
+          test ! -e "$OPENASSIST_SMOKE_INSTALL_DIR/openassist.toml"
+          test ! -e "$OPENASSIST_SMOKE_INSTALL_DIR/.openassist"
+
+      - name: Verify non-TTY setup guidance
+        shell: bash
+        env:
+          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+        run: |
+          set +e
+          "$HOME/.local/bin/openassist" setup \
+            --install-dir "$OPENASSIST_SMOKE_INSTALL_DIR" \
+            --config "$HOME/.config/openassist/openassist.toml" \
+            --env-file "$HOME/.config/openassist/openassistd.env" \
+            >"$RUNNER_TEMP/setup-guidance.txt" 2>&1
+          status=$?
+          set -e
+
+          test "$status" -eq 1
+          grep -F "Interactive lifecycle hub requires TTY." "$RUNNER_TEMP/setup-guidance.txt"
+          grep -F "openassist setup quickstart --install-dir \"$OPENASSIST_SMOKE_INSTALL_DIR\" --config \"$HOME/.config/openassist/openassist.toml\" --env-file \"$HOME/.config/openassist/openassistd.env\"" "$RUNNER_TEMP/setup-guidance.txt"
+
+      - name: Verify doctor and upgrade dry-run lifecycle output
+        shell: bash
+        env:
+          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+        run: |
+          set +e
+          "$HOME/.local/bin/openassist" doctor >"$RUNNER_TEMP/doctor.txt" 2>&1
+          doctor_status=$?
+          "$HOME/.local/bin/openassist" doctor --json >"$RUNNER_TEMP/doctor.json" 2>&1
+          doctor_json_status=$?
+          "$HOME/.local/bin/openassist" upgrade --dry-run --install-dir "$OPENASSIST_SMOKE_INSTALL_DIR" >"$RUNNER_TEMP/upgrade.txt" 2>&1
+          upgrade_status=$?
+          set -e
+
+          test "$doctor_status" -eq 1
+          test "$doctor_json_status" -eq 1
+          test "$upgrade_status" -eq 1
+          grep -F "Ready now" "$RUNNER_TEMP/doctor.txt"
+          grep -F "Needs action" "$RUNNER_TEMP/doctor.txt"
+          grep -F "Next command" "$RUNNER_TEMP/doctor.txt"
+          grep -F '"version": 2' "$RUNNER_TEMP/doctor.json"
+          grep -F "Ready now" "$RUNNER_TEMP/upgrade.txt"
+          grep -F "Needs action" "$RUNNER_TEMP/upgrade.txt"
+          grep -F "Next command" "$RUNNER_TEMP/upgrade.txt"
+
+      - name: Verify repo stays clean from home-state operator state
+        shell: bash
+        run: |
+          test -z "$(git -C "$OPENASSIST_SMOKE_INSTALL_DIR" status --porcelain)"

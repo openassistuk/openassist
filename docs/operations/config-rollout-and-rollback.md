@@ -2,6 +2,8 @@
 
 OpenAssist uses layered TOML config with schema validation and generation tracking for safe apply behavior.
 
+If the config change leaves the install in a confusing lifecycle state, fall back to `docs/operations/common-troubleshooting.md` for the repair commands that match the current hub/doctor/upgrade flow.
+
 ## Config Sources
 
 Load order:
@@ -34,7 +36,7 @@ openassist setup wizard --config ~/.config/openassist/openassist.toml --env-file
 
 Use bare `setup` for the beginner-facing lifecycle hub, `setup quickstart` for strict validation-driven onboarding, and `setup wizard` for targeted advanced section edits.
 
-If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), it will migrate that state into the canonical home-state layout when the target home paths are empty or compatible. Migration writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/` before it changes anything.
+If a setup flow detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), it will migrate that state into the canonical home-state layout when the target home paths are empty or compatible. Migration writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/` before it changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and route you back to setup instead of migrating it in place.
 
 ## Time and Scheduler Keys
 

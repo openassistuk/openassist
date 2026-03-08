@@ -234,9 +234,10 @@ describe("lifecycle home-state black-box coverage", () => {
     assert.equal(gitStatus.stdout.trim(), "");
 
     const doctor = await runCli(["doctor"], childHomeEnv(homeDir));
+    const doctorOutput = `${doctor.stdout}${doctor.stderr}`;
     assert.equal(doctor.code, 1, doctor.stderr || doctor.stdout);
-    assert.match(doctor.stdout, new RegExp(operatorPaths.configPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.doesNotMatch(doctor.stdout, /Legacy repo-local operator state/);
+    assert.match(doctorOutput, new RegExp(operatorPaths.configPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.doesNotMatch(doctorOutput, /Legacy repo-local operator state/);
 
     const dryRun = await runCli(
       ["upgrade", "--dry-run", "--install-dir", cloneDir, "--ref", "HEAD"],
@@ -273,11 +274,12 @@ describe("lifecycle home-state black-box coverage", () => {
       ["doctor"],
       childHomeEnv(homeDir)
     );
+    const doctorOutput = `${doctor.stdout}${doctor.stderr}`;
 
     assert.equal(doctor.code, 1, doctor.stderr || doctor.stdout);
-    assert.match(doctor.stdout, /Legacy repo-local operator state/);
-    assert.match(doctor.stdout, /Needs action/);
-    assert.match(doctor.stdout, /Automatic migration stopped because target home-state paths already contain data/);
+    assert.match(doctorOutput, /Legacy repo-local operator state/);
+    assert.match(doctorOutput, /Needs action/);
+    assert.match(doctorOutput, /Automatic migration stopped because target home-state paths already contain data/);
     assert.equal(fs.existsSync(path.join(cloneDir, ".openassist", "data", "openassist.db")), true);
     assert.equal(fs.existsSync(path.join(operatorPaths.dataDir, "already-there.db")), true);
   });

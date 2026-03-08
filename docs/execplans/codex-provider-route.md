@@ -29,7 +29,9 @@ The operator-visible proof should be simple. Quickstart and wizard should show t
 - [x] (2026-03-08 18:28Z) Updated provider/lifecycle/migration/security docs plus the sample `openassist.toml` so the repo no longer presents new account-login setups as mixed `openai + oauth`.
 - [x] (2026-03-08 18:34Z) Added this living ExecPlan and updated `CHANGELOG.md` with the operator-facing impact of the separate Codex route.
 - [x] (2026-03-08 20:24Z) Added Codex-route coverage across schema, quickstart, wizard, runtime restart/refresh behavior, CLI API-surface coverage, and provider tool-loop contracts; local `pnpm verify:all` passed after the final test-matrix sync.
-- [ ] PR number, CI evidence, and post-review notes still need to be appended by the branch owner once the implementation is pushed and reviewed.
+- [x] (2026-03-08 20:32Z) Opened PR `#18` from branch `feat/codex-provider-route` and verified the branch head is `46637a5669ed97d6a65934ac2ee5403573ceadfa`.
+- [x] (2026-03-08 20:33Z) GitHub CI is green on PR `#18`: `workflow-lint`, `quality-and-coverage` on Ubuntu/macOS/Windows, `CodeQL preflight`, `analyze (javascript-typescript)`, and `CodeQL` all passed.
+- [x] (2026-03-08 20:33Z) Review and code-scanning follow-up is clear on PR `#18`: no PR review comments, no open PR-head code-scanning alerts, and no actionable Copilot findings were left unresolved.
 
 ## Surprises & Discoveries
 
@@ -66,14 +68,17 @@ The docs/governance/sample-config slice is now aligned with the intended branch 
 
 The implementation side is now also aligned with that story. OpenAssist has a dedicated `codex` provider type plus adapter package, deterministic provider-instance auth behavior, restart-safe linked-account loading, refresh-capable Codex auth, quickstart and wizard provider selection for four first-class routes, validation/migration guidance for legacy `openai + oauth`, and regression coverage that proves Codex account auth does not collide with the normal OpenAI API-key route.
 
-The main remaining work for this ExecPlan is branch-owner verification evidence. Once the code/tests/PR work is complete, this document should be updated with:
+Final branch-owner verification evidence:
 
-- final local verification commands and results
-- PR number and branch name
-- CI and CodeQL outcome
-- any review findings and their fixes
+- local verification: `pnpm verify:all` passed on branch `feat/codex-provider-route`
+- PR: `#18` (`feat: add separate codex provider route`)
+- branch head verified on PR: `46637a5669ed97d6a65934ac2ee5403573ceadfa`
+- GitHub CI: green
+- CodeQL: green
+- PR-head code-scanning alerts: none
+- review findings: none left open
 
-One follow-up risk remains on the docs side: if the implementation lands new Codex-specific test files or CLI surface changes beyond what was visible during this docs pass, `docs/testing/test-matrix.md` and any docs-truth assertions may need one more sync before merge.
+The docs-testing sync risk that existed mid-implementation was closed before the final local gate. `docs/testing/test-matrix.md` and the docs-truth assertions were updated to include the Codex-route suites before the successful `pnpm verify:all` run.
 
 ## Context and Orientation
 

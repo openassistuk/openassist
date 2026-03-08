@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { loadConfig } from "@openassist/config";
+import { loadConfig, resolveConfigOverlaysDir } from "@openassist/config";
 import { createLogger } from "@openassist/observability";
 import type { Command } from "commander";
 import {
@@ -11,9 +11,16 @@ import {
 } from "../lib/command-runner.js";
 import { checkHealth, waitForHealthy } from "../lib/health-check.js";
 import { buildLifecycleReport } from "../lib/lifecycle-readiness.js";
+import { detectLegacyDefaultLayout } from "../lib/operator-layout.js";
+import { classifyGitDirtyState } from "../lib/git-dirty.js";
 import { inspectLocalGrowthState } from "../lib/growth-status.js";
 import { createServiceManager } from "../lib/service-manager.js";
-import { defaultInstallDir, detectDefaultDaemonBaseUrl } from "../lib/runtime-context.js";
+import {
+  defaultConfigPath,
+  defaultEnvFilePath,
+  defaultInstallDir,
+  detectDefaultDaemonBaseUrl
+} from "../lib/runtime-context.js";
 import { detectInstallStateFromRepo, loadInstallState, saveInstallState } from "../lib/install-state.js";
 import { buildUpgradePlan, renderUpgradePlanSummary } from "../lib/upgrade.js";
 
@@ -136,10 +143,14 @@ export function registerUpgradeCommand(program: Command): void {
       const installDir = path.resolve(
         String(options.installDir ?? installState?.installDir ?? defaultInstallDir())
       );
-      const configPath = installState?.configPath ?? path.join(installDir, "openassist.toml");
+      const legacyLayout = detectLegacyDefaultLayout(installDir);
+      const configPath =
+        installState?.configPath ??
+        (!fs.existsSync(defaultConfigPath()) && legacyLayout.status !== "none"
+          ? legacyLayout.legacy.configPath
+          : defaultConfigPath());
       const envFilePath =
-        installState?.envFilePath ??
-        path.join(os.homedir(), ".config", "openassist", "openassistd.env");
+        installState?.envFilePath ?? defaultEnvFilePath();
 
       const context: UpgradeContext = {
         installDir,
@@ -169,7 +180,7 @@ export function registerUpgradeCommand(program: Command): void {
           try {
             parsedConfig = loadConfig({
               baseFile: configPath,
-              overlaysDir: path.join(path.dirname(configPath), "config.d")
+              overlaysDir: resolveConfigOverlaysDir(configPath)
             }).config;
             growthState = inspectLocalGrowthState(configPath, parsedConfig, logger);
           } catch (error) {
@@ -196,7 +207,8 @@ export function registerUpgradeCommand(program: Command): void {
         });
         context.targetRef = plan.targetRef;
         const baseUrl = detectDefaultDaemonBaseUrl(configPath);
-        const dirtyWorkingTree = repoBacked && hasGit ? await isGitDirty(runner, installDir) : false;
+        const dirtyState = repoBacked && hasGit ? classifyGitDirtyState(installDir) : undefined;
+        const dirtyWorkingTree = dirtyState?.hasRealCodeChanges === true;
         const report = buildLifecycleReport({
           installDir,
           configPath,
@@ -225,7 +237,14 @@ export function registerUpgradeCommand(program: Command): void {
                 managedHelperIds: growthState.managedHelpers.map((item) => item.id),
                 updateSafetyNote: growthState.updateSafetyNote
               }
-            : undefined
+            : undefined,
+          legacyDefaultLayoutStatus:
+            legacyLayout.status !== "none"
+              ? legacyLayout.status
+              : dirtyState?.hasLegacyOperatorState && !dirtyWorkingTree
+                ? "ready"
+                : undefined,
+          legacyDefaultLayoutReason: legacyLayout.reason
         });
 
         printLines(
@@ -237,6 +256,7 @@ export function registerUpgradeCommand(program: Command): void {
             rollbackTarget: context.oldCommit,
             upgradeReadiness: report.summary.upgradeReadiness,
             upgradeBlockers: report.sections.needsActionBeforeUpgrade,
+            recommendedNextCommand: report.recommendedNextCommand.command,
             growth: growthState
               ? {
                   installedSkillCount: growthState.installedSkills.length,

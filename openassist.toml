@@ -1,3 +1,7 @@
+# Source-checkout sample config.
+# Installed/operator default config lives at ~/.config/openassist/openassist.toml and
+# keeps writable runtime state under ~/.local/share/openassist by default.
+
 [runtime]
 bindAddress = "127.0.0.1"
 bindPort = 3344

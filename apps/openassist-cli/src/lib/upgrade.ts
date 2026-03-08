@@ -23,6 +23,7 @@ export interface RenderUpgradePlanInput {
   rollbackTarget?: string;
   upgradeReadiness: UpgradeReadiness;
   upgradeBlockers: LifecycleReportItem[];
+  recommendedNextCommand?: string;
   growth?: {
     installedSkillCount: number;
     managedHelperCount: number;
@@ -70,6 +71,7 @@ export function renderUpgradePlanSummary(input: RenderUpgradePlanInput): string[
   const blockers = input.upgradeBlockers ?? [];
   const lines = [
     "Update readiness",
+    "Ready now",
     `- Status: ${
       input.upgradeReadiness === "safe-to-continue"
         ? "safe to continue"
@@ -98,7 +100,7 @@ export function renderUpgradePlanSummary(input: RenderUpgradePlanInput): string[
     );
   }
 
-  lines.push("Needs action before upgrade");
+  lines.push("Needs action");
   if (blockers.length === 0) {
     lines.push("- None.");
   } else {
@@ -107,6 +109,16 @@ export function renderUpgradePlanSummary(input: RenderUpgradePlanInput): string[
       lines.push(`- ${blocker.label}: ${detail}`);
     }
   }
+  lines.push("Next command");
+  lines.push(
+    input.upgradeReadiness === "safe-to-continue"
+      ? `- openassist upgrade --install-dir "${input.installDir}"`
+      : input.recommendedNextCommand
+        ? `- ${input.recommendedNextCommand}`
+        : blockers[0]?.nextStep
+          ? `- ${blockers[0].nextStep}`
+          : "- openassist doctor"
+  );
 
   return lines;
 }

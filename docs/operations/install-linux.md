@@ -48,7 +48,7 @@ bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref main
 bash scripts/install/bootstrap.sh --no-auto-install-prereqs
 ```
 
-Interactive bootstrap on Linux runs `openassist setup quickstart` after build. Non-interactive bootstrap does not run onboarding, but it still installs the service unless `--skip-service` is set.
+Interactive bootstrap on Linux runs bare `openassist setup` after build. Non-interactive bootstrap does not run onboarding, but it still installs the service unless `--skip-service` is set.
 
 Bootstrap now ends with three fixed operator sections so the stopping point is obvious:
 
@@ -82,7 +82,7 @@ Install or reinstall the service explicitly:
 ```bash
 openassist service install \
   --install-dir "$HOME/openassist" \
-  --config "$HOME/openassist/openassist.toml" \
+  --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
@@ -100,16 +100,30 @@ openassist service health
 Bootstrap writes or maintains:
 
 - repo-backed checkout: `$HOME/openassist`
-- config: `$HOME/openassist/openassist.toml`
+- config: `~/.config/openassist/openassist.toml`
+- overlays: `~/.config/openassist/config.d`
 - env file: `~/.config/openassist/openassistd.env`
 - install state: `~/.config/openassist/install-state.json`
+- runtime data: `~/.local/share/openassist/data`
+- runtime logs: `~/.local/share/openassist/logs`
+- managed skills: `~/.local/share/openassist/skills`
+- managed helper tools: `~/.local/share/openassist/data/helper-tools`
 - wrappers: `~/.local/bin/openassist`, `~/.local/bin/openassistd`
 
 The install-state file is the lifecycle truth source used later by `openassist doctor`, `openassist service install`, and `openassist upgrade`.
 
+If bootstrap detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), later lifecycle commands will migrate that state into the canonical home-state layout when the target home paths are empty or compatible. Migration writes a timestamped backup under `~/.local/share/openassist/migration-backups/` before it changes anything.
+
 If you install with `--ref <git-ref>`, that ref is also recorded in install state for later lifecycle reporting.
 
-## When to Use Quickstart, Service Install, or Bootstrap Again
+## When to Use Setup, Quickstart, Service Install, or Bootstrap Again
+
+Use bare `openassist setup` when:
+
+- you want the beginner lifecycle hub
+- you need repair guidance and do not want to remember the exact lifecycle command yet
+- you want the default first-time setup path after bootstrap
+- you want file locations, service actions, or safe update planning from one menu
 
 Use quickstart when:
 
@@ -146,7 +160,7 @@ If a systemd unit still has older hardening that breaks Node startup, reinstall 
 ```bash
 openassist service install \
   --install-dir "$HOME/openassist" \
-  --config "$HOME/openassist/openassist.toml" \
+  --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 openassist service restart
 openassist service status

@@ -5,19 +5,32 @@ Use this index by lifecycle stage.
 ## Canonical Operator Flow
 
 1. Install from GitHub or a local checkout.
-2. Run `openassist setup quickstart` until you have a first real reply.
-3. Use `openassist setup wizard` for advanced changes.
+2. Run bare `openassist setup` and choose `First-time setup` until you have a first real reply.
+3. Use `openassist setup wizard` only for advanced changes.
 4. Use `openassist upgrade --dry-run` before every update.
 
 OpenAssist remains a repo-backed install and update model. Bootstrap, `openassist doctor`, `openassist service install`, and `openassist upgrade` all work from the same persisted install record so operators can see the install directory, tracked ref, config path, env path, service manager, and last known good commit in one place.
 
-Lifecycle surfaces now share one grouped readiness model instead of each inventing their own wording. The same readiness questions now flow through bootstrap summaries, quickstart, wizard post-save checks, `openassist doctor`, and `openassist upgrade --dry-run`:
+Fresh installs now keep writable operator state outside the repo checkout by default:
 
-- what is ready now
-- what still needs action before first reply
-- what still needs action before full access
-- what still needs action before upgrade
-- which command to run next
+- config: `~/.config/openassist/openassist.toml`
+- overlays: `~/.config/openassist/config.d`
+- env: `~/.config/openassist/openassistd.env`
+- install state: `~/.config/openassist/install-state.json`
+- runtime data: `~/.local/share/openassist/data`
+- runtime logs: `~/.local/share/openassist/logs`
+- managed skills: `~/.local/share/openassist/skills`
+- managed helper tools: `~/.local/share/openassist/data/helper-tools`
+
+Lifecycle surfaces now share one readiness model instead of each inventing their own wording. Human-readable lifecycle output is always rendered as:
+
+- `Ready now`
+- `Needs action`
+- `Next command`
+
+`openassist doctor --json` keeps the grouped lifecycle report for automation and is now `version: 2` with per-item `stage` metadata.
+
+Recognized older installs that still use repo-local operator state (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) are migrated into the home-state layout automatically when the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/` before it changes anything.
 
 Quickstart now also owns the beginner-facing access choice:
 
@@ -77,6 +90,7 @@ Primary runbooks:
 
 - `openassist doctor`: lifecycle readiness report for install, setup, and upgrade
 - `openassist doctor --json`: machine-readable form of the same grouped lifecycle report
+- `openassist setup`: interactive lifecycle hub for first-time setup, repair, service actions, and update planning
 - `openassist setup quickstart`: minimal first-reply onboarding
 - `openassist setup wizard`: advanced section editor
 - `openassist service install`: explicit service install or reinstall

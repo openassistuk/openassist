@@ -62,6 +62,7 @@ describe("upgrade state machine planning", () => {
       })
     ).toEqual([
       "Update readiness",
+      "Ready now",
       "- Status: safe to continue",
       "- OpenAssist location: /tmp/openassist",
       "- Current branch: main",
@@ -71,8 +72,10 @@ describe("upgrade state machine planning", () => {
       "- Update method: fast-forward pull on the current branch",
       "- Restart and health checks after update: skipped by option",
       "- Rollback target if the update fails: 1234567890ab",
-      "Needs action before upgrade",
-      "- None."
+      "Needs action",
+      "- None.",
+      "Next command",
+      "- openassist upgrade --install-dir \"/tmp/openassist\""
     ]);
   });
 });

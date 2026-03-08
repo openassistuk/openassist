@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import TOML from "@iarna/toml";
 import type { OpenAssistConfig } from "@openassist/config";
-import { parseConfig } from "@openassist/config";
+import { parseConfig, resolveOperatorPaths } from "@openassist/config";
 import { loadEnvFile, saveEnvFile } from "./env-file.js";
 
 function ensureObject(value: unknown): Record<string, unknown> {
@@ -13,6 +13,7 @@ function ensureObject(value: unknown): Record<string, unknown> {
 }
 
 function defaultConfigObjectRaw(): Record<string, unknown> {
+  const operatorPaths = resolveOperatorPaths();
   return {
     runtime: {
       bindAddress: "127.0.0.1",
@@ -59,9 +60,9 @@ function defaultConfigObjectRaw(): Record<string, unknown> {
       ],
       channels: [],
       paths: {
-        dataDir: ".openassist/data",
-        skillsDir: ".openassist/skills",
-        logsDir: ".openassist/logs"
+        dataDir: operatorPaths.dataDir,
+        skillsDir: operatorPaths.skillsDir,
+        logsDir: operatorPaths.logsDir
       }
     },
     tools: {

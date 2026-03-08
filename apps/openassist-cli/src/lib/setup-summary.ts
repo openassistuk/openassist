@@ -42,15 +42,16 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
         : primaryChannel?.type === "whatsapp-md"
           ? `Run openassist channel qr --id ${primaryChannel.id} if QR login is still pending, then send a WhatsApp message.`
           : "Finish channel setup, then send a first test message and run /status if you need diagnostics.";
+  const advancedSettingsHandoff = "Use openassist setup wizard after the first reply path is working.";
 
   const lines: string[] = [];
   lines.push("Quickstart saved");
+  lines.push("Ready now");
   lines.push(`- First reply destination: ${report.context.firstReplyDestination}`);
   lines.push(`- Access mode: ${report.context.accessMode}`);
   lines.push(`- Service state: ${report.context.serviceState}`);
   lines.push(`- Assistant identity: ${input.config.runtime.assistant.name}`);
   lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);
-  lines.push("Ready now");
   lines.push(`- Config saved: ${input.configPath}`);
   lines.push(`- Env file saved: ${input.envFilePath}`);
   if (input.backupPath) {
@@ -61,24 +62,36 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   if (input.changedEnvKeys.length > 0) {
     lines.push(`- Updated env keys: ${input.changedEnvKeys.join(", ")}`);
   }
+  lines.push(`- First reply checklist: ${firstReplyGuidance}`);
+  lines.push(`- Advanced settings handoff: ${advancedSettingsHandoff}`);
+  lines.push("Needs action");
+  const needsActionLines: string[] = [];
   if (input.warningCount > 0) {
-    lines.push(`- Validation warnings: ${input.warningCount}`);
+    needsActionLines.push(`- Validation warnings: ${input.warningCount}`);
   }
-  lines.push("First reply checklist:");
-  lines.push(`- ${firstReplyGuidance}`);
-  lines.push("- In chat, run /status to see the exact sender ID and session ID for access troubleshooting.");
   if (report.context.accessMode === "Full access for approved operators") {
-    lines.push("- Approved operators will receive full access automatically in this channel. Use /access standard if you want to drop back to standard access for this chat.");
+    needsActionLines.push("- In chat, run /status to confirm the exact sender ID and session ID for approved-operator checks.");
+  }
+  if (input.skippedService) {
+    needsActionLines.push(
+      `- Service install and health checks were skipped. Next step: openassist service install --install-dir "${input.installDir}" --config "${input.configPath}" --env-file "${input.envFilePath}"`
+    );
+  } else if (!input.healthOk && input.postSaveError) {
+    needsActionLines.push(`- Service or health checks still need attention. Next step: openassist service health`);
+  }
+  if (needsActionLines.length === 0) {
+    lines.push("- None.");
   } else {
-    lines.push("- Standard mode is active. Add approved operator IDs later if you want to use /access full in chat.");
+    lines.push(...needsActionLines);
   }
-  if (!input.skippedService) {
-    lines.push("- Verify daemon health: openassist service health");
+  lines.push("Next command");
+  if (input.skippedService) {
+    lines.push(
+      `- openassist service install --install-dir "${input.installDir}" --config "${input.configPath}" --env-file "${input.envFilePath}"`
+    );
+  } else {
+    lines.push("- openassist doctor");
   }
-  lines.push("- Check channel status if there is no reply: openassist channel status");
-  lines.push("Advanced settings handoff:");
-  lines.push("- Use the advanced editor for more settings: openassist setup wizard");
-  lines.push("- Use /profile to inspect or intentionally update the global assistant identity later.");
 
   return lines;
 }

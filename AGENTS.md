@@ -49,20 +49,21 @@ For non-trivial changes, follow `.agents/PLANS.md`.
 
 Do not bypass boundaries with cross-package shortcuts.
 
-## Lifecycle UX Rules (V1.5)
+## Lifecycle UX Rules (V1.7)
 
-OpenAssist now has two setup paths:
+OpenAssist now has one primary setup entrypoint and two stable subpaths:
 
-- `openassist setup quickstart`: strict onboarding path (default recommendation)
+- `openassist setup`: primary interactive lifecycle hub for beginner and repair flows
+- `openassist setup quickstart`: strict first-reply onboarding path
 - `openassist setup wizard`: advanced section editor
 
 When changing installer/setup/service behavior:
 
-1. preserve automation compatibility (bootstrap may auto-enter interactive mode on TTY, but non-TTY behavior must remain non-interactive)
+1. preserve automation compatibility (bootstrap may auto-enter interactive mode on TTY, but non-TTY behavior must remain non-interactive, and bare `openassist setup` must refuse non-TTY mutation while printing scriptable guidance)
 2. keep strict quickstart validation blocking by default
 3. keep explicit override semantics (`--allow-incomplete`)
 4. keep setup-wizard post-save operational checks (service restart + health/time/scheduler) enabled by default, with explicit opt-out only
-5. keep advanced wizard available and documented
+5. keep `openassist setup` as the primary beginner lifecycle hub and keep quickstart/wizard available and documented as stable scripted subpaths
 6. preserve recovery-first operator UX (retry/skip/abort troubleshooting flows) instead of hard exits on recoverable install/setup check failures
 7. preserve strict prompt-level validation in quickstart/wizard (invalid numeric/timezone/identifier/bind-address input must re-prompt, not silently coerce)
 8. preserve guided timezone onboarding (`country/region -> city`) in setup flows; do not regress to ambiguous free-text timezone entry
@@ -85,6 +86,29 @@ When changing installer/setup/service behavior:
    - quickstart must ask for the main assistant name, persona, and ongoing objectives/preferences
    - quickstart-created configs disable the later first-chat identity reminder by default
    - wizard remains the advanced path for editing the same global assistant identity fields and re-enabling the reminder
+17. preserve default operator-state layout semantics:
+   - fresh installs default to writable operator state outside the repo checkout
+   - canonical defaults stay:
+     - `~/.config/openassist/openassist.toml`
+     - `~/.config/openassist/config.d`
+     - `~/.config/openassist/openassistd.env`
+     - `~/.config/openassist/install-state.json`
+     - `~/.local/share/openassist/data`
+     - `~/.local/share/openassist/logs`
+     - `~/.local/share/openassist/skills`
+     - `~/.local/share/openassist/data/helper-tools`
+   - repo-local config/runtime state is legacy behavior unless the operator explicitly asked for custom paths
+18. preserve recognized legacy-layout migration semantics:
+   - only the old default repo-local layout may auto-migrate (`<installDir>/openassist.toml`, `<installDir>/config.d`, `<installDir>/.openassist`)
+   - automatic migration must create a timestamped backup bundle first
+   - automatic migration must stop cleanly on conflicting target files instead of merging blindly
+   - old repo-local writable artifacts may only be removed after successful verification
+19. preserve shared lifecycle output semantics:
+   - bootstrap summaries, quickstart summaries, wizard post-save checks, `openassist doctor`, and `openassist upgrade --dry-run` must all render the same human-visible sections:
+     - `Ready now`
+     - `Needs action`
+     - `Next command`
+   - machine-readable lifecycle output may stay stage-aware underneath, but human wording must remain centralized and consistent
 
 ## Autonomous Tool Loop Rules (V1.6)
 

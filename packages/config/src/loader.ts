@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import TOML from "@iarna/toml";
 import { parseConfig, type OpenAssistConfig } from "./schema.js";
+import {
+  defaultConfigOverlaysDir,
+  defaultConfigPath,
+  resolveOperatorPaths
+} from "./operator-paths.js";
 
 export interface ConfigLoadResult {
   config: OpenAssistConfig;
@@ -68,9 +73,10 @@ export interface ConfigPathOptions {
 }
 
 export function defaultConfigPaths(cwd = process.cwd()): ConfigPathOptions {
+  void cwd;
   return {
-    baseFile: path.join(cwd, "openassist.toml"),
-    overlaysDir: path.join(cwd, "config.d")
+    baseFile: defaultConfigPath(),
+    overlaysDir: defaultConfigOverlaysDir()
   };
 }
 
@@ -102,6 +108,7 @@ export function loadConfig(options: ConfigPathOptions = defaultConfigPaths()): C
 }
 
 export function writeDefaultConfig(filePath: string): void {
+  const operatorPaths = resolveOperatorPaths();
   const defaultObject = {
     runtime: {
       bindAddress: "127.0.0.1",
@@ -148,9 +155,9 @@ export function writeDefaultConfig(filePath: string): void {
       ],
       channels: [],
       paths: {
-        dataDir: ".openassist/data",
-        skillsDir: ".openassist/skills",
-        logsDir: ".openassist/logs"
+        dataDir: operatorPaths.dataDir,
+        skillsDir: operatorPaths.skillsDir,
+        logsDir: operatorPaths.logsDir
       }
     },
     tools: {

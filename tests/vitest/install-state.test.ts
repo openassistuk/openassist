@@ -8,6 +8,7 @@ import {
   mergeInstallState,
   saveInstallState
 } from "../../apps/openassist-cli/src/lib/install-state.js";
+import { defaultConfigPath } from "../../apps/openassist-cli/src/lib/runtime-context.js";
 
 function tempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -24,7 +25,7 @@ describe("install-state", () => {
 
     expect(saved.installDir).toBe(installDir);
     expect(saved.trackedRef).toBe("main");
-    expect(saved.configPath).toBe(path.join(installDir, "openassist.toml"));
+    expect(saved.configPath).toBe(defaultConfigPath());
     expect(saved.updatedAt.length).toBeGreaterThan(10);
     expect(loaded).toEqual(saved);
   });

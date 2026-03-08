@@ -2,6 +2,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import {
+  defaultEnvFilePath as defaultOperatorEnvFilePath,
+  defaultInstallStatePath as defaultOperatorInstallStatePath
+} from "@openassist/config";
 import type { RuntimeInstallContext } from "@openassist/core-runtime";
 import type { OpenAssistLogger } from "@openassist/observability";
 
@@ -18,7 +22,7 @@ type InstallContextLogger = Pick<OpenAssistLogger, "warn">;
 export const GIT_SPAWN_TIMEOUT_MS = 1000;
 
 function defaultInstallStatePath(): string {
-  return path.join(os.homedir(), ".config", "openassist", "install-state.json");
+  return defaultOperatorInstallStatePath();
 }
 
 function resolveEnvFilePath(): string {
@@ -26,7 +30,7 @@ function resolveEnvFilePath(): string {
   if (envFile && envFile.trim().length > 0) {
     return path.resolve(envFile);
   }
-  return path.join(os.homedir(), ".config", "openassist", "openassistd.env");
+  return defaultOperatorEnvFilePath();
 }
 
 function loadStoredInstallState(): StoredInstallState | undefined {

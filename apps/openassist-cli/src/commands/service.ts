@@ -1,11 +1,18 @@
+import fs from "node:fs";
 import path from "node:path";
 import type { Command } from "commander";
 import { input as inqInput, select as inqSelect } from "@inquirer/prompts";
 import { SpawnCommandRunner } from "../lib/command-runner.js";
 import { createServiceManager } from "../lib/service-manager.js";
 import { checkHealth } from "../lib/health-check.js";
-import { defaultEnvFilePath, defaultInstallDir, detectDefaultDaemonBaseUrl } from "../lib/runtime-context.js";
+import {
+  defaultConfigPath,
+  defaultEnvFilePath,
+  defaultInstallDir,
+  detectDefaultDaemonBaseUrl
+} from "../lib/runtime-context.js";
 import { detectInstallStateFromRepo, loadInstallState, saveInstallState } from "../lib/install-state.js";
+import { detectLegacyDefaultLayout } from "../lib/operator-layout.js";
 import { writeEnvTemplateIfMissing } from "../lib/env-file.js";
 
 function normalizeBaseUrl(baseUrl?: string): string {
@@ -35,17 +42,22 @@ export function registerServiceCommands(program: Command): void {
     .option("--env-file <path>", "Environment file path", defaultEnvFilePath())
     .option("--dry-run", "Preview install without writing files")
     .action(async (options) => {
+      const installState = loadInstallState();
       const installDir = path.resolve(String(options.installDir));
+      const legacyLayout = detectLegacyDefaultLayout(installDir);
       const configPath = options.config
         ? path.resolve(String(options.config))
-        : path.join(installDir, "openassist.toml");
+        : installState?.configPath ??
+          (!fs.existsSync(defaultConfigPath()) && legacyLayout.status !== "none"
+            ? legacyLayout.legacy.configPath
+            : defaultConfigPath());
       const envFilePath = path.resolve(String(options.envFile));
 
       try {
         writeEnvTemplateIfMissing(envFilePath);
         const runner = new SpawnCommandRunner();
         const service = createServiceManager(runner);
-        const existingState = loadInstallState();
+        const existingState = installState;
         const repoMetadata = detectInstallStateFromRepo(installDir);
         await service.install({
           installDir,

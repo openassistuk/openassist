@@ -40,8 +40,8 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /Choose next step for repository authentication recovery/);
     assert.match(script, /Clear cached GitHub HTTPS credentials and retry/);
     assert.match(script, /GitHub HTTPS authentication fails/);
-    assert.match(script, /Running guided onboarding quickstart/);
-    assert.match(script, /setup"\s+"quickstart/);
+    assert.match(script, /Running guided lifecycle setup/);
+    assert.match(script, /"setup"/);
     assert.match(script, /ensure_local_bin_on_path/);
     assert.match(script, /install_global_wrappers_if_possible/);
     assert.match(script, /GLOBAL_BIN_DIR="\$\{OPENASSIST_GLOBAL_BIN_DIR:-\/usr\/local\/bin\}"/);
@@ -56,7 +56,14 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /Next command/);
     assert.match(script, /pnpm version notices are informational/);
     assert.match(script, /approve them before relying on WhatsApp image or document handling/);
-    assert.match(script, /Guided onboarding was not run because bootstrap stayed non-interactive/);
+    assert.match(
+      script,
+      /Guided onboarding was not run because bootstrap stayed non-interactive\. Next step: \$\{setupCommand\}/
+    );
+    assert.match(
+      script,
+      /openassist setup --install-dir \\"\$\{INSTALL_DIR\}\\" --config \\"\$\{CONFIG_PATH\}\\" --env-file \\"\$\{ENV_FILE\}\\"/
+    );
     assert.match(script, /Service install and health checks were skipped/);
     assert.match(script, /This shell may need a new login shell before 'openassist' is on PATH\./);
     assert.match(script, /elif \[\[ "\$\{SKIP_SERVICE\}" -ne 1 \]\]/);

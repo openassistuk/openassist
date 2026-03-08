@@ -5,7 +5,16 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { spawn } from "node:child_process";
 import { Command } from "commander";
-import { loadConfig, parseConfig, writeDefaultConfig } from "@openassist/config";
+import {
+  defaultConfigPath as defaultOperatorConfigPath,
+  defaultDataDir,
+  defaultEnvFilePath as defaultOperatorEnvFilePath,
+  defaultInstallDir as defaultOperatorInstallDir,
+  loadConfig,
+  parseConfig,
+  resolveConfigOverlaysDir,
+  writeDefaultConfig
+} from "@openassist/config";
 import { migrateOpenClawConfig, writeMigratedConfig } from "@openassist/migration-openclaw";
 import { createLogger } from "@openassist/observability";
 import { registerSetupCommands } from "./commands/setup.js";
@@ -13,10 +22,12 @@ import { registerServiceCommands } from "./commands/service.js";
 import { registerUpgradeCommand } from "./commands/upgrade.js";
 import { SpawnCommandRunner } from "./lib/command-runner.js";
 import { loadEnvFile } from "./lib/env-file.js";
+import { classifyGitDirtyState } from "./lib/git-dirty.js";
 import { inspectLocalGrowthState } from "./lib/growth-status.js";
 import { checkHealth } from "./lib/health-check.js";
 import { detectInstallStateFromRepo, loadInstallState } from "./lib/install-state.js";
 import { buildLifecycleReport, renderLifecycleReport } from "./lib/lifecycle-readiness.js";
+import { detectLegacyDefaultLayout } from "./lib/operator-layout.js";
 import { detectDefaultDaemonBaseUrl } from "./lib/runtime-context.js";
 import { createServiceManager, detectServiceManagerKind } from "./lib/service-manager.js";
 import { validateSetupReadiness, type SetupValidationIssue } from "./lib/setup-validation.js";
@@ -35,7 +46,7 @@ function resolveDbPath(dbPath?: string): string {
   if (dbPath) {
     return resolveFromWorkspace(dbPath);
   }
-  return resolveFromWorkspace(".openassist/data/openassist.db");
+  return path.join(defaultDataDir(), "openassist.db");
 }
 
 function resolveConfigPath(configPath?: string): string {
@@ -43,14 +54,14 @@ function resolveConfigPath(configPath?: string): string {
     return resolveFromWorkspace(configPath);
   }
   const installState = loadInstallState();
-  return installState?.configPath ?? resolveFromWorkspace("openassist.toml");
+  return installState?.configPath ?? defaultOperatorConfigPath();
 }
 
 function loadCliRuntimeConfig(configPath?: string) {
   const resolvedConfigPath = resolveConfigPath(configPath);
   const loaded = loadConfig({
     baseFile: resolvedConfigPath,
-    overlaysDir: path.join(path.dirname(resolvedConfigPath), "config.d")
+    overlaysDir: resolveConfigOverlaysDir(resolvedConfigPath)
   });
   return {
     configPath: resolvedConfigPath,
@@ -59,11 +70,11 @@ function loadCliRuntimeConfig(configPath?: string) {
 }
 
 function defaultInstallDir(): string {
-  return path.join(os.homedir(), "openassist");
+  return defaultOperatorInstallDir();
 }
 
 function defaultEnvFilePath(): string {
-  return path.join(os.homedir(), ".config", "openassist", "openassistd.env");
+  return defaultOperatorEnvFilePath();
 }
 
 function normalizeBrowserUrl(candidate: string): string {
@@ -146,7 +157,12 @@ program
     const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const installState = loadInstallState();
     const installDir = installState?.installDir ?? defaultInstallDir();
-    const configPath = installState?.configPath ?? resolveFromWorkspace("openassist.toml");
+    const legacyLayout = detectLegacyDefaultLayout(installDir);
+    const configPath =
+      installState?.configPath ??
+      (!fs.existsSync(defaultOperatorConfigPath()) && legacyLayout.status !== "none"
+        ? legacyLayout.legacy.configPath
+        : defaultOperatorConfigPath());
     const envFilePath = installState?.envFilePath ?? defaultEnvFilePath();
     const configExists = fs.existsSync(configPath);
     const envExists = fs.existsSync(envFilePath);
@@ -161,14 +177,8 @@ program
     const hasNode = commandAvailable("node");
     const localWrapperAvailable = commandAvailable("openassist");
     const localWrapperCommand = path.join(os.homedir(), ".local", "bin", "openassist");
-    let dirtyWorkingTree = false;
-    if (repoBacked) {
-      const result = spawnSync("git", ["-C", installDir, "status", "--porcelain"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"]
-      });
-      dirtyWorkingTree = result.status === 0 && result.stdout.trim().length > 0;
-    }
+    const dirtyState = repoBacked ? classifyGitDirtyState(installDir) : undefined;
+    const dirtyWorkingTree = dirtyState?.hasRealCodeChanges === true;
 
     let parsedConfig: Awaited<ReturnType<typeof loadCliRuntimeConfig>>["config"] | undefined;
     let validationErrors: SetupValidationIssue[] = [];
@@ -288,7 +298,14 @@ program
             managedHelperIds: growthState.managedHelpers.map((item) => item.id),
             updateSafetyNote: growthState.updateSafetyNote
           }
-        : undefined
+        : undefined,
+      legacyDefaultLayoutStatus:
+        legacyLayout.status !== "none"
+          ? legacyLayout.status
+          : dirtyState?.hasLegacyOperatorState && !dirtyWorkingTree
+            ? "ready"
+            : undefined,
+      legacyDefaultLayoutReason: legacyLayout.reason
     });
 
     if (Boolean(options.json)) {
@@ -311,7 +328,7 @@ program
 program
   .command("init")
   .description("Create default openassist.toml if missing")
-  .option("--config <path>", "Config output path", "openassist.toml")
+  .option("--config <path>", "Config output path", defaultOperatorConfigPath())
   .action((options) => {
     const target = resolveFromWorkspace(options.config);
     if (fs.existsSync(target)) {
@@ -345,7 +362,7 @@ const configCommand = program.command("config").description("Config operations")
 configCommand
   .command("validate")
   .description("Validate OpenAssist config")
-  .option("--config <path>", "Path to openassist.toml", "openassist.toml")
+  .option("--config <path>", "Path to openassist.toml", defaultOperatorConfigPath())
   .action((options) => {
     const configPath = resolveFromWorkspace(options.config);
     const configDir = path.dirname(configPath);
@@ -353,7 +370,7 @@ configCommand
     try {
       const { config, loadedFiles } = loadConfig({
         baseFile: configPath,
-        overlaysDir: path.join(configDir, "config.d")
+        overlaysDir: resolveConfigOverlaysDir(configPath)
       });
       parseConfig(config);
       console.log("Config is valid.");
@@ -372,7 +389,7 @@ migrateCommand
   .command("openclaw")
   .description("Migrate OpenClaw config to OpenAssist")
   .requiredOption("--input <path>", "OpenClaw root path")
-  .option("--output <path>", "Output openassist.toml path", "openassist.toml")
+  .option("--output <path>", "Output openassist.toml path", defaultOperatorConfigPath())
   .action((options) => {
     try {
       const inputPath = resolveFromWorkspace(options.input);
@@ -494,7 +511,7 @@ authCommand
   .command("status")
   .description("Check OAuth/API-key status endpoint with redacted operator output")
   .option("--provider <id>", "Provider ID filter")
-  .option("--config <path>", "Path to openassist.toml", "openassist.toml")
+  .option("--config <path>", "Path to openassist.toml", defaultOperatorConfigPath())
   .option("--env-file <path>", "Environment file path", defaultEnvFilePath())
   .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
   .action(async (options) => {

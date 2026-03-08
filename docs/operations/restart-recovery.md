@@ -41,6 +41,8 @@ Channel startup remains non-blocking for daemon health. A degraded connector can
 
 Quickstart and wizard are intentionally recovery-first.
 
+The beginner-facing repair entrypoint is now bare `openassist setup`, which opens the lifecycle hub on a TTY and lets the operator choose repair, advanced configuration, service actions, update planning, or file/status review without guessing the next lifecycle command.
+
 Quickstart:
 
 - strict mode offers retry or abort when service checks fail
@@ -76,6 +78,12 @@ openassist scheduler status
 ```
 
 `openassist doctor` now uses the same grouped lifecycle report as bootstrap, quickstart, wizard post-save checks, and upgrade dry-run. Use `openassist doctor --json` when you want the same readiness assessment in a machine-readable form.
+
+Human-readable lifecycle output now always uses:
+
+- `Ready now`
+- `Needs action`
+- `Next command`
 
 Chat-side diagnostics:
 

@@ -4,6 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { describe, it } from "node:test";
+import { resolveOperatorPaths } from "../../packages/config/src/operator-paths.js";
+import { createDefaultConfigObject, saveConfigObject } from "../../apps/openassist-cli/src/lib/config-edit.js";
+import { saveInstallState } from "../../apps/openassist-cli/src/lib/install-state.js";
 
 function tempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -55,6 +58,14 @@ async function runCli(
   return runCommand(process.execPath, [tsxEntrypoint, tsxCli, ...args], cwd, env);
 }
 
+function childHomeEnv(homeDir: string, extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return {
+    HOME: homeDir,
+    USERPROFILE: homeDir,
+    ...extra
+  };
+}
+
 describe("cli command integration", () => {
   it("runs setup show against project config", async () => {
     const result = await runCli(["setup", "show", "--config", "openassist.toml"], repoRoot());
@@ -65,6 +76,7 @@ describe("cli command integration", () => {
   it("runs upgrade dry-run on a clean built working tree", async () => {
     const root = tempDir("openassist-upgrade-dryrun-");
     const cloneDir = path.join(root, "repo");
+    const homeDir = path.join(root, "home");
     const cloneResult = await runCommand("git", ["clone", "--depth", "1", repoRoot(), cloneDir], repoRoot());
     assert.equal(cloneResult.code, 0, cloneResult.stderr || cloneResult.stdout);
     fs.mkdirSync(path.join(cloneDir, "apps", "openassistd", "dist"), { recursive: true });
@@ -73,24 +85,25 @@ describe("cli command integration", () => {
     // CI checkouts can be detached and may not have origin/main fetched; using HEAD keeps dry-run deterministic.
     const result = await runCli(
       ["upgrade", "--dry-run", "--install-dir", cloneDir, "--ref", "HEAD"],
-      repoRoot()
+      repoRoot(),
+      childHomeEnv(homeDir)
     );
-    assert.equal(result.code, 0, result.stderr || result.stdout);
+    assert.equal(result.code, 1, result.stderr || result.stdout);
     assert.ok(result.stdout.includes("Update readiness"), result.stdout);
     assert.ok(result.stdout.includes("- Target update track: HEAD"), result.stdout);
-    assert.ok(result.stdout.includes("Needs action before upgrade"), result.stdout);
+    assert.ok(result.stdout.includes("Needs action"), result.stdout);
+    assert.ok(result.stdout.includes("rerun bootstrap instead"), result.stdout);
+    assert.ok(result.stdout.includes("scripts/install/bootstrap.sh --install-dir"), result.stdout);
     assert.ok(
-      result.stdout.includes(
-        "Dry-run complete. Upgrade is safe to continue with the install directory and update track shown above."
-      ),
+      result.stdout.includes("Dry-run complete. Upgrade is not ready yet: rerun bootstrap instead."),
       result.stdout
     );
-    assert.ok(result.stdout.includes("- When you are ready, rerun: openassist upgrade"), result.stdout);
   });
 
   it("reports missing update prerequisites instead of crashing when helper binaries are unavailable", async () => {
     const root = tempDir("openassist-upgrade-missing-binaries-");
     const cloneDir = path.join(root, "repo");
+    const homeDir = path.join(root, "home");
     const emptyBinDir = path.join(root, "empty-bin");
     const cloneResult = await runCommand("git", ["clone", "--depth", "1", repoRoot(), cloneDir], repoRoot());
     assert.equal(cloneResult.code, 0, cloneResult.stderr || cloneResult.stdout);
@@ -98,13 +111,31 @@ describe("cli command integration", () => {
     fs.writeFileSync(path.join(cloneDir, "apps", "openassistd", "dist", "index.js"), "// built for dry-run\n", "utf8");
     fs.mkdirSync(emptyBinDir, { recursive: true });
 
+    const operatorPaths = resolveOperatorPaths({ homeDir, installDir: cloneDir });
+    const config = createDefaultConfigObject();
+    config.runtime.paths.dataDir = operatorPaths.dataDir;
+    config.runtime.paths.logsDir = operatorPaths.logsDir;
+    config.runtime.paths.skillsDir = operatorPaths.skillsDir;
+    saveConfigObject(operatorPaths.configPath, config);
+    fs.mkdirSync(path.dirname(operatorPaths.envFilePath), { recursive: true });
+    fs.writeFileSync(operatorPaths.envFilePath, "", "utf8");
+    saveInstallState(
+      {
+        installDir: cloneDir,
+        configPath: operatorPaths.configPath,
+        envFilePath: operatorPaths.envFilePath,
+        trackedRef: "main"
+      },
+      operatorPaths.installStatePath
+    );
+
     const result = await runCli(
       ["upgrade", "--dry-run", "--install-dir", cloneDir, "--ref", "HEAD"],
       repoRoot(),
-      {
+      childHomeEnv(homeDir, {
         PATH: emptyBinDir,
         Path: emptyBinDir
-      }
+      })
     );
 
     assert.equal(result.code, 1, result.stderr || result.stdout);

@@ -8,6 +8,20 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Lifecycle hub and home-state operator layout:
+  - bare `openassist setup` is now the primary interactive lifecycle hub for first-time setup, repair, service actions, update planning, and file-location/status review
+  - fresh installs now default to home-state operator paths instead of repo-local writable state:
+    - `~/.config/openassist/openassist.toml`
+    - `~/.config/openassist/config.d`
+    - `~/.config/openassist/openassistd.env`
+    - `~/.config/openassist/install-state.json`
+    - `~/.local/share/openassist/data`
+    - `~/.local/share/openassist/logs`
+    - `~/.local/share/openassist/skills`
+    - `~/.local/share/openassist/data/helper-tools`
+  - recognized older repo-local installs (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) now migrate automatically into the canonical home-state layout when the target home paths are empty or compatible, with timestamped backups under `~/.local/share/openassist/migration-backups/`
+  - lifecycle reporting is now `version: 2` in `openassist doctor --json`, preserving grouped sections while adding per-item `stage` metadata for shared rendering
+
 - Provider-native reasoning controls:
   - `openassist setup wizard` now exposes OpenAI `reasoningEffort` (`low`, `medium`, `high`, or unset) and Anthropic `thinkingBudgetTokens` (blank to disable)
   - built-in OpenAI adapters now send reasoning effort only on supported Responses API model families
@@ -130,6 +144,12 @@ The format follows Keep a Changelog conventions and this project currently track
 - Lifecycle readiness follow-up:
   - `openassist doctor` and the final bootstrap summary no longer report a false port-conflict readiness error after successful setup when the healthy daemon is already listening on the configured port
 
+- Lifecycle hub and out-of-repo state follow-up:
+  - interactive bootstrap now enters bare `openassist setup` instead of dropping straight into quickstart
+  - bootstrap, quickstart, wizard post-save checks, `openassist doctor`, and `openassist upgrade --dry-run` now share one human-readable `Ready now` / `Needs action` / `Next command` shape
+  - the repo checkout is now code-first by default, so normal operator config/runtime state no longer makes the install look dirty during upgrade checks
+  - upgrade and doctor now distinguish real repo code changes from legacy repo-local operator state and route recognized legacy installs back through `openassist setup` for migration first
+
 - Channel UX and beginner copy pass:
   - quickstart and wizard no longer describe WhatsApp as experimental on beginner paths
   - quickstart and wizard now describe Telegram, Discord, and WhatsApp as first-class channel choices with clearer guidance for groups, topics, DMs, QR login, and attachment support
@@ -188,8 +208,8 @@ The format follows Keep a Changelog conventions and this project currently track
 - Setup quickstart/wizard secret prompts now use masked `*` input feedback and explicit long-value guidance for API keys/tokens.
 - OpenAI provider adapter now routes GPT-5/codex-class requests through OpenAI Responses API and auto-falls back from chat-completions on endpoint/model mismatch errors.
 - Setup defaults updated to current model baselines:
-  - OpenAI/OpenAI-compatible: `gpt-5.2`
-  - Anthropic: `claude-sonnet-4-5`
+  - OpenAI/OpenAI-compatible: `gpt-5.4`
+  - Anthropic: `claude-sonnet-4-6`
 - Node integration coverage branch gate tightened from `>=67` to `>=69` (through `>=68`) while keeping lines/statements/functions gates unchanged.
 - OpenAI/OpenAI-compatible provider adapters now encode tool names to provider-safe identifiers and decode them back, fixing runtime failures for dotted internal tool names (for example `exec.run`, `fs.read`) in autonomous sessions.
 - Runtime now reconciles tool-call conversation context before each provider turn:

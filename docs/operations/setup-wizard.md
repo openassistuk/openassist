@@ -2,10 +2,19 @@
 
 OpenAssist has two setup paths on purpose.
 
+- `openassist setup`: interactive lifecycle hub and beginner entrypoint
 - `openassist setup quickstart`: minimal first-reply onboarding
 - `openassist setup wizard`: advanced section editor
 
 They are not interchangeable.
+
+Use the bare hub when you want the default beginner path:
+
+```bash
+openassist setup
+```
+
+On a TTY, the hub lets you choose first-time setup, repair, advanced configuration, service actions, safe update planning, or file-location/status review without remembering separate lifecycle commands up front.
 
 ## Quickstart
 
@@ -16,7 +25,7 @@ Command:
 ```bash
 openassist setup quickstart \
   --install-dir "$HOME/openassist" \
-  --config "$HOME/openassist/openassist.toml" \
+  --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
@@ -93,7 +102,7 @@ Command:
 
 ```bash
 openassist setup wizard \
-  --config "$HOME/openassist/openassist.toml" \
+  --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env" \
   --install-dir "$HOME/openassist"
 ```
@@ -196,7 +205,7 @@ Important rules:
 Show effective config:
 
 ```bash
-openassist setup show --config "$HOME/openassist/openassist.toml"
+openassist setup show --config "$HOME/.config/openassist/openassist.toml"
 ```
 
 Edit env values interactively:

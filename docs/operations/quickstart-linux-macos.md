@@ -5,7 +5,7 @@ This is the canonical operator runbook for a public OpenAssist install.
 The goal is one clean path:
 
 1. install OpenAssist
-2. complete `openassist setup quickstart`
+2. complete `openassist setup`
 3. confirm service health
 4. send the first real chat reply
 5. use the wizard only for advanced changes
@@ -44,12 +44,14 @@ Bootstrap behavior:
 - is interactive on a TTY and non-interactive otherwise
 - prints a lifecycle plan before it mutates anything
 - writes install state to `~/.config/openassist/install-state.json`
+- uses `~/.config/openassist/openassist.toml` as the default operator config path
+- keeps runtime data, logs, skills, and helper tools under `~/.local/share/openassist`
 - prints a short readiness summary with the exact next command when it stops early
 - always ends with the same fixed summary sections:
   - `Ready now`
   - `Needs action`
   - `Next command`
-- interactive bootstrap runs quickstart after the build
+- interactive bootstrap runs bare `openassist setup` after the build
 - non-interactive bootstrap does not run quickstart for you
 - non-interactive bootstrap still installs the service unless you pass `--skip-service`
 - `pnpm` version notices are informational
@@ -78,18 +80,34 @@ $HOME/.local/bin/openassist --help
 
 ## 3. Complete first-run onboarding
 
-If bootstrap already ran quickstart successfully, skip to the next section.
+If bootstrap already ran the lifecycle hub successfully, skip to the next section.
 
-Otherwise run:
+The default beginner entrypoint is:
+
+```bash
+openassist setup
+```
+
+On a TTY, that opens the lifecycle hub with these choices:
+
+- first-time setup
+- check and repair this install
+- advanced configuration
+- service and health actions
+- safe update planning
+- show file locations and lifecycle status
+- exit
+
+If you want the direct scripted first-reply path instead, run:
 
 ```bash
 openassist setup quickstart \
   --install-dir "$HOME/openassist" \
-  --config "$HOME/openassist/openassist.toml" \
+  --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Quickstart is the default onboarding path. It is intentionally minimal.
+Quickstart is still the strict first-reply path. It is intentionally minimal.
 
 What quickstart configures:
 
@@ -115,6 +133,19 @@ What quickstart does not try to do:
 - advanced tools and security changes
 
 Those belong to `openassist setup wizard`.
+
+Canonical writable operator state for fresh installs:
+
+- config: `~/.config/openassist/openassist.toml`
+- overlays: `~/.config/openassist/config.d`
+- env file: `~/.config/openassist/openassistd.env`
+- install state: `~/.config/openassist/install-state.json`
+- runtime data: `~/.local/share/openassist/data`
+- runtime logs: `~/.local/share/openassist/logs`
+- managed skills: `~/.local/share/openassist/skills`
+- managed helper tools: `~/.local/share/openassist/data/helper-tools`
+
+If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), it migrates that state automatically when the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/<timestamp>` before it changes anything.
 
 Quickstart rules:
 
@@ -184,10 +215,10 @@ openassist time status
 Text output is grouped as:
 
 - `Ready now`
-- `Needs action before first reply`
-- `Needs action before full access`
-- `Needs action before upgrade`
-- `Recommended next command`
+- `Needs action`
+- `Next command`
+
+`openassist doctor --json` keeps the grouped lifecycle structure for automation and now uses `version: 2` with per-item `stage` metadata.
 
 ## 5. Send the first reply
 
@@ -254,7 +285,7 @@ Use the wizard when you need deeper changes:
 
 ```bash
 openassist setup wizard \
-  --config "$HOME/openassist/openassist.toml" \
+  --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env" \
   --install-dir "$HOME/openassist"
 ```
@@ -301,13 +332,13 @@ If the checkout is damaged, missing `.git`, missing build output under `apps/ope
 Bootstrap stopped before quickstart:
 
 ```bash
-openassist setup quickstart --install-dir "$HOME/openassist" --config "$HOME/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
+openassist setup
 ```
 
 Quickstart saved config but service checks were skipped or aborted:
 
 ```bash
-openassist service install --install-dir "$HOME/openassist" --config "$HOME/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
+openassist service install --install-dir "$HOME/openassist" --config "$HOME/.config/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
 openassist service health
 ```
 

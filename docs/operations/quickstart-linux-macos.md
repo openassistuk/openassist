@@ -190,7 +190,8 @@ Provider and channel guidance:
 
 - OpenAI stays the standard API-key route.
 - Codex stays the separate OpenAI account-login route.
-- If you choose Codex, quickstart guides the account-link flow after the daemon is healthy, prints the authorization URL, accepts either the full callback URL or a pasted code, and requires that linked account before the first reply can use the default provider.
+- If you choose Codex, quickstart guides the account-link flow after the daemon is healthy, prints the authorization URL, pauses so you can copy or open it on this host or another device, accepts either the full callback URL or a pasted code, and requires that linked account before the first reply can use the default provider.
+- If automatic browser launch is unavailable on a headless host, OpenAssist still prints the authorization URL and treats that as an account-linking step, not as a service failure.
 - Anthropic stays API-key-first for the fastest first reply; optional provider OAuth configuration still lives in `openassist setup wizard`.
 - OpenAI-compatible stays the custom API-compatible route.
 - legacy `openai + oauth` configs still load, but new account-login installs should use `codex`.

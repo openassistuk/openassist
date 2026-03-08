@@ -84,6 +84,18 @@ interface SetupQuickstartState {
   guidanceShown: Record<string, boolean>;
 }
 
+class OAuthAccountLinkError extends Error {
+  readonly providerId: string;
+  readonly requiredForFirstReply: boolean;
+
+  constructor(message: string, providerId: string, requiredForFirstReply: boolean) {
+    super(message);
+    this.name = "OAuthAccountLinkError";
+    this.providerId = providerId;
+    this.requiredForFirstReply = requiredForFirstReply;
+  }
+}
+
 function stage(name: string, description?: string): void {
   console.log("");
   console.log("=".repeat(78));
@@ -376,10 +388,11 @@ async function promptProvider(
   );
 
   const suggested = defaultProviderForType(type);
+  const defaultProviderId = existing?.type === type ? existing.id : suggested.id;
   const providerId = await promptGeneratedIdentifier(
     prompts,
     "Provider name (display label, e.g. OpenAI Main)",
-    existing?.id ?? suggested.id
+    defaultProviderId
   );
   console.log(`Internal provider ID: ${providerId}`);
   const defaultModel = await promptRequiredText(
@@ -1005,8 +1018,10 @@ async function runServiceStep(
         (provider) => provider.id === state.config.runtime.defaultProviderId
       );
       if (defaultProvider?.type === "codex") {
-        throw new Error(
-          "Codex account login is still required before the first reply can use the default provider."
+        throw new OAuthAccountLinkError(
+          "Codex account login is still required before the first reply can use the default provider.",
+          defaultProvider.id,
+          true
         );
       }
       return;
@@ -1020,7 +1035,11 @@ async function runServiceStep(
       );
       if (!startThisProvider) {
         if (provider.id === state.config.runtime.defaultProviderId && provider.type === "codex") {
-          throw new Error("Codex account login is required for the selected default provider.");
+          throw new OAuthAccountLinkError(
+            "Codex account login is required for the selected default provider.",
+            provider.id,
+            true
+          );
         }
         continue;
       }
@@ -1037,7 +1056,11 @@ async function runServiceStep(
       );
 
       if (response.status >= 400) {
-        throw new Error(`Account login start failed for ${provider.id} (status=${response.status}).`);
+        throw new OAuthAccountLinkError(
+          `Account login start failed for ${provider.id} (status=${response.status}).`,
+          provider.id,
+          provider.id === state.config.runtime.defaultProviderId && provider.type === "codex"
+        );
       }
 
       const payload = response.data as { authorizationUrl?: string; state?: string };
@@ -1045,10 +1068,25 @@ async function runServiceStep(
       if (payload.authorizationUrl) {
         console.log(`Authorization URL:\n${payload.authorizationUrl}`);
       }
+      console.log("Open this URL in a browser on this machine or another device before continuing.");
       console.log("After authorizing, paste either the full callback URL or just the code here.");
       console.log(
         `Host fallback: openassist auth status --provider ${provider.id} --base-url ${healthyBaseUrl}`
       );
+      const readyToContinue = await prompts.confirm(
+        `I have opened or copied the authorization URL for ${provider.id}`,
+        true
+      );
+      if (!readyToContinue) {
+        if (provider.id === state.config.runtime.defaultProviderId && provider.type === "codex") {
+          throw new OAuthAccountLinkError(
+            "Codex account login is still required before the first reply can use the default provider.",
+            provider.id,
+            true
+          );
+        }
+        continue;
+      }
 
       const completionRaw = await prompts.input(
         `Callback URL or code for ${provider.id} (blank skips for now)`,
@@ -1057,7 +1095,11 @@ async function runServiceStep(
       const completion = parseOAuthCompletionInput(completionRaw, payload.state ?? "");
       if (!completion) {
         if (provider.id === state.config.runtime.defaultProviderId && provider.type === "codex") {
-          throw new Error("Codex account login was skipped for the default provider.");
+          throw new OAuthAccountLinkError(
+            "Codex account login was skipped for the default provider.",
+            provider.id,
+            true
+          );
         }
         continue;
       }
@@ -1068,8 +1110,10 @@ async function runServiceStep(
         completion
       );
       if (completed.status >= 400) {
-        throw new Error(
-          `Account login completion failed for ${provider.id} (status=${completed.status}).`
+        throw new OAuthAccountLinkError(
+          `Account login completion failed for ${provider.id} (status=${completed.status}).`,
+          provider.id,
+          provider.id === state.config.runtime.defaultProviderId && provider.type === "codex"
         );
       }
 
@@ -1080,7 +1124,11 @@ async function runServiceStep(
       const accounts =
         ((status.data as { accounts?: Array<{ accountId: string }> })?.accounts ?? []);
       if (status.status >= 400 || accounts.length === 0) {
-        throw new Error(`Account login did not leave an active linked account for ${provider.id}.`);
+        throw new OAuthAccountLinkError(
+          `Account login did not leave an active linked account for ${provider.id}.`,
+          provider.id,
+          provider.id === state.config.runtime.defaultProviderId && provider.type === "codex"
+        );
       }
       console.log(`Linked account ready for ${provider.id}.`);
     }
@@ -1190,24 +1238,37 @@ async function runServiceStep(
       return { healthOk: true, aborted: false };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`Service + health step failed: ${message}`);
-      await printServiceDiagnostics();
-      for (const line of troubleshootingLines) {
-        console.error(`- ${line}`);
+      const oauthError = error instanceof OAuthAccountLinkError ? error : undefined;
+      if (oauthError) {
+        console.error(`Account linking still needs attention: ${message}`);
+        console.error(`- Retry account login for ${oauthError.providerId} now.`);
+        console.error(
+          `- Host fallback: openassist auth start --provider ${oauthError.providerId} --account default --open-browser`
+        );
+        console.error(
+          `- Check linked account state: openassist auth status --provider ${oauthError.providerId} --base-url ${baseUrl}`
+        );
+        console.error("- The daemon is already healthy. This is an account-linking step, not a service failure.");
+      } else {
+        console.error(`Service + health step failed: ${message}`);
+        await printServiceDiagnostics();
+        for (const line of troubleshootingLines) {
+          console.error(`- ${line}`);
+        }
       }
 
       const actionChoices: Array<{ name: string; value: "retry" | "skip" | "abort" }> = options.allowIncomplete
         ? [
-            { name: "Retry checks", value: "retry" },
-            { name: "Continue with saved config (skip checks)", value: "skip" },
+            { name: oauthError ? "Retry account linking" : "Retry checks", value: "retry" },
+            { name: oauthError ? "Continue with saved config and link later" : "Continue with saved config (skip checks)", value: "skip" },
             { name: "Abort quickstart", value: "abort" }
           ]
         : [
-            { name: "Retry checks", value: "retry" },
+            { name: oauthError ? "Retry account linking" : "Retry checks", value: "retry" },
             { name: "Abort quickstart", value: "abort" }
           ];
       const action = await prompts.select<"retry" | "skip" | "abort">(
-        "Service and health checks failed. Choose next step",
+        oauthError ? "Account linking is incomplete. Choose next step" : "Service and health checks failed. Choose next step",
         actionChoices,
         "retry"
       );

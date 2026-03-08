@@ -542,6 +542,87 @@ describe("cli root command coverage", () => {
     }
   });
 
+  it(
+    "does not crash when auth start cannot launch a browser automatically",
+    { skip: process.platform === "win32" },
+    async () => {
+      const root = tempDir("openassist-cli-root-auth-browser-");
+      const emptyBinDir = path.join(root, "empty-bin");
+      fs.mkdirSync(emptyBinDir, { recursive: true });
+
+      const server = http.createServer((req, res) => {
+        if (req.method === "POST" && req.url === "/v1/oauth/openai-main/start") {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(
+            JSON.stringify({
+              accountId: "default",
+              state: "oauth-state-1",
+              expiresAt: "2026-03-09T00:00:00.000Z",
+              authorizationUrl: "https://example.test/oauth/start"
+            })
+          );
+          return;
+        }
+        res.writeHead(404, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "not found" }));
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(0, "127.0.0.1", () => {
+          server.removeListener("error", reject);
+          resolve();
+        });
+      });
+
+      try {
+        const address = server.address();
+        assert.notEqual(address, null);
+        assert.equal(typeof address, "object");
+        const port = (address as { port: number }).port;
+
+        const result = await runCommand(
+          process.execPath,
+          [
+            path.join(repoRoot(), "node_modules", "tsx", "dist", "cli.mjs"),
+            path.join(repoRoot(), "apps", "openassist-cli", "src", "index.ts"),
+            "auth",
+            "start",
+            "--provider",
+            "openai-main",
+            "--account",
+            "default",
+            "--open-browser",
+            "--base-url",
+            `http://127.0.0.1:${port}`
+          ],
+          repoRoot(),
+          {
+            PATH: emptyBinDir,
+            Path: emptyBinDir
+          }
+        );
+
+        assert.equal(result.code, 0, result.stderr || result.stdout);
+        assert.match(result.stdout, /Authorization URL:/);
+        assert.match(result.stdout, /Could not open a browser automatically on this host\./);
+        assert.match(result.stdout, /Open the authorization URL manually in a browser/);
+        assert.doesNotMatch(result.stdout, /Opened authorization URL in browser\./);
+        assert.equal(result.stderr.trim(), "");
+      } finally {
+        await new Promise<void>((resolve, reject) => {
+          server.close((error) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+            resolve();
+          });
+        });
+      }
+    }
+  );
+
   it("exercises remote command failure paths", async () => {
     const badBaseUrl = "http://127.0.0.1:1";
     const cases: Array<{ args: string[]; errorText: RegExp }> = [

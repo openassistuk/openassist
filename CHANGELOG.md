@@ -59,6 +59,12 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Setup-hub and Codex account-linking UX follow-up:
+  - bare `openassist setup` now uses a simple numbered menu instead of the re-rendering select UI that could duplicate or obscure the root lifecycle choices on some terminals
+  - Codex quickstart account-linking now pauses after printing the authorization URL so headless VPS installs can copy it before continuing
+  - skipping required Codex account linking during quickstart is now reported as an account-linking recovery step instead of a misleading service failure with daemon log spam
+  - `openassist auth start --open-browser` now treats missing local browser launchers (for example `xdg-open` on headless hosts) as a non-fatal fallback and keeps the printed authorization URL usable
+
 - Provider-route docs and samples now describe four equal public routes consistently:
   - OpenAI (API key)
   - Codex (OpenAI account login)

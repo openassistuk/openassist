@@ -115,17 +115,32 @@ async function requestJson(
   };
 }
 
-function openUrlInBrowser(url: string): void {
+async function openUrlInBrowser(url: string): Promise<{ opened: boolean; detail?: string }> {
   const safeUrl = normalizeBrowserUrl(url);
-  if (process.platform === "win32") {
-    spawn("explorer.exe", [safeUrl], { detached: true, stdio: "ignore", shell: false }).unref();
-    return;
-  }
-  if (process.platform === "darwin") {
-    spawn("open", [safeUrl], { detached: true, stdio: "ignore", shell: false }).unref();
-    return;
-  }
-  spawn("xdg-open", [safeUrl], { detached: true, stdio: "ignore", shell: false }).unref();
+  const opener =
+    process.platform === "win32"
+      ? "explorer.exe"
+      : process.platform === "darwin"
+        ? "open"
+        : "xdg-open";
+
+  return await new Promise((resolve) => {
+    const child = spawn(opener, [safeUrl], {
+      detached: true,
+      stdio: "ignore",
+      shell: false
+    });
+    child.once("error", (error) => {
+      resolve({
+        opened: false,
+        detail: error instanceof Error ? error.message : String(error)
+      });
+    });
+    child.once("spawn", () => {
+      child.unref();
+      resolve({ opened: true });
+    });
+  });
 }
 
 function commandAvailable(command: string): boolean {
@@ -458,8 +473,16 @@ authCommand
       console.log(`Authorization URL:\n${response.authorizationUrl}`);
 
       if (options.openBrowser) {
-        openUrlInBrowser(response.authorizationUrl);
-        console.log("Opened authorization URL in browser.");
+        const launch = await openUrlInBrowser(response.authorizationUrl);
+        if (launch.opened) {
+          console.log("Opened authorization URL in browser.");
+        } else {
+          console.log("Could not open a browser automatically on this host.");
+          if (launch.detail) {
+            console.log(`Browser launch detail: ${launch.detail}`);
+          }
+          console.log("Open the authorization URL manually in a browser, then continue with the callback URL or code.");
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

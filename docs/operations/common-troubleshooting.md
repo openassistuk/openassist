@@ -160,6 +160,8 @@ openassist doctor
 
 If you used a different provider ID, substitute that instead of `codex-main`.
 
+If `--open-browser` cannot find a local launcher such as `xdg-open`, that is no longer treated as a fatal error. OpenAssist still prints the authorization URL, and you can open it manually in a browser on this machine or another device before pasting the callback URL or code back into quickstart or `openassist auth complete`.
+
 Important:
 
 - `codex` is the separate OpenAI account-login route

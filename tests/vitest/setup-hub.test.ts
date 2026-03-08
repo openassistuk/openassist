@@ -190,7 +190,7 @@ describe("setup hub", () => {
         envFilePath,
         skipService: true
       },
-      new ScriptedPromptAdapter(["first-time", ...minimalTelegramAnswers(bindPort)])
+      new ScriptedPromptAdapter(["1", ...minimalTelegramAnswers(bindPort)])
     );
 
     expect(fs.existsSync(configPath)).toBe(true);

@@ -49,6 +49,48 @@ function fileLocationLines(options: SetupHubOptions): string[] {
   ];
 }
 
+const hubActions = [
+  { label: "First-time setup", value: "first-time" },
+  { label: "Check and repair this install", value: "repair" },
+  { label: "Advanced configuration", value: "advanced" },
+  { label: "Service and health actions", value: "service" },
+  { label: "Safe update planning", value: "upgrade" },
+  { label: "Show file locations and lifecycle status", value: "status" },
+  { label: "Exit", value: "exit" }
+] as const;
+
+type SetupHubAction = (typeof hubActions)[number]["value"];
+
+async function promptHubAction(prompts: PromptAdapter, initial: SetupHubAction): Promise<SetupHubAction> {
+  const defaultIndex = hubActions.findIndex((choice) => choice.value === initial);
+  const menu = hubActions
+    .map((choice, index) => `${index + 1}. ${choice.label}${index === defaultIndex ? " (default)" : ""}`)
+    .join("\n");
+
+  while (true) {
+    console.log("");
+    console.log("OpenAssist setup");
+    console.log(menu);
+    const raw = await prompts.input(
+      "Choose an option by number or name",
+      String(defaultIndex + 1)
+    );
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      return initial;
+    }
+    const numeric = Number.parseInt(trimmed, 10);
+    if (Number.isInteger(numeric) && numeric >= 1 && numeric <= hubActions.length) {
+      return hubActions[numeric - 1].value;
+    }
+    const matched = hubActions.find((choice) => choice.value === trimmed);
+    if (matched) {
+      return matched.value;
+    }
+    console.error(`Choose one of: ${hubActions.map((choice, index) => `${index + 1} (${choice.value})`).join(", ")}`);
+  }
+}
+
 export async function runSetupHub(
   rawOptions: Partial<SetupHubOptions>,
   prompts: PromptAdapter = createInquirerPromptAdapter()
@@ -82,21 +124,7 @@ export async function runSetupHub(
 
   while (true) {
     const firstTimeDefault = !fs.existsSync(configPath) ? "first-time" : "repair";
-    const action = await prompts.select<
-      "first-time" | "repair" | "advanced" | "service" | "upgrade" | "status" | "exit"
-    >(
-      "OpenAssist setup",
-      [
-        { name: "First-time setup", value: "first-time" },
-        { name: "Check and repair this install", value: "repair" },
-        { name: "Advanced configuration", value: "advanced" },
-        { name: "Service and health actions", value: "service" },
-        { name: "Safe update planning", value: "upgrade" },
-        { name: "Show file locations and lifecycle status", value: "status" },
-        { name: "Exit", value: "exit" }
-      ],
-      firstTimeDefault
-    );
+    const action = await promptHubAction(prompts, firstTimeDefault);
 
     if (action === "exit") {
       return;

@@ -998,7 +998,7 @@ STATE_FILE="${HOME}/.config/openassist/install-state.json"
 mkdir -p "$(dirname "${ENV_FILE}")"
 
 if [[ "${INTERACTIVE}" -ne 1 && ! -f "${CONFIG_PATH}" ]]; then
-  "${LOCAL_BIN_DIR}/openassist" init --config "${CONFIG_PATH}"
+  node "${INSTALL_DIR}/apps/openassist-cli/dist/index.js" init --config "${CONFIG_PATH}"
 fi
 
 if [[ ! -f "${ENV_FILE}" ]]; then

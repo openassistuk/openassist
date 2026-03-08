@@ -43,7 +43,7 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("pnpm --dir \"${INSTALL_DIR}\" install --frozen-lockfile"));
     assert.ok(script.includes("Running guided lifecycle setup"));
     assert.ok(script.includes('if [[ "${INTERACTIVE}" -ne 1 && ! -f "${CONFIG_PATH}" ]]'));
-    assert.ok(script.includes('"${LOCAL_BIN_DIR}/openassist" init --config "${CONFIG_PATH}"'));
+    assert.ok(script.includes('node "${INSTALL_DIR}/apps/openassist-cli/dist/index.js" init --config "${CONFIG_PATH}"'));
     assert.ok(!script.includes('pnpm --dir "${INSTALL_DIR}" --filter @openassist/openassist-cli start -- init --config "${CONFIG_PATH}"'));
     assert.ok(script.includes("LOCAL_BIN_DIR=\"${HOME}/.local/bin\""));
     assert.ok(script.includes("GLOBAL_BIN_DIR=\"${OPENASSIST_GLOBAL_BIN_DIR:-/usr/local/bin}\""));

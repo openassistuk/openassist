@@ -28,7 +28,7 @@ describe("bootstrap argument parsing contract", () => {
     expect(script.includes("Running guided lifecycle setup")).toBe(true);
     expect(script.includes("\"${LOCAL_BIN_DIR}/openassist\" \"${SETUP_ARGS[@]}\"")).toBe(true);
     expect(script.includes('if [[ "${INTERACTIVE}" -ne 1 && ! -f "${CONFIG_PATH}" ]]')).toBe(true);
-    expect(script.includes('"${LOCAL_BIN_DIR}/openassist" init --config "${CONFIG_PATH}"')).toBe(true);
+    expect(script.includes('node "${INSTALL_DIR}/apps/openassist-cli/dist/index.js" init --config "${CONFIG_PATH}"')).toBe(true);
     expect(script.includes('pnpm --dir "${INSTALL_DIR}" --filter @openassist/openassist-cli start -- init --config "${CONFIG_PATH}"')).toBe(false);
     expect(script.includes("Guided onboarding was not run because bootstrap stayed non-interactive. Next step: ${setupCommand}")).toBe(true);
     expect(

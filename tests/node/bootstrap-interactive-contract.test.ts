@@ -44,7 +44,7 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /Running guided lifecycle setup/);
     assert.match(script, /"setup"/);
     assert.match(script, /if \[\[ "\$\{INTERACTIVE\}" -ne 1 && ! -f "\$\{CONFIG_PATH\}" \]\]/);
-    assert.match(script, /"\$\{LOCAL_BIN_DIR\}\/openassist" init --config "\$\{CONFIG_PATH\}"/);
+    assert.match(script, /node "\$\{INSTALL_DIR\}\/apps\/openassist-cli\/dist\/index\.js" init --config "\$\{CONFIG_PATH\}"/);
     assert.doesNotMatch(script, /pnpm --dir "\$\{INSTALL_DIR\}" --filter @openassist\/openassist-cli start -- init --config "\$\{CONFIG_PATH\}"/);
     assert.match(script, /ensure_local_bin_on_path/);
     assert.match(script, /install_global_wrappers_if_possible/);

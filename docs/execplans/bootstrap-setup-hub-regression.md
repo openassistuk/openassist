@@ -14,6 +14,7 @@ Fix the bootstrap regression that still called the stale `init` handoff before t
 
 - The setup hub itself was not broken; the stale pre-hub config seed was. Interactive installs could have worked without any pre-created config because quickstart/wizard already load an in-memory default config when the file is missing.
 - Non-interactive bootstrap still needs explicit config seeding before `service install`, so the fix could not simply remove config initialization entirely.
+- PR review caught one more real edge case: the first non-interactive fix used the local `openassist` wrapper before bootstrap had written that wrapper on fresh installs. The final fix uses the direct Node CLI entrypoint instead.
 
 ## Decision Log
 

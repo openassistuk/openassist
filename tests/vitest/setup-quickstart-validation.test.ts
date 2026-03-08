@@ -223,6 +223,67 @@ describe("setup quickstart validation", () => {
     expect(result.warnings.some((item) => item.code === "tools.web_hybrid_fallback_only")).toBe(true);
   });
 
+  it("warns when OpenAI reasoning effort is configured on an unsupported model family", async () => {
+    const root = tempDir("openassist-quickstart-validation-openai-reasoning-warning-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.runtime.providers[0] = {
+      id: "openai-main",
+      type: "openai",
+      defaultModel: "gpt-4o-mini",
+      reasoningEffort: "high"
+    };
+    const apiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {
+        [apiKeyVar]: "test-key"
+      },
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(
+      result.warnings.some((item) => item.code === "provider.openai_reasoning_model_unsupported")
+    ).toBe(true);
+  });
+
+  it("warns when Anthropic thinking budget is configured on an unsupported model family", async () => {
+    const root = tempDir("openassist-quickstart-validation-anthropic-thinking-warning-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.runtime.defaultProviderId = "anthropic-main";
+    config.runtime.providers = [
+      {
+        id: "anthropic-main",
+        type: "anthropic",
+        defaultModel: "claude-3-5-haiku-latest",
+        thinkingBudgetTokens: 4096
+      }
+    ];
+    const apiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {
+        [apiKeyVar]: "test-key"
+      },
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(
+      result.warnings.some((item) => item.code === "provider.anthropic_thinking_model_unsupported")
+    ).toBe(true);
+  });
+
   it("reports schema-invalid secret wiring before deeper readiness checks", async () => {
     const root = tempDir("openassist-quickstart-validation-schema-invalid-");
     const config = createDefaultConfigObject();

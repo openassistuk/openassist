@@ -148,6 +148,71 @@ describe("config schema security validation", () => {
     expect(parsed.runtime.operatorAccessProfile).toBe("operator");
   });
 
+  it("accepts provider-native reasoning controls for built-in providers", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).providers = [
+      {
+        id: "openai-main",
+        type: "openai",
+        defaultModel: "gpt-5.2",
+        reasoningEffort: "medium"
+      },
+      {
+        id: "anthropic-main",
+        type: "anthropic",
+        defaultModel: "claude-sonnet-4-5",
+        thinkingBudgetTokens: 4096
+      }
+    ];
+
+    const parsed = parseConfig(input);
+
+    expect(parsed.runtime.providers[0]).toMatchObject({
+      id: "openai-main",
+      reasoningEffort: "medium"
+    });
+    expect(parsed.runtime.providers[1]).toMatchObject({
+      id: "anthropic-main",
+      thinkingBudgetTokens: 4096
+    });
+  });
+
+  it("drops unsupported reasoning fields from openai-compatible providers", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).providers = [
+      {
+        id: "compat-main",
+        type: "openai-compatible",
+        defaultModel: "gpt-4o-mini",
+        reasoningEffort: "high",
+        thinkingBudgetTokens: 4096
+      }
+    ];
+
+    const parsed = parseConfig(input);
+    expect(parsed.runtime.providers[0]).toMatchObject({
+      id: "compat-main",
+      type: "openai-compatible",
+      defaultModel: "gpt-4o-mini"
+    });
+    expect("reasoningEffort" in parsed.runtime.providers[0]).toBe(false);
+    expect("thinkingBudgetTokens" in parsed.runtime.providers[0]).toBe(false);
+  });
+
+  it("rejects invalid Anthropic thinking budgets", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).providers = [
+      {
+        id: "anthropic-main",
+        type: "anthropic",
+        defaultModel: "claude-sonnet-4-5",
+        thinkingBudgetTokens: 512
+      }
+    ];
+
+    expect(() => parseConfig(input)).toThrow(/thinkingBudgetTokens/);
+  });
+
   it("rejects invalid Telegram operator user IDs", () => {
     const input = baseConfigInput();
     (input.runtime as any).channels = [

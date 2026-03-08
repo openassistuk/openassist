@@ -53,6 +53,8 @@ export interface ProviderCapabilities {
   supportedModels?: string[];
 }
 
+export type OpenAIReasoningEffort = "low" | "medium" | "high";
+
 export interface ChatRequest {
   sessionId: string;
   model: string;
@@ -80,11 +82,10 @@ export interface ProviderAdapter {
   chat(req: ChatRequest, auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse>;
 }
 
-export interface ProviderConfig {
+interface BaseProviderConfig {
   id: string;
-  type: "openai" | "anthropic" | "openai-compatible";
-  baseUrl?: string;
   defaultModel: string;
+  baseUrl?: string;
   oauth?: {
     authorizeUrl: string;
     tokenUrl: string;
@@ -97,3 +98,22 @@ export interface ProviderConfig {
   };
   metadata?: Record<string, unknown>;
 }
+
+export interface OpenAIProviderRuntimeConfig extends BaseProviderConfig {
+  type: "openai";
+  reasoningEffort?: OpenAIReasoningEffort;
+}
+
+export interface AnthropicProviderRuntimeConfig extends BaseProviderConfig {
+  type: "anthropic";
+  thinkingBudgetTokens?: number;
+}
+
+export interface OpenAICompatibleProviderRuntimeConfig extends BaseProviderConfig {
+  type: "openai-compatible";
+}
+
+export type ProviderConfig =
+  | OpenAIProviderRuntimeConfig
+  | AnthropicProviderRuntimeConfig
+  | OpenAICompatibleProviderRuntimeConfig;

@@ -240,6 +240,13 @@ Wizard owns the advanced surfaces:
 - scheduling and time
 - advanced tools and security
 
+Wizard is also where advanced provider-native reasoning controls live:
+
+- OpenAI `reasoningEffort` for supported GPT-5/codex/o-series Responses API model families
+- Anthropic `thinkingBudgetTokens` for supported thinking-capable Claude families
+- safe default is unset, which means OpenAssist sends no provider-specific reasoning parameter
+- OpenAI-compatible providers stay unchanged in this release
+
 Wizard saves also run post-save restart, health, time, and scheduler checks by default. Use `--skip-post-checks` only when you intentionally want to defer operational validation.
 
 ### 7. Upgrade safely

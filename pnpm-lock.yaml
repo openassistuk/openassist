@@ -60,6 +60,9 @@ importers:
       '@openassist/core-runtime':
         specifier: workspace:*
         version: link:../../packages/core-runtime
+      '@openassist/core-types':
+        specifier: workspace:*
+        version: link:../../packages/core-types
       '@openassist/migration-openclaw':
         specifier: workspace:*
         version: link:../../packages/migration-openclaw

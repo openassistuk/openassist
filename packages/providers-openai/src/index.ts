@@ -5,6 +5,7 @@ import type {
   ApiKeyAuth,
   ChatRequest,
   ChatResponse,
+  OpenAIReasoningEffort,
   OAuthCompleteContext,
   OAuthStartContext,
   OAuthStartResult,
@@ -18,6 +19,7 @@ const configSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
+  reasoningEffort: z.enum(["low", "medium", "high"]).optional(),
   oauth: z
     .object({
       authorizeUrl: z.string().url(),
@@ -215,6 +217,20 @@ function shouldPreferResponsesApi(model: string): boolean {
     normalized.startsWith("o3") ||
     normalized.startsWith("o4")
   );
+}
+
+function supportsOpenAIReasoningEffort(model: string): boolean {
+  return shouldPreferResponsesApi(model);
+}
+
+function reasoningPayload(
+  model: string,
+  effort: OpenAIReasoningEffort | undefined
+): { effort: OpenAIReasoningEffort } | undefined {
+  if (!effort || !supportsOpenAIReasoningEffort(model)) {
+    return undefined;
+  }
+  return { effort };
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -463,6 +479,7 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
+        reasoning: reasoningPayload(model, this.config.reasoningEffort),
         input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
@@ -490,6 +507,7 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
+        reasoning: reasoningPayload(model, this.config.reasoningEffort),
         input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata

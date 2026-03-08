@@ -10,6 +10,9 @@
   ],
   "references": [
     {
+      "path": "../../packages/core-types"
+    },
+    {
       "path": "../../packages/config"
     },
     {

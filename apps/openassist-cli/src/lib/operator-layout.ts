@@ -224,27 +224,62 @@ function removeIfExists(target: string): void {
   fs.rmSync(target, { recursive: true, force: true });
 }
 
-function restoreTrackedRepoPath(installDir: string, relativePath: string): boolean {
+type TrackedRepoPathAction = "restored" | "delete" | "preserve";
+
+function classifyTrackedRepoPathAction(installDir: string, relativePath: string): TrackedRepoPathAction {
   if (!exists(path.join(installDir, ".git"))) {
-    return false;
+    return "delete";
   }
+
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
-  const result = spawnSync("git", ["-C", installDir, "checkout", "--", normalizedRelativePath], {
+  const trackedResult = spawnSync("git", ["-C", installDir, "ls-files", "--error-unmatch", normalizedRelativePath], {
     stdio: "ignore"
   });
-  return result.status === 0;
+  if (trackedResult.error || trackedResult.status === null) {
+    return "preserve";
+  }
+  if (trackedResult.status !== 0) {
+    return "delete";
+  }
+
+  const checkoutResult = spawnSync("git", ["-C", installDir, "checkout", "--", normalizedRelativePath], {
+    stdio: "ignore"
+  });
+  if (checkoutResult.error || checkoutResult.status === null) {
+    return "preserve";
+  }
+  return checkoutResult.status === 0 ? "restored" : "preserve";
 }
 
-function cleanupLegacyArtifacts(detection: LegacyDefaultLayoutDetection): void {
+function cleanupLegacyArtifacts(detection: LegacyDefaultLayoutDetection): { cleaned: boolean } {
   removeIfExists(detection.legacy.stateRoot);
-  if (!restoreTrackedRepoPath(detection.installDir, path.relative(detection.installDir, detection.legacy.configPath))) {
+
+  const configAction = classifyTrackedRepoPathAction(
+    detection.installDir,
+    path.relative(detection.installDir, detection.legacy.configPath)
+  );
+  if (configAction === "delete") {
     removeIfExists(detection.legacy.configPath);
   }
-  removeIfExists(detection.legacy.overlaysDir);
-  restoreTrackedRepoPath(
+
+  const overlaysAction = classifyTrackedRepoPathAction(
     detection.installDir,
     path.join(path.relative(detection.installDir, detection.legacy.overlaysDir), ".gitkeep")
   );
+  if (overlaysAction === "delete") {
+    removeIfExists(detection.legacy.overlaysDir);
+  } else if (overlaysAction === "restored" && exists(detection.legacy.overlaysDir)) {
+    for (const entry of fs.readdirSync(detection.legacy.overlaysDir)) {
+      if (entry === ".gitkeep") {
+        continue;
+      }
+      removeIfExists(path.join(detection.legacy.overlaysDir, entry));
+    }
+  }
+
+  return {
+    cleaned: configAction !== "preserve" && overlaysAction !== "preserve"
+  };
 }
 
 export async function migrateLegacyDefaultLayout(
@@ -294,9 +329,11 @@ export async function migrateLegacyDefaultLayout(
   let message = `Migrated repo-local operator state into ${detection.operator.configDir}.`;
   const buildExists = exists(path.join(detection.installDir, "apps", "openassistd", "dist", "index.js"));
   if (!buildExists) {
-    cleanupLegacyArtifacts(detection);
-    cleanedLegacyArtifacts = true;
-    message = `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state because no built daemon is present yet.`;
+    const cleanup = cleanupLegacyArtifacts(detection);
+    cleanedLegacyArtifacts = cleanup.cleaned;
+    message = cleanup.cleaned
+      ? `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state because no built daemon is present yet.`
+      : `Migrated repo-local operator state into ${detection.operator.configDir}, but kept tracked repo files in place because git checkout was unavailable during cleanup.`;
   } else {
     const runner = new SpawnCommandRunner();
     let service: ReturnType<typeof createServiceManager> | undefined;
@@ -307,9 +344,11 @@ export async function migrateLegacyDefaultLayout(
     }
 
     if (!service) {
-      cleanupLegacyArtifacts(detection);
-      cleanedLegacyArtifacts = true;
-      message = `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state because no managed service refresh is available on this host.`;
+      const cleanup = cleanupLegacyArtifacts(detection);
+      cleanedLegacyArtifacts = cleanup.cleaned;
+      message = cleanup.cleaned
+        ? `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state because no managed service refresh is available on this host.`
+        : `Migrated repo-local operator state into ${detection.operator.configDir}, but kept tracked repo files in place because git checkout was unavailable during cleanup.`;
     } else {
       try {
         const installed = await service.isInstalled();
@@ -327,16 +366,20 @@ export async function migrateLegacyDefaultLayout(
             2_000
           );
           if (health.ok) {
-            cleanupLegacyArtifacts(detection);
-            cleanedLegacyArtifacts = true;
-            message = `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state after a healthy restart.`;
+            const cleanup = cleanupLegacyArtifacts(detection);
+            cleanedLegacyArtifacts = cleanup.cleaned;
+            message = cleanup.cleaned
+              ? `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state after a healthy restart.`
+              : `Migrated repo-local operator state into ${detection.operator.configDir}, but kept tracked repo files in place because git checkout was unavailable during cleanup.`;
           } else {
             message = `Migrated repo-local operator state into ${detection.operator.configDir}, but kept old repo-local files because service health was not confirmed yet.`;
           }
         } else {
-          cleanupLegacyArtifacts(detection);
-          cleanedLegacyArtifacts = true;
-          message = `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state because no service is installed yet.`;
+          const cleanup = cleanupLegacyArtifacts(detection);
+          cleanedLegacyArtifacts = cleanup.cleaned;
+          message = cleanup.cleaned
+            ? `Migrated repo-local operator state into ${detection.operator.configDir} and cleaned the old repo-local state because no service is installed yet.`
+            : `Migrated repo-local operator state into ${detection.operator.configDir}, but kept tracked repo files in place because git checkout was unavailable during cleanup.`;
         }
       } catch (error) {
         message = `Migrated repo-local operator state into ${detection.operator.configDir}, but kept old repo-local files because service refresh did not complete: ${error instanceof Error ? error.message : String(error)}`;

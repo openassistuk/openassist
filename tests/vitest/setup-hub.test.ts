@@ -99,8 +99,12 @@ function writeLegacyDefaultLayout(installDir: string): void {
   saveConfigObject(path.join(installDir, "openassist.toml"), config);
   fs.mkdirSync(path.join(installDir, "config.d"), { recursive: true });
   fs.writeFileSync(path.join(installDir, "config.d", "extra.toml"), "[runtime]\n", "utf8");
-  fs.mkdirSync(path.join(installDir, ".openassist", "data"), { recursive: true });
-  fs.writeFileSync(path.join(installDir, ".openassist", "data", "openassist.db"), "", "utf8");
+  const dbPath = path.join(installDir, ".openassist", "data", "openassist.db");
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  fs.writeFileSync(dbPath, "", "utf8");
+  if (process.platform !== "win32") {
+    fs.chmodSync(dbPath, 0o600);
+  }
 }
 
 const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");

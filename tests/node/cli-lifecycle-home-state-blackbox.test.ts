@@ -71,6 +71,14 @@ function childHomeEnv(homeDir: string, extra: NodeJS.ProcessEnv = {}): NodeJS.Pr
   };
 }
 
+function writeOwnerOnlyFile(target: string, content = ""): void {
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, content, "utf8");
+  if (process.platform !== "win32") {
+    fs.chmodSync(target, 0o600);
+  }
+}
+
 async function withHomeDir<T>(homeDir: string, fn: () => Promise<T>): Promise<T> {
   const previousHome = process.env.HOME;
   const previousUserProfile = process.env.USERPROFILE;
@@ -164,8 +172,7 @@ describe("lifecycle home-state black-box coverage", () => {
     fs.writeFileSync(operatorPaths.envFilePath, "", "utf8");
     fs.mkdirSync(operatorPaths.logsDir, { recursive: true });
     fs.writeFileSync(path.join(operatorPaths.logsDir, "daemon.log"), "ok\n", "utf8");
-    fs.mkdirSync(operatorPaths.dataDir, { recursive: true });
-    fs.writeFileSync(path.join(operatorPaths.dataDir, "openassist.db"), "", "utf8");
+    writeOwnerOnlyFile(path.join(operatorPaths.dataDir, "openassist.db"));
     fs.mkdirSync(path.join(cloneDir, "apps", "openassistd", "dist"), { recursive: true });
     fs.writeFileSync(path.join(cloneDir, "apps", "openassistd", "dist", "index.js"), "// built for dry-run\n", "utf8");
     saveInstallState(
@@ -200,8 +207,7 @@ describe("lifecycle home-state black-box coverage", () => {
     const legacyConfigPath = writeLegacyRepoLocalConfig(cloneDir);
     fs.mkdirSync(path.join(cloneDir, "config.d"), { recursive: true });
     fs.writeFileSync(path.join(cloneDir, "config.d", "extra.toml"), "[runtime]\n", "utf8");
-    fs.mkdirSync(path.join(cloneDir, ".openassist", "data"), { recursive: true });
-    fs.writeFileSync(path.join(cloneDir, ".openassist", "data", "openassist.db"), "", "utf8");
+    writeOwnerOnlyFile(path.join(cloneDir, ".openassist", "data", "openassist.db"));
     fs.mkdirSync(path.dirname(operatorPaths.envFilePath), { recursive: true });
     fs.writeFileSync(operatorPaths.envFilePath, "", "utf8");
     fs.mkdirSync(path.join(cloneDir, "apps", "openassistd", "dist"), { recursive: true });
@@ -256,8 +262,7 @@ describe("lifecycle home-state black-box coverage", () => {
 
     const operatorPaths = resolveOperatorPaths({ homeDir, installDir: cloneDir });
     const legacyConfigPath = writeLegacyRepoLocalConfig(cloneDir);
-    fs.mkdirSync(path.join(cloneDir, ".openassist", "data"), { recursive: true });
-    fs.writeFileSync(path.join(cloneDir, ".openassist", "data", "openassist.db"), "", "utf8");
+    writeOwnerOnlyFile(path.join(cloneDir, ".openassist", "data", "openassist.db"));
     fs.mkdirSync(operatorPaths.dataDir, { recursive: true });
     fs.writeFileSync(path.join(operatorPaths.dataDir, "already-there.db"), "", "utf8");
     saveInstallState(

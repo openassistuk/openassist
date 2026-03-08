@@ -47,6 +47,14 @@ function writeLegacyDefaultConfig(installDir: string): string {
   return configPath;
 }
 
+function writeOwnerOnlyFile(target: string, content = ""): void {
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, content, "utf8");
+  if (process.platform !== "win32") {
+    fs.chmodSync(target, 0o600);
+  }
+}
+
 describe("legacy operator layout coverage", () => {
   it("skips migration when no repo-local config exists", async () =>
     await withHomeDir(tempDir("openassist-layout-home-none-"), async () => {
@@ -97,8 +105,7 @@ describe("legacy operator layout coverage", () => {
 
       fs.mkdirSync(path.join(installDir, "config.d"), { recursive: true });
       fs.writeFileSync(path.join(installDir, "config.d", "extra.toml"), "[runtime]\n", "utf8");
-      fs.mkdirSync(path.join(installDir, ".openassist", "data"), { recursive: true });
-      fs.writeFileSync(path.join(installDir, ".openassist", "data", "openassist.db"), "", "utf8");
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
       fs.mkdirSync(path.dirname(operatorPaths.envFilePath), { recursive: true });
       fs.writeFileSync(operatorPaths.envFilePath, "# env\n", "utf8");
       saveInstallState({
@@ -137,8 +144,7 @@ describe("legacy operator layout coverage", () => {
       const installDir = tempDir("openassist-layout-install-conflict-");
       const operatorPaths = resolveOperatorPaths({ homeDir, installDir });
       writeLegacyDefaultConfig(installDir);
-      fs.mkdirSync(path.join(installDir, ".openassist", "data"), { recursive: true });
-      fs.writeFileSync(path.join(installDir, ".openassist", "data", "openassist.db"), "", "utf8");
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
       fs.mkdirSync(operatorPaths.dataDir, { recursive: true });
       fs.writeFileSync(path.join(operatorPaths.dataDir, "already-there.db"), "", "utf8");
 
@@ -160,8 +166,7 @@ describe("legacy operator layout coverage", () => {
       const homeDir = process.env.HOME!;
       const installDir = tempDir("openassist-layout-install-custom-paths-");
       writeLegacyDefaultConfig(installDir);
-      fs.mkdirSync(path.join(installDir, ".openassist", "data"), { recursive: true });
-      fs.writeFileSync(path.join(installDir, ".openassist", "data", "openassist.db"), "", "utf8");
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
 
       const customConfigPath = path.join(homeDir, "manual", "openassist.toml");
       const customEnvFilePath = path.join(homeDir, "manual", "openassistd.env");

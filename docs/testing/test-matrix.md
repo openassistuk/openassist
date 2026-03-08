@@ -64,6 +64,7 @@ Current suite files under `tests/vitest/`:
 - `migration.test.ts`
 - `misfire-policy.test.ts`
 - `observability-redaction.test.ts`
+- `operator-layout-cleanup.test.ts`
 - `operator-layout.test.ts`
 - `operator-paths.test.ts`
 - `pkg-install-tool.test.ts`

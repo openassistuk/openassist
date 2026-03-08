@@ -18,6 +18,7 @@ The proof should be visible in four places. First, root `README.md` and root `AG
 - [x] (2026-03-08 15:14Z) Added repo-wide docs-truth validation in `tests/node/cli-docs-truth.test.ts`, broader lifecycle black-box coverage in `tests/node/cli-lifecycle-home-state-blackbox.test.ts`, plus supporting hub and migration coverage updates in `tests/node/cli-setup-hub-coverage.test.ts` and `tests/vitest/setup-hub.test.ts`.
 - [x] (2026-03-08 15:21Z) Added and linted the supplemental lifecycle smoke workflow in `.github/workflows/lifecycle-e2e-smoke.yml`, then documented it in the root docs and `docs/testing/test-matrix.md` as a manual or scheduled signal rather than a required PR gate.
 - [x] (2026-03-08 16:12Z) Re-ran targeted docs/lifecycle suites and `pnpm verify:all` after the final workflow-schedule and migration-wording audit fixes; all local gates are green and the branch is ready to push for CI and review.
+- [x] (2026-03-08 18:09Z) Fixed the final PR follow-up issues: legacy-layout cleanup now preserves tracked repo files when Git cannot restore them, Unix black-box fixtures now write owner-only SQLite files, `docs/testing/test-matrix.md` includes the new cleanup-safety suite, and the full local gate is green again.
 
 ## Surprises & Discoveries
 
@@ -32,6 +33,9 @@ The proof should be visible in four places. First, root `README.md` and root `AG
 
 - Observation: legacy-layout migration wording was broader in the docs than it is in the implementation.
   Evidence: `apps/openassist-cli/src/commands/setup.ts` and `apps/openassist-cli/src/lib/setup-hub.ts` run `autoMigrateLegacyDefaultLayoutIfNeeded(...)`, but `doctor` and `upgrade --dry-run` only detect the legacy layout and route operators back to setup instead of migrating it in place.
+
+- Observation: the first GitHub CI rerun exposed two cross-platform issues that local Windows-heavy verification did not catch: the new black-box fixtures were creating insecure `0644` SQLite files, and the cleanup helper was too willing to delete tracked repo files when Git was unavailable.
+  Evidence: PR `#16` Ubuntu/macOS logs failed with `Insecure permissions on file ... openassist.db: 0o644` in `packages/storage-sqlite/src/index.ts`, and Copilot flagged `apps/openassist-cli/src/lib/operator-layout.ts` for treating any `git checkout` failure as safe-to-delete.
 
 ## Decision Log
 
@@ -51,13 +55,13 @@ The proof should be visible in four places. First, root `README.md` and root `AG
 
 The branch now enforces repo-wide docs truth instead of relying on manual sync. Root `README.md` and `AGENTS.md` were rewritten first, then the lifecycle runbooks, testing docs, and `CHANGELOG.md` were brought into line behind them. The new `docs/operations/common-troubleshooting.md` gives beginner and intermediate operators one repair runbook instead of scattering recovery snippets across install, quickstart, setup, and upgrade pages.
 
-The implementation also adds concrete enforcement, not just prose. `tests/node/cli-docs-truth.test.ts` now validates documented command examples, root-doc links, workflow statements, and the exact `tests/node` plus `tests/vitest` inventories. `tests/node/cli-lifecycle-home-state-blackbox.test.ts` now proves home-state installs stay upgrade-clean, recognized legacy repo-local layouts migrate safely, conflicting migrations stop cleanly, and non-TTY `openassist setup` guidance preserves explicit custom paths. `.github/workflows/lifecycle-e2e-smoke.yml` adds a stronger bootstrap/home-state smoke path on Linux and macOS without turning it into a required PR gate.
+The implementation also adds concrete enforcement, not just prose. `tests/node/cli-docs-truth.test.ts` now validates documented command examples, root-doc links, workflow statements, and the exact `tests/node` plus `tests/vitest` inventories. `tests/node/cli-lifecycle-home-state-blackbox.test.ts` now proves home-state installs stay upgrade-clean, recognized legacy repo-local layouts migrate safely, conflicting migrations stop cleanly, and non-TTY `openassist setup` guidance preserves explicit custom paths. `.github/workflows/lifecycle-e2e-smoke.yml` adds a stronger bootstrap/home-state smoke path on Linux and macOS without turning it into a required PR gate. The final follow-up also hardened the legacy cleanup path itself: `apps/openassist-cli/src/lib/operator-layout.ts` now preserves tracked repo files when Git cannot restore them, and the Unix migration fixtures now write owner-only SQLite files so the black-box lifecycle coverage matches the real daemon security posture.
 
 Final evidence recorded for this plan:
 
 - `pnpm exec tsx --test tests/node/cli-docs-truth.test.ts tests/node/cli-lifecycle-home-state-blackbox.test.ts tests/node/cli-setup-hub-coverage.test.ts` passed on 2026-03-08.
-- `pnpm exec vitest run tests/vitest/operator-paths.test.ts tests/vitest/operator-layout.test.ts tests/vitest/lifecycle-readiness.test.ts tests/vitest/setup-hub.test.ts` passed on 2026-03-08.
-- `pnpm verify:all` passed twice on 2026-03-08, with the final run occurring after the workflow-schedule and migration-wording corrections.
+- `pnpm exec vitest run tests/vitest/operator-paths.test.ts tests/vitest/operator-layout.test.ts tests/vitest/operator-layout-cleanup.test.ts tests/vitest/lifecycle-readiness.test.ts tests/vitest/setup-hub.test.ts` passed on 2026-03-08.
+- `pnpm verify:all` passed on 2026-03-08 after the workflow-schedule, migration-wording, cleanup-safety, and Unix fixture-permissions corrections.
 
 ## Context and Orientation
 

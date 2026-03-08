@@ -293,7 +293,7 @@ describe("setup wizard runtime flow", () => {
       "add",
       "anthropic-main",
       "anthropic",
-      "claude-sonnet-4-5",
+      "claude-sonnet-4-20250514",
       "",
       "4096",
       "false",

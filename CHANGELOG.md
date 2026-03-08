@@ -238,3 +238,4 @@ The format follows Keep a Changelog conventions and this project currently track
 
 - Strict local/CI verification gates (`pnpm verify:all`) and enforced coverage thresholds.
 - Cross-platform quality workflow matrix plus scheduled/manual service-smoke workflow.
+- Provider defaults now keep OpenAI on `gpt-5.2` and update Anthropic onboarding examples/default prompts to the current official Sonnet snapshot `claude-sonnet-4-20250514`, so new installs offer current real API model IDs instead of older aliases.

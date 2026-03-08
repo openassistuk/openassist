@@ -51,7 +51,7 @@ defaultModel = "gpt-5.2"
 # [[runtime.providers]]
 # id = "anthropic-main"
 # type = "anthropic"
-# defaultModel = "claude-sonnet-4-5"
+# defaultModel = "claude-sonnet-4-20250514"
 # thinkingBudgetTokens = 4096
 
 # Example OAuth configuration (official provider-documented flows only):

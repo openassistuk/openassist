@@ -160,7 +160,7 @@ describe("config schema security validation", () => {
       {
         id: "anthropic-main",
         type: "anthropic",
-        defaultModel: "claude-sonnet-4-5",
+        defaultModel: "claude-sonnet-4-20250514",
         thinkingBudgetTokens: 4096
       }
     ];
@@ -205,7 +205,7 @@ describe("config schema security validation", () => {
       {
         id: "anthropic-main",
         type: "anthropic",
-        defaultModel: "claude-sonnet-4-5",
+        defaultModel: "claude-sonnet-4-20250514",
         thinkingBudgetTokens: 512
       }
     ];

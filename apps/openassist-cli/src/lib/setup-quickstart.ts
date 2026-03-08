@@ -104,7 +104,7 @@ function defaultProviderForType(type: ProviderType): { id: string; model: string
   if (type === "anthropic") {
     return {
       id: "anthropic-main",
-      model: "claude-sonnet-4-5"
+      model: "claude-sonnet-4-20250514"
     };
   }
 

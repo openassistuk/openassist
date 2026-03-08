@@ -81,7 +81,7 @@ describe("cli setup wizard", () => {
       "add",
       "anthropic-main",
       "anthropic",
-      "claude-sonnet-4-5",
+      "claude-sonnet-4-20250514",
       "",
       "",
       "true",
@@ -154,7 +154,7 @@ describe("cli setup wizard", () => {
     state.config.runtime.providers.push({
       id: "anthropic-main",
       type: "anthropic",
-      defaultModel: "claude-sonnet-4-5"
+      defaultModel: "claude-sonnet-4-20250514"
     });
     state.config.runtime.channels.push({
       id: "discord-main",

@@ -326,7 +326,7 @@ export async function migrateLegacyDefaultLayout(
   );
 
   let cleanedLegacyArtifacts = false;
-  let message = `Migrated repo-local operator state into ${detection.operator.configDir}.`;
+  let message: string;
   const buildExists = exists(path.join(detection.installDir, "apps", "openassistd", "dist", "index.js"));
   if (!buildExists) {
     const cleanup = cleanupLegacyArtifacts(detection);

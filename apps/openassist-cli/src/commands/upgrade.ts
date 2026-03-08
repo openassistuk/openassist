@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import { loadConfig, resolveConfigOverlaysDir } from "@openassist/config";
 import { createLogger } from "@openassist/observability";
 import type { Command } from "commander";

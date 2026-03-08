@@ -365,8 +365,6 @@ configCommand
   .option("--config <path>", "Path to openassist.toml", defaultOperatorConfigPath())
   .action((options) => {
     const configPath = resolveFromWorkspace(options.config);
-    const configDir = path.dirname(configPath);
-
     try {
       const { config, loadedFiles } = loadConfig({
         baseFile: configPath,

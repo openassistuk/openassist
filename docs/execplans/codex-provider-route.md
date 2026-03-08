@@ -32,6 +32,7 @@ The operator-visible proof should be simple. Quickstart and wizard should show t
 - [x] (2026-03-08 20:32Z) Opened PR `#18` from branch `feat/codex-provider-route` and verified the branch head is `46637a5669ed97d6a65934ac2ee5403573ceadfa`.
 - [x] (2026-03-08 20:33Z) GitHub CI is green on PR `#18`: `workflow-lint`, `quality-and-coverage` on Ubuntu/macOS/Windows, `CodeQL preflight`, `analyze (javascript-typescript)`, and `CodeQL` all passed.
 - [x] (2026-03-08 20:33Z) Review and code-scanning follow-up is clear on PR `#18`: no PR review comments, no open PR-head code-scanning alerts, and no actionable Copilot findings were left unresolved.
+- [x] (2026-03-08 20:56Z) Addressed the late Copilot follow-up on PR `#18`: extracted duplicated OpenAI transport mapping into the new internal package `@openassist/providers-openai-shared`, serialized OAuth refresh per provider in runtime, tightened the unauthorized-refresh predicate, reran local `pnpm verify:all`, and pushed branch head `6668a24c22502c8f916f89b6c7034e52b827c30e`.
 
 ## Surprises & Discoveries
 
@@ -43,6 +44,9 @@ The operator-visible proof should be simple. Quickstart and wizard should show t
 
 - Observation: the correct public boundary for Codex needed to stay narrower than a generic “ChatGPT login” story.
   Evidence: the branch adapter implementation validates `gpt-5.4` and Codex-family models only, and the route uses a dedicated Codex/OpenAI account-login flow rather than acting like a broad replacement for the OpenAI API-key route.
+
+- Observation: Copilot surfaced one maintainability issue and two runtime correctness issues only after the first green PR pass.
+  Evidence: PR `#18` line comments called out duplicated OpenAI request/response mapping in `packages/providers-codex/src/index.ts`, concurrent refresh-token race risk in `packages/core-runtime/src/runtime.ts`, and an overly broad unauthorized-error string match.
 
 ## Decision Log
 
@@ -62,6 +66,14 @@ The operator-visible proof should be simple. Quickstart and wizard should show t
   Rationale: operators may already have mixed configs, but new account-login installs should be steered toward `codex`.
   Date/Author: 2026-03-08 / Codex
 
+- Decision: fix the duplicated OpenAI transport helpers by extracting a shared internal package instead of leaving the Codex adapter as a copy.
+  Rationale: a separate `@openassist/providers-openai-shared` package keeps the OpenAI and Codex routes behaviorally aligned and turns future transport/parser fixes into one change instead of two.
+  Date/Author: 2026-03-08 / Codex
+
+- Decision: serialize OAuth refresh per provider instance inside runtime.
+  Rationale: refresh tokens can rotate or be single-use, so concurrent refresh attempts against the same provider must reuse one in-flight refresh result instead of racing each other.
+  Date/Author: 2026-03-08 / Codex
+
 ## Outcomes & Retrospective
 
 The docs/governance/sample-config slice is now aligned with the intended branch architecture. The root docs, setup runbooks, provider interface docs, migration notes, and changelog now tell one consistent story: `openai` is the API-key route, `codex` is the separate OpenAI account-login route, and new account-login setups should use `codex` rather than a mixed OpenAI provider entry.
@@ -72,11 +84,14 @@ Final branch-owner verification evidence:
 
 - local verification: `pnpm verify:all` passed on branch `feat/codex-provider-route`
 - PR: `#18` (`feat: add separate codex provider route`)
-- branch head verified on PR: `46637a5669ed97d6a65934ac2ee5403573ceadfa`
+- branch head verified on PR: `6668a24c22502c8f916f89b6c7034e52b827c30e`
 - GitHub CI: green
 - CodeQL: green
 - PR-head code-scanning alerts: none
-- review findings: none left open
+- review findings fixed on-branch:
+  - extracted duplicated OpenAI transport mapping into `@openassist/providers-openai-shared`
+  - added per-provider OAuth refresh serialization in runtime
+  - tightened the unauthorized refresh predicate and added regression coverage
 
 The docs-testing sync risk that existed mid-implementation was closed before the final local gate. `docs/testing/test-matrix.md` and the docs-truth assertions were updated to include the Codex-route suites before the successful `pnpm verify:all` run.
 

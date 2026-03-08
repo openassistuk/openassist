@@ -375,6 +375,7 @@ export class OpenAssistRuntime {
   private readonly channelTypes = new Map<string, RuntimeConfig["channels"][number]["type"]>();
   private readonly apiKeyAuth = new Map<string, ApiKeyAuth>();
   private readonly auth = new Map<string, ApiKeyAuth | ProviderAuthHandle>();
+  private readonly oauthRefreshLocks = new Map<string, Promise<ProviderAuthHandle>>();
   private readonly policyEngine: DatabasePolicyEngine;
   private readonly contextPlanner = new ContextPlanner();
   private readonly recoveryWorker: RecoveryWorker;
@@ -642,8 +643,29 @@ export class OpenAssistRuntime {
       message.includes("unauthorized") ||
       message.includes("invalid api key") ||
       message.includes("invalid_api_key") ||
-      message.includes("authentication")
+      message.includes("authentication failed") ||
+      message.includes("authentication required")
     );
+  }
+
+  private async withOAuthRefreshLock(
+    providerId: string,
+    refresh: () => Promise<ProviderAuthHandle>
+  ): Promise<ProviderAuthHandle> {
+    const pending = this.oauthRefreshLocks.get(providerId);
+    if (pending) {
+      return pending;
+    }
+
+    const inFlight = (async () => {
+      try {
+        return await refresh();
+      } finally {
+        this.oauthRefreshLocks.delete(providerId);
+      }
+    })();
+    this.oauthRefreshLocks.set(providerId, inFlight);
+    return inFlight;
   }
 
   private async maybeRefreshOAuthAuth(
@@ -657,12 +679,24 @@ export class OpenAssistRuntime {
     if (!forceRefresh && !this.isOAuthRefreshDue(auth)) {
       return auth;
     }
-    const refreshed = await provider.refreshOAuthAuth(auth);
-    if (!refreshed.accessToken) {
-      throw new Error(`OAuth refresh for provider ${provider.id()} did not return access token`);
-    }
-    this.persistOAuthHandle(refreshed);
-    return refreshed;
+    return this.withOAuthRefreshLock(provider.id(), async () => {
+      const latestAuth = this.auth.get(provider.id());
+      if (latestAuth && this.isOAuthAuthHandle(latestAuth)) {
+        if (latestAuth.accessToken !== auth.accessToken && !forceRefresh) {
+          return latestAuth;
+        }
+        if (latestAuth.accessToken !== auth.accessToken && !this.isOAuthRefreshDue(latestAuth)) {
+          return latestAuth;
+        }
+      }
+
+      const refreshed = await provider.refreshOAuthAuth!(auth);
+      if (!refreshed.accessToken) {
+        throw new Error(`OAuth refresh for provider ${provider.id()} did not return access token`);
+      }
+      this.persistOAuthHandle(refreshed);
+      return refreshed;
+    });
   }
 
   private async resolveProviderAuth(

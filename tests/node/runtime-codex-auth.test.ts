@@ -64,9 +64,28 @@ class MockCodexProvider implements ProviderAdapter {
   public chatCalls = 0;
   public seenAuth: ProviderAuthHandle[] = [];
   private readonly initialExpiryOffsetMs: number;
+  private readonly refreshDelayMs: number;
+  private readonly chatErrorMessage?: string;
 
-  constructor(initialExpiryOffsetMs = 60 * 60 * 1000) {
-    this.initialExpiryOffsetMs = initialExpiryOffsetMs;
+  constructor(
+    initialExpiryOffsetMsOrOptions:
+      | number
+      | {
+          initialExpiryOffsetMs?: number;
+          refreshDelayMs?: number;
+          chatErrorMessage?: string;
+        } = 60 * 60 * 1000
+  ) {
+    if (typeof initialExpiryOffsetMsOrOptions === "number") {
+      this.initialExpiryOffsetMs = initialExpiryOffsetMsOrOptions;
+      this.refreshDelayMs = 0;
+      this.chatErrorMessage = undefined;
+      return;
+    }
+
+    this.initialExpiryOffsetMs = initialExpiryOffsetMsOrOptions.initialExpiryOffsetMs ?? 60 * 60 * 1000;
+    this.refreshDelayMs = initialExpiryOffsetMsOrOptions.refreshDelayMs ?? 0;
+    this.chatErrorMessage = initialExpiryOffsetMsOrOptions.chatErrorMessage;
   }
 
   id(): string {
@@ -111,6 +130,9 @@ class MockCodexProvider implements ProviderAdapter {
 
   async refreshOAuthAuth(auth: ProviderAuthHandle): Promise<ProviderAuthHandle> {
     this.refreshCalls += 1;
+    if (this.refreshDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, this.refreshDelayMs));
+    }
     return {
       providerId: auth.providerId,
       accountId: auth.accountId,
@@ -126,6 +148,9 @@ class MockCodexProvider implements ProviderAdapter {
     this.chatCalls += 1;
     assert.ok("accountId" in auth, "Codex route should use OAuth auth handles");
     this.seenAuth.push(auth);
+    if (this.chatErrorMessage) {
+      throw new Error(this.chatErrorMessage);
+    }
     return {
       output: { role: "assistant", content: "codex ok" },
       usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }
@@ -355,6 +380,128 @@ describe("runtime codex auth route", () => {
     assert.equal(openaiProvider2.chatCalls, 0);
 
     await runtime2.stop();
+    db.close();
+  });
+
+  it("serializes concurrent codex token refreshes for the same provider", async () => {
+    const root = tempDir("openassist-runtime-codex-refresh-lock-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+
+    const runtime1 = new OpenAssistRuntime(
+      runtimeConfig(root),
+      { db, logger },
+      {
+        providers: [new MockOpenAIProvider(), new MockCodexProvider(60_000)],
+        channels: [new MockChannel()]
+      }
+    );
+    runtime1.setProviderApiKey("openai-main", "openai-api-key");
+    await runtime1.start();
+
+    const started = await runtime1.startOAuthLogin(
+      "codex-main",
+      "default",
+      "http://127.0.0.1:3344/v1/oauth/codex-main/callback"
+    );
+    await runtime1.completeOAuthLogin("codex-main", started.state, "auth-code-1");
+    await runtime1.stop();
+
+    const codexProvider2 = new MockCodexProvider({
+      initialExpiryOffsetMs: 60_000,
+      refreshDelayMs: 50
+    });
+    const channel2 = new MockChannel();
+    const runtime2 = new OpenAssistRuntime(
+      runtimeConfig(root),
+      { db, logger },
+      { providers: [new MockOpenAIProvider(), codexProvider2], channels: [channel2] }
+    );
+    runtime2.setProviderApiKey("openai-main", "openai-api-key");
+    await runtime2.start();
+
+    await Promise.all([
+      channel2.emit({
+        channel: "telegram",
+        channelId: "telegram-main",
+        transportMessageId: "m1",
+        conversationKey: "codex-refresh-lock-a",
+        senderId: "u1",
+        text: "refresh A",
+        attachments: [],
+        receivedAt: new Date().toISOString(),
+        idempotencyKey: "codex-refresh-lock-a"
+      }),
+      channel2.emit({
+        channel: "telegram",
+        channelId: "telegram-main",
+        transportMessageId: "m2",
+        conversationKey: "codex-refresh-lock-b",
+        senderId: "u2",
+        text: "refresh B",
+        attachments: [],
+        receivedAt: new Date().toISOString(),
+        idempotencyKey: "codex-refresh-lock-b"
+      })
+    ]);
+
+    assert.equal(codexProvider2.refreshCalls, 1);
+    assert.equal(codexProvider2.chatCalls, 2);
+    assert.deepEqual(
+      codexProvider2.seenAuth.map((auth) => auth.accessToken),
+      ["codex-token-refreshed", "codex-token-refreshed"]
+    );
+
+    await runtime2.stop();
+    db.close();
+  });
+
+  it("does not force codex refresh on non-401 authentication wording", async () => {
+    const root = tempDir("openassist-runtime-codex-auth-wording-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+
+    const codexProvider2 = new MockCodexProvider({
+      initialExpiryOffsetMs: 60 * 60 * 1000,
+      chatErrorMessage: "authentication method not supported"
+    });
+    const runtime2 = new OpenAssistRuntime(
+      runtimeConfig(root),
+      { db, logger },
+      { providers: [new MockOpenAIProvider(), codexProvider2], channels: [new MockChannel()] }
+    );
+    runtime2.setProviderApiKey("openai-main", "openai-api-key");
+    runtime2.setProviderOAuthAuth({
+      providerId: "codex-main",
+      accountId: "default",
+      accessToken: "codex-token-initial",
+      refreshToken: "codex-refresh-1",
+      tokenType: "openai-api-key",
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      scopes: ["openid", "offline_access"]
+    });
+
+    await assert.rejects(
+      (runtime2 as any).chatWithProvider(codexProvider2, {
+        sessionId: "codex-auth-wording",
+        model: "gpt-5.4",
+        messages: [
+          {
+            role: "user",
+            content: "fail without refresh"
+          }
+        ],
+        tools: [],
+        metadata: {}
+      }),
+      /authentication method not supported/
+    );
+
+    assert.equal(codexProvider2.refreshCalls, 0);
+    assert.equal(codexProvider2.chatCalls, 1);
+
     db.close();
   });
 });

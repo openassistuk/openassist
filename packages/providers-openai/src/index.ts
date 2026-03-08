@@ -220,15 +220,7 @@ function shouldPreferResponsesApi(model: string): boolean {
 }
 
 function supportsOpenAIReasoningEffort(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return (
-    normalized.startsWith("gpt-5") ||
-    normalized.includes("codex") ||
-    normalized.startsWith("o1") ||
-    normalized.startsWith("o2") ||
-    normalized.startsWith("o3") ||
-    normalized.startsWith("o4")
-  );
+  return shouldPreferResponsesApi(model);
 }
 
 function reasoningPayload(

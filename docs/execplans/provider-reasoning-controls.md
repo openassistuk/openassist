@@ -22,6 +22,7 @@ The result is observable in three ways. First, the wizard will offer the new rea
 - [x] (2026-03-08 13:23Z) Committed the implementation as `feat: add provider reasoning controls` and pushed `feat/provider-reasoning-controls`.
 - [x] (2026-03-08 13:26Z) Opened PR `#13` (`feat: add provider reasoning controls`).
 - [x] (2026-03-08 13:27Z) Verified GitHub checks passed (`workflow-lint`, Linux/macOS/Windows quality-and-coverage, CodeQL preflight, analyze, CodeQL) and confirmed there were no review comments or open PR-head code-scanning alerts.
+- [x] (2026-03-08 13:38Z) Addressed the final Copilot follow-ups by reusing the canonical `OpenAIReasoningEffort` type in the wizard, preserving the last attempted Anthropic thinking-budget value across re-prompts, and unifying OpenAI reasoning support with the existing Responses API model heuristic. Re-ran `pnpm verify:all` successfully after refreshing the workspace install links.
 
 ## Surprises & Discoveries
 
@@ -62,6 +63,8 @@ The result is observable in three ways. First, the wizard will offer the new rea
 ## Outcomes & Retrospective
 
 The implementation is complete and the PR is clean. OpenAssist now exposes provider-native reasoning controls in setup wizard, validates them safely, sends them only on the supported built-in provider/model combinations, and preserves Anthropic replay metadata across tool turns. The final PR state was green across CI and CodeQL with no actionable review comments. The main lesson is that “reasoning control” is not just a config surface: Anthropic continuity required runtime-aware replay handling and explicit regression coverage.
+
+Final review cleanup also showed that small type-only dependency changes in a workspace package still need the matching `tsconfig` project reference and an install refresh before `tsc -b` will see the new package. That build hygiene is now reflected in the final branch state.
 
 ## Context and Orientation
 

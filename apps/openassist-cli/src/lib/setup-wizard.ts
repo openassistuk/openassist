@@ -1,4 +1,5 @@
 import type { OpenAssistConfig } from "@openassist/config";
+import type { OpenAIReasoningEffort } from "@openassist/core-types";
 import { confirm as inqConfirm, input as inqInput, password as inqPassword, select as inqSelect } from "@inquirer/prompts";
 import { parseConfig } from "@openassist/config";
 import {
@@ -96,7 +97,6 @@ function parseCsv(value: string): string[] {
 }
 
 type ReasoningEffortPromptChoice = "default" | OpenAIReasoningEffort;
-type OpenAIReasoningEffort = "low" | "medium" | "high";
 
 async function promptOpenAIReasoningEffort(
   prompts: PromptAdapter,
@@ -123,8 +123,9 @@ async function promptOptionalPositiveInteger(
   options: { min: number; max: number; emptyHint: string },
   initial?: number
 ): Promise<number | undefined> {
+  let currentValue = initial ? String(initial) : "";
   while (true) {
-    const raw = await prompts.input(message, initial ? String(initial) : "");
+    const raw = await prompts.input(message, currentValue);
     const trimmed = raw.trim();
     if (trimmed.length === 0) {
       return undefined;
@@ -135,6 +136,7 @@ async function promptOptionalPositiveInteger(
         return value;
       }
     }
+    currentValue = trimmed;
     console.error(`Enter a whole number between ${options.min} and ${options.max}, or leave blank to ${options.emptyHint}.`);
   }
 }

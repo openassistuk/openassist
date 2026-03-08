@@ -19,7 +19,9 @@ The result is observable in three ways. First, the wizard will offer the new rea
 - [x] (2026-03-08 13:20Z) Completed provider/runtime regression tests for OpenAI reasoning payloads, Anthropic thinking replay, and wizard scripted fixtures.
 - [x] (2026-03-08 13:22Z) Updated docs and changelog so the operator story matches the implementation.
 - [x] (2026-03-08 13:25Z) Ran targeted suites and `pnpm verify:all` successfully.
-- [ ] (2026-03-08 13:25Z) Commit, push, open the PR, and monitor review/CI to green.
+- [x] (2026-03-08 13:23Z) Committed the implementation as `feat: add provider reasoning controls` and pushed `feat/provider-reasoning-controls`.
+- [x] (2026-03-08 13:26Z) Opened PR `#13` (`feat: add provider reasoning controls`).
+- [x] (2026-03-08 13:27Z) Verified GitHub checks passed (`workflow-lint`, Linux/macOS/Windows quality-and-coverage, CodeQL preflight, analyze, CodeQL) and confirmed there were no review comments or open PR-head code-scanning alerts.
 
 ## Surprises & Discoveries
 
@@ -59,7 +61,7 @@ The result is observable in three ways. First, the wizard will offer the new rea
 
 ## Outcomes & Retrospective
 
-The implementation is complete locally. OpenAssist now exposes provider-native reasoning controls in setup wizard, validates them safely, sends them only on the supported built-in provider/model combinations, and preserves Anthropic replay metadata across tool turns. The main lesson is that “reasoning control” is not just a config surface: Anthropic continuity required runtime-aware replay handling and explicit regression coverage.
+The implementation is complete and the PR is clean. OpenAssist now exposes provider-native reasoning controls in setup wizard, validates them safely, sends them only on the supported built-in provider/model combinations, and preserves Anthropic replay metadata across tool turns. The final PR state was green across CI and CodeQL with no actionable review comments. The main lesson is that “reasoning control” is not just a config surface: Anthropic continuity required runtime-aware replay handling and explicit regression coverage.
 
 ## Context and Orientation
 
@@ -160,6 +162,7 @@ Local proof collected during implementation:
 - `pnpm -r build`
 - `pnpm exec tsx --test tests/node/runtime.test.ts tests/node/cli-setup-wizard.test.ts`
 - `pnpm verify:all`
+- GitHub PR `#13` green checks with no open review comments or PR-head code-scanning alerts
 
 ## Idempotence and Recovery
 
@@ -194,4 +197,4 @@ At the end of this work, these public shapes must exist and stay aligned:
 
 - In `packages/core-runtime/src/runtime.ts`, the runtime must preserve `response.output.metadata` on assistant messages created during tool loops and final assistant persistence.
 
-Revision note: updated after the local verification pass to record the completed implementation, the runtime compile fix discovered during the full build, and the successful evidence collected before PR creation.
+Revision note: updated after PR creation to record the pushed commit/PR number and the final green GitHub review/check evidence.

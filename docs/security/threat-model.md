@@ -20,7 +20,7 @@ Out of scope:
 
 ## Protected Assets
 
-- provider API keys and OAuth tokens
+- provider API keys and linked-account OAuth tokens, including Codex account-login refresh state
 - channel credentials
 - local filesystem integrity
 - conversation and scheduler run history

@@ -49,7 +49,7 @@ For non-trivial changes, follow `.agents/PLANS.md`.
 
 Do not bypass boundaries with cross-package shortcuts.
 
-## Lifecycle UX Rules (V1.8)
+## Lifecycle UX Rules (V1.9)
 
 OpenAssist now has one primary setup entrypoint and two stable subpaths:
 
@@ -69,7 +69,16 @@ When changing installer/setup/service behavior:
 8. preserve guided timezone onboarding (`country/region -> city`) in setup flows; do not regress to ambiguous free-text timezone entry
 9. preserve local health probe fallback behavior (wildcard bind addresses must resolve to loopback probes for setup/service checks)
 10. preserve Linux service-manager auto-selection semantics (non-root -> `systemd --user`, root -> system-level `systemd`)
-11. preserve setup auth guidance semantics (API-key-first path plus explicit OAuth account-link instructions for configured OpenAI/Anthropic providers)
+11. preserve provider-route onboarding semantics:
+   - operator-facing setup and docs must present four first-class provider routes:
+     - `openai` for OpenAI API-key auth
+     - `codex` for the separate Codex/OpenAI account-login route
+     - `anthropic`
+     - `openai-compatible`
+   - OpenAI remains the public API-key route in setup/docs
+   - Codex remains the public account-login route in setup/docs
+   - Codex must be described truthfully as Codex-only in V1, not as generic ChatGPT API auth for arbitrary OpenAI models
+   - legacy `openai + oauth` configs may remain readable for compatibility, but new account-login guidance must steer operators to `codex`
 12. preserve Telegram default UX semantics (inline chat memory + inline responses by default; threaded mode only when explicitly configured)
 13. preserve access-mode onboarding semantics:
    - quickstart and wizard use beginner-facing `access mode` wording on operator paths
@@ -263,6 +272,14 @@ When tool-loop behavior changes, always update:
 - `docs/security/threat-model.md`
 - `docs/security/policy-profiles.md`
 - `docs/operations/e2e-autonomy-validation.md`
+
+When provider-route or auth-path behavior changes, always update:
+
+- `docs/interfaces/provider-adapter.md`
+- `docs/operations/quickstart-linux-macos.md`
+- `docs/operations/setup-wizard.md`
+- `docs/operations/common-troubleshooting.md`
+- `docs/migration/openclaw-import.md`
 
 When lifecycle UX changes, always update:
 

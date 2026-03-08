@@ -36,7 +36,7 @@ Quickstart owns only the essentials:
 - confirm safe runtime defaults
 - choose the main assistant name, persona, and ongoing objectives/preferences
 - choose one primary provider
-- capture API-key auth
+- complete the auth path for that provider route
 - configure one primary channel
 - keep channel setup in the supported first-class scope:
   - Telegram private chats, groups, forum topics
@@ -83,8 +83,11 @@ Quickstart rules:
 - guided timezone selection stays `country or region -> city`
 - timezone confirmation shows the selected zone and uses a simple `Y/n` confirmation
 - wildcard bind addresses still use loopback health probes
-- quickstart keeps provider auth API-key-first
-- provider OAuth client configuration belongs in wizard, then account linking uses `openassist auth start --provider <provider-id> --account default --open-browser`
+- OpenAI stays the API-key route in quickstart and wizard
+- Codex stays the separate OpenAI account-login route and quickstart can complete its account linking during onboarding
+- Anthropic stays API-key-first for the fastest first reply; provider OAuth client configuration still belongs in wizard
+- legacy `openai + oauth` configs remain readable for compatibility, but new account-login installs should use `codex`
+- account linking later still uses `openassist auth start --provider <provider-id> --account default --open-browser`
 - quickstart only asks for approved operator IDs if you opt into full access
 - if you opt into full access before you know the operator IDs, quickstart offers a return path back to standard mode instead of failing
 
@@ -132,8 +135,14 @@ Use wizard for:
 - advanced runtime changes
 - later edits to the global main assistant identity or re-enabling the first-chat identity reminder
 - additional providers or provider OAuth config
+- choosing between the four first-class provider routes:
+  - OpenAI (API key)
+  - Codex (OpenAI account login)
+  - Anthropic
+  - OpenAI-compatible
 - advanced provider-native reasoning controls:
   - OpenAI `reasoningEffort` (`Default`, `low`, `medium`, `high`)
+  - Codex has no separate public reasoning control in this release
   - Anthropic `thinkingBudgetTokens` (blank disables it)
   - OpenAI-compatible stays unchanged in this release
 - additional channels or non-default channel behavior
@@ -150,6 +159,14 @@ Provider reasoning-control notes:
   - OpenAI reasoning effort is only sent on supported Responses API model families.
   - Anthropic thinking budget is only sent on supported thinking-capable Claude families.
 - If your configured default model does not match a supported family, setup validation warns but still saves safely.
+
+Provider-route notes:
+
+- OpenAI remains the public API-key route in setup and docs.
+- Codex is the public OpenAI account-login route and is intentionally Codex-only in this release.
+- Codex account linking is headless-friendly: OpenAssist can print the authorization URL and accept either the full callback URL or a pasted code when you complete the login.
+- OpenAssist does not present Codex as generic ChatGPT API auth for arbitrary OpenAI models.
+- Existing mixed `openai + oauth` configs still load for compatibility, but new account-login installs should use `codex`.
 
 Wizard is safe to re-run after install, after a successful quickstart, and after upgrades when you need to edit advanced settings instead of redoing first-run onboarding.
 
@@ -193,7 +210,7 @@ botToken = "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN"
 ```
 
 ```toml
-clientSecretEnv = "OPENASSIST_OPENAI_OAUTH_CLIENT_SECRET"
+clientSecretEnv = "OPENASSIST_PROVIDER_ANTHROPIC_MAIN_OAUTH_CLIENT_SECRET"
 ```
 
 Important rules:

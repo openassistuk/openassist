@@ -17,6 +17,7 @@ Optional OAuth hooks:
 
 - `startOAuthLogin(ctx: OAuthStartContext)`
 - `completeOAuthLogin(ctx: OAuthCompleteContext)`
+- `refreshOAuthAuth(auth: ProviderAuthHandle)`
 
 ## Auth Expectations
 
@@ -26,6 +27,15 @@ Runtime resolves auth context and passes either:
 - OAuth auth handle
 
 Adapter implementations should fail explicitly for missing or invalid auth, rather than silently degrading.
+
+Built-in public provider-route expectations:
+
+- `openai`: API-key route in operator-facing setup and docs
+- `codex`: OpenAI account-login route in operator-facing setup and docs
+- `anthropic`: API-key route, with optional account-linking where configured
+- `openai-compatible`: API-compatible route
+
+`codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: use `gpt-5.4` or another Codex-family model on that route.
 
 Provider OAuth config requirements:
 
@@ -103,17 +113,19 @@ Runtime converts provider/auth/runtime failures into sanitized channel diagnosti
 ## Current Implementations
 
 - OpenAI: `packages/providers-openai/src/index.ts`
+- Codex: `packages/providers-codex/src/index.ts`
 - Anthropic: `packages/providers-anthropic/src/index.ts`
 - OpenAI-compatible: `packages/providers-openai-compatible/src/index.ts`
 
 Current image-input rule:
 
-- OpenAI and Anthropic are first-class image-input providers in the built-in adapter set
+- OpenAI, Codex, and Anthropic are first-class image-input providers in the built-in adapter set
 - OpenAI-compatible providers remain text-only for images and must preserve the runtime note that image binaries were not inspected
 
 Provider-native reasoning controls:
 
 - OpenAI providers may optionally set `reasoningEffort = "low" | "medium" | "high"` in config.
+- Codex providers do not expose a separate public reasoning control in this release.
 - Anthropic providers may optionally set `thinkingBudgetTokens = <integer>` in config.
 - OpenAI-compatible providers do not expose a public reasoning control in this release.
 - Safe default is unset: when the field is omitted, adapters do not send any reasoning or thinking parameter.
@@ -129,12 +141,25 @@ OpenAI adapter endpoint behavior:
 - If chat-completions returns a model/endpoint mismatch (for example "not a chat model"), adapter falls back to Responses API automatically.
 - `reasoningEffort` is only attached on the supported Responses API path. It is never sent on chat-completions requests.
 
+Codex adapter behavior:
+
+- Codex account login uses a dedicated Codex/OpenAI PKCE flow with restart-safe linked-account storage in the existing OAuth tables.
+- The adapter refreshes the linked account before expiry or when a provider call proves the stored account needs renewal.
+- The current public route keeps one linked account per provider instance.
+- The Codex route is account-login only in operator-facing setup and docs; it is not the generic OpenAI API-key route.
+- The Codex route validates `gpt-5.4` and Codex-family models only in this release.
+
 Anthropic thinking replay behavior:
 
 - When Anthropic returns provider-native thinking blocks, the adapter stores reserved replay metadata on the normalized assistant output.
 - Runtime persists that metadata on assistant messages during tool turns and final assistant messages.
 - On later Anthropic follow-up calls, the adapter reconstructs the original assistant content blocks from replay metadata instead of relying only on synthetic tool-call placeholders.
 - Internal thinking content remains provider-side replay state only. It must never appear in channel-visible output.
+
+Legacy compatibility note:
+
+- Existing `openai` provider configs that still carry OAuth settings may remain readable for compatibility.
+- New account-login installs should use `codex` instead of creating a new mixed `openai + oauth` provider.
 
 ## Compatibility Rule
 

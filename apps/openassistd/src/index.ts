@@ -9,6 +9,7 @@ import type { RuntimeConfig } from "@openassist/core-types";
 import { createLogger } from "@openassist/observability";
 import { OpenAssistDatabase } from "@openassist/storage-sqlite";
 import { OpenAIProviderAdapter } from "@openassist/providers-openai";
+import { CodexProviderAdapter } from "@openassist/providers-codex";
 import { AnthropicProviderAdapter } from "@openassist/providers-anthropic";
 import { OpenAICompatibleProviderAdapter } from "@openassist/providers-openai-compatible";
 import { TelegramChannelAdapter } from "@openassist/channels-telegram";
@@ -183,6 +184,13 @@ program
           oauth: providerConfig.oauth
         });
       }
+      if (providerConfig.type === "codex") {
+        return new CodexProviderAdapter({
+          id: providerConfig.id,
+          defaultModel: providerConfig.defaultModel,
+          baseUrl: providerConfig.baseUrl
+        });
+      }
       if (providerConfig.type === "anthropic") {
         return new AnthropicProviderAdapter({
           id: providerConfig.id,
@@ -276,12 +284,15 @@ program
       {
         db,
         logger,
-      installContext: loadRuntimeInstallContext(configPath, logger)
-    },
+        installContext: loadRuntimeInstallContext(configPath, logger)
+      },
       { providers, channels }
     );
 
     for (const providerConfig of config.runtime.providers) {
+      if (providerConfig.type === "codex") {
+        continue;
+      }
       const varName = envApiKeyVar(providerConfig.id);
       const apiKey = process.env[varName];
       if (apiKey) {

@@ -179,6 +179,35 @@ describe("setup quickstart validation", () => {
     expect(result.warnings.some((item) => item.code === "provider.default_oauth_pending")).toBe(true);
   });
 
+  it("warns when the default codex provider still needs account linking instead of an API key", async () => {
+    const root = tempDir("openassist-quickstart-validation-codex-warning-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.runtime.defaultProviderId = "codex-main";
+    config.runtime.providers = [
+      {
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-5.4"
+      }
+    ];
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {},
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(result.errors.some((item) => item.code === "provider.default_auth_missing")).toBe(false);
+    expect(
+      result.warnings.some((item) => item.code === "provider.default_codex_account_link_pending")
+    ).toBe(true);
+  });
+
   it("requires Brave API configuration in api-only web mode", async () => {
     const root = tempDir("openassist-quickstart-validation-web-api-only-");
     const config = createDefaultConfigObject();
@@ -282,6 +311,61 @@ describe("setup quickstart validation", () => {
     expect(
       result.warnings.some((item) => item.code === "provider.anthropic_thinking_model_unsupported")
     ).toBe(true);
+  });
+
+  it("warns when legacy openai oauth compatibility is still configured", async () => {
+    const root = tempDir("openassist-quickstart-validation-openai-legacy-oauth-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.runtime.providers[0].oauth = {
+      authorizeUrl: "https://example.test/oauth/authorize",
+      tokenUrl: "https://example.test/oauth/token",
+      clientId: "client-id",
+      clientSecretEnv: "OPENASSIST_PROVIDER_OPENAI_MAIN_OAUTH_CLIENT_SECRET"
+    };
+    const apiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {
+        [apiKeyVar]: "test-key"
+      },
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(result.warnings.some((item) => item.code === "provider.openai_oauth_legacy")).toBe(true);
+  });
+
+  it("warns when the codex route is configured with a non-codex model", async () => {
+    const root = tempDir("openassist-quickstart-validation-codex-model-warning-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.runtime.defaultProviderId = "codex-main";
+    config.runtime.providers = [
+      {
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-4o-mini"
+      }
+    ];
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {},
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(result.warnings.some((item) => item.code === "provider.codex_model_unsupported")).toBe(
+      true
+    );
   });
 
   it("reports schema-invalid secret wiring before deeper readiness checks", async () => {

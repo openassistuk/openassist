@@ -181,10 +181,15 @@ afterEach(() => {
 });
 
 describe("runtime provider tool contracts", () => {
-  const contracts: Array<{ id: string; type: RuntimeConfig["providers"][number]["type"] }> = [
-    { id: "openai-main", type: "openai" },
-    { id: "anthropic-main", type: "anthropic" },
-    { id: "compat-main", type: "openai-compatible" }
+  const contracts: Array<{
+    id: string;
+    type: RuntimeConfig["providers"][number]["type"];
+    auth: "api-key" | "oauth";
+  }> = [
+    { id: "openai-main", type: "openai", auth: "api-key" },
+    { id: "codex-main", type: "codex", auth: "oauth" },
+    { id: "anthropic-main", type: "anthropic", auth: "api-key" },
+    { id: "compat-main", type: "openai-compatible", auth: "api-key" }
   ];
 
   for (const contract of contracts) {
@@ -202,7 +207,17 @@ describe("runtime provider tool contracts", () => {
         { providers: [provider], channels: [channel] }
       );
 
-      runtime.setProviderApiKey(contract.id, "key");
+      if (contract.auth === "oauth") {
+        runtime.setProviderOAuthAuth({
+          providerId: contract.id,
+          accountId: "default",
+          accessToken: "oauth-token",
+          refreshToken: "oauth-refresh",
+          expiresAt: new Date(Date.now() + 60_000).toISOString()
+        });
+      } else {
+        runtime.setProviderApiKey(contract.id, "key");
+      }
       await runtime.start();
       await channel.emit({
         channel: "telegram",

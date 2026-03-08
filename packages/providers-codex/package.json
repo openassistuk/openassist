@@ -1,5 +1,5 @@
 {
-  "name": "@openassist/providers-openai",
+  "name": "@openassist/providers-codex",
   "version": "0.1.0",
   "private": false,
   "type": "module",

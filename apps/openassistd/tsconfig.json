@@ -28,6 +28,9 @@
       "path": "../../packages/providers-openai"
     },
     {
+      "path": "../../packages/providers-codex"
+    },
+    {
       "path": "../../packages/providers-anthropic"
     },
     {

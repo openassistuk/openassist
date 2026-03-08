@@ -46,9 +46,19 @@ Quickstart also restores the main assistant identity prompts:
 
 Successful quickstart saves those into the same global profile memory that `/profile` edits later and disables the later first-chat identity reminder by default.
 
+Built-in provider routes now split cleanly in operator-facing docs and setup:
+
+- OpenAI: API-key route for the standard OpenAI API
+- Codex: separate OpenAI account-login route for Codex use in OpenAssist
+- Anthropic: API-key route, with optional account-linking where configured
+- OpenAI-compatible: API-compatible route for compatible backends
+
+Codex is intentionally documented as Codex-only in this release. It is not the generic "ChatGPT API auth" path for arbitrary OpenAI models.
+
 Advanced provider reasoning controls stay in `openassist setup wizard`:
 
 - OpenAI providers can set `reasoningEffort` for supported Responses API model families
+- Codex providers do not expose a separate public reasoning control in this release
 - Anthropic providers can set `thinkingBudgetTokens` for supported thinking-capable Claude families
 - OpenAI-compatible providers stay unchanged in this release
 - leaving the setting unset is the safe default and sends no provider-specific reasoning parameter
@@ -75,7 +85,7 @@ First-class channel scope:
 - Discord: guild text channels, threads, DMs
 - WhatsApp MD: private chats, groups
 
-Inbound images and supported text-like documents now flow through the runtime as durable attachment metadata. OpenAI and Anthropic can inspect inbound images; OpenAI-compatible providers stay text-only and surface an explicit note when image understanding is unavailable.
+Inbound images and supported text-like documents now flow through the runtime as durable attachment metadata. OpenAI, Codex, and Anthropic can inspect inbound images; OpenAI-compatible providers stay text-only and surface an explicit note when image understanding is unavailable.
 
 Primary runbooks:
 
@@ -139,6 +149,7 @@ Supplemental smoke notes:
 - Current lifecycle ExecPlans:
   - [`docs/execplans/access-mode-opt-in-and-beginner-copy.md`](execplans/access-mode-opt-in-and-beginner-copy.md)
   - [`docs/execplans/channel-first-class-integrations.md`](execplans/channel-first-class-integrations.md)
+  - [`docs/execplans/codex-provider-route.md`](execplans/codex-provider-route.md)
   - [`docs/execplans/general-purpose-assistant-identity-and-growth.md`](execplans/general-purpose-assistant-identity-and-growth.md)
   - [`docs/execplans/repo-wide-docs-test-hardening.md`](execplans/repo-wide-docs-test-hardening.md)
   - [`docs/execplans/provider-reasoning-controls.md`](execplans/provider-reasoning-controls.md)

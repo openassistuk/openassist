@@ -101,6 +101,13 @@ function parseCsv(value: string): string[] {
 }
 
 function defaultProviderForType(type: ProviderType): { id: string; model: string; baseUrl?: string } {
+  if (type === "codex") {
+    return {
+      id: "codex-main",
+      model: "gpt-5.4"
+    };
+  }
+
   if (type === "anthropic") {
     return {
       id: "anthropic-main",
@@ -122,8 +129,48 @@ function defaultProviderForType(type: ProviderType): { id: string; model: string
   };
 }
 
-function providerSupportsOAuth(type: ProviderType): boolean {
-  return type === "openai" || type === "anthropic";
+function providerUsesApiKey(type: ProviderType): boolean {
+  return type === "openai" || type === "anthropic" || type === "openai-compatible";
+}
+
+function providerSupportsAccountLink(type: ProviderType): boolean {
+  return type === "codex" || type === "anthropic";
+}
+
+function providerLabel(type: ProviderType): string {
+  if (type === "codex") {
+    return "Codex (OpenAI account login)";
+  }
+  if (type === "openai-compatible") {
+    return "OpenAI-compatible";
+  }
+  return type === "openai" ? "OpenAI (API key)" : "Anthropic";
+}
+
+function parseOAuthCompletionInput(
+  rawInput: string,
+  fallbackState: string
+): { code: string; state: string } | null {
+  const trimmed = rawInput.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const code = parsed.searchParams.get("code")?.trim();
+    const state = parsed.searchParams.get("state")?.trim() || fallbackState;
+    if (code) {
+      return { code, state };
+    }
+  } catch {
+    // Not a callback URL; use raw code mode below.
+  }
+
+  return {
+    code: trimmed,
+    state: fallbackState
+  };
 }
 
 function validateCsvIds(
@@ -320,9 +367,10 @@ async function promptProvider(
   const type = await prompts.select<ProviderType>(
     "Provider type",
     [
-      { name: "openai", value: "openai" },
-      { name: "anthropic", value: "anthropic" },
-      { name: "openai-compatible", value: "openai-compatible" }
+      { name: "OpenAI (API key)", value: "openai" },
+      { name: "Codex (OpenAI account login)", value: "codex" },
+      { name: "Anthropic", value: "anthropic" },
+      { name: "OpenAI-compatible", value: "openai-compatible" }
     ],
     defaultType
   );
@@ -346,7 +394,7 @@ async function promptProvider(
     type,
     defaultModel,
     ...(baseUrlInput.trim().length > 0 ? { baseUrl: baseUrlInput.trim() } : {}),
-    ...(existing?.oauth ? { oauth: existing.oauth } : {}),
+    ...(existing && "oauth" in existing && existing.oauth ? { oauth: existing.oauth } : {}),
     ...(existing?.metadata ? { metadata: existing.metadata } : {})
   };
 }
@@ -356,19 +404,29 @@ async function configureProviderAuthentication(
   prompts: PromptAdapter,
   provider: OpenAssistConfig["runtime"]["providers"][number]
 ): Promise<void> {
-  const apiKeyVar = toProviderApiKeyEnvVar(provider.id);
-  const supportsOAuth = providerSupportsOAuth(provider.type);
-
-  console.log(`Secret env var: ${apiKeyVar}`);
-  console.log("API key is the recommended quickstart auth path because it gets to a first reply fastest.");
-  console.log("Paste full key then press Enter (masked input accepts long values).");
-  const apiKey = await prompts.password(
-    `Provider API key for ${provider.id} (blank keeps current value)`
-  );
-  if (apiKey.trim().length > 0) {
-    state.env[apiKeyVar] = apiKey.trim();
+  if (providerUsesApiKey(provider.type)) {
+    const apiKeyVar = toProviderApiKeyEnvVar(provider.id);
+    console.log(`Secret env var: ${apiKeyVar}`);
+    console.log("API key is the recommended quickstart auth path because it gets to a first reply fastest.");
+    console.log("Paste full key then press Enter (masked input accepts long values).");
+    const apiKey = await prompts.password(
+      `Provider API key for ${provider.id} (blank keeps current value)`
+    );
+    if (apiKey.trim().length > 0) {
+      state.env[apiKeyVar] = apiKey.trim();
+    }
   }
-  if (supportsOAuth) {
+
+  if (provider.type === "codex") {
+    console.log("Codex uses OpenAI account login instead of an API key.");
+    console.log("Quickstart will guide you through Codex account linking after the daemon is healthy.");
+    console.log(
+      `You can also link later with: openassist auth start --provider ${provider.id} --account default --open-browser`
+    );
+    return;
+  }
+
+  if (providerSupportsAccountLink(provider.type)) {
     console.log(
       `If you configure OAuth later in setup wizard, start account linking with: openassist auth start --provider ${provider.id} --account default --open-browser`
     );
@@ -387,8 +445,9 @@ async function configureProviders(state: SetupQuickstartState, prompts: PromptAd
     "Provider reminder: pick the provider that should answer the first reply and make sure its auth secret is ready.",
     [
       "Provider quickstart guidance:",
-      "- API key is the fastest path to the first reply.",
-      "- OAuth-capable providers can still be linked later after the daemon is healthy.",
+      "- OpenAI uses API key auth on the standard OpenAI route.",
+      "- Codex uses OpenAI account login on the separate Codex route.",
+      "- Anthropic can still use API key auth and may support account linking when configured.",
       "- Add extra providers later with: openassist setup wizard"
     ]
   );
@@ -924,10 +983,13 @@ async function runServiceStep(
   let lastRunner: SpawnCommandRunner | undefined;
 
   const maybeOfferOAuthAccountLink = async (healthyBaseUrl: string): Promise<void> => {
-    const oauthCapableProviders = state.config.runtime.providers.filter(
-      (provider) => providerSupportsOAuth(provider.type) && Boolean(provider.oauth)
-    );
-    if (oauthCapableProviders.length === 0) {
+    const accountLinkProviders = state.config.runtime.providers.filter((provider) => {
+      if (provider.type === "codex") {
+        return true;
+      }
+      return providerSupportsAccountLink(provider.type) && "oauth" in provider && Boolean(provider.oauth);
+    });
+    if (accountLinkProviders.length === 0) {
       return;
     }
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -939,16 +1001,27 @@ async function runServiceStep(
 
     const linkNow = await prompts.confirm("Start OAuth account linking now?", false);
     if (!linkNow) {
+      const defaultProvider = state.config.runtime.providers.find(
+        (provider) => provider.id === state.config.runtime.defaultProviderId
+      );
+      if (defaultProvider?.type === "codex") {
+        throw new Error(
+          "Codex account login is still required before the first reply can use the default provider."
+        );
+      }
       return;
     }
 
     const requestJsonFn = dependencies.requestJsonFn ?? requestJson;
-    for (const provider of oauthCapableProviders) {
+    for (const provider of accountLinkProviders) {
       const startThisProvider = await prompts.confirm(
-        `Start OAuth login for provider ${provider.id}?`,
+        `Start account login for ${providerLabel(provider.type)} provider ${provider.id}?`,
         true
       );
       if (!startThisProvider) {
+        if (provider.id === state.config.runtime.defaultProviderId && provider.type === "codex") {
+          throw new Error("Codex account login is required for the selected default provider.");
+        }
         continue;
       }
 
@@ -957,21 +1030,59 @@ async function runServiceStep(
         `${healthyBaseUrl}/v1/oauth/${encodeURIComponent(provider.id)}/start`,
         {
           accountId: "default",
-          scopes: provider.oauth?.scopes ?? []
+          ...(provider.type === "anthropic" && provider.oauth?.scopes
+            ? { scopes: provider.oauth.scopes }
+            : {})
         }
       );
 
       if (response.status >= 400) {
-        console.error(`OAuth start failed with status=${response.status}.`);
-        continue;
+        throw new Error(`Account login start failed for ${provider.id} (status=${response.status}).`);
       }
 
-      const payload = response.data as { authorizationUrl?: string };
+      const payload = response.data as { authorizationUrl?: string; state?: string };
       console.log("");
       if (payload.authorizationUrl) {
         console.log(`Authorization URL:\n${payload.authorizationUrl}`);
       }
-      console.log("After authorizing, run: openassist auth status --provider <provider-id> --base-url <daemon-base-url>");
+      console.log("After authorizing, paste either the full callback URL or just the code here.");
+      console.log(
+        `Host fallback: openassist auth status --provider ${provider.id} --base-url ${healthyBaseUrl}`
+      );
+
+      const completionRaw = await prompts.input(
+        `Callback URL or code for ${provider.id} (blank skips for now)`,
+        ""
+      );
+      const completion = parseOAuthCompletionInput(completionRaw, payload.state ?? "");
+      if (!completion) {
+        if (provider.id === state.config.runtime.defaultProviderId && provider.type === "codex") {
+          throw new Error("Codex account login was skipped for the default provider.");
+        }
+        continue;
+      }
+
+      const completed = await requestJsonFn(
+        "POST",
+        `${healthyBaseUrl}/v1/oauth/${encodeURIComponent(provider.id)}/complete`,
+        completion
+      );
+      if (completed.status >= 400) {
+        throw new Error(
+          `Account login completion failed for ${provider.id} (status=${completed.status}).`
+        );
+      }
+
+      const status = await requestJsonFn(
+        "GET",
+        `${healthyBaseUrl}/v1/oauth/${encodeURIComponent(provider.id)}/status`
+      );
+      const accounts =
+        ((status.data as { accounts?: Array<{ accountId: string }> })?.accounts ?? []);
+      if (status.status >= 400 || accounts.length === 0) {
+        throw new Error(`Account login did not leave an active linked account for ${provider.id}.`);
+      }
+      console.log(`Linked account ready for ${provider.id}.`);
     }
   };
 

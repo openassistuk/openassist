@@ -116,6 +116,7 @@ openassist service logs --lines 200 --follow
 What it usually means:
 
 - provider auth is missing or invalid
+- Codex was selected as the default provider but its account login was not completed yet
 - the service is unhealthy
 - the channel is not configured for the chat you are testing
 - WhatsApp still needs a QR link
@@ -140,6 +141,30 @@ In chat, use:
 - `/status` for local diagnostics without depending on provider health
 - `/capabilities` for the current provider/channel/tool boundary
 - `/grow` for managed skills and helper-tool status
+
+## Codex provider is configured but account login is not complete
+
+What it usually means:
+
+- quickstart or wizard saved a `codex` provider entry
+- the linked OpenAI account was skipped or expired
+- the provider route is correct, but the account-login step is not finished
+
+What to run:
+
+```bash
+openassist auth start --provider codex-main --account default --open-browser
+openassist auth status
+openassist doctor
+```
+
+If you used a different provider ID, substitute that instead of `codex-main`.
+
+Important:
+
+- `codex` is the separate OpenAI account-login route
+- `openai` remains the API-key route
+- new account-login installs should use `codex`, not a new mixed `openai + oauth` provider
 
 ## Full access is not working
 

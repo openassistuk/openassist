@@ -117,7 +117,11 @@ What quickstart configures:
 
 - runtime defaults for the first reply
 - the main assistant name, persona, and ongoing objectives/preferences
-- one primary provider
+- one primary provider from four first-class routes:
+  - OpenAI (API key)
+  - Codex (OpenAI account login)
+  - Anthropic
+  - OpenAI-compatible
 - one primary channel
 - first-class Telegram, Discord, or WhatsApp chat setup with readable replies and attachment ingest
 - one access mode choice:
@@ -184,12 +188,16 @@ If validation fails, quickstart now groups repair guidance by operator task:
 
 Provider and channel guidance:
 
-- quickstart is API-key-first because it is the fastest path to the first reply
-- provider OAuth client configuration stays in `openassist setup wizard`
-- after OAuth is configured, use `openassist auth start --provider <provider-id> --account default --open-browser`
+- OpenAI stays the standard API-key route.
+- Codex stays the separate OpenAI account-login route.
+- If you choose Codex, quickstart guides the account-link flow after the daemon is healthy, prints the authorization URL, accepts either the full callback URL or a pasted code, and requires that linked account before the first reply can use the default provider.
+- Anthropic stays API-key-first for the fastest first reply; optional provider OAuth configuration still lives in `openassist setup wizard`.
+- OpenAI-compatible stays the custom API-compatible route.
+- legacy `openai + oauth` configs still load, but new account-login installs should use `codex`.
+- after provider OAuth is configured or when you want to re-link Codex later, use `openassist auth start --provider <provider-id> --account default --open-browser`
 - Telegram defaults remain inline chat memory and inline responses unless you change them later
 - Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`
-- OpenAI and Anthropic can inspect inbound images; OpenAI-compatible providers will answer from text/captions only and tell you when image understanding is unavailable
+- OpenAI, Codex, and Anthropic can inspect inbound images; OpenAI-compatible providers will answer from text/captions only and tell you when image understanding is unavailable
 
 ## 4. Validate lifecycle readiness
 

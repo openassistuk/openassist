@@ -78,14 +78,19 @@ export interface ProviderAdapter {
   capabilities(): ProviderCapabilities;
   startOAuthLogin?(ctx: OAuthStartContext): Promise<OAuthStartResult>;
   completeOAuthLogin?(ctx: OAuthCompleteContext): Promise<ProviderAuthHandle>;
+  refreshOAuthAuth?(auth: ProviderAuthHandle): Promise<ProviderAuthHandle>;
   validateConfig(config: unknown): Promise<ValidationResult>;
   chat(req: ChatRequest, auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse>;
 }
 
-interface BaseProviderConfig {
+interface CommonProviderConfig {
   id: string;
   defaultModel: string;
   baseUrl?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface OAuthCapableProviderConfig extends CommonProviderConfig {
   oauth?: {
     authorizeUrl: string;
     tokenUrl: string;
@@ -96,24 +101,28 @@ interface BaseProviderConfig {
     extraAuthParams?: Record<string, string>;
     extraTokenParams?: Record<string, string>;
   };
-  metadata?: Record<string, unknown>;
 }
 
-export interface OpenAIProviderRuntimeConfig extends BaseProviderConfig {
+export interface OpenAIProviderRuntimeConfig extends OAuthCapableProviderConfig {
   type: "openai";
   reasoningEffort?: OpenAIReasoningEffort;
 }
 
-export interface AnthropicProviderRuntimeConfig extends BaseProviderConfig {
+export interface CodexProviderRuntimeConfig extends CommonProviderConfig {
+  type: "codex";
+}
+
+export interface AnthropicProviderRuntimeConfig extends OAuthCapableProviderConfig {
   type: "anthropic";
   thinkingBudgetTokens?: number;
 }
 
-export interface OpenAICompatibleProviderRuntimeConfig extends BaseProviderConfig {
+export interface OpenAICompatibleProviderRuntimeConfig extends CommonProviderConfig {
   type: "openai-compatible";
 }
 
 export type ProviderConfig =
   | OpenAIProviderRuntimeConfig
+  | CodexProviderRuntimeConfig
   | AnthropicProviderRuntimeConfig
   | OpenAICompatibleProviderRuntimeConfig;

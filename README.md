@@ -29,7 +29,16 @@ Supported first-class chat surfaces in the current release:
 - Discord: guild text channels, threads, DMs
 - WhatsApp MD: private chats, groups
 
-Channel replies now render with channel-safe formatting, long replies are chunked cleanly, and inbound images plus supported text-like documents are preserved instead of being dropped. Built-in OpenAI and Anthropic providers can inspect inbound images; OpenAI-compatible providers stay text-only and say so explicitly.
+Channel replies now render with channel-safe formatting, long replies are chunked cleanly, and inbound images plus supported text-like documents are preserved instead of being dropped. Built-in OpenAI, Codex, and Anthropic providers can inspect inbound images; OpenAI-compatible providers stay text-only and say so explicitly.
+
+Supported first-class provider routes in the current release:
+
+- OpenAI: API-key route for the standard OpenAI API
+- Codex: OpenAI account-login route for Codex-family use in OpenAssist
+- Anthropic: API-key route, with optional account-linking where configured
+- OpenAI-compatible: API-compatible route for compatible backends
+
+Codex is a separate provider route on purpose. It is not documented as a generic ChatGPT API replacement, and in this release it is intentionally limited to `gpt-5.4` and Codex-family models.
 
 Supplemental lifecycle workflows:
 
@@ -124,7 +133,11 @@ Quickstart remains intentionally minimal:
 - confirm runtime defaults for the first reply
 - choose the main assistant name, persona, and ongoing objectives before the first chat
 - choose one primary provider
-- capture API-key auth first
+- complete the auth path for that provider route:
+  - OpenAI: API key
+  - Codex: OpenAI account login
+  - Anthropic: API key first, optional account-linking later when configured
+  - OpenAI-compatible: backend-specific API key or local endpoint auth
 - configure one primary channel
 - choose an access mode:
   - `Standard mode (recommended)`
@@ -153,7 +166,14 @@ If quickstart validation fails, it now groups repair guidance by operator task i
 
 Quickstart writes the same global main-agent identity that `/profile` manages later, and a successful quickstart disables the later first-chat identity reminder by default.
 
-OAuth client configuration, extra providers, extra channels, scheduler tasks, native web tuning, and deeper runtime policy changes stay in `openassist setup wizard`.
+Quickstart provider guidance now follows the split-route model:
+
+- OpenAI stays the API-key route
+- Codex stays the OpenAI account-login route and completes linking during onboarding with a printed authorization URL plus pasted callback URL or code flow
+- Anthropic stays API-key-first for the fastest first reply, with optional account-linking later if you configured it
+- OpenAI-compatible stays the custom API-compatible route
+
+Advanced OAuth client configuration, legacy mixed-provider compatibility editing, extra providers, extra channels, scheduler tasks, native web tuning, and deeper runtime policy changes stay in `openassist setup wizard`.
 
 Fresh installs now keep normal writable operator state outside the repo checkout:
 
@@ -300,9 +320,16 @@ Wizard owns the advanced surfaces:
 Wizard is also where advanced provider-native reasoning controls live:
 
 - OpenAI `reasoningEffort` for supported GPT-5/codex/o-series Responses API model families
+- Codex route has no separate public reasoning control in this release
 - Anthropic `thinkingBudgetTokens` for supported thinking-capable Claude families
 - safe default is unset, which means OpenAssist sends no provider-specific reasoning parameter
 - OpenAI-compatible providers stay unchanged in this release
+
+Wizard is also where advanced provider auth and migration guidance lives:
+
+- Codex providers use OpenAI account login and are linked with `openassist auth start --provider <provider-id> --account default --open-browser`
+- existing legacy `openai + oauth` configs still load for compatibility, but new account-login installs should use `codex`
+- OpenAI remains the API-key route in operator-facing setup and docs
 
 Wizard saves also run post-save restart, health, time, and scheduler checks by default. Use `--skip-post-checks` only when you intentionally want to defer operational validation.
 
@@ -381,7 +408,7 @@ openassist service health
 Auth and channels:
 
 ```bash
-openassist auth start --provider <provider-id> --account default --open-browser
+openassist auth start --provider codex-main --account default --open-browser
 openassist auth status
 openassist channel status
 openassist channel qr --id <channel-id>

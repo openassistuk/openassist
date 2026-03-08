@@ -102,6 +102,9 @@ importers:
       '@openassist/providers-anthropic':
         specifier: workspace:*
         version: link:../../packages/providers-anthropic
+      '@openassist/providers-codex':
+        specifier: workspace:*
+        version: link:../../packages/providers-codex
       '@openassist/providers-openai':
         specifier: workspace:*
         version: link:../../packages/providers-openai
@@ -244,11 +247,29 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
 
+  packages/providers-codex:
+    dependencies:
+      '@openassist/core-types':
+        specifier: workspace:*
+        version: link:../core-types
+      '@openassist/providers-openai-shared':
+        specifier: workspace:*
+        version: link:../providers-openai-shared
+      openai:
+        specifier: ^5.12.2
+        version: 5.23.2(ws@8.19.0)(zod@3.25.76)
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+
   packages/providers-openai:
     dependencies:
       '@openassist/core-types':
         specifier: workspace:*
         version: link:../core-types
+      '@openassist/providers-openai-shared':
+        specifier: workspace:*
+        version: link:../providers-openai-shared
       openai:
         specifier: ^5.12.2
         version: 5.23.2(ws@8.19.0)(zod@3.25.76)
@@ -267,6 +288,12 @@ importers:
       zod:
         specifier: ^3.24.1
         version: 3.25.76
+
+  packages/providers-openai-shared:
+    dependencies:
+      '@openassist/core-types':
+        specifier: workspace:*
+        version: link:../core-types
 
   packages/recovery:
     dependencies:

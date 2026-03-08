@@ -81,8 +81,12 @@ export function createInquirerPromptAdapter(): PromptAdapter {
   };
 }
 
-function providerSupportsOAuth(type: OpenAssistConfig["runtime"]["providers"][number]["type"]): boolean {
-  return type === "openai" || type === "anthropic";
+function providerUsesApiKey(type: OpenAssistConfig["runtime"]["providers"][number]["type"]): boolean {
+  return type === "openai" || type === "anthropic" || type === "openai-compatible";
+}
+
+function providerSupportsAccountLink(type: OpenAssistConfig["runtime"]["providers"][number]["type"]): boolean {
+  return type === "codex" || type === "anthropic";
 }
 
 function hasEnvValue(env: Record<string, string>, key: string): boolean {
@@ -335,9 +339,10 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
   const providerType = await prompts.select(
     "Provider type",
     [
-      { name: "openai", value: "openai" },
-      { name: "anthropic", value: "anthropic" },
-      { name: "openai-compatible", value: "openai-compatible" }
+      { name: "OpenAI (API key)", value: "openai" },
+      { name: "Codex (OpenAI account login)", value: "codex" },
+      { name: "Anthropic", value: "anthropic" },
+      { name: "OpenAI-compatible", value: "openai-compatible" }
     ],
     "openai"
   );
@@ -374,20 +379,24 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
     });
   }
 
-  if (providerSupportsOAuth(providerType)) {
+  if (providerSupportsAccountLink(providerType)) {
     console.log(
-      `OAuth account login for ${providerType} is supported. If provider OAuth config is set, link with: openassist auth start --provider ${providerId} --account default --open-browser`
+      providerType === "codex"
+        ? `Codex account login uses the separate Codex route. Link with: openassist auth start --provider ${providerId} --account default --open-browser`
+        : `OAuth account login for ${providerType} is supported when provider OAuth config is set. Link with: openassist auth start --provider ${providerId} --account default --open-browser`
     );
   }
 
-  const saveApiKey = await prompts.confirm("Store API key in env file now?", true);
-  if (saveApiKey) {
-    const varName = toProviderApiKeyEnvVar(providerId);
-    console.log(`Secret env var: ${varName}`);
-    console.log("Paste full key then press Enter (masked input accepts long values).");
-    const key = await prompts.password("Provider API key (blank keeps unset)");
-    if (key.trim().length > 0) {
-      state.env[varName] = key.trim();
+  if (providerUsesApiKey(providerType)) {
+    const saveApiKey = await prompts.confirm("Store API key in env file now?", true);
+    if (saveApiKey) {
+      const varName = toProviderApiKeyEnvVar(providerId);
+      console.log(`Secret env var: ${varName}`);
+      console.log("Paste full key then press Enter (masked input accepts long values).");
+      const key = await prompts.password("Provider API key (blank keeps unset)");
+      if (key.trim().length > 0) {
+        state.env[varName] = key.trim();
+      }
     }
   }
 
@@ -437,16 +446,24 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
     }
   }
 
-  const updateApiKey = await prompts.confirm("Update API key in env file?", false);
-  if (updateApiKey) {
-    const varName = toProviderApiKeyEnvVar(provider.id);
-    console.log(`Secret env var: ${varName}`);
-    console.log("Paste full key then press Enter (masked input accepts long values).");
-    const key = await prompts.password("Provider API key (blank to remove)");
-    if (key.trim().length === 0) {
-      delete state.env[varName];
-    } else {
-      state.env[varName] = key.trim();
+  if (provider.type === "codex") {
+    console.log(
+      `Codex account login stays separate from OpenAI API-key auth. Link with: openassist auth start --provider ${provider.id} --account default --open-browser`
+    );
+  }
+
+  if (providerUsesApiKey(provider.type)) {
+    const updateApiKey = await prompts.confirm("Update API key in env file?", false);
+    if (updateApiKey) {
+      const varName = toProviderApiKeyEnvVar(provider.id);
+      console.log(`Secret env var: ${varName}`);
+      console.log("Paste full key then press Enter (masked input accepts long values).");
+      const key = await prompts.password("Provider API key (blank to remove)");
+      if (key.trim().length === 0) {
+        delete state.env[varName];
+      } else {
+        state.env[varName] = key.trim();
+      }
     }
   }
 }

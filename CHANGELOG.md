@@ -8,6 +8,14 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Separate Codex provider route:
+  - added a fourth first-class provider type, `codex`, alongside `openai`, `anthropic`, and `openai-compatible`
+  - `openai` now stays the public OpenAI API-key route in operator-facing setup and docs
+  - `codex` now stays the public OpenAI account-login route in operator-facing setup and docs
+  - quickstart and wizard now present all four provider routes directly instead of treating OpenAI account login as part of the normal `openai` route
+  - `openassist auth start|complete|status|disconnect` now supports the separate Codex route cleanly
+  - Codex linked-account state is restart-safe and refresh-capable without colliding with OpenAI API-key auth on the same provider instance
+
 - Lifecycle hub and home-state operator layout:
   - bare `openassist setup` is now the primary interactive lifecycle hub for first-time setup, repair, service actions, update planning, and file-location/status review
   - fresh installs now default to home-state operator paths instead of repo-local writable state:
@@ -51,6 +59,14 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Provider-route docs and samples now describe four equal public routes consistently:
+  - OpenAI (API key)
+  - Codex (OpenAI account login)
+  - Anthropic
+  - OpenAI-compatible
+  - root `README.md`, root `AGENTS.md`, lifecycle runbooks, provider-interface docs, migration docs, and the sample `openassist.toml` now all treat Codex as Codex-only in this release instead of generic ChatGPT API auth
+  - legacy `openai + oauth` configs remain compatibility-only and new account-login guidance now steers operators to `codex`
+
 - Repo-wide docs and test hardening:
   - root `README.md` and root `AGENTS.md` were tightened again as the public/operator and contributor-discipline truth sources
   - added a central troubleshooting runbook at `docs/operations/common-troubleshooting.md` and linked it from the main lifecycle docs
@@ -79,7 +95,7 @@ The format follows Keep a Changelog conventions and this project currently track
   - WhatsApp MD now ingests images and supported documents, keeps private chats/groups first-class, and sends quoted replies when replying in chat
 - First-class provider image capability contract:
   - `ProviderCapabilities.supportsImageInputs` now makes image-input support explicit
-  - built-in OpenAI and Anthropic adapters now map inbound images into provider-native request shapes
+  - built-in OpenAI, Codex, and Anthropic adapters now map inbound images into provider-native request shapes
   - built-in OpenAI-compatible adapters stay text-only for images
 
 - Actor-aware access-mode controls across setup, chat, CLI, API, and runtime:
@@ -125,7 +141,7 @@ The format follows Keep a Changelog conventions and this project currently track
 - Setup UX clarity pass:
   - staged quickstart headings with clearer intent text per phase
   - shorter API-key prompts with explicit env-var display to reduce terminal wrapping/truncation risk
-  - explicit provider OAuth account-link guidance in quickstart/wizard for OpenAI/Anthropic
+  - explicit provider account-link guidance in quickstart/wizard for Codex and configured Anthropic providers while OpenAI stays the API-key route
   - strict numeric validation for Telegram allowed chat IDs and Discord allowed channel IDs
 - Service failure diagnostics in quickstart:
   - automatic service-status and log snippets are printed on failed health checks before prompting retry/skip/abort.

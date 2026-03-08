@@ -53,18 +53,18 @@ export async function runSetupHub(
   rawOptions: Partial<SetupHubOptions>,
   prompts: PromptAdapter = createInquirerPromptAdapter()
 ): Promise<void> {
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    console.error("Interactive lifecycle hub requires TTY.");
-    console.error("Use one of the scriptable setup subcommands instead:");
-    console.error(`- openassist setup quickstart --install-dir "${defaultInstallDir()}" --config "${defaultConfigPath()}" --env-file "${defaultEnvFilePath()}"`);
-    console.error(`- openassist setup wizard --install-dir "${defaultInstallDir()}" --config "${defaultConfigPath()}" --env-file "${defaultEnvFilePath()}"`);
-    process.exitCode = 1;
-    return;
-  }
-
   const installDir = path.resolve(rawOptions.installDir ?? defaultInstallDir());
   let configPath = path.resolve(rawOptions.configPath ?? defaultConfigPath());
   let envFilePath = path.resolve(rawOptions.envFilePath ?? defaultEnvFilePath());
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.error("Interactive lifecycle hub requires TTY.");
+    console.error("Use one of the scriptable setup subcommands instead:");
+    console.error(`- openassist setup quickstart --install-dir "${installDir}" --config "${configPath}" --env-file "${envFilePath}"`);
+    console.error(`- openassist setup wizard --install-dir "${installDir}" --config "${configPath}" --env-file "${envFilePath}"`);
+    process.exitCode = 1;
+    return;
+  }
 
   const migration = await autoMigrateLegacyDefaultLayoutIfNeeded({
     installDir,

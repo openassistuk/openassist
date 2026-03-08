@@ -30,7 +30,7 @@ Lifecycle surfaces now share one readiness model instead of each inventing their
 
 `openassist doctor --json` keeps the grouped lifecycle report for automation and is now `version: 2` with per-item `stage` metadata.
 
-Recognized older installs that still use repo-local operator state (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) are migrated into the home-state layout automatically when the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/` before it changes anything.
+Recognized older installs that still use repo-local operator state (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) are migrated into the home-state layout automatically when a setup flow runs and the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/` before it changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and route the operator back to setup instead of migrating it in place.
 
 Quickstart now also owns the beginner-facing access choice:
 
@@ -79,12 +79,13 @@ Inbound images and supported text-like documents now flow through the runtime as
 
 Primary runbooks:
 
-- Fastest operator path: `docs/operations/quickstart-linux-macos.md`
-- Linux platform details: `docs/operations/install-linux.md`
-- macOS platform details: `docs/operations/install-macos.md`
-- Quickstart versus wizard responsibilities: `docs/operations/setup-wizard.md`
-- Upgrade, rollback, and rerun-bootstrap guidance: `docs/operations/upgrade-and-rollback.md`
-- Restart and recovery guarantees: `docs/operations/restart-recovery.md`
+- Fastest operator path: [`docs/operations/quickstart-linux-macos.md`](operations/quickstart-linux-macos.md)
+- Common troubleshooting: [`docs/operations/common-troubleshooting.md`](operations/common-troubleshooting.md)
+- Linux platform details: [`docs/operations/install-linux.md`](operations/install-linux.md)
+- macOS platform details: [`docs/operations/install-macos.md`](operations/install-macos.md)
+- Quickstart versus wizard responsibilities: [`docs/operations/setup-wizard.md`](operations/setup-wizard.md)
+- Upgrade, rollback, and rerun-bootstrap guidance: [`docs/operations/upgrade-and-rollback.md`](operations/upgrade-and-rollback.md)
+- Restart and recovery guarantees: [`docs/operations/restart-recovery.md`](operations/restart-recovery.md)
 
 ## Lifecycle Commands
 
@@ -104,36 +105,41 @@ Use `install.sh` or `scripts/install/bootstrap.sh` again when the checkout is no
 
 ## Architecture and Interfaces
 
-- System overview: `docs/architecture/overview.md`
-- Runtime modules: `docs/architecture/runtime-and-modules.md`
-- Provider contract: `docs/interfaces/provider-adapter.md`
-- Channel contract: `docs/interfaces/channel-adapter.md`
-- Skills manifest and managed growth contract: `docs/interfaces/skills-manifest.md`
-- Tool-calling contract: `docs/interfaces/tool-calling.md`
-- Scheduler and time contract: `docs/interfaces/scheduler-and-time.md`
+- System overview: [`docs/architecture/overview.md`](architecture/overview.md)
+- Runtime modules: [`docs/architecture/runtime-and-modules.md`](architecture/runtime-and-modules.md)
+- Provider contract: [`docs/interfaces/provider-adapter.md`](interfaces/provider-adapter.md)
+- Channel contract: [`docs/interfaces/channel-adapter.md`](interfaces/channel-adapter.md)
+- Skills manifest and managed growth contract: [`docs/interfaces/skills-manifest.md`](interfaces/skills-manifest.md)
+- Tool-calling contract: [`docs/interfaces/tool-calling.md`](interfaces/tool-calling.md)
+- Scheduler and time contract: [`docs/interfaces/scheduler-and-time.md`](interfaces/scheduler-and-time.md)
 
 ## Security and Policy
 
-- Threat model: `docs/security/threat-model.md`
-- Policy profiles: `docs/security/policy-profiles.md`
-- End-to-end autonomy validation: `docs/operations/e2e-autonomy-validation.md`
+- Threat model: [`docs/security/threat-model.md`](security/threat-model.md)
+- Policy profiles: [`docs/security/policy-profiles.md`](security/policy-profiles.md)
+- End-to-end autonomy validation: [`docs/operations/e2e-autonomy-validation.md`](operations/e2e-autonomy-validation.md)
 
 ## Testing and Release Readiness
 
-- Test matrix and quality gates: `docs/testing/test-matrix.md`
-- Chaos and soak scenarios: `docs/testing/chaos-and-soak.md`
-- Changelog: `CHANGELOG.md`
+- Test matrix and quality gates: [`docs/testing/test-matrix.md`](testing/test-matrix.md)
+- Chaos and soak scenarios: [`docs/testing/chaos-and-soak.md`](testing/chaos-and-soak.md)
+- Changelog: [`CHANGELOG.md`](../CHANGELOG.md)
 
-Service smoke note:
+The test matrix is now expected to match the on-disk suite inventory exactly, and the normal Node test gate validates that README, docs index, workflow statements, and command examples stay in sync with the real repo.
+
+Supplemental smoke notes:
 
 - `.github/workflows/service-smoke.yml` runs on `workflow_dispatch` and schedule (`Mon`/`Thu` at `06:00 UTC`)
 - it is a supplemental lifecycle check, not a required per-push or per-PR gate
+- `.github/workflows/lifecycle-e2e-smoke.yml` runs on `workflow_dispatch` and schedule (`Tue`/`Sat` at `07:00 UTC`)
+- it is a stronger bootstrap/home-state lifecycle smoke, also supplemental and not a required per-push or per-PR gate
 
 ## Planning
 
 - Current lifecycle ExecPlans:
-  - `docs/execplans/access-mode-opt-in-and-beginner-copy.md`
-  - `docs/execplans/channel-first-class-integrations.md`
-  - `docs/execplans/general-purpose-assistant-identity-and-growth.md`
-  - `docs/execplans/provider-reasoning-controls.md`
-- ExecPlan process: `.agents/PLANS.md`
+  - [`docs/execplans/access-mode-opt-in-and-beginner-copy.md`](execplans/access-mode-opt-in-and-beginner-copy.md)
+  - [`docs/execplans/channel-first-class-integrations.md`](execplans/channel-first-class-integrations.md)
+  - [`docs/execplans/general-purpose-assistant-identity-and-growth.md`](execplans/general-purpose-assistant-identity-and-growth.md)
+  - [`docs/execplans/repo-wide-docs-test-hardening.md`](execplans/repo-wide-docs-test-hardening.md)
+  - [`docs/execplans/provider-reasoning-controls.md`](execplans/provider-reasoning-controls.md)
+- ExecPlan process: [`.agents/PLANS.md`](../.agents/PLANS.md)

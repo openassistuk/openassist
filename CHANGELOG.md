@@ -51,6 +51,14 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Repo-wide docs and test hardening:
+  - root `README.md` and root `AGENTS.md` were tightened again as the public/operator and contributor-discipline truth sources
+  - added a central troubleshooting runbook at `docs/operations/common-troubleshooting.md` and linked it from the main lifecycle docs
+  - `docs/testing/test-matrix.md` now matches the exact on-disk Node/Vitest suite inventory instead of a stale hand-maintained subset
+  - normal verification now includes a docs-truth integration test that checks root-doc links, documented CLI command examples, workflow statements, and test-matrix inventory against the real repo
+  - added a supplemental manual/scheduled `Lifecycle E2E Smoke` workflow for stronger bootstrap/home-state/doctor/upgrade dry-run validation on Linux and macOS
+  - bare `openassist setup` non-TTY guidance now preserves explicit `--install-dir`, `--config`, and `--env-file` values in its printed fallback commands
+
 - Provider defaults now keep OpenAI on the current flagship API model `gpt-5.4` and update Anthropic onboarding examples/default prompts to the current Sonnet API model `claude-sonnet-4-6`, so new installs offer current real API model IDs instead of older snapshots or aliases.
 
 - Runtime self-knowledge and identity-restoration pass:

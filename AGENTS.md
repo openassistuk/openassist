@@ -49,7 +49,7 @@ For non-trivial changes, follow `.agents/PLANS.md`.
 
 Do not bypass boundaries with cross-package shortcuts.
 
-## Lifecycle UX Rules (V1.7)
+## Lifecycle UX Rules (V1.8)
 
 OpenAssist now has one primary setup entrypoint and two stable subpaths:
 
@@ -109,6 +109,10 @@ When changing installer/setup/service behavior:
      - `Needs action`
      - `Next command`
    - machine-readable lifecycle output may stay stage-aware underneath, but human wording must remain centralized and consistent
+20. preserve troubleshooting spine semantics:
+   - lifecycle docs must keep one central troubleshooting runbook under `docs/operations/common-troubleshooting.md`
+   - root `README.md`, `docs/README.md`, and the main lifecycle runbooks must link to that troubleshooting runbook
+   - repair guidance in docs must stay aligned with `openassist setup`, `openassist doctor`, `openassist service ...`, and `openassist upgrade --dry-run`
 
 ## Autonomous Tool Loop Rules (V1.6)
 
@@ -224,6 +228,8 @@ Every behavior change must update docs in the same change.
 
 Docs truth-source checks are required before claiming doc completeness:
 
+- root `README.md` is a mandatory updated surface for operator-facing lifecycle or public-product changes
+- root `AGENTS.md` is a mandatory updated surface for contributor discipline, workflow, or docs-sync changes
 - command examples must be validated against CLI registry files:
   - `apps/openassist-cli/src/index.ts`
   - `apps/openassist-cli/src/commands/setup.ts`
@@ -232,10 +238,15 @@ Docs truth-source checks are required before claiming doc completeness:
 - workflow behavior docs must be validated against:
   - `.github/workflows/ci.yml`
   - `.github/workflows/service-smoke.yml`
+  - `.github/workflows/lifecycle-e2e-smoke.yml`
+- testing inventory docs must be validated against:
+  - `tests/node/*.test.ts`
+  - `tests/vitest/*.test.ts`
 
 Minimum affected surfaces:
 
 - root `README.md`
+- root `AGENTS.md`
 - `docs/README.md`
 - relevant files under:
   - `docs/architecture/`
@@ -255,6 +266,7 @@ When tool-loop behavior changes, always update:
 
 When lifecycle UX changes, always update:
 
+- `docs/operations/common-troubleshooting.md`
 - `docs/operations/quickstart-linux-macos.md`
 - `docs/operations/install-linux.md`
 - `docs/operations/install-macos.md`
@@ -291,13 +303,16 @@ Coverage policy discipline:
 
 - Do not lower coverage thresholds to get a green run.
 - Prefer targeted branch/contract tests to recover red gates.
+- Keep repo-wide docs-truth validation in the normal test gate so README/AGENTS/workflow/test-matrix drift fails early.
 
 CI expectations:
 
 - required quality workflow green on Linux/macOS/Windows
 - workflow lint gate green
 - service smoke workflow remains runnable for Linux/macOS dry-run lifecycle checks
+- lifecycle E2E smoke workflow remains runnable for Linux/macOS bootstrap/home-state lifecycle checks
 - service smoke trigger model is scheduled/manual (`workflow_dispatch` + schedule), not a per-push/PR required gate; docs must state this explicitly
+- lifecycle E2E smoke trigger model is scheduled/manual (`workflow_dispatch` + schedule), not a per-push/PR required gate; docs must state this explicitly
 
 When adding commands or setup/service logic, add/maintain:
 
@@ -308,12 +323,14 @@ When adding commands or setup/service logic, add/maintain:
 ## Public Release Checklist
 
 1. README reflects current command surfaces and defaults.
-2. Install/setup/service/upgrade docs match implementation.
-3. `docs/operations/quickstart-linux-macos.md` matches current install/setup/first-reply flow.
-4. Security docs match runtime behavior.
-5. Test matrix reflects actual suites and thresholds.
-6. `CHANGELOG.md` includes the release-facing behavior deltas.
-7. ExecPlan updates include evidence and final outcomes.
+2. AGENTS reflects current contributor, docs-truth, and workflow discipline.
+3. Install/setup/service/upgrade docs match implementation.
+4. `docs/operations/quickstart-linux-macos.md` matches current install/setup/first-reply flow.
+5. `docs/operations/common-troubleshooting.md` matches current lifecycle repair paths.
+6. Security docs match runtime behavior.
+7. Test matrix reflects actual suites and thresholds.
+8. `CHANGELOG.md` includes the release-facing behavior deltas.
+9. ExecPlan updates include evidence and final outcomes.
 
 ## Definition of Done
 

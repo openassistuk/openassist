@@ -1,6 +1,6 @@
 # Install on macOS
 
-This page covers macOS-specific installation details. For the full install-to-first-reply path, start with `docs/operations/quickstart-linux-macos.md`.
+This page covers macOS-specific installation details. For the full install-to-first-reply path, start with `docs/operations/quickstart-linux-macos.md` and keep `docs/operations/common-troubleshooting.md` nearby for repair commands.
 
 ## Platform Behavior
 
@@ -112,7 +112,7 @@ Later lifecycle commands use the same install-state record to preserve:
 
 If you install with `--ref <git-ref>`, that ref is also recorded in install state for later lifecycle reporting.
 
-If bootstrap detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), later lifecycle commands will migrate that state into the canonical home-state layout when the target home paths are empty or compatible. Migration writes a timestamped backup under `~/.local/share/openassist/migration-backups/` before it changes anything.
+If setup later detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), it migrates that state into the canonical home-state layout when the target home paths are empty or compatible. Migration writes a timestamped backup under `~/.local/share/openassist/migration-backups/` before it changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and route you back to setup instead of migrating it in place.
 
 ## When to Use Setup, Quickstart, Service Install, or Bootstrap Again
 
@@ -144,6 +144,8 @@ Re-run bootstrap when:
 - you want a clean install directory
 
 ## macOS Recovery Notes
+
+The cross-platform repair matrix lives in `docs/operations/common-troubleshooting.md`.
 
 If the current shell cannot find wrappers yet:
 

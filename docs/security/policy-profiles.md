@@ -91,6 +91,7 @@ Effective access resolves in this order:
 Installed command examples:
 
 ```bash
+openassist setup
 openassist setup quickstart
 openassist policy-set --session <channelId>:<conversationKey> --profile operator
 openassist policy-set --session <channelId>:<conversationKey> --profile full-root

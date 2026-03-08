@@ -45,6 +45,14 @@ function writeLegacyDefaultConfig(installDir: string): string {
   return configPath;
 }
 
+function writeOwnerOnlyFile(target: string, content = ""): void {
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, content, "utf8");
+  if (process.platform !== "win32") {
+    fs.chmodSync(target, 0o600);
+  }
+}
+
 describe("legacy operator layout migration", () => {
   it("does not treat the tracked sample config alone as legacy operator state", async () =>
     await withHomeDir(tempDir("openassist-operator-layout-home-none-"), () => {
@@ -63,8 +71,7 @@ describe("legacy operator layout migration", () => {
     await withHomeDir(tempDir("openassist-operator-layout-home-ready-"), () => {
       const installDir = tempDir("openassist-operator-layout-install-ready-");
       writeLegacyDefaultConfig(installDir);
-      fs.mkdirSync(path.join(installDir, ".openassist", "data"), { recursive: true });
-      fs.writeFileSync(path.join(installDir, ".openassist", "data", "openassist.db"), "", "utf8");
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
 
       const detection = detectLegacyDefaultLayout(
         installDir,
@@ -83,8 +90,7 @@ describe("legacy operator layout migration", () => {
 
       fs.mkdirSync(path.join(installDir, "config.d"), { recursive: true });
       fs.writeFileSync(path.join(installDir, "config.d", "channel.toml"), "[runtime]\n", "utf8");
-      fs.mkdirSync(path.join(installDir, ".openassist", "data"), { recursive: true });
-      fs.writeFileSync(path.join(installDir, ".openassist", "data", "openassist.db"), "", "utf8");
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
       fs.mkdirSync(path.dirname(operatorPaths.envFilePath), { recursive: true });
       fs.writeFileSync(operatorPaths.envFilePath, "# env\n", "utf8");
       saveInstallState({
@@ -122,8 +128,7 @@ describe("legacy operator layout migration", () => {
       const installDir = tempDir("openassist-operator-layout-install-blocked-");
       const operatorPaths = resolveOperatorPaths({ homeDir, installDir });
       writeLegacyDefaultConfig(installDir);
-      fs.mkdirSync(path.join(installDir, ".openassist", "data"), { recursive: true });
-      fs.writeFileSync(path.join(installDir, ".openassist", "data", "openassist.db"), "", "utf8");
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
       fs.mkdirSync(operatorPaths.dataDir, { recursive: true });
       fs.writeFileSync(path.join(operatorPaths.dataDir, "existing.db"), "", "utf8");
 

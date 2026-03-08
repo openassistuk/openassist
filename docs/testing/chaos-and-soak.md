@@ -2,9 +2,17 @@
 
 This document defines reliability stress scenarios for OpenAssist runtime, scheduler, and lifecycle controls.
 
+Use `docs/operations/common-troubleshooting.md` for the operator-facing repair commands that correspond to the lifecycle failures described here. This file is for deeper reliability validation, not first-line beginner recovery.
+
 ## Goal
 
 Prove that restart safety, scheduling correctness, and upgrade rollback behavior remain correct under adverse conditions.
+
+Supplemental workflow context:
+
+- `.github/workflows/service-smoke.yml` is the lighter dry-run lifecycle smoke on hosted runners
+- `.github/workflows/lifecycle-e2e-smoke.yml` is the stronger bootstrap/home-state/doctor/upgrade smoke on hosted runners
+- neither workflow replaces the deeper scenario checks in this document
 
 ## Scenario A: Restart During Scheduled Execution
 

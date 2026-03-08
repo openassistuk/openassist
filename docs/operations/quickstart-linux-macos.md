@@ -2,6 +2,8 @@
 
 This is the canonical operator runbook for a public OpenAssist install.
 
+If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
+
 The goal is one clean path:
 
 1. install OpenAssist
@@ -9,6 +11,8 @@ The goal is one clean path:
 3. confirm service health
 4. send the first real chat reply
 5. use the wizard only for advanced changes
+
+If you hit trouble on any of those steps, keep `docs/operations/common-troubleshooting.md` open alongside this runbook.
 
 ## Before You Start
 
@@ -145,7 +149,7 @@ Canonical writable operator state for fresh installs:
 - managed skills: `~/.local/share/openassist/skills`
 - managed helper tools: `~/.local/share/openassist/data/helper-tools`
 
-If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), it migrates that state automatically when the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/<timestamp>` before it changes anything.
+If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) while `openassist setup`, `openassist setup quickstart`, or `openassist setup wizard` is running, it migrates that state automatically when the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/<timestamp>` before it changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and send you back to setup instead of migrating it themselves.
 
 Quickstart rules:
 
@@ -328,6 +332,8 @@ If dry-run shows `Current branch: HEAD`, the checkout is detached. Prefer `opena
 If the checkout is damaged, missing `.git`, missing build output under `apps/openassist-cli/dist` or `apps/openassistd/dist`, or no longer trustworthy, rerun bootstrap instead of forcing `openassist upgrade`.
 
 ## Troubleshooting
+
+For the central repair matrix, use `docs/operations/common-troubleshooting.md`.
 
 Bootstrap stopped before quickstart:
 

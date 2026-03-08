@@ -2,7 +2,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ServiceManagerAdapter } from "../../apps/openassist-cli/src/lib/service-manager.js";
 import type { PromptAdapter } from "../../apps/openassist-cli/src/lib/setup-wizard.js";
 import {
@@ -176,6 +176,7 @@ describe("setup quickstart oauth path", () => {
             ...validationContinuationAnswers,
             "true",
             "true",
+            "true",
             "https://127.0.0.1:3344/v1/oauth/codex-main/callback?state=state-codex&code=auth-code-1"
           ])
         ),
@@ -189,6 +190,31 @@ describe("setup quickstart oauth path", () => {
           }),
           requestJsonFn: async (method, url) => {
             requestCalls.push({ method, url });
+            if (url.endsWith("/v1/time/status")) {
+              return {
+                status: 200,
+                data: {
+                  time: {
+                    timezone: "Europe/London",
+                    timezoneConfirmed: true,
+                    clockHealth: "healthy"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/v1/scheduler/status")) {
+              return {
+                status: 200,
+                data: {
+                  scheduler: {
+                    running: true,
+                    enabled: true,
+                    taskCount: 0,
+                    timezone: "Europe/London"
+                  }
+                }
+              };
+            }
             if (url.endsWith("/start")) {
               return {
                 status: 200,
@@ -250,6 +276,144 @@ describe("setup quickstart oauth path", () => {
         )
       ).toBe(true);
     } finally {
+      restoreTty();
+    }
+  });
+
+  it("retries default Codex account linking without misreporting a service failure", async () => {
+    const root = tempDir("openassist-quickstart-oauth-retry-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.providers = [
+      {
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-5.4",
+      }
+    ];
+    state.config.runtime.defaultProviderId = "codex-main";
+
+    const requestCalls: Array<{ method: string; url: string }> = [];
+    const restoreTty = setTty(true);
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const result = await runSetupQuickstart(
+        state,
+        {
+          configPath,
+          envFilePath: envPath,
+          installDir,
+          allowIncomplete: true,
+          skipService: false,
+          requireTty: false,
+          preflightCommandChecks: false
+        },
+        new ScriptedPromptAdapter(
+          validCodexQuickstartAnswers(bindPort, [
+            ...validationContinuationAnswers,
+            "true",
+            "true",
+            "false",
+            "retry",
+            "true",
+            "true",
+            "true",
+            "https://127.0.0.1:3344/v1/oauth/codex-main/callback?state=state-codex&code=auth-code-2"
+          ])
+        ),
+        {
+          createServiceManagerFn: () => createFakeService(),
+          waitForHealthyFn: async (baseUrl) => ({
+            ok: true,
+            status: 200,
+            bodyText: "{\"status\":\"ok\"}",
+            baseUrl: Array.isArray(baseUrl) ? baseUrl[0] : baseUrl
+          }),
+          requestJsonFn: async (method, url) => {
+            requestCalls.push({ method, url });
+            if (url.endsWith("/v1/time/status")) {
+              return {
+                status: 200,
+                data: {
+                  time: {
+                    timezone: "Europe/London",
+                    timezoneConfirmed: true,
+                    clockHealth: "healthy"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/v1/scheduler/status")) {
+              return {
+                status: 200,
+                data: {
+                  scheduler: {
+                    running: true,
+                    enabled: true,
+                    taskCount: 0,
+                    timezone: "Europe/London"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/start")) {
+              return {
+                status: 200,
+                data: {
+                  authorizationUrl: "https://example.test/oauth/start",
+                  state: "state-codex"
+                }
+              };
+            }
+            if (url.endsWith("/complete")) {
+              return {
+                status: 200,
+                data: {
+                  accountId: "default",
+                  expiresAt: new Date(Date.now() + 60_000).toISOString()
+                }
+              };
+            }
+            if (url.endsWith("/status")) {
+              return {
+                status: 200,
+                data: {
+                  accounts: [{ accountId: "default" }]
+                }
+              };
+            }
+            return {
+              status: 200,
+              data: { status: "ok" }
+            };
+          }
+        }
+      );
+
+      expect(result.saved).toBe(true);
+      expect(
+        requestCalls.filter(
+          (entry) => entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/start")
+        ).length
+      ).toBe(2);
+      const errorOutput = errorSpy.mock.calls.flat().join("\n");
+      expect(errorOutput).toContain("Account linking still needs attention");
+      expect(errorOutput).toContain("The daemon is already healthy. This is an account-linking step, not a service failure.");
+      expect(errorOutput).toMatch(
+        /openassist auth start --provider codex-main --account default --open-browser --base-url http:\/\/127\.0\.0\.1:\d+/
+      );
+      expect(errorOutput).not.toContain("Service + health step failed");
+      expect(errorOutput).not.toContain("systemctl status openassistd.service");
+    } finally {
+      errorSpy.mockRestore();
       restoreTty();
     }
   });

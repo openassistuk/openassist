@@ -190,7 +190,32 @@ describe("setup hub", () => {
         envFilePath,
         skipService: true
       },
-      new ScriptedPromptAdapter(["first-time", ...minimalTelegramAnswers(bindPort)])
+      new ScriptedPromptAdapter(["1", ...minimalTelegramAnswers(bindPort)])
+    );
+
+    expect(fs.existsSync(configPath)).toBe(true);
+    expect(fs.existsSync(envFilePath)).toBe(true);
+    expect(logSpy.mock.calls.flat().join("\n")).toContain("Quickstart saved");
+  });
+
+  it("accepts the human menu label as a setup hub choice", async () => {
+    const root = tempDir("openassist-setup-hub-label-");
+    const configPath = path.join(root, "openassist.toml");
+    const envFilePath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: true });
+    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runSetupHub(
+      {
+        installDir,
+        configPath,
+        envFilePath,
+        skipService: true
+      },
+      new ScriptedPromptAdapter(["First-time setup", ...minimalTelegramAnswers(bindPort)])
     );
 
     expect(fs.existsSync(configPath)).toBe(true);

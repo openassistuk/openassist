@@ -164,7 +164,8 @@ Provider-route notes:
 
 - OpenAI remains the public API-key route in setup and docs.
 - Codex is the public OpenAI account-login route and is intentionally Codex-only in this release.
-- Codex account linking is headless-friendly: OpenAssist can print the authorization URL and accept either the full callback URL or a pasted code when you complete the login.
+- Codex account linking is headless-friendly: OpenAssist can print the authorization URL, pause so you can copy or open it on another device, and accept either the full callback URL or a pasted code when you complete the login.
+- Automatic browser launch is best-effort only. If the local host cannot open a browser, OpenAssist still prints the URL and keeps the account-link flow usable.
 - OpenAssist does not present Codex as generic ChatGPT API auth for arbitrary OpenAI models.
 - Existing mixed `openai + oauth` configs still load for compatibility, but new account-login installs should use `codex`.
 

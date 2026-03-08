@@ -37,6 +37,7 @@ Codex mapping note:
 
 - imported Codex providers should keep Codex-family models on the new `codex` route
 - the importer does not silently convert arbitrary OpenAI account-login assumptions into a generic `openai` API-key route
+- imported Codex providers still require a fresh linked-account login in OpenAssist; on headless hosts that login can be completed from the printed authorization URL and pasted callback flow
 
 ### Channel mapping
 

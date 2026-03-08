@@ -177,6 +177,7 @@ describe("cli setup quickstart oauth coverage", () => {
             ...validationContinuationAnswers,
             "true",
             "true",
+            "true",
             "https://127.0.0.1:3344/v1/oauth/codex-main/callback?state=state-codex&code=auth-code-1"
           ])
         ),
@@ -190,6 +191,31 @@ describe("cli setup quickstart oauth coverage", () => {
           }),
           requestJsonFn: async (method, url) => {
             requestCalls.push({ method, url });
+            if (url.endsWith("/v1/time/status")) {
+              return {
+                status: 200,
+                data: {
+                  time: {
+                    timezone: "Europe/London",
+                    timezoneConfirmed: true,
+                    clockHealth: "healthy"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/v1/scheduler/status")) {
+              return {
+                status: 200,
+                data: {
+                  scheduler: {
+                    running: true,
+                    enabled: true,
+                    taskCount: 0,
+                    timezone: "Europe/London"
+                  }
+                }
+              };
+            }
             if (url.endsWith("/start")) {
               return {
                 status: 200,

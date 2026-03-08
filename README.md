@@ -170,6 +170,7 @@ Quickstart provider guidance now follows the split-route model:
 
 - OpenAI stays the API-key route
 - Codex stays the OpenAI account-login route and completes linking during onboarding with a printed authorization URL plus pasted callback URL or code flow
+- On headless hosts, OpenAssist pauses after printing the Codex authorization URL so you can copy it into another browser before continuing
 - Anthropic stays API-key-first for the fastest first reply, with optional account-linking later if you configured it
 - OpenAI-compatible stays the custom API-compatible route
 
@@ -224,6 +225,8 @@ openassist service status
 openassist service health
 openassist channel status
 ```
+
+If `openassist auth start --open-browser` cannot launch a local browser on a VPS or other headless host, that is now a non-fatal convenience failure. OpenAssist still prints the authorization URL and you can open it manually on another device, then continue with the pasted callback URL or code.
 
 Use the troubleshooting runbook when:
 

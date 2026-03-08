@@ -148,6 +148,7 @@ Codex adapter behavior:
 - The current public route keeps one linked account per provider instance.
 - The Codex route is account-login only in operator-facing setup and docs; it is not the generic OpenAI API-key route.
 - The Codex route validates `gpt-5.4` and Codex-family models only in this release.
+- CLI and setup auth helpers must treat browser launch as best-effort only; missing local browser launchers on headless hosts must leave the printed authorization URL usable instead of crashing the account-link flow.
 
 Anthropic thinking replay behavior:
 

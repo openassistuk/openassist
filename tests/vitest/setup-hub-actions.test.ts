@@ -134,7 +134,12 @@ describe("setup hub action routing", () => {
     expect(spawnMock).toHaveBeenCalledTimes(4);
     expect(spawnMock.mock.calls[0]?.[1].slice(1)).toEqual(["doctor"]);
     expect(spawnMock.mock.calls[1]?.[1].slice(1)).toEqual(["doctor"]);
-    expect(spawnMock.mock.calls[2]?.[1].slice(1)).toEqual(["service", "console"]);
+    expect(spawnMock.mock.calls[2]?.[1].slice(1)).toEqual([
+      "service",
+      "console",
+      "--base-url",
+      "http://127.0.0.1:3344"
+    ]);
     expect(spawnMock.mock.calls[3]?.[1].slice(1)).toEqual(["upgrade", "--dry-run", "--install-dir", installDir]);
   });
 
@@ -232,6 +237,7 @@ describe("setup hub action routing", () => {
     expect(logOutput).toContain(`Saved advanced configuration to ${configPath}`);
     expect(logOutput).toContain(`Backup created: ${path.join(installDir, "openassist.toml.bak")}`);
     expect(logOutput).toContain("Needs action: service health still needs attention");
+    expect(logOutput).toContain("Next command: openassist service console --base-url http://127.0.0.1:3344");
     expect(runSetupWizardPostSaveChecksMock).toHaveBeenCalledTimes(1);
   });
 });

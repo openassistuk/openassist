@@ -207,6 +207,7 @@ describe("cli setup validation and summary coverage", () => {
       failedServiceSummary.some((line) => line.includes("First reply destination: Telegram via telegram-main")),
       true
     );
+    assert.equal(failedServiceSummary.some((line) => line === "- None."), false);
 
     const skippedServiceSummary = buildSetupSummary({
       installDir: root,
@@ -222,5 +223,6 @@ describe("cli setup validation and summary coverage", () => {
       skippedServiceSummary.some((line) => line.includes("Service state: Service checks skipped")),
       true
     );
+    assert.equal(skippedServiceSummary.some((line) => line === "- None."), false);
   });
 });

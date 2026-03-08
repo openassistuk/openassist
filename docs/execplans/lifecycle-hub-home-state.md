@@ -19,6 +19,7 @@ The visible proof is straightforward. After running bootstrap on a TTY, the oper
 - [x] (2026-03-08 15:15Z) Added targeted regression coverage for operator paths, legacy migration, hub routing, bootstrap contracts, doctor output, and upgrade behavior.
 - [x] (2026-03-08 18:44Z) Updated `AGENTS.md`, `README.md`, `docs/README.md`, lifecycle runbooks, `CHANGELOG.md`, and the source-checkout sample config so the repo documents bare `openassist setup`, home-state defaults, automatic legacy migration, and the shared three-section lifecycle output truthfully.
 - [x] (2026-03-08 18:50Z) Recovered the final node coverage gate by adding targeted CLI node coverage for bare `setup`, legacy layout migration, and local growth-state inspection; `pnpm verify:all` now passes on the branch.
+- [x] (2026-03-08 16:04Z) Addressed the final actionable PR review findings: bootstrap non-interactive next-step commands now keep explicit lifecycle paths, setup hub routes `service console` through the active config-derived base URL, and quickstart summaries no longer emit contradictory `Needs action` plus `None.` output.
 - [ ] Push branch `feat/lifecycle-hub-home-state`, open the PR, monitor CI/CodeQL/review, and fix actionable findings before reporting ready.
 
 ## Surprises & Discoveries
@@ -31,6 +32,9 @@ The visible proof is straightforward. After running bootstrap on a TTY, the oper
 
 - Observation: Commander parent-command options and child-command defaults interact in a way that can silently discard parent `--config` / `--env-file` overrides.
   Evidence: `apps/openassist-cli/src/commands/setup.ts` now merges option values with `readCommandOptions(...)` so `openassist setup --config ... show` and similar forms keep the operator-provided parent values.
+
+- Observation: The final lifecycle-review polish still needed explicit path-carrying next steps in bootstrap, even after the hub existed.
+  Evidence: PR review feedback on `scripts/install/bootstrap.sh` correctly pointed out that bare `openassist setup` in non-interactive summaries could send operators to the wrong config/install context when custom paths were used.
 
 ## Decision Log
 
@@ -61,6 +65,8 @@ The branch now has the complete local implementation required by the plan: share
 The main lesson from this pass is that lifecycle UX and state layout cannot be separated. The earlier lifecycle work made output more consistent, but leaving default writable state inside the repo still made upgrade and repair feel Git-heavy. Moving normal operator state out of the checkout is what makes the simplified lifecycle wording honest.
 
 The final verification lesson was practical: the new lifecycle helpers needed extra node-level branch coverage, not weaker thresholds. Adding targeted node tests for bare `setup`, legacy layout migration, and local growth-state inspection recovered the gate cleanly while keeping the coverage policy intact.
+
+The final PR review lesson was also useful: once human-facing lifecycle flows share one model, the remaining bugs cluster in the last-mile command handoff text. The fixes here were not architectural; they were about making sure the printed next action still carries the operator’s real config, env, and daemon context all the way through bootstrap and the setup hub.
 
 ## Context and Orientation
 

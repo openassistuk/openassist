@@ -57,7 +57,10 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("Next command"));
     assert.ok(script.includes("pnpm version notices are informational."));
     assert.ok(script.includes("approve them before relying on WhatsApp image or document handling."));
-    assert.ok(script.includes("Guided onboarding was not run because bootstrap stayed non-interactive."));
+    assert.ok(script.includes("Guided onboarding was not run because bootstrap stayed non-interactive. Next step: ${setupCommand}"));
+    assert.ok(
+      script.includes('openassist setup --install-dir \\"${INSTALL_DIR}\\" --config \\"${CONFIG_PATH}\\" --env-file \\"${ENV_FILE}\\"')
+    );
     assert.ok(script.includes("Service install and health checks were skipped."));
     assert.ok(script.includes("This shell may need a new login shell before 'openassist' is on PATH."));
     assert.ok(script.includes("SERVICE_KIND=\"systemd-system\""));

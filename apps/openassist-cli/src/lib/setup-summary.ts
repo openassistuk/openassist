@@ -65,20 +65,24 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   lines.push(`- First reply checklist: ${firstReplyGuidance}`);
   lines.push(`- Advanced settings handoff: ${advancedSettingsHandoff}`);
   lines.push("Needs action");
+  const needsActionLines: string[] = [];
   if (input.warningCount > 0) {
-    lines.push(`- Validation warnings: ${input.warningCount}`);
+    needsActionLines.push(`- Validation warnings: ${input.warningCount}`);
   }
   if (report.context.accessMode === "Full access for approved operators") {
-    lines.push("- In chat, run /status to confirm the exact sender ID and session ID for approved-operator checks.");
+    needsActionLines.push("- In chat, run /status to confirm the exact sender ID and session ID for approved-operator checks.");
   }
   if (input.skippedService) {
-    lines.push(
+    needsActionLines.push(
       `- Service install and health checks were skipped. Next step: openassist service install --install-dir "${input.installDir}" --config "${input.configPath}" --env-file "${input.envFilePath}"`
     );
   } else if (!input.healthOk && input.postSaveError) {
-    lines.push(`- Service or health checks still need attention. Next step: openassist service health`);
-  } else {
+    needsActionLines.push(`- Service or health checks still need attention. Next step: openassist service health`);
+  }
+  if (needsActionLines.length === 0) {
     lines.push("- None.");
+  } else {
+    lines.push(...needsActionLines);
   }
   lines.push("Next command");
   if (input.skippedService) {

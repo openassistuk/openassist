@@ -239,6 +239,17 @@ if (process.env.OPENASSIST_ALLOW_DIRTY === "1") {
 }
 
 const localWrapper = process.env.OPENASSIST_LOCAL_WRAPPER || "openassist";
+const quoteArg = (value) => `"${String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+const setupCommand = [
+  "openassist",
+  "setup",
+  "--install-dir",
+  process.env.OPENASSIST_INSTALL_DIR,
+  "--config",
+  process.env.OPENASSIST_CONFIG_PATH,
+  "--env-file",
+  process.env.OPENASSIST_ENV_FILE
+].map((part, index) => (index === 0 ? part : quoteArg(part))).join(" ");
 const wrapperReady = readyItems.some((item) => item.id === "wrappers.path");
 if (!wrapperReady) {
   needs.unshift(`  - This shell may need a new login shell before 'openassist' is on PATH. Fallback: ${localWrapper}`);
@@ -251,7 +262,7 @@ needs.push(
 
 if (process.env.OPENASSIST_INTERACTIVE !== "1") {
   needs.unshift(
-    `  - Guided onboarding was not run because bootstrap stayed non-interactive. Next step: openassist setup`
+    `  - Guided onboarding was not run because bootstrap stayed non-interactive. Next step: ${setupCommand}`
   );
 }
 if (process.env.OPENASSIST_SKIP_SERVICE === "1") {
@@ -261,10 +272,10 @@ if (process.env.OPENASSIST_SKIP_SERVICE === "1") {
 }
 
 let nextCommand = "openassist service health";
-if (process.env.OPENASSIST_SKIP_SERVICE === "1") {
+if (process.env.OPENASSIST_INTERACTIVE !== "1") {
+  nextCommand = setupCommand;
+} else if (process.env.OPENASSIST_SKIP_SERVICE === "1") {
   nextCommand = `openassist service install --install-dir "${process.env.OPENASSIST_INSTALL_DIR}" --config "${process.env.OPENASSIST_CONFIG_PATH}" --env-file "${process.env.OPENASSIST_ENV_FILE}"`;
-} else if (process.env.OPENASSIST_INTERACTIVE !== "1") {
-  nextCommand = "openassist setup";
 } else if (firstReplyItems.length > 0) {
   nextCommand = firstReplyItems[0]?.nextStep || "openassist doctor";
 }
@@ -303,12 +314,16 @@ EOF
   if [[ "${INTERACTIVE}" -eq 1 && "${SKIP_SERVICE}" -eq 1 ]]; then
     echo "  - Service install and health checks were skipped."
   elif [[ "${INTERACTIVE}" -ne 1 ]]; then
-    echo "  - Guided onboarding was not run because bootstrap stayed non-interactive."
+    echo "  - Guided onboarding was not run because bootstrap stayed non-interactive. Next step: openassist setup --install-dir \"${INSTALL_DIR}\" --config \"${CONFIG_PATH}\" --env-file \"${ENV_FILE}\""
   else
     echo "  - None."
   fi
   echo "Next command"
-  echo "  - ${LOCAL_BIN_DIR}/openassist --help"
+  if [[ "${INTERACTIVE}" -ne 1 ]]; then
+    echo "  - openassist setup --install-dir \"${INSTALL_DIR}\" --config \"${CONFIG_PATH}\" --env-file \"${ENV_FILE}\""
+  else
+    echo "  - ${LOCAL_BIN_DIR}/openassist --help"
+  fi
 }
 
 print_bootstrap_plan

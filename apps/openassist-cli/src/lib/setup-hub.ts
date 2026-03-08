@@ -30,6 +30,10 @@ async function runCurrentCli(args: string[]): Promise<number> {
   });
 }
 
+function quotedCliArgs(args: string[]): string[] {
+  return args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg));
+}
+
 function fileLocationLines(options: SetupHubOptions): string[] {
   const operatorPaths = resolveOperatorPaths({ installDir: options.installDir });
   return [
@@ -112,7 +116,12 @@ export async function runSetupHub(
     }
 
     if (action === "service") {
-      await runCurrentCli(["service", "console"]);
+      await runCurrentCli([
+        "service",
+        "console",
+        "--base-url",
+        detectDefaultDaemonBaseUrl(configPath)
+      ]);
       continue;
     }
 
@@ -161,6 +170,15 @@ export async function runSetupHub(
     );
     if (!postSave.completed && postSave.lastError) {
       console.log(`Needs action: ${postSave.lastError}`);
+      console.log(
+        `Next command: ${quotedCliArgs([
+          "openassist",
+          "service",
+          "console",
+          "--base-url",
+          detectDefaultDaemonBaseUrl(configPath)
+        ]).join(" ")}`
+      );
     }
     return;
   }

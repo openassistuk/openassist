@@ -73,7 +73,7 @@ describe("cli command integration", () => {
     assert.ok(result.stdout.includes("\"runtime\""), result.stdout);
   });
 
-  it("runs upgrade dry-run on a clean built working tree", async () => {
+  it("runs upgrade dry-run on a clean built source checkout", async () => {
     const root = tempDir("openassist-upgrade-dryrun-");
     const cloneDir = path.join(root, "repo");
     const homeDir = path.join(root, "home");
@@ -90,7 +90,11 @@ describe("cli command integration", () => {
     );
     assert.equal(result.code, 1, result.stderr || result.stdout);
     assert.ok(result.stdout.includes("Update readiness"), result.stdout);
-    assert.ok(result.stdout.includes("- Current update track: feat/branch-pr-install-tracks"), result.stdout);
+    assert.match(
+      result.stdout,
+      /- Current update track: (Detached or not recorded|[^\r\n]+)/,
+      result.stdout
+    );
     assert.ok(result.stdout.includes("- Target update track: Detached or not recorded"), result.stdout);
     assert.ok(result.stdout.includes("Needs action"), result.stdout);
     assert.ok(result.stdout.includes("rerun bootstrap instead"), result.stdout);

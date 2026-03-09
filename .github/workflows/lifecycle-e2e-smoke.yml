@@ -113,14 +113,15 @@ jobs:
 
           test "$doctor_status" -eq 1
           test "$doctor_json_status" -eq 1
-          test "$upgrade_status" -eq 1
+          test "$upgrade_status" -eq 0
           grep -F "Ready now" "$RUNNER_TEMP/doctor.txt"
           grep -F "Needs action" "$RUNNER_TEMP/doctor.txt"
           grep -F "Next command" "$RUNNER_TEMP/doctor.txt"
-          grep -F '"version": 2' "$RUNNER_TEMP/doctor.json"
+          node -e "const fs=require('node:fs'); const report=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (report.version !== 2 || report.summary?.firstReplyReadiness !== 'needs-action' || report.summary?.upgradeReadiness !== 'safe-to-continue') process.exit(1);" "$RUNNER_TEMP/doctor.json"
           grep -F "Ready now" "$RUNNER_TEMP/upgrade.txt"
           grep -F "Needs action" "$RUNNER_TEMP/upgrade.txt"
           grep -F "Next command" "$RUNNER_TEMP/upgrade.txt"
+          grep -F "safe to continue" "$RUNNER_TEMP/upgrade.txt"
 
       - name: Verify repo stays clean from home-state operator state
         shell: bash

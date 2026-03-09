@@ -73,7 +73,7 @@ describe("cli command integration", () => {
     assert.ok(result.stdout.includes("\"runtime\""), result.stdout);
   });
 
-  it("runs upgrade dry-run on a clean built working tree", async () => {
+  it("runs upgrade dry-run on a clean built source checkout", async () => {
     const root = tempDir("openassist-upgrade-dryrun-");
     const cloneDir = path.join(root, "repo");
     const homeDir = path.join(root, "home");
@@ -90,7 +90,12 @@ describe("cli command integration", () => {
     );
     assert.equal(result.code, 1, result.stderr || result.stdout);
     assert.ok(result.stdout.includes("Update readiness"), result.stdout);
-    assert.ok(result.stdout.includes("- Target update track: HEAD"), result.stdout);
+    assert.match(
+      result.stdout,
+      /- Current update track: (Detached or not recorded|[^\r\n]+)/,
+      result.stdout
+    );
+    assert.ok(result.stdout.includes("- Target update track: Detached or not recorded"), result.stdout);
     assert.ok(result.stdout.includes("Needs action"), result.stdout);
     assert.ok(result.stdout.includes("rerun bootstrap instead"), result.stdout);
     assert.ok(result.stdout.includes("scripts/install/bootstrap.sh --install-dir"), result.stdout);
@@ -143,6 +148,56 @@ describe("cli command integration", () => {
     assert.ok(result.stdout.includes("git=missing"), result.stdout);
     assert.ok(result.stdout.includes("pnpm=missing"), result.stdout);
     assert.ok(result.stdout.includes("node=missing"), result.stdout);
+  });
+
+  it("requires an explicit PR target when a detached install is tracking a pull request", async () => {
+    const root = tempDir("openassist-upgrade-pr-track-");
+    const cloneDir = path.join(root, "repo");
+    const homeDir = path.join(root, "home");
+    const cloneResult = await runCommand("git", ["clone", "--depth", "1", repoRoot(), cloneDir], repoRoot());
+    assert.equal(cloneResult.code, 0, cloneResult.stderr || cloneResult.stdout);
+    const detachResult = await runCommand("git", ["checkout", "--detach", "HEAD"], cloneDir);
+    assert.equal(detachResult.code, 0, detachResult.stderr || detachResult.stdout);
+    fs.mkdirSync(path.join(cloneDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(cloneDir, "apps", "openassistd", "dist", "index.js"), "// built for dry-run\n", "utf8");
+
+    const operatorPaths = resolveOperatorPaths({ homeDir, installDir: cloneDir });
+    const config = createDefaultConfigObject();
+    config.runtime.paths.dataDir = operatorPaths.dataDir;
+    config.runtime.paths.logsDir = operatorPaths.logsDir;
+    config.runtime.paths.skillsDir = operatorPaths.skillsDir;
+    saveConfigObject(operatorPaths.configPath, config);
+    fs.mkdirSync(path.dirname(operatorPaths.envFilePath), { recursive: true });
+    fs.writeFileSync(operatorPaths.envFilePath, "", "utf8");
+    saveInstallState(
+      {
+        installDir: cloneDir,
+        configPath: operatorPaths.configPath,
+        envFilePath: operatorPaths.envFilePath,
+        trackedRef: "refs/pull/23/head"
+      },
+      operatorPaths.installStatePath
+    );
+
+    const blocked = await runCli(
+      ["upgrade", "--dry-run", "--install-dir", cloneDir],
+      repoRoot(),
+      childHomeEnv(homeDir)
+    );
+    assert.equal(blocked.code, 1, blocked.stderr || blocked.stdout);
+    assert.ok(blocked.stdout.includes("Status: fix before updating"), blocked.stdout);
+    assert.ok(blocked.stdout.includes("Current update track: PR #23"), blocked.stdout);
+    assert.ok(blocked.stdout.includes("PR update track"), blocked.stdout);
+    assert.ok(blocked.stdout.includes("--pr 23"), blocked.stdout);
+
+    const explicit = await runCli(
+      ["upgrade", "--dry-run", "--install-dir", cloneDir, "--pr", "23"],
+      repoRoot(),
+      childHomeEnv(homeDir)
+    );
+    assert.equal(explicit.code, 0, explicit.stderr || explicit.stdout);
+    assert.ok(explicit.stdout.includes("Target update track: PR #23"), explicit.stdout);
+    assert.ok(explicit.stdout.includes("Dry-run complete. Upgrade is safe to continue"), explicit.stdout);
   });
 
   it("runs service install dry-run on supported platforms", async (t) => {

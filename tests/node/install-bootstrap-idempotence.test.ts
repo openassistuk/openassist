@@ -11,6 +11,7 @@ describe("bootstrap installer idempotence contract", () => {
 
     assert.ok(script.includes("Existing install detected"));
     assert.ok(script.includes("--allow-dirty"));
+    assert.ok(script.includes("--pr <number>"));
     assert.ok(script.includes("--interactive"));
     assert.ok(script.includes("--non-interactive"));
     assert.ok(script.includes("--allow-incomplete"));
@@ -20,6 +21,7 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("exec </dev/tty"));
     assert.ok(script.includes("OpenAssist lifecycle plan"));
     assert.ok(script.includes("install model: repo-backed checkout"));
+    assert.ok(script.includes("requested track: $(requested_track_label)"));
     assert.ok(script.includes("quickstart after build: ${quickstart_mode}"));
     assert.ok(script.includes("service install/restart: ${service_mode}"));
     assert.ok(script.includes("persist_install_state"));
@@ -37,6 +39,16 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes('PINNED_PNPM_VERSION="10.31.0"'));
     assert.ok(script.includes('corepack prepare "pnpm@${PINNED_PNPM_VERSION}" --activate'));
     assert.ok(script.includes("git -C \"${INSTALL_DIR}\" status --porcelain"));
+    assert.ok(script.includes("requested_track_ref"));
+    assert.ok(script.includes("requested_track_label"));
+    assert.ok(script.includes("checkout_requested_track"));
+    assert.ok(script.includes("remote_branch_exists"));
+    assert.ok(script.includes("checkout_remote_branch"));
+    assert.ok(script.includes('show-ref --verify --quiet "refs/remotes/origin/${branch_name}"'));
+    assert.ok(!script.includes("ls-remote --exit-code --heads origin"));
+    assert.ok(script.includes("refs/pull/${PR_NUMBER}/head"));
+    assert.ok(script.includes("git clone \"${REPO_URL}\" \"${INSTALL_DIR}\""));
+    assert.ok(!script.includes("git clone --branch"));
     assert.ok(script.includes("Git fast-forward failed for ref"));
     assert.ok(script.includes("merge --ff-only \"refs/remotes/origin/${REF}\""));
     assert.ok(!script.includes("pull --ff-only origin \"${REF}\""));
@@ -73,5 +85,8 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("Service install and health checks were skipped."));
     assert.ok(script.includes("This shell may need a new login shell before 'openassist' is on PATH."));
     assert.ok(script.includes("SERVICE_KIND=\"systemd-system\""));
+    assert.ok(script.includes("Cannot use --ref and --pr together."));
+    assert.ok(script.includes('if [[ "${TRACKED_REF}" == "HEAD" ]]; then'));
+    assert.ok(script.includes('TRACKED_REF="main"'));
   });
 });

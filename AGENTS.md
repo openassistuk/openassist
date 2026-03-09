@@ -49,7 +49,7 @@ For non-trivial changes, follow `.agents/PLANS.md`.
 
 Do not bypass boundaries with cross-package shortcuts.
 
-## Lifecycle UX Rules (V1.9)
+## Lifecycle UX Rules (V1.10)
 
 OpenAssist now has one primary setup entrypoint and two stable subpaths:
 
@@ -128,6 +128,12 @@ When changing installer/setup/service behavior:
    - lifecycle docs must keep one central troubleshooting runbook under `docs/operations/common-troubleshooting.md`
    - root `README.md`, `docs/README.md`, and the main lifecycle runbooks must link to that troubleshooting runbook
    - repair guidance in docs must stay aligned with `openassist setup`, `openassist doctor`, `openassist service ...`, and `openassist upgrade --dry-run`
+21. preserve branch/PR install-track semantics:
+   - branch and PR install tracks are advanced developer workflows, not beginner lifecycle features
+   - `install.sh`, `scripts/install/bootstrap.sh`, and `openassist upgrade` may expose branch/PR track flags
+   - setup hub, quickstart, and wizard must not advertise branch/PR install tracks as normal operator choices
+   - PR installs must keep later upgrades explicit (`--pr` or `--ref`) instead of silently falling back to `main`
+   - lifecycle output and docs must label branch and PR update tracks clearly so operators can distinguish standard `main` installs from advanced developer test installs
 
 ## Autonomous Tool Loop Rules (V1.6)
 

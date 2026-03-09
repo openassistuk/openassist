@@ -92,7 +92,7 @@ describe("cli root command coverage", () => {
         {
           installDir: repoRoot(),
           repoUrl: "https://github.com/openassistuk/openassist.git",
-          trackedRef: "main",
+          trackedRef: "refs/pull/23/head",
           serviceManager: process.platform === "darwin" ? "launchd" : "systemd-user",
           configPath: doctorConfigPath,
           envFilePath: doctorEnvPath,
@@ -134,10 +134,11 @@ describe("cli root command coverage", () => {
     assert.match(doctor.stdout, /Next command/);
     assert.match(doctor.stdout, /Install record/);
     assert.match(doctor.stdout, /Update track/);
+    assert.match(doctor.stdout, /PR #23 \(refs\/pull\/23\/head\)/);
     assert.match(doctor.stdout, /Primary provider/);
     assert.match(doctor.stdout, /Provider model/);
     assert.match(doctor.stdout, /Provider tuning/);
-    assert.match(doctor.stdout, /openassist (upgrade --dry-run|doctor|setup|setup wizard)/);
+    assert.match(doctor.stdout, /openassist (upgrade --dry-run|doctor|setup|setup wizard|setup)/);
 
     const doctorJson = await runCommand(
       process.execPath,
@@ -163,6 +164,8 @@ describe("cli root command coverage", () => {
       recommendedNextCommand: { command: string };
     };
     assert.equal(parsedDoctorJson.version, 2);
+    assert.equal(parsedDoctorJson.context.updateTrackKind, "pull-request");
+    assert.equal(parsedDoctorJson.context.updateTrackLabel, "PR #23 (refs/pull/23/head)");
     assert.equal(parsedDoctorJson.context.primaryProviderId, "openai-main");
     assert.equal(parsedDoctorJson.context.primaryProviderRoute, "OpenAI (API key)");
     assert.equal(parsedDoctorJson.context.primaryProviderModel, "gpt-5.4");

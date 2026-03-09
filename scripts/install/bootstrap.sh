@@ -4,6 +4,7 @@ set -euo pipefail
 INSTALL_DIR="${HOME}/openassist"
 REPO_URL=""
 REF=""
+PR_NUMBER=""
 SOURCE_REPO_ROOT=""
 SKIP_SERVICE=0
 INTERACTIVE=0
@@ -33,6 +34,7 @@ Options:
   --install-dir <path>          Install directory (default: $HOME/openassist)
   --repo-url <url>              Git repository URL
   --ref <git-ref>               Git ref/branch/tag to checkout
+  --pr <number>                 GitHub pull request number to checkout
   --interactive                 Run guided quickstart onboarding after build
   --non-interactive             Explicitly force non-interactive mode
   --allow-incomplete            Allow quickstart completion with warnings/errors (interactive only)
@@ -56,6 +58,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --ref)
       REF="$2"
+      shift 2
+      ;;
+    --pr)
+      PR_NUMBER="$2"
       shift 2
       ;;
     --interactive)
@@ -98,6 +104,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -n "${REF}" && -n "${PR_NUMBER}" ]]; then
+  echo "Cannot use --ref and --pr together."
+  exit 1
+fi
+
+if [[ -n "${PR_NUMBER}" && ! "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Invalid pull request number: ${PR_NUMBER}"
+  exit 1
+fi
+
 if [[ "${INTERACTIVE}" -eq 1 && "${EXPLICIT_NON_INTERACTIVE}" -eq 1 ]]; then
   echo "Cannot use --interactive and --non-interactive together."
   exit 1
@@ -125,6 +141,30 @@ bootstrap_mode() {
   echo "non-interactive"
 }
 
+requested_track_ref() {
+  if [[ -n "${PR_NUMBER}" ]]; then
+    echo "refs/pull/${PR_NUMBER}/head"
+    return
+  fi
+  if [[ -n "${REF}" ]]; then
+    echo "${REF}"
+    return
+  fi
+  echo ""
+}
+
+requested_track_label() {
+  if [[ -n "${PR_NUMBER}" ]]; then
+    echo "PR #${PR_NUMBER} (refs/pull/${PR_NUMBER}/head)"
+    return
+  fi
+  if [[ -n "${REF}" ]]; then
+    echo "${REF}"
+    return
+  fi
+  echo "auto"
+}
+
 print_bootstrap_plan() {
   local quickstart_mode="yes"
   local service_mode="yes"
@@ -139,7 +179,7 @@ print_bootstrap_plan() {
   echo "  install model: repo-backed checkout"
   echo "  bootstrap mode: $(bootstrap_mode)"
   echo "  install dir: ${INSTALL_DIR}"
-  echo "  requested ref: ${REF:-auto}"
+  echo "  requested track: $(requested_track_label)"
   echo "  quickstart after build: ${quickstart_mode}"
   echo "  service install/restart: ${service_mode}"
 }
@@ -653,6 +693,63 @@ run_git_step() {
   done
 }
 
+remote_branch_exists() {
+  local branch_name="$1"
+  git -C "${INSTALL_DIR}" show-ref --verify --quiet "refs/remotes/origin/${branch_name}"
+}
+
+checkout_remote_branch() {
+  local branch_name="$1"
+  run_git_step \
+    "Git fetch failed for branch ${branch_name}" \
+    git -C "${INSTALL_DIR}" fetch origin "refs/heads/${branch_name}:refs/remotes/origin/${branch_name}"
+  run_git_step \
+    "Git checkout failed for branch ${branch_name}" \
+    git -C "${INSTALL_DIR}" checkout -B "${branch_name}" "refs/remotes/origin/${branch_name}"
+}
+
+checkout_requested_track() {
+  local requested_ref
+  requested_ref="$(requested_track_ref)"
+
+  if [[ -n "${PR_NUMBER}" ]]; then
+    run_git_step \
+      "Git fetch failed for PR #${PR_NUMBER}" \
+      git -C "${INSTALL_DIR}" fetch origin "refs/pull/${PR_NUMBER}/head"
+    run_git_step \
+      "Git checkout failed for PR #${PR_NUMBER}" \
+      git -C "${INSTALL_DIR}" checkout --detach FETCH_HEAD
+    return
+  fi
+
+  if [[ -n "${requested_ref}" ]]; then
+    run_git_step \
+      "Git fetch failed while refreshing remote refs" \
+      git -C "${INSTALL_DIR}" fetch --all --prune
+  fi
+
+  if [[ -n "${requested_ref}" && remote_branch_exists "${requested_ref}" ]]; then
+    checkout_remote_branch "${requested_ref}"
+    return
+  fi
+
+  if [[ -n "${requested_ref}" ]]; then
+    run_git_step \
+      "Git fetch failed for ref ${requested_ref}" \
+      git -C "${INSTALL_DIR}" fetch origin "${requested_ref}"
+    local checkout_result=0
+    if ! git -C "${INSTALL_DIR}" checkout "${requested_ref}"; then
+      checkout_result=$?
+      :
+    fi
+    if [[ "${checkout_result}" -ne 0 ]]; then
+      run_git_step \
+        "Git detached checkout failed for ref ${requested_ref}" \
+        git -C "${INSTALL_DIR}" checkout --detach FETCH_HEAD
+    fi
+  fi
+}
+
 print_prereq_troubleshooting() {
   local os_kind="$1"
   local pkg_manager="$2"
@@ -941,7 +1038,7 @@ if [[ -d "${INSTALL_DIR}/.git" ]]; then
   fi
   run_git_step "Git fetch failed for ${INSTALL_DIR}" git -C "${INSTALL_DIR}" fetch --all --prune
 
-  if [[ -z "${REF}" ]]; then
+  if [[ -z "${REF}" && -z "${PR_NUMBER}" ]]; then
     branch="$(git -C "${INSTALL_DIR}" rev-parse --abbrev-ref HEAD || true)"
     if [[ "${branch}" == "HEAD" || -z "${branch}" ]]; then
       REF="main"
@@ -950,28 +1047,29 @@ if [[ -d "${INSTALL_DIR}/.git" ]]; then
     fi
   fi
 
-  if git -C "${INSTALL_DIR}" show-ref --verify --quiet "refs/heads/${REF}"; then
+  if [[ -z "${PR_NUMBER}" && -n "${REF}" && git -C "${INSTALL_DIR}" show-ref --verify --quiet "refs/heads/${REF}" ]]; then
     run_git_step "Git checkout failed for ref ${REF}" git -C "${INSTALL_DIR}" checkout "${REF}"
-    if git -C "${INSTALL_DIR}" show-ref --verify --quiet "refs/remotes/origin/${REF}"; then
+    if remote_branch_exists "${REF}"; then
+      run_git_step \
+        "Git fetch failed for branch ${REF}" \
+        git -C "${INSTALL_DIR}" fetch origin "refs/heads/${REF}:refs/remotes/origin/${REF}"
       run_git_step "Git fast-forward failed for ref ${REF}" \
         git -C "${INSTALL_DIR}" merge --ff-only "refs/remotes/origin/${REF}"
     else
       echo "Remote ref origin/${REF} not found after fetch; leaving local branch '${REF}' unchanged."
     fi
   else
-    if git -C "${INSTALL_DIR}" show-ref --verify --quiet "refs/remotes/origin/${REF}"; then
-      run_git_step "Git detached checkout failed for ref ${REF}" git -C "${INSTALL_DIR}" checkout --detach "origin/${REF}"
-    else
-      run_git_step "Git detached checkout failed for ref ${REF}" git -C "${INSTALL_DIR}" checkout --detach "${REF}"
-    fi
+    checkout_requested_track
   fi
 else
-  if [[ -z "${REF}" ]]; then
+  if [[ -z "${REF}" && -z "${PR_NUMBER}" ]]; then
     echo "Cloning ${REPO_URL} to ${INSTALL_DIR}"
     run_git_step "Git clone failed for ${REPO_URL}" git clone "${REPO_URL}" "${INSTALL_DIR}"
   else
-    echo "Cloning ${REPO_URL}@${REF} to ${INSTALL_DIR}"
-    run_git_step "Git clone failed for ${REPO_URL}@${REF}" git clone --branch "${REF}" "${REPO_URL}" "${INSTALL_DIR}"
+    local_track_label="$(requested_track_label)"
+    echo "Cloning ${REPO_URL} (${local_track_label}) to ${INSTALL_DIR}"
+    run_git_step "Git clone failed for ${REPO_URL}" git clone "${REPO_URL}" "${INSTALL_DIR}"
+    checkout_requested_track
   fi
 fi
 
@@ -1065,9 +1163,12 @@ elif [[ "${SKIP_SERVICE}" -ne 1 ]]; then
 fi
 
 COMMIT="$(git -C "${INSTALL_DIR}" rev-parse HEAD)"
-TRACKED_REF="${REF}"
+TRACKED_REF="$(requested_track_ref)"
 if [[ -z "${TRACKED_REF}" ]]; then
   TRACKED_REF="$(git -C "${INSTALL_DIR}" rev-parse --abbrev-ref HEAD || echo main)"
+fi
+if [[ "${TRACKED_REF}" == "HEAD" ]]; then
+  TRACKED_REF="main"
 fi
 
 persist_install_state

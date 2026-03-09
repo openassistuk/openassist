@@ -74,6 +74,15 @@ Non-interactive example:
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --non-interactive --skip-service
 ```
 
+Advanced developer install tracks:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --ref feature/my-branch
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --pr 123
+```
+
+Those branch and PR flags are an advanced developer workflow for testing non-`main` code on a real host. They stay command-line only on purpose and are not exposed through the beginner setup hub, quickstart, or wizard.
+
 Bootstrap keeps the current Git-backed model. It clones or updates a repo checkout, builds it, writes install state, and prints a lifecycle plan before it mutates anything.
 Its final summary now always ends in the same operator order used by the CLI lifecycle surfaces:
 
@@ -357,6 +366,14 @@ openassist upgrade --dry-run --install-dir "$HOME/openassist"
 openassist upgrade --install-dir "$HOME/openassist"
 ```
 
+Advanced developer update tracks:
+
+```bash
+openassist upgrade --dry-run --install-dir "$HOME/openassist" --ref feature/my-branch
+openassist upgrade --dry-run --install-dir "$HOME/openassist" --pr 123
+openassist upgrade --install-dir "$HOME/openassist" --ref main
+```
+
 Dry-run prints the resolved plan before any mutation:
 
 - install directory
@@ -393,7 +410,13 @@ Bootstrap writes and preserves an install record at `~/.config/openassist/instal
 
 The repo checkout is now code-first by default. The root [`openassist.toml`](openassist.toml) file is a source-development sample, not the default operator config path for installed lifecycle commands.
 
-The install record keeps the tracked ref visible to operators, but `openassist upgrade` still follows the current checked-out branch by default. If the repo is detached, dry-run will show the target ref it resolved, and you should usually pass `--ref` explicitly.
+The install record keeps the tracked ref visible to operators, and update behavior now depends on the kind of track you installed:
+
+- normal installs with no explicit track stay on `main`
+- branch installs continue following that branch normally
+- PR installs record `refs/pull/<n>/head`, but later `openassist upgrade` requires an explicit `--pr <n>` or `--ref <target>` instead of silently drifting to `main`
+
+That PR-track rule is intentional. It keeps developer test installs predictable and makes the next update target explicit before any mutation.
 
 WhatsApp/media install baseline:
 
@@ -413,6 +436,16 @@ openassist setup quickstart
 openassist setup wizard
 openassist service install --install-dir "$HOME/openassist" --config "$HOME/.config/openassist/openassist.toml" --env-file "$HOME/.config/openassist/openassistd.env"
 openassist upgrade --dry-run --install-dir "$HOME/openassist"
+```
+
+Advanced developer install and update tracks:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --ref feature/my-branch
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --pr 123
+openassist upgrade --dry-run --install-dir "$HOME/openassist" --ref feature/my-branch
+openassist upgrade --dry-run --install-dir "$HOME/openassist" --pr 123
+openassist upgrade --install-dir "$HOME/openassist" --ref main
 ```
 
 Service operations:

@@ -145,6 +145,24 @@ describe("lifecycle readiness", () => {
     expect(report.sections.needsActionBeforeUpgrade.some((item) => item.id === "upgrade.local-changes")).toBe(true);
   });
 
+  it("shows pull-request update tracks clearly and requires an explicit next upgrade target", () => {
+    const report = buildLifecycleReport(
+      createInput({
+        trackedRef: "refs/pull/23/head",
+        currentBranch: "HEAD"
+      })
+    );
+
+    expect(report.context.updateTrackKind).toBe("pull-request");
+    expect(report.context.updateTrackLabel).toBe("PR #23 (refs/pull/23/head)");
+    expect(report.summary.upgradeReadiness).toBe("fix-before-updating");
+    expect(report.sections.readyNow.some((item) => item.label === "Update track" && item.detail.includes("PR #23"))).toBe(
+      true
+    );
+    expect(report.sections.needsActionBeforeUpgrade.some((item) => item.id === "upgrade.pr-track")).toBe(true);
+    expect(report.recommendedNextCommand.command).toContain("--pr 23");
+  });
+
   it("returns a stable grouped report shape for text and json consumers", () => {
     const report = buildLifecycleReport(createInput());
     const lines = renderLifecycleReport(report);

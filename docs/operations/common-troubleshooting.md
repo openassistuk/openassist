@@ -285,6 +285,34 @@ Interpret the result like this:
 
 If the repo has local code changes and you want to keep them, commit or stash them first. If the checkout is no longer trustworthy, use bootstrap instead of forcing upgrade.
 
+## A PR install says the next upgrade needs `--pr` or `--ref`
+
+What it means:
+
+- this install was created from a PR track such as `install.sh --pr 123` or `bootstrap.sh --pr 123`
+- OpenAssist recorded `refs/pull/<n>/head` as the tracked ref
+- later upgrades are intentionally explicit for PR tracks so they do not drift silently
+
+What to run:
+
+```bash
+openassist doctor
+openassist upgrade --dry-run --install-dir "$HOME/openassist" --pr 123
+openassist upgrade --install-dir "$HOME/openassist" --pr 123
+```
+
+If you are done testing that PR and want to move the install back to the normal release track:
+
+```bash
+openassist upgrade --dry-run --install-dir "$HOME/openassist" --ref main
+openassist upgrade --install-dir "$HOME/openassist" --ref main
+```
+
+Branch-track installs are different:
+
+- `--ref feature/my-branch` continues following that branch normally
+- only PR tracks force the next upgrade target to stay explicit
+
 ## You are unsure which files OpenAssist is using
 
 Run:

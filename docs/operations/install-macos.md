@@ -40,8 +40,19 @@ Useful bootstrap flags:
 bash scripts/install/bootstrap.sh --interactive
 bash scripts/install/bootstrap.sh --non-interactive --skip-service
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref main
+bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref feature/my-branch
+bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --pr 123
 bash scripts/install/bootstrap.sh --no-auto-install-prereqs
 ```
+
+Advanced developer GitHub entrypoint examples:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --ref feature/my-branch
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --pr 123
+```
+
+Those branch and PR flags are for developer testing only. They stay command-line only and are intentionally not shown in the beginner setup hub, quickstart, or wizard.
 
 Interactive bootstrap on macOS runs bare `openassist setup` after build. Non-interactive bootstrap does not run onboarding, but it still installs the `launchd` service unless `--skip-service` is set.
 
@@ -110,7 +121,13 @@ Later lifecycle commands use the same install-state record to preserve:
 - service manager
 - last known good commit
 
-If you install with `--ref <git-ref>`, that ref is also recorded in install state for later lifecycle reporting.
+If you install with `--ref <git-ref>` or `--pr <number>`, that track is also recorded in install state for later lifecycle reporting.
+
+Track behavior:
+
+- default install with no track flag follows `main`
+- branch installs continue following the selected branch normally
+- PR installs record `refs/pull/<n>/head`, but later `openassist upgrade` requires an explicit `--pr <n>` or `--ref <target>`
 
 If setup later detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory), it migrates that state into the canonical home-state layout when the target home paths are empty or compatible. Migration writes a timestamped backup under `~/.local/share/openassist/migration-backups/` before it changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and route you back to setup instead of migrating it in place.
 
@@ -159,6 +176,20 @@ If you are about to upgrade and want a lifecycle check first:
 ```bash
 openassist doctor
 openassist upgrade --dry-run --install-dir "$HOME/openassist"
+```
+
+If you installed from a PR track and want to keep testing it:
+
+```bash
+openassist upgrade --dry-run --install-dir "$HOME/openassist" --pr 123
+openassist upgrade --install-dir "$HOME/openassist" --pr 123
+```
+
+If you want to move that install back to the normal release track:
+
+```bash
+openassist upgrade --dry-run --install-dir "$HOME/openassist" --ref main
+openassist upgrade --install-dir "$HOME/openassist" --ref main
 ```
 
 Linux remains the deeper validation target, but the installed-command lifecycle is the same on macOS.

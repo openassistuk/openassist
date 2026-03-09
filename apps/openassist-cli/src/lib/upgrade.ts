@@ -1,16 +1,27 @@
 import type { LifecycleReportItem, UpgradeReadiness } from "./lifecycle-readiness.js";
+import { buildPullRequestRef, classifyUpdateTrack, parsePullRequestNumber } from "./update-track.js";
 
 export interface UpgradePlanInput {
   optionRef?: string;
+  optionPr?: string;
   currentBranch: string;
+  trackedRef?: string;
   skipRestart: boolean;
   dryRun: boolean;
 }
 
 export interface UpgradePlan {
-  targetRef: string;
+  targetRef?: string;
+  targetLabel: string;
+  explicitTargetRequired: boolean;
+  explicitTargetSuggestion?: string;
+  optionRef?: string;
+  optionPr?: number;
   usePullOnCurrentBranch: boolean;
-  executionMode: "fast-forward-current-branch" | "checkout-target-ref";
+  executionMode:
+    | "fast-forward-current-branch"
+    | "checkout-target-ref"
+    | "explicit-target-required";
   skipRestart: boolean;
   dryRun: boolean;
 }
@@ -34,12 +45,19 @@ export interface RenderUpgradePlanInput {
   plan: UpgradePlan;
 }
 
-export function resolveUpgradeTargetRef(optionRef: string | undefined, currentBranch: string): string {
+export function resolveUpgradeTargetRef(
+  optionRef: string | undefined,
+  currentBranch: string,
+  trackedRef?: string
+): string {
   if (optionRef && optionRef.trim().length > 0) {
     return optionRef.trim();
   }
   if (currentBranch && currentBranch !== "HEAD") {
     return currentBranch;
+  }
+  if (trackedRef && trackedRef.trim().length > 0 && trackedRef.trim() !== "HEAD") {
+    return trackedRef.trim();
   }
   return "main";
 }
@@ -48,11 +66,50 @@ export function shouldPullOnCurrentBranch(currentBranch: string, targetRef: stri
   return currentBranch !== "HEAD" && currentBranch === targetRef;
 }
 
+function parseOptionPr(optionPr: string | undefined): number | undefined {
+  if (!optionPr || optionPr.trim().length === 0) {
+    return undefined;
+  }
+  return parsePullRequestNumber(optionPr);
+}
+
 export function buildUpgradePlan(input: UpgradePlanInput): UpgradePlan {
-  const targetRef = resolveUpgradeTargetRef(input.optionRef, input.currentBranch);
+  const optionPr = parseOptionPr(input.optionPr);
+  if (optionPr !== undefined) {
+    const targetRef = buildPullRequestRef(optionPr);
+    return {
+      targetRef,
+      targetLabel: classifyUpdateTrack(targetRef).label,
+      explicitTargetRequired: false,
+      optionPr,
+      usePullOnCurrentBranch: false,
+      executionMode: "checkout-target-ref",
+      skipRestart: input.skipRestart,
+      dryRun: input.dryRun
+    };
+  }
+
+  const tracked = classifyUpdateTrack(input.trackedRef);
+  if (!input.optionRef && input.currentBranch === "HEAD" && tracked.kind === "pull-request") {
+    return {
+      targetRef: tracked.ref,
+      targetLabel: tracked.label,
+      explicitTargetRequired: true,
+      explicitTargetSuggestion: `openassist upgrade --pr ${tracked.prNumber}`,
+      usePullOnCurrentBranch: false,
+      executionMode: "explicit-target-required",
+      skipRestart: input.skipRestart,
+      dryRun: input.dryRun
+    };
+  }
+
+  const targetRef = resolveUpgradeTargetRef(input.optionRef, input.currentBranch, input.trackedRef);
   const usePullOnCurrentBranch = shouldPullOnCurrentBranch(input.currentBranch, targetRef);
   return {
     targetRef,
+    targetLabel: classifyUpdateTrack(targetRef).label,
+    explicitTargetRequired: false,
+    ...(input.optionRef?.trim() ? { optionRef: input.optionRef.trim() } : {}),
     usePullOnCurrentBranch,
     executionMode: usePullOnCurrentBranch
       ? "fast-forward-current-branch"
@@ -67,7 +124,7 @@ function abbreviateCommit(commit: string): string {
 }
 
 export function renderUpgradePlanSummary(input: RenderUpgradePlanInput): string[] {
-  const trackedRef = input.trackedRef?.trim() || "(not recorded)";
+  const trackedRef = classifyUpdateTrack(input.trackedRef);
   const blockers = input.upgradeBlockers ?? [];
   const lines = [
     "Update readiness",
@@ -82,12 +139,14 @@ export function renderUpgradePlanSummary(input: RenderUpgradePlanInput): string[
     `- OpenAssist location: ${input.installDir}`,
     `- Current branch: ${input.currentBranch}`,
     `- Current commit: ${abbreviateCommit(input.currentCommit)}`,
-    `- Current update track: ${trackedRef}`,
-    `- Target update track: ${input.plan.targetRef}`,
+    `- Current update track: ${trackedRef.label}`,
+    `- Target update track: ${input.plan.targetLabel}`,
     `- Update method: ${
       input.plan.executionMode === "fast-forward-current-branch"
         ? "fast-forward pull on the current branch"
-        : "check out the requested ref (detached fallback allowed)"
+        : input.plan.executionMode === "explicit-target-required"
+          ? "explicit --pr or --ref required before update"
+          : "check out the requested ref (detached fallback allowed)"
     }`,
     `- Restart and health checks after update: ${input.plan.skipRestart ? "skipped by option" : "enabled"}`,
     `- Rollback target if the update fails: ${input.rollbackTarget ? abbreviateCommit(input.rollbackTarget) : "(not available)"}`
@@ -110,9 +169,21 @@ export function renderUpgradePlanSummary(input: RenderUpgradePlanInput): string[
     }
   }
   lines.push("Next command");
+  const liveCommandParts = [`openassist upgrade --install-dir "${input.installDir}"`];
+  if (input.plan.optionPr !== undefined) {
+    liveCommandParts.push(`--pr ${input.plan.optionPr}`);
+  } else if (input.plan.optionRef) {
+    liveCommandParts.push(`--ref "${input.plan.optionRef}"`);
+  } else if (
+    input.currentBranch === "HEAD" &&
+    input.plan.targetRef &&
+    input.plan.executionMode === "checkout-target-ref"
+  ) {
+    liveCommandParts.push(`--ref "${input.plan.targetRef}"`);
+  }
   lines.push(
     input.upgradeReadiness === "safe-to-continue"
-      ? `- openassist upgrade --install-dir "${input.installDir}"`
+      ? `- ${liveCommandParts.join(" ")}`
       : input.recommendedNextCommand
         ? `- ${input.recommendedNextCommand}`
         : blockers[0]?.nextStep

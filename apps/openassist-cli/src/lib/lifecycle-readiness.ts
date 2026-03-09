@@ -3,6 +3,7 @@ import { describePrimaryProvider } from "./provider-display.js";
 import type { ServiceManagerKind } from "./install-state.js";
 import { detectSetupAccessMode, getOperatorUserIds } from "./setup-access.js";
 import type { SetupValidationIssue } from "./setup-validation.js";
+import { classifyUpdateTrack } from "./update-track.js";
 
 export type LifecycleSimpleReadiness = "ready" | "needs-action";
 export type UpgradeReadiness = "safe-to-continue" | "fix-before-updating" | "rerun-bootstrap";
@@ -58,6 +59,8 @@ export interface LifecycleReport {
     accessMode: string;
     serviceState: string;
     updateTrack: string;
+    updateTrackKind: "branch" | "pull-request" | "raw-ref" | "detached";
+    updateTrackLabel: string;
     primaryProviderId?: string;
     primaryProviderRoute?: string;
     primaryProviderModel?: string;
@@ -82,6 +85,7 @@ export interface LifecycleReportInput {
   envExists: boolean;
   repoUrl?: string;
   trackedRef?: string;
+  currentBranch?: string;
   currentCommit?: string;
   detectedTimezone?: string;
   config?: OpenAssistConfig;
@@ -100,6 +104,7 @@ export interface LifecycleReportInput {
   legacyDefaultLayoutReason?: string;
   localWrapperAvailable?: boolean;
   localWrapperCommand?: string;
+  explicitUpgradeTargetProvided?: boolean;
   growth?: {
     skillsDirectory: string;
     helperToolsDirectory: string;
@@ -281,6 +286,7 @@ function buildUpgradeBlockerItems(input: LifecycleReportInput): {
   readiness: UpgradeReadiness;
 } {
   const items: LifecycleReportItem[] = [];
+  const trackedRef = classifyUpdateTrack(input.trackedRef);
   if (!input.repoBacked) {
     items.push(
       createItem(
@@ -349,6 +355,24 @@ function buildUpgradeBlockerItems(input: LifecycleReportInput): {
     );
   }
 
+  if (
+    input.explicitUpgradeTargetProvided !== true &&
+    input.currentBranch === "HEAD" &&
+    trackedRef.kind === "pull-request" &&
+    trackedRef.prNumber !== undefined
+  ) {
+    items.push(
+      createItem(
+        "upgrade.pr-track",
+        "upgrade",
+        "PR update track",
+        `This install is currently on ${trackedRef.label}, so OpenAssist needs an explicit target before the next upgrade.`,
+        undefined,
+        `openassist upgrade --dry-run --install-dir "${input.installDir}" --pr ${trackedRef.prNumber}`
+      )
+    );
+  }
+
   if (input.dirtyWorkingTree) {
     items.push(
       createItem(
@@ -376,6 +400,7 @@ function uniquePush(target: LifecycleReportItem[], item: LifecycleReportItem): v
 }
 
 export function buildLifecycleReport(input: LifecycleReportInput): LifecycleReport {
+  const trackedRef = classifyUpdateTrack(input.trackedRef);
   const readyNow: LifecycleReportItem[] = [];
   const needsActionBeforeFirstReply: LifecycleReportItem[] = [];
   const needsActionBeforeFullAccess: LifecycleReportItem[] = [];
@@ -413,7 +438,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
     );
   }
   if (input.trackedRef?.trim()) {
-    uniquePush(readyNow, createItem("install.track", "upgrade", "Update track", input.trackedRef.trim()));
+    uniquePush(readyNow, createItem("install.track", "upgrade", "Update track", trackedRef.label));
   }
   if (input.currentCommit?.trim()) {
     uniquePush(readyNow, createItem("install.commit", "upgrade", "Current commit", input.currentCommit.trim()));
@@ -673,6 +698,11 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
               kind: "repair-full-access",
               command: "openassist setup wizard"
             }
+          : effectiveUpgradeReadiness !== "safe-to-continue" && upgradeItems[0]?.nextStep
+            ? {
+                kind: "upgrade-dry-run",
+                command: upgradeItems[0].nextStep
+              }
           : {
               kind: "upgrade-dry-run",
               command: `openassist upgrade --dry-run --install-dir "${input.installDir}"`
@@ -697,6 +727,8 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       accessMode: describeAccessMode(input.config),
       serviceState: describeServiceState(input.serviceWasSkipped, input.serviceHealthOk, input.serviceInstalled),
       updateTrack: input.trackedRef?.trim() || "main",
+      updateTrackKind: trackedRef.kind,
+      updateTrackLabel: trackedRef.label,
       ...(primaryProvider
         ? {
             primaryProviderId: primaryProvider.id,

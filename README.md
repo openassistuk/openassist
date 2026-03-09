@@ -42,7 +42,7 @@ Codex is a separate provider route on purpose. It is not documented as a generic
 
 Supplemental lifecycle workflows:
 
-- `Service Smoke` runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`) for dry-run service and upgrade checks.
+- `Service Smoke` runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`) for dry-run service checks plus unconfigured-checkout upgrade routing assertions.
 - `Lifecycle E2E Smoke` runs on manual dispatch and schedule (`Tue`/`Sat` at `07:00 UTC`) for stronger bootstrap, home-state, doctor, and upgrade dry-run verification.
 - neither workflow is a required push or PR gate
 

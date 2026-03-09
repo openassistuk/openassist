@@ -47,4 +47,33 @@ jobs:
         run: |
           pnpm --filter @openassist/openassist-cli exec node dist/index.js service install --dry-run --install-dir "$PWD" --config "$PWD/openassist.toml"
           pnpm --filter @openassist/openassist-cli exec node dist/index.js service status || true
-          pnpm --filter @openassist/openassist-cli exec node dist/index.js upgrade --dry-run --install-dir "$PWD"
+          upgrade_stdout="$RUNNER_TEMP/service-smoke-upgrade.stdout"
+          upgrade_stderr="$RUNNER_TEMP/service-smoke-upgrade.stderr"
+          print_upgrade_logs() {
+            echo "===== upgrade stdout ====="
+            cat "$upgrade_stdout" || true
+            echo "===== upgrade stderr ====="
+            cat "$upgrade_stderr" || true
+          }
+          set +e
+          pnpm --filter @openassist/openassist-cli exec node dist/index.js upgrade --dry-run --install-dir "$PWD" >"$upgrade_stdout" 2>"$upgrade_stderr"
+          upgrade_rc=$?
+          set -e
+
+          if [ "$upgrade_rc" -ne 1 ]; then
+            echo "upgrade --dry-run exited with code $upgrade_rc, expected 1"
+            print_upgrade_logs
+            exit 1
+          fi
+
+          grep -F "Finish setup first:" "$upgrade_stdout" >/dev/null || {
+            echo "Missing expected text 'Finish setup first:' in upgrade stdout"
+            print_upgrade_logs
+            exit 1
+          }
+
+          grep -F "openassist setup" "$upgrade_stdout" >/dev/null || {
+            echo "Missing expected text 'openassist setup' in upgrade stdout"
+            print_upgrade_logs
+            exit 1
+          }

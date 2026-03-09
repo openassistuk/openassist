@@ -182,7 +182,7 @@ Current suite files under `tests/node/`:
 - dry-run lifecycle checks on:
   - `ubuntu-latest`
   - `macos-latest`
-- includes service install dry-run, service status, and upgrade dry-run
+- includes service install dry-run, tolerant service-status probing, and the expected `upgrade --dry-run` routing back to `openassist setup` when the checkout has not been configured as an install yet
 
 ### Lifecycle E2E Smoke (`.github/workflows/lifecycle-e2e-smoke.yml`)
 

@@ -287,7 +287,7 @@ describe("runtime codex auth route", () => {
     const started = await runtime1.startOAuthLogin(
       "codex-main",
       "default",
-      "http://127.0.0.1:3344/v1/oauth/codex-main/callback"
+      "http://localhost:1455/auth/callback"
     );
     await runtime1.completeOAuthLogin("codex-main", started.state, "auth-code-1");
     assert.equal(runtime1.listOAuthAccounts("codex-main").length, 1);
@@ -346,7 +346,7 @@ describe("runtime codex auth route", () => {
     const started = await runtime1.startOAuthLogin(
       "codex-main",
       "default",
-      "http://127.0.0.1:3344/v1/oauth/codex-main/callback"
+      "http://localhost:1455/auth/callback"
     );
     await runtime1.completeOAuthLogin("codex-main", started.state, "auth-code-1");
     await runtime1.stop();
@@ -403,7 +403,7 @@ describe("runtime codex auth route", () => {
     const started = await runtime1.startOAuthLogin(
       "codex-main",
       "default",
-      "http://127.0.0.1:3344/v1/oauth/codex-main/callback"
+      "http://localhost:1455/auth/callback"
     );
     await runtime1.completeOAuthLogin("codex-main", started.state, "auth-code-1");
     await runtime1.stop();

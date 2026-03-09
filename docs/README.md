@@ -64,13 +64,19 @@ Codex is intentionally documented as Codex-only in this release. It is not the g
 
 Provider reasoning controls now follow the actual operator path:
 
-- quickstart exposes `reasoningEffort` for OpenAI and Codex with a beginner-facing `Default / Low / Medium / High` choice
+- quickstart exposes `reasoningEffort` for OpenAI and Codex with a beginner-facing `Default / Low / Medium / High / XHigh` choice
 - wizard remains the full provider-tuning surface
 - OpenAI providers can set `reasoningEffort` for supported Responses API model families
 - Codex providers can also set `reasoningEffort` for supported Codex Responses-model families
 - Anthropic providers can set `thinkingBudgetTokens` for supported thinking-capable Claude families
 - OpenAI-compatible providers stay unchanged in this release
 - leaving the setting unset is the safe default and sends no provider-specific reasoning parameter
+
+Codex setup/auth notes now follow the real supported flow:
+
+- normal setup paths do not ask for a custom Codex base URL
+- the default Codex login redirect is `http://localhost:1455/auth/callback`
+- on a headless VPS or remote host, operators can complete the login in another browser and paste the full callback URL or the code back into quickstart or `openassist auth complete`
 
 Lifecycle and status surfaces now also show the current primary provider route, default model, and reasoning/thinking state so operators do not need to reopen wizard just to confirm what is active.
 

@@ -37,7 +37,9 @@ Codex mapping note:
 
 - imported Codex providers should keep Codex-family models on the new `codex` route
 - the importer does not silently convert arbitrary OpenAI account-login assumptions into a generic `openai` API-key route
-- imported Codex providers still require a fresh linked-account login in OpenAssist; on headless hosts that login can be completed from the printed authorization URL and pasted callback flow
+- imported Codex providers still require a fresh linked-account login in OpenAssist
+- new Codex login starts now use the standard localhost callback `http://localhost:1455/auth/callback`
+- on headless hosts that login can still be completed from the printed authorization URL by copying the full callback URL from the browser address bar and pasting it back into OpenAssist
 
 ### Channel mapping
 

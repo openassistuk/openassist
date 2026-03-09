@@ -156,6 +156,10 @@ function providerSupportsAccountLink(type: ProviderType): boolean {
   return type === "codex" || type === "anthropic";
 }
 
+function providerSupportsCustomBaseUrl(type: ProviderType): boolean {
+  return type === "openai" || type === "anthropic" || type === "openai-compatible";
+}
+
 function providerLabel(type: ProviderType): string {
   return providerRouteLabel(type);
 }
@@ -380,9 +384,9 @@ async function promptProvider(
   const type = await prompts.select<ProviderType>(
     "Provider type",
     [
-      { name: "OpenAI (API key)", value: "openai" },
+      { name: "OpenAI (API Key)", value: "openai" },
       { name: "Codex (OpenAI account login)", value: "codex" },
-      { name: "Anthropic", value: "anthropic" },
+      { name: "Anthropic (API Key)", value: "anthropic" },
       { name: "OpenAI-compatible", value: "openai-compatible" }
     ],
     defaultType
@@ -401,7 +405,12 @@ async function promptProvider(
     "Default model",
     existing?.defaultModel ?? suggested.model
   );
-  const baseUrlInput = await prompts.input("Base URL (blank for default)", existing?.baseUrl ?? suggested.baseUrl ?? "");
+  const baseUrlInput = providerSupportsCustomBaseUrl(type)
+    ? await prompts.input("Base URL (blank for default)", existing?.baseUrl ?? suggested.baseUrl ?? "")
+    : "";
+  const resolvedBaseUrl = providerSupportsCustomBaseUrl(type)
+    ? baseUrlInput.trim()
+    : existing?.baseUrl?.trim() ?? "";
   const reasoningEffort =
     type === "openai"
       ? await promptReasoningEffort(prompts, "OpenAI", existing?.type === "openai" ? existing.reasoningEffort : undefined)
@@ -413,7 +422,7 @@ async function promptProvider(
     id: providerId,
     type,
     defaultModel,
-    ...(baseUrlInput.trim().length > 0 ? { baseUrl: baseUrlInput.trim() } : {}),
+    ...(resolvedBaseUrl.length > 0 ? { baseUrl: resolvedBaseUrl } : {}),
     ...((type === "openai" || type === "codex") && reasoningEffort ? { reasoningEffort } : {}),
     ...(existing && "oauth" in existing && existing.oauth ? { oauth: existing.oauth } : {}),
     ...(existing?.metadata ? { metadata: existing.metadata } : {})
@@ -1079,13 +1088,22 @@ async function runServiceStep(
         );
       }
 
-      const payload = response.data as { authorizationUrl?: string; state?: string };
+      const payload = response.data as { authorizationUrl?: string; state?: string; redirectUri?: string };
       console.log("");
       if (payload.authorizationUrl) {
         console.log(`Authorization URL:\n${payload.authorizationUrl}`);
       }
       console.log("Open this URL in a browser on this machine or another device before continuing.");
+      if (provider.type === "codex" && payload.redirectUri) {
+        console.log(`Codex login returns to ${payload.redirectUri} after approval.`);
+        console.log("If the browser cannot load that localhost page, copy the full URL from the browser address bar and paste it here.");
+      }
       console.log("After authorizing, paste either the full callback URL or just the code here.");
+      if (payload.state) {
+        console.log(
+          `Manual completion fallback: openassist auth complete --provider ${provider.id} --state ${payload.state} --code <code> --base-url ${healthyBaseUrl}`
+        );
+      }
       console.log(
         `Host fallback: openassist auth status --provider ${provider.id} --base-url ${healthyBaseUrl}`
       );

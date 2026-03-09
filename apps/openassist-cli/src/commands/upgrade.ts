@@ -225,7 +225,7 @@ export function registerUpgradeCommand(program: Command): void {
         let parsedConfig;
         let validationErrors: Array<{ code: string; message: string; hint?: string }> = [];
         let growthState:
-          | ReturnType<typeof inspectLocalGrowthState>
+          | Awaited<ReturnType<typeof inspectLocalGrowthState>>
           | undefined;
         if (configExists) {
           try {
@@ -233,7 +233,7 @@ export function registerUpgradeCommand(program: Command): void {
               baseFile: configPath,
               overlaysDir: resolveConfigOverlaysDir(configPath)
             }).config;
-            growthState = inspectLocalGrowthState(configPath, parsedConfig, logger);
+            growthState = await inspectLocalGrowthState(configPath, parsedConfig, logger);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             validationErrors = [

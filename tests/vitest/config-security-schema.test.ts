@@ -155,7 +155,7 @@ describe("config schema security validation", () => {
         id: "openai-main",
         type: "openai",
         defaultModel: "gpt-5.4",
-        reasoningEffort: "medium"
+        reasoningEffort: "xhigh"
       },
       {
         id: "anthropic-main",
@@ -169,7 +169,7 @@ describe("config schema security validation", () => {
 
     expect(parsed.runtime.providers[0]).toMatchObject({
       id: "openai-main",
-      reasoningEffort: "medium"
+      reasoningEffort: "xhigh"
     });
     expect(parsed.runtime.providers[1]).toMatchObject({
       id: "anthropic-main",
@@ -185,7 +185,7 @@ describe("config schema security validation", () => {
         id: "codex-main",
         type: "codex",
         defaultModel: "gpt-5.4",
-        reasoningEffort: "medium"
+        reasoningEffort: "xhigh"
       }
     ];
 
@@ -195,7 +195,7 @@ describe("config schema security validation", () => {
       id: "codex-main",
       type: "codex",
       defaultModel: "gpt-5.4",
-      reasoningEffort: "medium"
+      reasoningEffort: "xhigh"
     });
     expect("oauth" in parsed.runtime.providers[0]).toBe(false);
   });

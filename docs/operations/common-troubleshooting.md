@@ -162,6 +162,18 @@ If you used a different provider ID, substitute that instead of `codex-main`.
 
 If `--open-browser` cannot find a local launcher such as `xdg-open`, that is no longer treated as a fatal error. OpenAssist still prints the authorization URL, and you can open it manually in a browser on this machine or another device before pasting the callback URL or code back into quickstart or `openassist auth complete`.
 
+The normal Codex browser redirect is now:
+
+```text
+http://localhost:1455/auth/callback
+```
+
+On a VPS or other remote host, that localhost page may not load in the browser you used for approval. That is still fine: copy the full URL from the browser address bar and paste it back into quickstart, or complete the flow manually:
+
+```bash
+openassist auth complete --provider codex-main --state <state> --code <code>
+```
+
 Important:
 
 - `codex` is the separate OpenAI account-login route
@@ -194,6 +206,7 @@ Current operator story:
 
 - OpenAI quickstart and wizard both expose `reasoningEffort`
 - Codex quickstart and wizard both expose `reasoningEffort`
+- OpenAI and Codex both support `low`, `medium`, `high`, and `xhigh`
 - Anthropic `thinkingBudgetTokens` stays wizard-editable only
 - OpenAI-compatible stays provider-default only
 

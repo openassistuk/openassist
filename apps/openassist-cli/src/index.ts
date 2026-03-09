@@ -210,7 +210,7 @@ program
     let timezoneConfirmed = false;
     let timeStatusReachable = false;
     let growthState:
-      | ReturnType<typeof inspectLocalGrowthState>
+      | Awaited<ReturnType<typeof inspectLocalGrowthState>>
       | undefined;
 
     if (configExists) {
@@ -279,7 +279,7 @@ program
       validationErrors = validation.errors;
       validationWarnings = validation.warnings;
       serviceManagerKind = validation.serviceManagerKind ?? serviceManagerKind;
-      growthState = inspectLocalGrowthState(configPath, parsedConfig, logger);
+      growthState = await inspectLocalGrowthState(configPath, parsedConfig, logger);
     }
 
     const report = buildLifecycleReport({
@@ -468,6 +468,7 @@ authCommand
         state: string;
         expiresAt?: string;
         accountId: string;
+        redirectUri?: string;
       };
 
       console.log(`Provider: ${providerId}`);
@@ -477,6 +478,14 @@ authCommand
         console.log(`Expires: ${response.expiresAt}`);
       }
       console.log(`Authorization URL:\n${response.authorizationUrl}`);
+      if (
+        typeof response.redirectUri === "string" &&
+        response.redirectUri.startsWith("http://localhost:")
+      ) {
+        console.log(`After approval, the browser should redirect to: ${response.redirectUri}`);
+        console.log("If that localhost page cannot load, copy the full callback URL from the browser address bar and use it to complete login.");
+        console.log(`Manual completion example: openassist auth complete --provider ${providerId} --state ${response.state} --code <code> --base-url ${baseUrl}`);
+      }
 
       if (options.openBrowser) {
         const launch = await openUrlInBrowser(response.authorizationUrl);

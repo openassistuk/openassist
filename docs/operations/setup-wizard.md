@@ -136,13 +136,13 @@ Use wizard for:
 - later edits to the global main assistant identity or re-enabling the first-chat identity reminder
 - additional providers or provider OAuth config
 - choosing between the four first-class provider routes:
-  - OpenAI (API key)
+  - OpenAI (API Key)
   - Codex (OpenAI account login)
-  - Anthropic
+  - Anthropic (API Key)
   - OpenAI-compatible
 - advanced provider-native reasoning controls:
-  - OpenAI `reasoningEffort` (`Default`, `low`, `medium`, `high`)
-  - Codex `reasoningEffort` (`Default`, `low`, `medium`, `high`)
+  - OpenAI `reasoningEffort` (`Default`, `low`, `medium`, `high`, `xhigh`)
+  - Codex `reasoningEffort` (`Default`, `low`, `medium`, `high`, `xhigh`)
   - Anthropic `thinkingBudgetTokens` (blank disables it)
   - OpenAI-compatible stays unchanged in this release
 - additional channels or non-default channel behavior
@@ -166,7 +166,9 @@ Provider-route notes:
 
 - OpenAI remains the public API-key route in setup and docs.
 - Codex is the public OpenAI account-login route and is intentionally Codex-only in this release.
+- Codex does not ask for a custom base URL in the normal wizard provider editor.
 - Codex account linking is headless-friendly: OpenAssist can print the authorization URL, pause so you can copy or open it on another device, and accept either the full callback URL or a pasted code when you complete the login.
+- The default Codex browser redirect is `http://localhost:1455/auth/callback`; if that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into OpenAssist.
 - Automatic browser launch is best-effort only. If the local host cannot open a browser, OpenAssist still prints the URL and keeps the account-link flow usable.
 - OpenAssist does not present Codex as generic ChatGPT API auth for arbitrary OpenAI models.
 - Existing mixed `openai + oauth` configs still load for compatibility, but new account-login installs should use `codex`.

@@ -124,8 +124,8 @@ Current image-input rule:
 
 Provider-native reasoning controls:
 
-- OpenAI providers may optionally set `reasoningEffort = "low" | "medium" | "high"` in config.
-- Codex providers may optionally set `reasoningEffort = "low" | "medium" | "high"` in config.
+- OpenAI providers may optionally set `reasoningEffort = "low" | "medium" | "high" | "xhigh"` in config.
+- Codex providers may optionally set `reasoningEffort = "low" | "medium" | "high" | "xhigh"` in config.
 - Anthropic providers may optionally set `thinkingBudgetTokens = <integer>` in config.
 - OpenAI-compatible providers do not expose a public reasoning control in this release.
 - Safe default is unset: when the field is omitted, adapters do not send any reasoning or thinking parameter.
@@ -150,6 +150,8 @@ Codex adapter behavior:
 - The Codex route is account-login only in operator-facing setup and docs; it is not the generic OpenAI API-key route.
 - The Codex route validates `gpt-5.4` and Codex-family models only in this release.
 - The Codex route now exposes the same public `reasoningEffort` control shape as the OpenAI API-key route, but it still omits the field automatically when the model is outside the built-in supported set.
+- New Codex login flows default to `http://localhost:1455/auth/callback` instead of the daemon callback route because that matches the supported public account-login redirect shape.
+- CLI and setup guidance must make the pasted callback path explicit on remote hosts: if the localhost page cannot load after browser approval, operators copy the full URL from the browser address bar and paste it back into OpenAssist.
 - CLI and setup auth helpers must treat browser launch as best-effort only; missing local browser launchers on headless hosts must leave the printed authorization URL usable instead of crashing the account-link flow.
 
 Anthropic thinking replay behavior:

@@ -118,9 +118,9 @@ What quickstart configures:
 - runtime defaults for the first reply
 - the main assistant name, persona, and ongoing objectives/preferences
 - one primary provider from four first-class routes:
-  - OpenAI (API key)
+  - OpenAI (API Key)
   - Codex (OpenAI account login)
-  - Anthropic
+  - Anthropic (API Key)
   - OpenAI-compatible
 - one primary channel
 - first-class Telegram, Discord, or WhatsApp chat setup with readable replies and attachment ingest
@@ -190,13 +190,16 @@ Provider and channel guidance:
 
 - OpenAI stays the standard API-key route.
 - Codex stays the separate OpenAI account-login route.
+- Codex does not ask for a custom base URL in normal quickstart or wizard flows.
 - OpenAI and Codex quickstart both expose a beginner-friendly reasoning-effort choice:
   - `Default (recommended)`
   - `Low`
   - `Medium`
   - `High`
+  - `XHigh`
 - Leaving that quickstart choice on `Default` keeps the field unset, so OpenAssist sends no provider-specific reasoning parameter.
 - If you choose Codex, quickstart guides the account-link flow after the daemon is healthy, prints the authorization URL, pauses so you can copy or open it on this host or another device, accepts either the full callback URL or a pasted code, and requires that linked account before the first reply can use the default provider.
+- After browser approval, the Codex flow now redirects to `http://localhost:1455/auth/callback`. If that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into quickstart.
 - If automatic browser launch is unavailable on a headless host, OpenAssist still prints the authorization URL and treats that as an account-linking step, not as a service failure.
 - Anthropic stays API-key-first for the fastest first reply; optional provider OAuth configuration still lives in `openassist setup wizard`.
 - OpenAI-compatible stays the custom API-compatible route.

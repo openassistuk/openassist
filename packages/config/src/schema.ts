@@ -73,11 +73,11 @@ const oauthProviderSchema = commonProviderSchema.extend({
 const providerSchema = z.discriminatedUnion("type", [
   oauthProviderSchema.extend({
     type: z.literal("openai"),
-    reasoningEffort: z.enum(["low", "medium", "high"]).optional()
+    reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
   }),
   commonProviderSchema.extend({
     type: z.literal("codex"),
-    reasoningEffort: z.enum(["low", "medium", "high"]).optional()
+    reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
   }),
   oauthProviderSchema.extend({
     type: z.literal("anthropic"),

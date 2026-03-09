@@ -122,7 +122,7 @@ describe("openai provider tool mapping", () => {
       id: "openai-main",
       defaultModel: "gpt-4o-mini",
       baseUrl: `http://127.0.0.1:${address.port}/v1`,
-      reasoningEffort: "high"
+      reasoningEffort: "xhigh"
     });
 
     const response = await adapter.chat(baseRequest(), {

@@ -180,11 +180,14 @@ Quickstart provider guidance now follows the split-route model:
 - OpenAI stays the API-key route
 - Codex stays the OpenAI account-login route and completes linking during onboarding with a printed authorization URL plus pasted callback URL or code flow
 - On headless hosts, OpenAssist pauses after printing the Codex authorization URL so you can copy it into another browser before continuing
+- Codex no longer prompts for a custom base URL in quickstart or wizard; the normal route uses the built-in Codex login endpoint
+- After browser approval, Codex now returns to `http://localhost:1455/auth/callback`; if that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into OpenAssist
 - OpenAI and Codex quickstart both expose a beginner-facing reasoning effort choice:
   - `Default (recommended)`
   - `Low`
   - `Medium`
   - `High`
+  - `XHigh`
   - leaving the setting on `Default` keeps the field unset so OpenAssist sends no provider-specific reasoning parameter
 - Anthropic stays API-key-first for the fastest first reply, with optional account-linking later if you configured it
 - OpenAI-compatible stays the custom API-compatible route
@@ -345,6 +348,7 @@ Wizard is still the full provider-tuning surface:
 
 - OpenAI `reasoningEffort` for supported GPT-5/codex/o-series Responses API model families
 - Codex `reasoningEffort` for supported Codex Responses-model families
+- OpenAI and Codex reasoning controls now include `xhigh` alongside `low`, `medium`, and `high`
 - Anthropic `thinkingBudgetTokens` for supported thinking-capable Claude families
 - safe default is unset, which means OpenAssist sends no provider-specific reasoning parameter
 - OpenAI-compatible providers stay unchanged in this release

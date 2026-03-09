@@ -19,7 +19,7 @@ describe("codex provider auth flow", () => {
 
     const started = await adapter.startOAuthLogin({
       accountId: "default",
-      redirectUri: "http://127.0.0.1:3344/v1/oauth/codex-main/callback",
+      redirectUri: "http://localhost:1455/auth/callback",
       state: "state-123",
       scopes: [],
       codeChallenge: "challenge-123",
@@ -32,6 +32,7 @@ describe("codex provider auth flow", () => {
     );
     expect(authorizationUrl.searchParams.get("client_id")).toBe("app_EMoamEEZ73f0CkXaXp7hrann");
     expect(authorizationUrl.searchParams.get("response_type")).toBe("code");
+    expect(authorizationUrl.searchParams.get("redirect_uri")).toBe("http://localhost:1455/auth/callback");
     expect(authorizationUrl.searchParams.get("code_challenge")).toBe("challenge-123");
     expect(authorizationUrl.searchParams.get("code_challenge_method")).toBe("S256");
     expect(authorizationUrl.searchParams.get("state")).toBe("state-123");
@@ -39,7 +40,7 @@ describe("codex provider auth flow", () => {
     expect(authorizationUrl.searchParams.get("id_token_add_organizations")).toBe("true");
     expect(authorizationUrl.searchParams.get("codex_cli_simplified_flow")).toBe("true");
     expect(authorizationUrl.searchParams.get("scope")).toContain("offline_access");
-    expect(authorizationUrl.searchParams.get("scope")).toContain("api.connectors.invoke");
+    expect(authorizationUrl.searchParams.get("scope")).not.toContain("api.connectors.invoke");
   });
 
   it("exchanges authorization code for a refreshable OpenAI API key handle", async () => {
@@ -80,7 +81,7 @@ describe("codex provider auth flow", () => {
       accountId: "default",
       code: "auth-code-1",
       state: "state-123",
-      redirectUri: "http://127.0.0.1:3344/v1/oauth/codex-main/callback",
+      redirectUri: "http://localhost:1455/auth/callback",
       codeVerifier: "verifier-123"
     });
 
@@ -221,7 +222,7 @@ describe("codex provider auth flow", () => {
       id: "codex-main",
       defaultModel: "gpt-5.4",
       baseUrl: `http://127.0.0.1:${address.port}/v1`,
-      reasoningEffort: "high"
+      reasoningEffort: "xhigh"
     });
 
     await adapter.chat(
@@ -238,7 +239,7 @@ describe("codex provider auth flow", () => {
       }
     );
 
-    expect(capturedPayload?.reasoning).toEqual({ effort: "high" });
+    expect(capturedPayload?.reasoning).toEqual({ effort: "xhigh" });
     server.close();
   });
 

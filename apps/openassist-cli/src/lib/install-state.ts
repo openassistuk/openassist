@@ -78,6 +78,10 @@ export function detectInstallStateFromRepo(installDir: string): Partial<InstallS
   };
 }
 
+export function detectCurrentBranchFromRepo(installDir: string): string | undefined {
+  return readGitValue(installDir, ["rev-parse", "--abbrev-ref", "HEAD"]);
+}
+
 export function mergeInstallState(
   current: Partial<InstallState> | undefined,
   updates: Partial<InstallState>

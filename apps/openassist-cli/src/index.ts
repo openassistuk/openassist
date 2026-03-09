@@ -25,7 +25,11 @@ import { loadEnvFile } from "./lib/env-file.js";
 import { classifyGitDirtyState } from "./lib/git-dirty.js";
 import { inspectLocalGrowthState } from "./lib/growth-status.js";
 import { checkHealth } from "./lib/health-check.js";
-import { detectInstallStateFromRepo, loadInstallState } from "./lib/install-state.js";
+import {
+  detectCurrentBranchFromRepo,
+  detectInstallStateFromRepo,
+  loadInstallState
+} from "./lib/install-state.js";
 import { buildLifecycleReport, renderLifecycleReport } from "./lib/lifecycle-readiness.js";
 import { detectLegacyDefaultLayout } from "./lib/operator-layout.js";
 import { detectDefaultDaemonBaseUrl } from "./lib/runtime-context.js";
@@ -183,6 +187,7 @@ program
     const envExists = fs.existsSync(envFilePath);
     const repoBacked = fs.existsSync(path.join(installDir, ".git"));
     const repoMetadata = detectInstallStateFromRepo(installDir);
+    const currentBranch = repoBacked ? detectCurrentBranchFromRepo(installDir) : undefined;
     const trackedRef = installState?.trackedRef ?? repoMetadata.trackedRef ?? "main";
     const currentCommit = repoMetadata.lastKnownGoodCommit ?? installState?.lastKnownGoodCommit ?? "";
     const daemonBuildExists = fs.existsSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"));
@@ -287,6 +292,7 @@ program
       envExists,
       repoUrl: installState?.repoUrl ?? repoMetadata.repoUrl,
       trackedRef,
+      currentBranch,
       currentCommit,
       detectedTimezone,
       config: parsedConfig,

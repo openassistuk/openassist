@@ -11,6 +11,7 @@ describe("cli upgrade rollback planning", () => {
     const plan = buildUpgradePlan({
       optionRef: undefined,
       currentBranch: "main",
+      trackedRef: "main",
       skipRestart: false,
       dryRun: false
     });
@@ -20,6 +21,7 @@ describe("cli upgrade rollback planning", () => {
 
   it("handles detached head fallback and explicit refs", () => {
     assert.equal(resolveUpgradeTargetRef(undefined, "HEAD"), "main");
+    assert.equal(resolveUpgradeTargetRef(undefined, "HEAD", "release/v1.2"), "release/v1.2");
     assert.equal(resolveUpgradeTargetRef("release/v1.2", "HEAD"), "release/v1.2");
     assert.equal(shouldPullOnCurrentBranch("HEAD", "main"), false);
   });

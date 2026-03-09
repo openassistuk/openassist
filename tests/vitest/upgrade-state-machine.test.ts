@@ -15,7 +15,11 @@ describe("upgrade state machine planning", () => {
     expect(resolveUpgradeTargetRef(undefined, "develop")).toBe("develop");
   });
 
-  it("falls back to main when detached HEAD", () => {
+  it("falls back to tracked ref when detached HEAD", () => {
+    expect(resolveUpgradeTargetRef(undefined, "HEAD", "release/v1.2")).toBe("release/v1.2");
+  });
+
+  it("falls back to main when detached HEAD and no track is recorded", () => {
     expect(resolveUpgradeTargetRef(undefined, "HEAD")).toBe("main");
   });
 
@@ -29,11 +33,14 @@ describe("upgrade state machine planning", () => {
     const plan = buildUpgradePlan({
       optionRef: undefined,
       currentBranch: "main",
+      trackedRef: "main",
       skipRestart: false,
       dryRun: true
     });
     expect(plan).toEqual({
       targetRef: "main",
+      targetLabel: "main",
+      explicitTargetRequired: false,
       usePullOnCurrentBranch: true,
       executionMode: "fast-forward-current-branch",
       skipRestart: false,
@@ -41,10 +48,39 @@ describe("upgrade state machine planning", () => {
     });
   });
 
+  it("requires an explicit target for detached PR tracks", () => {
+    const plan = buildUpgradePlan({
+      currentBranch: "HEAD",
+      trackedRef: "refs/pull/23/head",
+      skipRestart: false,
+      dryRun: true
+    });
+
+    expect(plan.explicitTargetRequired).toBe(true);
+    expect(plan.executionMode).toBe("explicit-target-required");
+    expect(plan.targetLabel).toBe("PR #23 (refs/pull/23/head)");
+  });
+
+  it("builds an explicit PR plan when requested", () => {
+    const plan = buildUpgradePlan({
+      optionPr: "23",
+      currentBranch: "HEAD",
+      trackedRef: "refs/pull/23/head",
+      skipRestart: false,
+      dryRun: true
+    });
+
+    expect(plan.optionPr).toBe(23);
+    expect(plan.targetRef).toBe("refs/pull/23/head");
+    expect(plan.targetLabel).toBe("PR #23 (refs/pull/23/head)");
+    expect(plan.explicitTargetRequired).toBe(false);
+  });
+
   it("renders operator-facing upgrade summary lines", () => {
     const plan = buildUpgradePlan({
       optionRef: "main",
       currentBranch: "main",
+      trackedRef: "main",
       skipRestart: true,
       dryRun: true
     });
@@ -75,7 +111,7 @@ describe("upgrade state machine planning", () => {
       "Needs action",
       "- None.",
       "Next command",
-      "- openassist upgrade --install-dir \"/tmp/openassist\""
+      "- openassist upgrade --install-dir \"/tmp/openassist\" --ref \"main\""
     ]);
   });
 });

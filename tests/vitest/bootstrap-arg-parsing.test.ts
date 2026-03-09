@@ -9,6 +9,7 @@ describe("bootstrap argument parsing contract", () => {
 
     expect(script.includes("--interactive")).toBe(true);
     expect(script.includes("--non-interactive")).toBe(true);
+    expect(script.includes("--pr <number>")).toBe(true);
     expect(script.includes("--allow-incomplete")).toBe(true);
     expect(script.includes("--auto-install-prereqs")).toBe(true);
     expect(script.includes("--no-auto-install-prereqs")).toBe(true);
@@ -20,6 +21,14 @@ describe("bootstrap argument parsing contract", () => {
     expect(script.includes('PINNED_PNPM_VERSION="10.31.0"')).toBe(true);
     expect(script.includes('corepack prepare "pnpm@${PINNED_PNPM_VERSION}" --activate')).toBe(true);
     expect(script.includes("run_git_step")).toBe(true);
+    expect(script.includes("requested_track_ref")).toBe(true);
+    expect(script.includes("requested_track_label")).toBe(true);
+    expect(script.includes("checkout_requested_track")).toBe(true);
+    expect(script.includes("remote_branch_exists")).toBe(true);
+    expect(script.includes("checkout_remote_branch")).toBe(true);
+    expect(script.includes("git clone \"${REPO_URL}\" \"${INSTALL_DIR}\"")).toBe(true);
+    expect(script.includes("git clone --branch")).toBe(false);
+    expect(script.includes("Cannot use --ref and --pr together.")).toBe(true);
     expect(script.includes("Git fast-forward failed for ref")).toBe(true);
     expect(script.includes("merge --ff-only \"refs/remotes/origin/${REF}\"")).toBe(true);
     expect(script.includes("pull --ff-only origin \"${REF}\"")).toBe(false);

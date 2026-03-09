@@ -100,6 +100,7 @@ Current suite files under `tests/vitest/`:
 - `time-validation.test.ts`
 - `tool-loop-runtime.test.ts`
 - `upgrade-state-machine.test.ts`
+- `update-track.test.ts`
 - `web-tool.test.ts`
 
 ## Integration Suites (Node test runner)
@@ -215,25 +216,26 @@ Current suite files under `tests/node/`:
 9. Service install/start/status/restart/logs/health all behave on target platform.
 10. `openassist doctor` and `openassist doctor --json` agree on the grouped lifecycle assessment.
 11. Upgrade dry-run stays clean when operator state lives outside the repo, and real repo code changes still block live update.
-12. Upgrade success path advances commit and remains healthy.
-13. Upgrade failure path performs rollback and restores health.
-14. Time status and timezone confirmation behave as configured.
-15. Scheduler status/tasks/manual-run behave and persist run records.
-16. Restart across scheduled windows respects misfire policy and dedup behavior.
-17. Channel and OAuth command surfaces return clear diagnostics on failures.
-18. In-channel `/status` returns runtime diagnostics without provider dependency and includes local docs/config/install pointers plus the current self-maintenance boundary.
-19. In-channel `/profile` returns global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`).
-20. Quickstart captures the main assistant name, persona, and ongoing objectives, and a quickstart-created install disables the later first-contact identity reminder by default.
-21. Global assistant profile memory persists across sessions, and session bootstrap host profile context is injected deterministically into runtime context.
-22. Provider/auth/runtime chat failures return sanitized operational diagnostic replies to channel.
-23. Chat-driven tool loop executes end-to-end in `full-root` sessions and remains disabled in `operator/restricted`.
-24. Tool invocation audit rows persist complete lifecycle (`running -> succeeded/failed/blocked`).
-25. Guardrail blocks are visible and deterministic for destructive command patterns.
-26. `/status` and `openassist tools status` show the same awareness boundary the model receives, including callable tools and native web backend state.
-27. Native web tools remain bounded: `web.search`/`web.fetch` work only in `full-root`, stay within HTTP/redirect/byte/result caps, and return structured unavailable guidance when no backend is configured.
-28. Provider tool-call mapping contracts (OpenAI/Codex/Anthropic/OpenAI-compatible) remain interoperable.
-29. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
-30. Root `README.md`, root `AGENTS.md`, the lifecycle docs, and `docs/testing/test-matrix.md` all describe the same current command, path, workflow, and troubleshooting reality.
+12. Advanced developer install tracks behave predictably: branch installs follow their branch, and PR installs require explicit `--pr` or `--ref` on later upgrades.
+13. Upgrade success path advances commit and remains healthy.
+14. Upgrade failure path performs rollback and restores health.
+15. Time status and timezone confirmation behave as configured.
+16. Scheduler status/tasks/manual-run behave and persist run records.
+17. Restart across scheduled windows respects misfire policy and dedup behavior.
+18. Channel and OAuth command surfaces return clear diagnostics on failures.
+19. In-channel `/status` returns runtime diagnostics without provider dependency and includes local docs/config/install pointers plus the current self-maintenance boundary.
+20. In-channel `/profile` returns global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`).
+21. Quickstart captures the main assistant name, persona, and ongoing objectives, and a quickstart-created install disables the later first-contact identity reminder by default.
+22. Global assistant profile memory persists across sessions, and session bootstrap host profile context is injected deterministically into runtime context.
+23. Provider/auth/runtime chat failures return sanitized operational diagnostic replies to channel.
+24. Chat-driven tool loop executes end-to-end in `full-root` sessions and remains disabled in `operator/restricted`.
+25. Tool invocation audit rows persist complete lifecycle (`running -> succeeded/failed/blocked`).
+26. Guardrail blocks are visible and deterministic for destructive command patterns.
+27. `/status` and `openassist tools status` show the same awareness boundary the model receives, including callable tools and native web backend state.
+28. Native web tools remain bounded: `web.search`/`web.fetch` work only in `full-root`, stay within HTTP/redirect/byte/result caps, and return structured unavailable guidance when no backend is configured.
+29. Provider tool-call mapping contracts (OpenAI/Codex/Anthropic/OpenAI-compatible) remain interoperable.
+30. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
+31. Root `README.md`, root `AGENTS.md`, the lifecycle docs, and `docs/testing/test-matrix.md` all describe the same current command, path, workflow, and troubleshooting reality.
 
 ## Remaining Gaps
 

@@ -8,6 +8,13 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Advanced branch/PR install tracks for developer testing:
+  - `install.sh`, `scripts/install/bootstrap.sh`, and `openassist upgrade` now accept `--pr <number>` alongside the existing `--ref <git-ref>`
+  - `install.sh` now fetches the matching branch or PR bootstrap script so installer changes can be tested end to end before merge
+  - branch installs remain first-class tracked-branch installs
+  - PR installs record `refs/pull/<n>/head` and later `openassist upgrade` now requires an explicit `--pr <n>` or `--ref <target>` instead of silently falling back to `main`
+  - lifecycle reporting now labels branch and PR update tracks clearly in bootstrap summaries, `openassist doctor`, and `openassist upgrade --dry-run`
+
 - Separate Codex provider route:
   - added a fourth first-class provider type, `codex`, alongside `openai`, `anthropic`, and `openai-compatible`
   - `openai` now stays the public OpenAI API-key route in operator-facing setup and docs

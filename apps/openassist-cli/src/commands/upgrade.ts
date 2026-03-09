@@ -21,6 +21,7 @@ import {
   detectDefaultDaemonBaseUrl
 } from "../lib/runtime-context.js";
 import { detectInstallStateFromRepo, loadInstallState, saveInstallState } from "../lib/install-state.js";
+import { buildPullRequestRef, classifyUpdateTrack, parsePullRequestNumber } from "../lib/update-track.js";
 import { buildUpgradePlan, renderUpgradePlanSummary } from "../lib/upgrade.js";
 
 const logger = createLogger({ service: "openassist-cli" });
@@ -66,6 +67,52 @@ async function binaryAvailable(runner: SpawnCommandRunner, command: string): Pro
     return result.code === 0;
   } catch {
     return false;
+  }
+}
+
+async function remoteBranchExists(
+  runner: SpawnCommandRunner,
+  cwd: string,
+  branch: string
+): Promise<boolean> {
+  const result = await runner.run("git", ["ls-remote", "--exit-code", "--heads", "origin", branch], { cwd });
+  return result.code === 0;
+}
+
+async function checkoutUpgradeTarget(
+  runner: SpawnCommandRunner,
+  cwd: string,
+  plan: ReturnType<typeof buildUpgradePlan>
+): Promise<void> {
+  if (plan.optionPr !== undefined) {
+    await runOrThrow(runner, "git", ["fetch", "origin", buildPullRequestRef(plan.optionPr)], { cwd });
+    await runOrThrow(runner, "git", ["checkout", "--detach", "FETCH_HEAD"], { cwd });
+    return;
+  }
+
+  const targetRef = plan.targetRef;
+  if (!targetRef) {
+    throw new Error("Upgrade target is missing. Pass --pr or --ref explicitly.");
+  }
+
+  const targetTrack = classifyUpdateTrack(targetRef);
+  if (targetTrack.kind === "branch") {
+    if (await remoteBranchExists(runner, cwd, targetRef)) {
+      await runOrThrow(
+        runner,
+        "git",
+        ["fetch", "origin", `refs/heads/${targetRef}:refs/remotes/origin/${targetRef}`],
+        { cwd }
+      );
+      await runOrThrow(runner, "git", ["checkout", "-B", targetRef, `refs/remotes/origin/${targetRef}`], { cwd });
+      return;
+    }
+  }
+
+  await runOrThrow(runner, "git", ["fetch", "origin", targetRef], { cwd });
+  const checkout = await runner.run("git", ["checkout", targetRef], { cwd });
+  if (checkout.code !== 0) {
+    await runOrThrow(runner, "git", ["checkout", "--detach", "FETCH_HEAD"], { cwd });
   }
 }
 
@@ -132,12 +179,28 @@ export function registerUpgradeCommand(program: Command): void {
     .command("upgrade")
     .description("Upgrade OpenAssist in-place with rollback on failure")
     .option("--ref <git-ref>", "Git ref to upgrade to")
+    .option("--pr <number>", "GitHub pull request number to upgrade to")
     .option("--install-dir <path>", "OpenAssist install directory")
     .option("--skip-restart", "Skip service restart and health check")
     .option("--dry-run", "Validate prerequisites and print planned actions")
     .action(async (options) => {
       const runner = new SpawnCommandRunner();
       const installState = loadInstallState();
+      if (options.ref && options.pr) {
+        console.error("Upgrade failed: use either --ref or --pr, not both.");
+        process.exitCode = 1;
+        return;
+      }
+      if (options.pr) {
+        try {
+          parsePullRequestNumber(String(options.pr));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`Upgrade failed: ${message}`);
+          process.exitCode = 1;
+          return;
+        }
+      }
 
       const installDir = path.resolve(
         String(options.installDir ?? installState?.installDir ?? defaultInstallDir())
@@ -200,11 +263,13 @@ export function registerUpgradeCommand(program: Command): void {
         context.oldCommit = repoBacked && hasGit ? await detectCurrentCommit(runner, installDir) : "(unknown)";
         const plan = buildUpgradePlan({
           optionRef: context.targetRef || undefined,
+          optionPr: options.pr ? String(options.pr) : undefined,
           currentBranch: context.currentBranch,
+          trackedRef: context.trackedRef,
           skipRestart,
           dryRun
         });
-        context.targetRef = plan.targetRef;
+        context.targetRef = plan.targetRef ?? context.targetRef;
         const baseUrl = detectDefaultDaemonBaseUrl(configPath);
         const dirtyState = repoBacked && hasGit ? classifyGitDirtyState(installDir) : undefined;
         const dirtyWorkingTree = dirtyState?.hasRealCodeChanges === true;
@@ -218,6 +283,7 @@ export function registerUpgradeCommand(program: Command): void {
           envExists,
           repoUrl: context.repoUrl,
           trackedRef: context.trackedRef,
+          currentBranch: context.currentBranch,
           currentCommit: context.oldCommit,
           config: parsedConfig,
           validationErrors,
@@ -226,6 +292,7 @@ export function registerUpgradeCommand(program: Command): void {
           hasNode,
           daemonBuildExists: fs.existsSync(path.join(installDir, "apps", "openassistd", "dist", "index.js")),
           dirtyWorkingTree,
+          explicitUpgradeTargetProvided: Boolean(options.ref || options.pr),
           growth: growthState
             ? {
                 skillsDirectory: growthState.skillsDirectory,
@@ -290,9 +357,6 @@ export function registerUpgradeCommand(program: Command): void {
         }
 
         await ensureGitClean(runner, installDir);
-        await runOrThrow(runner, "git", ["fetch", "origin", context.targetRef], {
-          cwd: installDir
-        });
 
         if (dryRun) {
           console.log("Dry-run complete. Upgrade is safe to continue with the install directory and update track shown above.");
@@ -308,19 +372,30 @@ export function registerUpgradeCommand(program: Command): void {
           return;
         }
 
-        if (plan.usePullOnCurrentBranch) {
+        if (plan.explicitTargetRequired) {
+          throw new Error(
+            report.sections.needsActionBeforeUpgrade[0]?.detail ??
+              "This install needs an explicit --pr or --ref target before updating."
+          );
+        }
+
+        if (plan.usePullOnCurrentBranch && plan.targetRef) {
+          if (!(await remoteBranchExists(runner, installDir, plan.targetRef))) {
+            throw new Error(`Remote branch origin/${plan.targetRef} was not found.`);
+          }
+          await runOrThrow(
+            runner,
+            "git",
+            ["fetch", "origin", `refs/heads/${plan.targetRef}:refs/remotes/origin/${plan.targetRef}`],
+            {
+              cwd: installDir
+            }
+          );
           await runOrThrow(runner, "git", ["pull", "--ff-only", "origin", context.targetRef], {
             cwd: installDir
           });
         } else {
-          const checkout = await runner.run("git", ["checkout", context.targetRef], {
-            cwd: installDir
-          });
-          if (checkout.code !== 0) {
-            await runOrThrow(runner, "git", ["checkout", "--detach", "FETCH_HEAD"], {
-              cwd: installDir
-            });
-          }
+          await checkoutUpgradeTarget(runner, installDir, plan);
         }
 
         await runStreamingOrThrow(runner, "pnpm", ["install", "--frozen-lockfile"], {
@@ -352,7 +427,10 @@ export function registerUpgradeCommand(program: Command): void {
         saveInstallState({
           installDir,
           ...(context.repoUrl ? { repoUrl: context.repoUrl } : {}),
-          trackedRef: context.targetRef,
+          trackedRef:
+            plan.optionPr !== undefined
+              ? buildPullRequestRef(plan.optionPr)
+              : context.targetRef,
           serviceManager: service.kind,
           configPath,
           envFilePath,

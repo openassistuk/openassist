@@ -10,7 +10,13 @@ Fresh installs now keep normal operator config, env files, logs, data, skills, a
 
 Runtime `/status` and the provider self-knowledge pack now surface the same repo-backed update facts when they are known: install directory, config path, env-file path, tracked ref, and last known good commit. Treat the lifecycle commands in this runbook as the supported way to mutate that state instead of editing install-state or generated wrappers directly.
 
-The install record keeps a tracked ref for operator visibility, but target selection still follows the currently checked-out branch unless you pass `--ref`. Detached installs should usually use an explicit `--ref`.
+The install record keeps a tracked ref for operator visibility, and the update rules now depend on the kind of track:
+
+- normal installs with no explicit track stay on `main`
+- branch installs continue following the checked-out branch normally
+- PR installs record `refs/pull/<n>/head`, but later `openassist upgrade` requires an explicit `--pr <n>` or `--ref <target>`
+
+That PR rule is deliberate. It keeps developer test installs predictable instead of silently drifting to a different target.
 
 ## Commands
 
@@ -30,6 +36,13 @@ Pin an explicit ref:
 
 ```bash
 openassist upgrade --install-dir "$HOME/openassist" --ref main
+```
+
+Follow a PR install explicitly:
+
+```bash
+openassist upgrade --dry-run --install-dir "$HOME/openassist" --pr 123
+openassist upgrade --install-dir "$HOME/openassist" --pr 123
 ```
 
 Skip restart only when you have a deliberate maintenance plan:
@@ -82,8 +95,14 @@ Managed growth note:
 Detached checkout note:
 
 - if dry-run shows `Current branch: HEAD`, the repo is detached
-- without `--ref`, the upgrade path resolves a default target ref instead of following a named branch
-- for public operator use, prefer `openassist upgrade --dry-run --ref <branch-or-tag> --install-dir "$HOME/openassist"` before the live run
+- for detached installs on a normal branch/tag path, prefer `openassist upgrade --dry-run --ref <branch-or-tag> --install-dir "$HOME/openassist"` before the live run
+- for detached PR installs, expect `Needs action` until you pass `--pr <n>` or `--ref <target>` explicitly
+
+Developer track note:
+
+- branch installs remain a first-class developer workflow and keep following their branch normally
+- PR installs are also supported, but every later upgrade must stay explicit with `--pr` or `--ref`
+- moving a PR/branch test install back to the normal release track is explicit: `openassist upgrade --ref main`
 
 ## Use Upgrade When
 

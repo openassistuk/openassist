@@ -9,6 +9,13 @@ Use this index by lifecycle stage.
 3. Use `openassist setup wizard` only for advanced changes.
 4. Use `openassist upgrade --dry-run` before every update.
 
+Advanced developer note:
+
+- branch and PR install tracks are supported through command-line flags only
+- use `install.sh --ref <branch>` or `install.sh --pr <number>` when you need to test non-`main` code on a real host
+- beginner lifecycle surfaces do not advertise those tracks
+- PR installs require an explicit `openassist upgrade --pr <number>` or `--ref <target>` on later updates
+
 OpenAssist remains a repo-backed install and update model. Bootstrap, `openassist doctor`, `openassist service install`, and `openassist upgrade` all work from the same persisted install record so operators can see the install directory, tracked ref, config path, env path, service manager, and last known good commit in one place.
 
 Fresh installs now keep writable operator state outside the repo checkout by default:
@@ -110,6 +117,7 @@ Primary runbooks:
 - `openassist setup wizard`: advanced section editor
 - `openassist service install`: explicit service install or reinstall
 - `openassist upgrade --dry-run`: resolved update plan without mutation
+- `install.sh --ref <branch>` / `install.sh --pr <number>`: advanced developer install tracks for non-`main` testing
 - `openassist skills list`: list managed skills known to the runtime
 - `openassist skills install --path <dir>`: install a managed skill from a local directory
 - `openassist growth status`: show managed growth policy, directories, and installed assets
@@ -157,4 +165,5 @@ Supplemental smoke notes:
   - [`docs/execplans/general-purpose-assistant-identity-and-growth.md`](execplans/general-purpose-assistant-identity-and-growth.md)
   - [`docs/execplans/repo-wide-docs-test-hardening.md`](execplans/repo-wide-docs-test-hardening.md)
   - [`docs/execplans/provider-reasoning-controls.md`](execplans/provider-reasoning-controls.md)
+  - [`docs/execplans/branch-pr-install-tracks.md`](execplans/branch-pr-install-tracks.md)
 - ExecPlan process: [`.agents/PLANS.md`](../.agents/PLANS.md)

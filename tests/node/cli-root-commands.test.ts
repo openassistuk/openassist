@@ -167,7 +167,7 @@ describe("cli root command coverage", () => {
     assert.equal(parsedDoctorJson.context.updateTrackKind, "pull-request");
     assert.equal(parsedDoctorJson.context.updateTrackLabel, "PR #23 (refs/pull/23/head)");
     assert.equal(parsedDoctorJson.context.primaryProviderId, "openai-main");
-    assert.equal(parsedDoctorJson.context.primaryProviderRoute, "OpenAI (API key)");
+    assert.equal(parsedDoctorJson.context.primaryProviderRoute, "OpenAI (API Key)");
     assert.equal(parsedDoctorJson.context.primaryProviderModel, "gpt-5.4");
     assert.equal(parsedDoctorJson.context.primaryProviderTuning, "Reasoning effort: high");
     assert.equal(typeof parsedDoctorJson.sections.readyNow, "object");
@@ -561,7 +561,7 @@ describe("cli root command coverage", () => {
   });
 
   it(
-    "does not crash when auth start cannot launch a browser automatically",
+    "does not crash when codex auth start cannot launch a browser automatically",
     { skip: process.platform === "win32" },
     async () => {
       const root = tempDir("openassist-cli-root-auth-browser-");
@@ -569,14 +569,15 @@ describe("cli root command coverage", () => {
       fs.mkdirSync(emptyBinDir, { recursive: true });
 
       const server = http.createServer((req, res) => {
-        if (req.method === "POST" && req.url === "/v1/oauth/openai-main/start") {
+        if (req.method === "POST" && req.url === "/v1/oauth/codex-main/start") {
           res.writeHead(200, { "content-type": "application/json" });
           res.end(
             JSON.stringify({
               accountId: "default",
               state: "oauth-state-1",
               expiresAt: "2026-03-09T00:00:00.000Z",
-              authorizationUrl: "https://example.test/oauth/start"
+              authorizationUrl: "https://example.test/oauth/start",
+              redirectUri: "http://localhost:1455/auth/callback"
             })
           );
           return;
@@ -607,7 +608,7 @@ describe("cli root command coverage", () => {
             "auth",
             "start",
             "--provider",
-            "openai-main",
+            "codex-main",
             "--account",
             "default",
             "--open-browser",
@@ -623,11 +624,15 @@ describe("cli root command coverage", () => {
 
         assert.equal(result.code, 0, result.stderr || result.stdout);
         assert.match(result.stdout, /Authorization URL:/);
+        assert.match(result.stdout, /After approval, the browser should redirect to: http:\/\/localhost:1455\/auth\/callback/);
+        assert.match(result.stdout, /Manual completion example: openassist auth complete --provider codex-main --state oauth-state-1 --code <code> --base-url http:\/\/127\.0\.0\.1:/);
         assert.match(result.stdout, /Could not open a browser automatically on this host\./);
         assert.match(result.stdout, /Open the authorization URL manually in a browser/);
         assert.doesNotMatch(result.stdout, /Opened authorization URL in browser\./);
+        assert.doesNotMatch(result.stdout, /ExperimentalWarning: SQLite is an experimental feature/);
         assert.doesNotMatch(result.stderr, /Unhandled 'error' event/);
         assert.doesNotMatch(result.stderr, /spawn .* ENOENT/);
+        assert.doesNotMatch(result.stderr, /ExperimentalWarning: SQLite is an experimental feature/);
       } finally {
         await new Promise<void>((resolve, reject) => {
           server.close((error) => {
@@ -720,5 +725,13 @@ describe("cli root command coverage", () => {
     assert.equal(result.code, 1, result.stderr || result.stdout);
     assert.match(result.stderr, /Setup quickstart failed/);
     assert.match(result.stderr, /Interactive quickstart requires TTY/);
+  });
+
+  it("does not print the SQLite experimental warning when setup hub starts", async () => {
+    const result = await runCli(["setup"]);
+    assert.equal(result.code, 1, result.stderr || result.stdout);
+    assert.match(result.stderr, /Interactive lifecycle hub requires TTY/);
+    assert.doesNotMatch(result.stderr, /ExperimentalWarning: SQLite is an experimental feature/);
+    assert.doesNotMatch(result.stdout, /ExperimentalWarning: SQLite is an experimental feature/);
   });
 });

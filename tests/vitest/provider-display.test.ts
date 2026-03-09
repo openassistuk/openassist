@@ -88,8 +88,9 @@ function baseConfig(): OpenAssistConfig {
 
 describe("provider display helpers", () => {
   it("formats route and tuning labels for supported provider routes", () => {
-    expect(providerRouteLabel("openai")).toBe("OpenAI (API key)");
+    expect(providerRouteLabel("openai")).toBe("OpenAI (API Key)");
     expect(providerRouteLabel("codex")).toBe("Codex (OpenAI account login)");
+    expect(providerRouteLabel("anthropic")).toBe("Anthropic (API Key)");
     expect(providerTuningLabel({
       id: "codex-main",
       type: "codex",
@@ -114,7 +115,7 @@ describe("provider display helpers", () => {
 
     expect(describePrimaryProvider(config)).toMatchObject({
       id: "openai-main",
-      routeLabel: "OpenAI (API key)",
+      routeLabel: "OpenAI (API Key)",
       model: "gpt-5.4",
       tuningLabel: "Reasoning effort: high"
     });

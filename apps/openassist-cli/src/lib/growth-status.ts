@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import type { OpenAssistConfig } from "@openassist/config";
 import type { OpenAssistLogger } from "@openassist/observability";
-import { OpenAssistDatabase } from "@openassist/storage-sqlite";
 
 export interface LocalGrowthSkillSummary {
   id: string;
@@ -70,11 +69,11 @@ function listInstalledSkills(skillsDirectory: string): LocalGrowthSkillSummary[]
   return skills.sort((left, right) => left.id.localeCompare(right.id));
 }
 
-export function inspectLocalGrowthState(
+export async function inspectLocalGrowthState(
   configPath: string,
   config: OpenAssistConfig,
   logger: OpenAssistLogger
-): LocalGrowthState {
+): Promise<LocalGrowthState> {
   const dataDir = resolveRuntimePath(configPath, config.runtime.paths.dataDir);
   const skillsDirectory = resolveRuntimePath(configPath, config.runtime.paths.skillsDir);
   const helperToolsDirectory = path.join(path.resolve(dataDir), "helper-tools");
@@ -83,6 +82,7 @@ export function inspectLocalGrowthState(
   let managedHelpers: LocalGrowthState["managedHelpers"] = [];
 
   if (fs.existsSync(dbPath)) {
+    const { OpenAssistDatabase } = await import("@openassist/storage-sqlite");
     const db = new OpenAssistDatabase({ dbPath, logger });
     try {
       managedHelpers = db.listManagedCapabilities("helper-tool");

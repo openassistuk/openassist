@@ -30,13 +30,12 @@ const CODEX_OAUTH_AUTHORIZE_URL = `${CODEX_OAUTH_ISSUER}/oauth/authorize`;
 const CODEX_OAUTH_TOKEN_URL = `${CODEX_OAUTH_ISSUER}/oauth/token`;
 const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
 const CODEX_ORIGINATOR = "codex_cli_rs";
+const CODEX_DEFAULT_REDIRECT_URI = "http://localhost:1455/auth/callback";
 const CODEX_SCOPES = [
   "openid",
   "profile",
   "email",
-  "offline_access",
-  "api.connectors.read",
-  "api.connectors.invoke"
+  "offline_access"
 ] as const;
 const CODEX_REFRESH_INTERVAL_MS = 8 * 24 * 60 * 60 * 1000;
 
@@ -44,10 +43,14 @@ const configSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
-  reasoningEffort: z.enum(["low", "medium", "high"]).optional()
+  reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
 });
 
 export interface CodexProviderConfig extends z.infer<typeof configSchema> {}
+
+export function defaultCodexOAuthRedirectUri(): string {
+  return CODEX_DEFAULT_REDIRECT_URI;
+}
 
 interface CodexTokenExchangeResponse {
   id_token?: string;

@@ -29,7 +29,7 @@ const configSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
-  reasoningEffort: z.enum(["low", "medium", "high"]).optional(),
+  reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional(),
   oauth: z
     .object({
       authorizeUrl: z.string().url(),

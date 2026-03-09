@@ -63,6 +63,7 @@ Current suite files under `tests/vitest/`:
 - `lifecycle-readiness.test.ts`
 - `migration.test.ts`
 - `misfire-policy.test.ts`
+- `oauth-redirect.test.ts`
 - `observability-redaction.test.ts`
 - `operator-layout-cleanup.test.ts`
 - `operator-layout.test.ts`

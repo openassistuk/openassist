@@ -11,13 +11,13 @@ export interface ProviderDisplayState {
 
 export function providerRouteLabel(type: ProviderConfig["type"]): string {
   if (type === "openai") {
-    return "OpenAI (API key)";
+    return "OpenAI (API Key)";
   }
   if (type === "codex") {
     return "Codex (OpenAI account login)";
   }
   if (type === "anthropic") {
-    return "Anthropic";
+    return "Anthropic (API Key)";
   }
   return "OpenAI-compatible";
 }

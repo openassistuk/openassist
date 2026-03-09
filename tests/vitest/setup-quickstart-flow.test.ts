@@ -302,7 +302,7 @@ describe("setup quickstart flow", () => {
     expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
     expect(result.summary.some((line) => line.includes("Quickstart saved"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Assistant identity: OpenAssist"))).toBe(true);
-    expect(result.summary.some((line) => line.includes("Primary provider: openai-main (OpenAI (API key))"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Primary provider: openai-main (OpenAI (API Key))"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Provider model: gpt-5.4"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Provider tuning: Reasoning effort: Default (recommended)"))).toBe(true);
     expect(result.summary.some((line) => line.includes("First reply checklist:"))).toBe(true);

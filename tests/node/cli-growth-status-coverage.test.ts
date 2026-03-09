@@ -62,14 +62,14 @@ function minimalConfig(dataDir: string, skillsDir: string): OpenAssistConfig {
 }
 
 describe("local growth status coverage", () => {
-  it("returns empty growth state when no skills or helper registry exist yet", () => {
+  it("returns empty growth state when no skills or helper registry exist yet", async () => {
     const root = tempDir("openassist-growth-empty-");
     const configPath = path.join(root, "openassist.toml");
     const dataDir = path.join(root, "data");
     const skillsDir = path.join(root, "skills");
     const logger = createLogger({ service: "openassist-growth-test" });
 
-    const state = inspectLocalGrowthState(configPath, minimalConfig(dataDir, skillsDir), logger);
+    const state = await inspectLocalGrowthState(configPath, minimalConfig(dataDir, skillsDir), logger);
 
     assert.equal(state.skillsDirectory, skillsDir);
     assert.equal(state.helperToolsDirectory, path.join(dataDir, "helper-tools"));
@@ -78,7 +78,7 @@ describe("local growth status coverage", () => {
     assert.match(state.updateSafetyNote, /runtime-owned paths/i);
   });
 
-  it("filters malformed skill manifests and lists managed helpers from the runtime db", () => {
+  it("filters malformed skill manifests and lists managed helpers from the runtime db", async () => {
     const root = tempDir("openassist-growth-populated-");
     const configPath = path.join(root, "openassist.toml");
     const dataDir = path.join(root, "data");
@@ -123,7 +123,7 @@ describe("local growth status coverage", () => {
       db.close();
     }
 
-    const state = inspectLocalGrowthState(configPath, minimalConfig(dataDir, skillsDir), logger);
+    const state = await inspectLocalGrowthState(configPath, minimalConfig(dataDir, skillsDir), logger);
 
     assert.deepEqual(
       state.installedSkills.map((item) => item.id),

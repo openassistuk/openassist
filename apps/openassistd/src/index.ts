@@ -17,6 +17,7 @@ import { DiscordChannelAdapter } from "@openassist/channels-discord";
 import { WhatsAppMdChannelAdapter } from "@openassist/channels-whatsapp-md";
 import { loadRuntimeInstallContext } from "./install-context.js";
 import { resolveChannelSettings } from "./channel-settings.js";
+import { resolveDefaultOAuthRedirectUri } from "./oauth-redirect.js";
 
 function envApiKeyVar(providerId: string): string {
   return `OPENASSIST_PROVIDER_${providerId.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_API_KEY`;
@@ -502,7 +503,7 @@ program
             const scopes = Array.isArray(body.scopes)
               ? body.scopes.map((value) => String(value))
               : [];
-            const defaultRedirect = `http://${config.runtime.bindAddress}:${config.runtime.bindPort}/v1/oauth/${providerId}/callback`;
+            const defaultRedirect = resolveDefaultOAuthRedirectUri(config.runtime, providerId);
             const redirectUri =
               typeof body.redirectUri === "string" ? body.redirectUri : defaultRedirect;
 

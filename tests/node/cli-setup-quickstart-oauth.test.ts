@@ -123,7 +123,6 @@ function validCodexQuickstartAnswers(bindPort: number, extra: string[] = []): st
     "codex",
     "codex-main",
     "gpt-5.4",
-    "",
     "default",
     "telegram",
     "telegram-main",
@@ -179,7 +178,7 @@ describe("cli setup quickstart oauth coverage", () => {
             "true",
             "true",
             "true",
-            "https://127.0.0.1:3344/v1/oauth/codex-main/callback?state=state-codex&code=auth-code-1"
+            "http://localhost:1455/auth/callback?state=state-codex&code=auth-code-1"
           ])
         ),
         {
@@ -222,7 +221,8 @@ describe("cli setup quickstart oauth coverage", () => {
                 status: 200,
                 data: {
                   authorizationUrl: "https://example.test/oauth/start",
-                  state: "state-codex"
+                  state: "state-codex",
+                  redirectUri: "http://localhost:1455/auth/callback"
                 }
               };
             }

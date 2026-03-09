@@ -38,7 +38,7 @@ The format follows Keep a Changelog conventions and this project currently track
   - lifecycle reporting is now `version: 2` in `openassist doctor --json`, preserving grouped sections while adding per-item `stage` metadata for shared rendering
 
 - Provider-native reasoning controls:
-  - `openassist setup quickstart` now exposes beginner-facing `reasoningEffort` choices for both OpenAI and Codex providers (`Default`, `Low`, `Medium`, `High`)
+  - `openassist setup quickstart` now exposes beginner-facing `reasoningEffort` choices for both OpenAI and Codex providers (`Default`, `Low`, `Medium`, `High`, `XHigh`)
   - `openassist setup wizard` now exposes OpenAI `reasoningEffort`, Codex `reasoningEffort`, and Anthropic `thinkingBudgetTokens` (blank to disable)
   - built-in OpenAI adapters now send reasoning effort only on supported Responses API model families
   - built-in Codex adapters now send reasoning effort only on supported Codex Responses-model families
@@ -78,11 +78,16 @@ The format follows Keep a Changelog conventions and this project currently track
   - Codex quickstart account-linking now pauses after printing the authorization URL so headless VPS installs can copy it before continuing
   - skipping required Codex account linking during quickstart is now reported as an account-linking recovery step instead of a misleading service failure with daemon log spam
   - `openassist auth start --open-browser` now treats missing local browser launchers (for example `xdg-open` on headless hosts) as a non-fatal fallback and keeps the printed authorization URL usable
+  - bare `openassist setup` and other non-growth CLI paths no longer print the Node `node:sqlite` experimental warning before the lifecycle hub appears
+  - Codex no longer asks for a custom base URL in quickstart or wizard
+  - provider setup labels are now harmonized as `OpenAI (API Key)`, `Codex (OpenAI account login)`, `Anthropic (API Key)`, and `OpenAI-compatible`
+  - new Codex login starts now use the supported localhost callback `http://localhost:1455/auth/callback`, which fixes the previous browser-side `unknown_error` path caused by the unsupported daemon callback redirect
+  - Codex and OpenAI reasoning controls now include `xhigh` alongside `low`, `medium`, and `high`
 
 - Provider-route docs and samples now describe four equal public routes consistently:
-  - OpenAI (API key)
+  - OpenAI (API Key)
   - Codex (OpenAI account login)
-  - Anthropic
+  - Anthropic (API Key)
   - OpenAI-compatible
   - root `README.md`, root `AGENTS.md`, lifecycle runbooks, provider-interface docs, migration docs, and the sample `openassist.toml` now all treat Codex as Codex-only in this release instead of generic ChatGPT API auth
   - legacy `openai + oauth` configs remain compatibility-only and new account-login guidance now steers operators to `codex`

@@ -171,7 +171,7 @@ describe("lifecycle readiness", () => {
     expect(report.summary.firstReplyReadiness).toBe("ready");
     expect(report.summary.upgradeReadiness).toBe("safe-to-continue");
     expect(report.context.primaryProviderId).toBe("openai-main");
-    expect(report.context.primaryProviderRoute).toBe("OpenAI (API key)");
+    expect(report.context.primaryProviderRoute).toBe("OpenAI (API Key)");
     expect(report.context.primaryProviderModel).toBe("gpt-5.4");
     expect(report.context.primaryProviderTuning).toBe("Reasoning effort: medium");
     expect(report.sections.readyNow.length).toBeGreaterThan(0);

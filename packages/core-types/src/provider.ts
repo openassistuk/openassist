@@ -53,7 +53,7 @@ export interface ProviderCapabilities {
   supportedModels?: string[];
 }
 
-export type OpenAIReasoningEffort = "low" | "medium" | "high";
+export type OpenAIReasoningEffort = "low" | "medium" | "high" | "xhigh";
 
 export interface ChatRequest {
   sessionId: string;

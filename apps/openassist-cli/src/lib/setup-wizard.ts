@@ -107,6 +107,12 @@ function parseCsv(value: string): string[] {
 
 type ReasoningEffortPromptChoice = "default" | OpenAIReasoningEffort;
 
+function providerSupportsCustomBaseUrl(
+  type: OpenAssistConfig["runtime"]["providers"][number]["type"]
+): boolean {
+  return type === "openai" || type === "anthropic" || type === "openai-compatible";
+}
+
 export async function promptReasoningEffort(
   prompts: PromptAdapter,
   routeLabel: string,
@@ -120,7 +126,8 @@ export async function promptReasoningEffort(
       { name: "Default (do not send a reasoning parameter)", value: "default" },
       { name: "low", value: "low" },
       { name: "medium", value: "medium" },
-      { name: "high", value: "high" }
+      { name: "high", value: "high" },
+      { name: "xhigh", value: "xhigh" }
     ],
     initial ?? "default"
   );
@@ -359,9 +366,9 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
   const providerType = await prompts.select(
     "Provider type",
     [
-      { name: "OpenAI (API key)", value: "openai" },
+      { name: "OpenAI (API Key)", value: "openai" },
       { name: "Codex (OpenAI account login)", value: "codex" },
-      { name: "Anthropic", value: "anthropic" },
+      { name: "Anthropic (API Key)", value: "anthropic" },
       { name: "OpenAI-compatible", value: "openai-compatible" }
     ],
     "openai"
@@ -371,7 +378,9 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
     "Default model",
     providerType === "anthropic" ? "claude-sonnet-4-6" : "gpt-5.4"
   );
-  const baseUrl = await prompts.input("Base URL (optional)", "");
+  const baseUrl = providerSupportsCustomBaseUrl(providerType)
+    ? await prompts.input("Base URL (optional)", "")
+    : "";
   if (providerType === "openai") {
     const reasoningEffort = await promptOpenAIReasoningEffort(prompts);
     state.config.runtime.providers.push({
@@ -453,11 +462,13 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
   }
 
   provider.defaultModel = await promptRequiredText(prompts, "Default model", provider.defaultModel);
-  const baseUrl = await prompts.input("Base URL (blank to unset)", provider.baseUrl ?? "");
-  if (baseUrl) {
-    provider.baseUrl = baseUrl;
-  } else {
-    delete provider.baseUrl;
+  if (providerSupportsCustomBaseUrl(provider.type)) {
+    const baseUrl = await prompts.input("Base URL (blank to unset)", provider.baseUrl ?? "");
+    if (baseUrl) {
+      provider.baseUrl = baseUrl;
+    } else {
+      delete provider.baseUrl;
+    }
   }
 
   if (provider.type === "openai") {

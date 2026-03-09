@@ -70,15 +70,6 @@ async function binaryAvailable(runner: SpawnCommandRunner, command: string): Pro
   }
 }
 
-async function remoteBranchExists(
-  runner: SpawnCommandRunner,
-  cwd: string,
-  branch: string
-): Promise<boolean> {
-  const result = await runner.run("git", ["ls-remote", "--exit-code", "--heads", "origin", branch], { cwd });
-  return result.code === 0;
-}
-
 async function checkoutUpgradeTarget(
   runner: SpawnCommandRunner,
   cwd: string,
@@ -97,16 +88,14 @@ async function checkoutUpgradeTarget(
 
   const targetTrack = classifyUpdateTrack(targetRef);
   if (targetTrack.kind === "branch") {
-    if (await remoteBranchExists(runner, cwd, targetRef)) {
-      await runOrThrow(
-        runner,
-        "git",
-        ["fetch", "origin", `refs/heads/${targetRef}:refs/remotes/origin/${targetRef}`],
-        { cwd }
-      );
-      await runOrThrow(runner, "git", ["checkout", "-B", targetRef, `refs/remotes/origin/${targetRef}`], { cwd });
-      return;
-    }
+    await runOrThrow(
+      runner,
+      "git",
+      ["fetch", "origin", `refs/heads/${targetRef}:refs/remotes/origin/${targetRef}`],
+      { cwd }
+    );
+    await runOrThrow(runner, "git", ["checkout", "-B", targetRef, `refs/remotes/origin/${targetRef}`], { cwd });
+    return;
   }
 
   await runOrThrow(runner, "git", ["fetch", "origin", targetRef], { cwd });
@@ -380,9 +369,6 @@ export function registerUpgradeCommand(program: Command): void {
         }
 
         if (plan.usePullOnCurrentBranch && plan.targetRef) {
-          if (!(await remoteBranchExists(runner, installDir, plan.targetRef))) {
-            throw new Error(`Remote branch origin/${plan.targetRef} was not found.`);
-          }
           await runOrThrow(
             runner,
             "git",

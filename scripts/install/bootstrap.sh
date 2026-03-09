@@ -695,7 +695,7 @@ run_git_step() {
 
 remote_branch_exists() {
   local branch_name="$1"
-  git -C "${INSTALL_DIR}" ls-remote --exit-code --heads origin "${branch_name}" >/dev/null 2>&1
+  git -C "${INSTALL_DIR}" show-ref --verify --quiet "refs/remotes/origin/${branch_name}"
 }
 
 checkout_remote_branch() {
@@ -720,6 +720,12 @@ checkout_requested_track() {
       "Git checkout failed for PR #${PR_NUMBER}" \
       git -C "${INSTALL_DIR}" checkout --detach FETCH_HEAD
     return
+  fi
+
+  if [[ -n "${requested_ref}" ]]; then
+    run_git_step \
+      "Git fetch failed while refreshing remote refs" \
+      git -C "${INSTALL_DIR}" fetch --all --prune
   fi
 
   if [[ -n "${requested_ref}" && remote_branch_exists "${requested_ref}" ]]; then
@@ -1160,6 +1166,9 @@ COMMIT="$(git -C "${INSTALL_DIR}" rev-parse HEAD)"
 TRACKED_REF="$(requested_track_ref)"
 if [[ -z "${TRACKED_REF}" ]]; then
   TRACKED_REF="$(git -C "${INSTALL_DIR}" rev-parse --abbrev-ref HEAD || echo main)"
+fi
+if [[ "${TRACKED_REF}" == "HEAD" ]]; then
+  TRACKED_REF="main"
 fi
 
 persist_install_state

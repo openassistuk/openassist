@@ -26,6 +26,8 @@ describe("bootstrap argument parsing contract", () => {
     expect(script.includes("checkout_requested_track")).toBe(true);
     expect(script.includes("remote_branch_exists")).toBe(true);
     expect(script.includes("checkout_remote_branch")).toBe(true);
+    expect(script.includes('show-ref --verify --quiet "refs/remotes/origin/${branch_name}"')).toBe(true);
+    expect(script.includes("ls-remote --exit-code --heads origin")).toBe(false);
     expect(script.includes("git clone \"${REPO_URL}\" \"${INSTALL_DIR}\"")).toBe(true);
     expect(script.includes("git clone --branch")).toBe(false);
     expect(script.includes("Cannot use --ref and --pr together.")).toBe(true);
@@ -48,5 +50,7 @@ describe("bootstrap argument parsing contract", () => {
     expect(
       script.includes('openassist setup --install-dir \\"${INSTALL_DIR}\\" --config \\"${CONFIG_PATH}\\" --env-file \\"${ENV_FILE}\\"')
     ).toBe(true);
+    expect(script.includes('if [[ "${TRACKED_REF}" == "HEAD" ]]; then')).toBe(true);
+    expect(script.includes('TRACKED_REF="main"')).toBe(true);
   });
 });

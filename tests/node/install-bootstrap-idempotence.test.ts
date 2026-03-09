@@ -44,6 +44,8 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("checkout_requested_track"));
     assert.ok(script.includes("remote_branch_exists"));
     assert.ok(script.includes("checkout_remote_branch"));
+    assert.ok(script.includes('show-ref --verify --quiet "refs/remotes/origin/${branch_name}"'));
+    assert.ok(!script.includes("ls-remote --exit-code --heads origin"));
     assert.ok(script.includes("refs/pull/${PR_NUMBER}/head"));
     assert.ok(script.includes("git clone \"${REPO_URL}\" \"${INSTALL_DIR}\""));
     assert.ok(!script.includes("git clone --branch"));
@@ -84,5 +86,7 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("This shell may need a new login shell before 'openassist' is on PATH."));
     assert.ok(script.includes("SERVICE_KIND=\"systemd-system\""));
     assert.ok(script.includes("Cannot use --ref and --pr together."));
+    assert.ok(script.includes('if [[ "${TRACKED_REF}" == "HEAD" ]]; then'));
+    assert.ok(script.includes('TRACKED_REF="main"'));
   });
 });

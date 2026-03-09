@@ -27,6 +27,7 @@ This ExecPlan tracks the developer-only branch/PR install-track feature. The goa
 - The original `install.sh` mutual-exclusion logic had a subtle bug: `--ref main --pr <n>` could slip through because `main` was also the default bootstrap ref. The final implementation tracks whether `--ref` was set explicitly.
 - `openassist upgrade --dry-run` initially built the detached-PR plan correctly but failed to pass `currentBranch` into the shared lifecycle report, which hid the explicit-PR blocker until it was fixed and covered by integration tests.
 - The node integration fixture for a clean built source checkout behaves differently locally and in GitHub Actions: local clones preserve the current branch name, while Actions clones originate from a detached checkout. The final assertion accepts either truthful update-track shape instead of hard-coding the branch label.
+- Review follow-up: remote branch existence checks must not treat auth/network failures as “branch missing.” The final branch/PR implementation now refreshes remote refs explicitly in bootstrap and lets CLI upgrade surface real `git fetch` failures instead of swallowing them behind `ls-remote`.
 
 ## Decision Log
 
@@ -44,4 +45,4 @@ This ExecPlan tracks the developer-only branch/PR install-track feature. The goa
 - Outcome: OpenAssist now supports advanced developer installs from branches and PRs without exposing that workflow in the beginner setup hub.
 - Outcome: upgrade behavior is now deterministic for detached PR installs, with explicit guidance instead of hidden fallback.
 - Outcome: docs and tests now describe and enforce the distinction between standard `main` installs, branch installs, PR installs, and explicit reversion back to `main`.
-- Retrospective: the most important implementation catches were that detached PR handling had to be enforced both in the human upgrade plan and in the shared lifecycle report, and that the CLI dry-run integration test needed to tolerate both local branch clones and detached CI clones. The combined integration coverage caught both issues before merge.
+- Retrospective: the most important implementation catches were that detached PR handling had to be enforced both in the human upgrade plan and in the shared lifecycle report, that the CLI dry-run integration test needed to tolerate both local branch clones and detached CI clones, and that branch lookup paths must surface real git transport failures instead of reporting a fake missing branch. The combined integration and contract coverage caught all three before merge.

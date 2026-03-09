@@ -478,7 +478,10 @@ authCommand
         console.log(`Expires: ${response.expiresAt}`);
       }
       console.log(`Authorization URL:\n${response.authorizationUrl}`);
-      if (typeof response.redirectUri === "string" && response.redirectUri.includes("localhost:1455/auth/callback")) {
+      if (
+        typeof response.redirectUri === "string" &&
+        response.redirectUri.startsWith("http://localhost:")
+      ) {
         console.log(`After approval, the browser should redirect to: ${response.redirectUri}`);
         console.log("If that localhost page cannot load, copy the full callback URL from the browser address bar and use it to complete login.");
         console.log(`Manual completion example: openassist auth complete --provider ${providerId} --state ${response.state} --code <code> --base-url ${baseUrl}`);

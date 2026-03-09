@@ -1,6 +1,5 @@
 import type { RuntimeConfig } from "@openassist/core-types";
-
-const CODEX_DEFAULT_OAUTH_REDIRECT_URI = "http://localhost:1455/auth/callback";
+import { defaultCodexOAuthRedirectUri } from "@openassist/providers-codex";
 
 export function resolveDefaultOAuthRedirectUri(
   config: RuntimeConfig,
@@ -8,7 +7,7 @@ export function resolveDefaultOAuthRedirectUri(
 ): string {
   const providerConfig = config.providers.find((item) => item.id === providerId);
   if (providerConfig?.type === "codex") {
-    return CODEX_DEFAULT_OAUTH_REDIRECT_URI;
+    return defaultCodexOAuthRedirectUri();
   }
   return `http://${config.bindAddress}:${config.bindPort}/v1/oauth/${providerId}/callback`;
 }

@@ -188,7 +188,7 @@ Quickstart provider guidance now follows the split-route model:
   - `Medium`
   - `High`
   - `XHigh`
-- leaving the setting on `Default` keeps the field unset so OpenAssist sends no provider-specific reasoning parameter
+  - leaving the setting on `Default` keeps the field unset so OpenAssist sends no provider-specific reasoning parameter
 - Anthropic stays API-key-first for the fastest first reply, with optional account-linking later if you configured it
 - OpenAI-compatible stays the custom API-compatible route
 

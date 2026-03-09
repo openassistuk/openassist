@@ -71,8 +71,11 @@ jobs:
           test -d "$OPENASSIST_SMOKE_INSTALL_DIR/.git"
           test -f "$HOME/.config/openassist/install-state.json"
           test -x "$HOME/.local/bin/openassist"
-          test ! -e "$OPENASSIST_SMOKE_INSTALL_DIR/openassist.toml"
           test ! -e "$OPENASSIST_SMOKE_INSTALL_DIR/.openassist"
+          node -e "const fs=require('node:fs'); const state=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (state.configPath !== process.argv[2] || state.envFilePath !== process.argv[3]) process.exit(1);" \
+            "$HOME/.config/openassist/install-state.json" \
+            "$HOME/.config/openassist/openassist.toml" \
+            "$HOME/.config/openassist/openassistd.env"
 
       - name: Verify non-TTY setup guidance
         shell: bash

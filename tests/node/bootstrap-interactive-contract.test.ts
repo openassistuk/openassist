@@ -66,6 +66,10 @@ describe("bootstrap interactive contract", () => {
     );
     assert.match(
       script,
+      /const setupCommand = `openassist setup --install-dir \$\{quoteArg\(process\.env\.OPENASSIST_INSTALL_DIR\)\} --config \$\{quoteArg\(process\.env\.OPENASSIST_CONFIG_PATH\)\} --env-file \$\{quoteArg\(process\.env\.OPENASSIST_ENV_FILE\)\}`;/
+    );
+    assert.match(
+      script,
       /openassist setup --install-dir \\"\$\{INSTALL_DIR\}\\" --config \\"\$\{CONFIG_PATH\}\\" --env-file \\"\$\{ENV_FILE\}\\"/
     );
     assert.match(script, /Service install and health checks were skipped/);

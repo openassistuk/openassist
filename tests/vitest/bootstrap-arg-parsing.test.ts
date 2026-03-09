@@ -32,6 +32,11 @@ describe("bootstrap argument parsing contract", () => {
     expect(script.includes('pnpm --dir "${INSTALL_DIR}" --filter @openassist/openassist-cli start -- init --config "${CONFIG_PATH}"')).toBe(false);
     expect(script.includes("Guided onboarding was not run because bootstrap stayed non-interactive. Next step: ${setupCommand}")).toBe(true);
     expect(
+      script.includes(
+        "const setupCommand = `openassist setup --install-dir ${quoteArg(process.env.OPENASSIST_INSTALL_DIR)} --config ${quoteArg(process.env.OPENASSIST_CONFIG_PATH)} --env-file ${quoteArg(process.env.OPENASSIST_ENV_FILE)}`;"
+      )
+    ).toBe(true);
+    expect(
       script.includes('openassist setup --install-dir \\"${INSTALL_DIR}\\" --config \\"${CONFIG_PATH}\\" --env-file \\"${ENV_FILE}\\"')
     ).toBe(true);
   });

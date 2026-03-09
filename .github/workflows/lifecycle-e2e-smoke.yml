@@ -39,15 +39,17 @@ jobs:
 
       - name: Prepare temp HOME and install paths
         shell: bash
+        env:
+          OPENASSIST_SMOKE_HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
-          echo "OPENASSIST_SMOKE_HOME=$RUNNER_TEMP/openassist-home" >> "$GITHUB_ENV"
-          echo "OPENASSIST_SMOKE_INSTALL_DIR=$RUNNER_TEMP/openassist-install" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/openassist-home" "$RUNNER_TEMP/openassist-install"
+          mkdir -p "$OPENASSIST_SMOKE_HOME" "$OPENASSIST_SMOKE_INSTALL_DIR"
 
       - name: Bootstrap non-interactive install
         shell: bash
         env:
-          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+          HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           bash scripts/install/bootstrap.sh \
             --non-interactive \
@@ -63,18 +65,23 @@ jobs:
       - name: Verify home-state defaults and wrapper install
         shell: bash
         env:
-          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+          HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           test -d "$OPENASSIST_SMOKE_INSTALL_DIR/.git"
           test -f "$HOME/.config/openassist/install-state.json"
           test -x "$HOME/.local/bin/openassist"
-          test ! -e "$OPENASSIST_SMOKE_INSTALL_DIR/openassist.toml"
           test ! -e "$OPENASSIST_SMOKE_INSTALL_DIR/.openassist"
+          node -e "const fs=require('node:fs'); const state=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (state.configPath !== process.argv[2] || state.envFilePath !== process.argv[3]) process.exit(1);" \
+            "$HOME/.config/openassist/install-state.json" \
+            "$HOME/.config/openassist/openassist.toml" \
+            "$HOME/.config/openassist/openassistd.env"
 
       - name: Verify non-TTY setup guidance
         shell: bash
         env:
-          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+          HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           set +e
           "$HOME/.local/bin/openassist" setup \
@@ -92,29 +99,34 @@ jobs:
       - name: Verify doctor and upgrade dry-run lifecycle output
         shell: bash
         env:
-          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+          HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           set +e
-          "$HOME/.local/bin/openassist" doctor >"$RUNNER_TEMP/doctor.txt" 2>&1
+          "$HOME/.local/bin/openassist" doctor >"$RUNNER_TEMP/doctor.txt" 2>"$RUNNER_TEMP/doctor.stderr"
           doctor_status=$?
-          "$HOME/.local/bin/openassist" doctor --json >"$RUNNER_TEMP/doctor.json" 2>&1
+          "$HOME/.local/bin/openassist" doctor --json >"$RUNNER_TEMP/doctor.json" 2>"$RUNNER_TEMP/doctor-json.stderr"
           doctor_json_status=$?
-          "$HOME/.local/bin/openassist" upgrade --dry-run --install-dir "$OPENASSIST_SMOKE_INSTALL_DIR" >"$RUNNER_TEMP/upgrade.txt" 2>&1
+          "$HOME/.local/bin/openassist" upgrade --dry-run --install-dir "$OPENASSIST_SMOKE_INSTALL_DIR" >"$RUNNER_TEMP/upgrade.txt" 2>"$RUNNER_TEMP/upgrade.stderr"
           upgrade_status=$?
           set -e
 
+          printf 'doctor_status=%s\ndoctor_json_status=%s\nupgrade_status=%s\n' "$doctor_status" "$doctor_json_status" "$upgrade_status"
           test "$doctor_status" -eq 1
           test "$doctor_json_status" -eq 1
-          test "$upgrade_status" -eq 1
+          test "$upgrade_status" -eq 0
           grep -F "Ready now" "$RUNNER_TEMP/doctor.txt"
           grep -F "Needs action" "$RUNNER_TEMP/doctor.txt"
           grep -F "Next command" "$RUNNER_TEMP/doctor.txt"
-          grep -F '"version": 2' "$RUNNER_TEMP/doctor.json"
+          node -e "const fs=require('node:fs'); const report=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (report.version !== 2 || report.summary?.firstReplyReadiness !== 'needs-action' || report.summary?.upgradeReadiness !== 'safe-to-continue') process.exit(1);" "$RUNNER_TEMP/doctor.json"
           grep -F "Ready now" "$RUNNER_TEMP/upgrade.txt"
           grep -F "Needs action" "$RUNNER_TEMP/upgrade.txt"
           grep -F "Next command" "$RUNNER_TEMP/upgrade.txt"
+          grep -F "safe to continue" "$RUNNER_TEMP/upgrade.txt"
 
       - name: Verify repo stays clean from home-state operator state
         shell: bash
+        env:
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           test -z "$(git -C "$OPENASSIST_SMOKE_INSTALL_DIR" status --porcelain)"

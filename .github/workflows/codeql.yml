@@ -25,10 +25,27 @@ jobs:
     name: CodeQL preflight
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.mode.outputs.should_run }}
     steps:
-      - name: Explain CodeQL mode
+      - name: Determine CodeQL mode
+        id: mode
+        env:
+          OPENASSIST_ENABLE_PRIVATE_CODEQL: ${{ vars.OPENASSIST_ENABLE_PRIVATE_CODEQL }}
+          OPENASSIST_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
         run: |
-          if [ "${{ github.event.repository.private }}" = "true" ] && [ "${{ vars.OPENASSIST_ENABLE_PRIVATE_CODEQL }}" != "true" ]; then
+          if [ "$OPENASSIST_REPOSITORY_PRIVATE" = "true" ] && [ "$OPENASSIST_ENABLE_PRIVATE_CODEQL" != "true" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Explain CodeQL mode
+        env:
+          OPENASSIST_ENABLE_PRIVATE_CODEQL: ${{ vars.OPENASSIST_ENABLE_PRIVATE_CODEQL }}
+          OPENASSIST_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          if [ "$OPENASSIST_REPOSITORY_PRIVATE" = "true" ] && [ "$OPENASSIST_ENABLE_PRIVATE_CODEQL" != "true" ]; then
             echo "CodeQL is skipped for private repositories unless OPENASSIST_ENABLE_PRIVATE_CODEQL=true."
             echo "Set OPENASSIST_ENABLE_PRIVATE_CODEQL=true to force private-repo runs."
           else
@@ -38,7 +55,7 @@ jobs:
   analyze:
     name: analyze (javascript-typescript)
     needs: preflight
-    if: ${{ github.event.repository.private == false || vars.OPENASSIST_ENABLE_PRIVATE_CODEQL == 'true' }}
+    if: ${{ needs.preflight.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:

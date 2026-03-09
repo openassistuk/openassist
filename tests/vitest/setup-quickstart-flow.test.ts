@@ -79,6 +79,7 @@ function minimalTelegramAnswers(bindPort: number, extra: string[] = []): string[
     "openai-main",
     "gpt-5.4",
     "",
+    "default",
     "openai-key",
     "telegram",
     "telegram-main",
@@ -200,6 +201,7 @@ describe("setup quickstart flow", () => {
       "openai-main",
       "gpt-5.4",
       "",
+      "default",
       "openai-key",
       "telegram",
       "telegram-main",
@@ -230,6 +232,9 @@ describe("setup quickstart flow", () => {
     expect(state.config.runtime.bindPort).toBe(bindPort);
     expect(state.config.runtime.assistant.name).toBe("OpenAssist");
     expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
+    expect(
+      state.config.runtime.providers.find((provider) => provider.id === "openai-main")
+    ).not.toHaveProperty("reasoningEffort");
   });
 
   it("creates a backup when config already exists", async () => {
@@ -297,6 +302,9 @@ describe("setup quickstart flow", () => {
     expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
     expect(result.summary.some((line) => line.includes("Quickstart saved"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Assistant identity: OpenAssist"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Primary provider: openai-main (OpenAI (API key))"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Provider model: gpt-5.4"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Provider tuning: Reasoning effort: Default (recommended)"))).toBe(true);
     expect(result.summary.some((line) => line.includes("First reply checklist:"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Primary channel: telegram-main"))).toBe(true);
     expect(result.summary.some((line) => line.includes("PATH fallback:"))).toBe(true);
@@ -326,6 +334,7 @@ describe("setup quickstart flow", () => {
       "openai-main",
       "gpt-5.4",
       "",
+      "high",
       "openai-key",
       "telegram",
       "telegram-main",
@@ -357,6 +366,11 @@ describe("setup quickstart flow", () => {
     expect(result.validationErrors).toBe(0);
     expect(state.config.runtime.bindPort).toBe(bindPort);
     expect(state.config.runtime.time.defaultTimezone).toBe("Europe/London");
+    expect(
+      state.config.runtime.providers.find((provider) => provider.id === "openai-main")
+    ).toMatchObject({
+      reasoningEffort: "high"
+    });
     expect(state.config.runtime.channels[0]?.settings.allowedChatIds).toEqual([
       "123",
       "-100999888777"
@@ -385,6 +399,7 @@ describe("setup quickstart flow", () => {
       "openai-main",
       "gpt-5.4",
       "",
+      "default",
       longApiKey,
       "telegram",
       "telegram-main",
@@ -516,6 +531,7 @@ describe("setup quickstart flow", () => {
       "openai-main",
       "gpt-5.4",
       "",
+      "default",
       "openai-key",
       "telegram",
       "telegram-main",
@@ -569,6 +585,7 @@ describe("setup quickstart flow", () => {
       "openai-main",
       "gpt-5.4",
       "",
+      "default",
       "openai-key",
       "telegram",
       "telegram-main",

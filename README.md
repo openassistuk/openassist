@@ -171,6 +171,12 @@ Quickstart provider guidance now follows the split-route model:
 - OpenAI stays the API-key route
 - Codex stays the OpenAI account-login route and completes linking during onboarding with a printed authorization URL plus pasted callback URL or code flow
 - On headless hosts, OpenAssist pauses after printing the Codex authorization URL so you can copy it into another browser before continuing
+- OpenAI and Codex quickstart both expose a beginner-facing reasoning effort choice:
+  - `Default (recommended)`
+  - `Low`
+  - `Medium`
+  - `High`
+  - leaving the setting on `Default` keeps the field unset so OpenAssist sends no provider-specific reasoning parameter
 - Anthropic stays API-key-first for the fastest first reply, with optional account-linking later if you configured it
 - OpenAI-compatible stays the custom API-compatible route
 
@@ -208,6 +214,12 @@ openassist channel status
 - `Ready now`
 - `Needs action`
 - `Next command`
+
+Doctor also surfaces the current primary provider state directly in both text and JSON output:
+
+- provider route
+- default model
+- reasoning effort or thinking budget state
 
 Use `openassist doctor --json` when you want the machine-readable grouped report. The JSON report is now `version: 2` and keeps the grouped sections while adding per-item `stage` metadata.
 
@@ -320,13 +332,15 @@ Wizard owns the advanced surfaces:
 - scheduling and time
 - advanced tools and security
 
-Wizard is also where advanced provider-native reasoning controls live:
+Wizard is still the full provider-tuning surface:
 
 - OpenAI `reasoningEffort` for supported GPT-5/codex/o-series Responses API model families
-- Codex route has no separate public reasoning control in this release
+- Codex `reasoningEffort` for supported Codex Responses-model families
 - Anthropic `thinkingBudgetTokens` for supported thinking-capable Claude families
 - safe default is unset, which means OpenAssist sends no provider-specific reasoning parameter
 - OpenAI-compatible providers stay unchanged in this release
+
+Quickstart now exposes the same beginner-facing reasoning-effort choice for the two OpenAI routes, while wizard remains the place for full provider editing and Anthropic thinking-budget changes.
 
 Wizard is also where advanced provider auth and migration guidance lives:
 

@@ -125,12 +125,13 @@ Current image-input rule:
 Provider-native reasoning controls:
 
 - OpenAI providers may optionally set `reasoningEffort = "low" | "medium" | "high"` in config.
-- Codex providers do not expose a separate public reasoning control in this release.
+- Codex providers may optionally set `reasoningEffort = "low" | "medium" | "high"` in config.
 - Anthropic providers may optionally set `thinkingBudgetTokens = <integer>` in config.
 - OpenAI-compatible providers do not expose a public reasoning control in this release.
 - Safe default is unset: when the field is omitted, adapters do not send any reasoning or thinking parameter.
 - Adapters must omit unsupported reasoning fields instead of risking provider API errors:
   - OpenAI reasoning effort is sent only on supported Responses API model families.
+  - Codex reasoning effort is sent only on supported Codex Responses-model families.
   - Anthropic thinking budget is sent only on supported thinking-capable Claude families.
 - Setup validation may warn when a configured default model does not match the built-in allow-list, but runtime still stays safe by omitting the field.
 
@@ -148,6 +149,7 @@ Codex adapter behavior:
 - The current public route keeps one linked account per provider instance.
 - The Codex route is account-login only in operator-facing setup and docs; it is not the generic OpenAI API-key route.
 - The Codex route validates `gpt-5.4` and Codex-family models only in this release.
+- The Codex route now exposes the same public `reasoningEffort` control shape as the OpenAI API-key route, but it still omits the field automatically when the model is outside the built-in supported set.
 - CLI and setup auth helpers must treat browser launch as best-effort only; missing local browser launchers on headless hosts must leave the printed authorization URL usable instead of crashing the account-link flow.
 
 Anthropic thinking replay behavior:

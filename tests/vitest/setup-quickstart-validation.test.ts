@@ -368,6 +368,36 @@ describe("setup quickstart validation", () => {
     );
   });
 
+  it("warns when Codex reasoning effort is configured on an unsupported model family", async () => {
+    const root = tempDir("openassist-quickstart-validation-codex-reasoning-warning-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.runtime.defaultProviderId = "codex-main";
+    config.runtime.providers = [
+      {
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-4o-mini",
+        reasoningEffort: "high"
+      }
+    ];
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {},
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(
+      result.warnings.some((item) => item.code === "provider.codex_reasoning_model_unsupported")
+    ).toBe(true);
+    expect(result.warnings.some((item) => item.code === "provider.codex_model_unsupported")).toBe(true);
+  });
+
   it("reports schema-invalid secret wiring before deeper readiness checks", async () => {
     const root = tempDir("openassist-quickstart-validation-schema-invalid-");
     const config = createDefaultConfigObject();

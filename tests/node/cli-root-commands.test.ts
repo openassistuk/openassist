@@ -77,7 +77,14 @@ describe("cli root command coverage", () => {
     const doctorBinDir = path.join(root, "bin");
     fs.mkdirSync(path.dirname(doctorInstallStatePath), { recursive: true });
     fs.mkdirSync(doctorBinDir, { recursive: true });
-    fs.writeFileSync(doctorConfigPath, "runtime.bindPort = 3344\n", "utf8");
+    const doctorConfig = createDefaultConfigObject();
+    doctorConfig.runtime.providers[0] = {
+      id: "openai-main",
+      type: "openai",
+      defaultModel: "gpt-5.4",
+      reasoningEffort: "high"
+    };
+    saveConfigObject(doctorConfigPath, doctorConfig);
     fs.writeFileSync(doctorEnvPath, "# doctor test env\n", "utf8");
     fs.writeFileSync(
       doctorInstallStatePath,
@@ -127,6 +134,9 @@ describe("cli root command coverage", () => {
     assert.match(doctor.stdout, /Next command/);
     assert.match(doctor.stdout, /Install record/);
     assert.match(doctor.stdout, /Update track/);
+    assert.match(doctor.stdout, /Primary provider/);
+    assert.match(doctor.stdout, /Provider model/);
+    assert.match(doctor.stdout, /Provider tuning/);
     assert.match(doctor.stdout, /openassist (upgrade --dry-run|doctor|setup|setup wizard)/);
 
     const doctorJson = await runCommand(
@@ -148,10 +158,15 @@ describe("cli root command coverage", () => {
     assert.ok(doctorJson.code === 0 || doctorJson.code === 1, doctorJson.stderr || doctorJson.stdout);
     const parsedDoctorJson = JSON.parse(doctorJson.stdout) as {
       version: number;
+      context: Record<string, unknown>;
       sections: Record<string, unknown>;
       recommendedNextCommand: { command: string };
     };
     assert.equal(parsedDoctorJson.version, 2);
+    assert.equal(parsedDoctorJson.context.primaryProviderId, "openai-main");
+    assert.equal(parsedDoctorJson.context.primaryProviderRoute, "OpenAI (API key)");
+    assert.equal(parsedDoctorJson.context.primaryProviderModel, "gpt-5.4");
+    assert.equal(parsedDoctorJson.context.primaryProviderTuning, "Reasoning effort: high");
     assert.equal(typeof parsedDoctorJson.sections.readyNow, "object");
     assert.equal(typeof parsedDoctorJson.sections.needsActionBeforeUpgrade, "object");
     assert.equal(typeof parsedDoctorJson.recommendedNextCommand.command, "string");

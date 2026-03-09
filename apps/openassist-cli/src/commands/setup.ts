@@ -10,6 +10,7 @@ import { loadSetupQuickstartState, runSetupQuickstart } from "../lib/setup-quick
 import { autoMigrateLegacyDefaultLayoutIfNeeded } from "../lib/operator-layout.js";
 import { runSetupWizardPostSaveChecks } from "../lib/setup-post-save.js";
 import { runSetupHub } from "../lib/setup-hub.js";
+import { describePrimaryProvider } from "../lib/provider-display.js";
 import {
   defaultEnvFilePath,
   defaultInstallDir,
@@ -109,6 +110,12 @@ export function registerSetupCommands(program: Command): void {
         const readyNow = [`- Config saved: ${configPath}`];
         if (result.backupPath) {
           readyNow.push(`- Backup created: ${result.backupPath}`);
+        }
+        const primaryProvider = describePrimaryProvider(state.config);
+        if (primaryProvider) {
+          readyNow.push(`- Primary provider: ${primaryProvider.id} (${primaryProvider.routeLabel})`);
+          readyNow.push(`- Provider model: ${primaryProvider.model}`);
+          readyNow.push(`- Provider tuning: ${primaryProvider.tuningLabel}`);
         }
 
         if (Boolean(opts.skipPostChecks)) {

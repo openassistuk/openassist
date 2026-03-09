@@ -30,8 +30,15 @@ import {
   serviceHealthRecoveryLines,
   type LifecycleRepairBucketId
 } from "./lifecycle-readiness.js";
+import {
+  providerRouteLabel,
+} from "./provider-display.js";
 import { buildSetupSummary } from "./setup-summary.js";
-import { type PromptAdapter, createInquirerPromptAdapter } from "./setup-wizard.js";
+import {
+  type PromptAdapter,
+  createInquirerPromptAdapter,
+  promptReasoningEffort
+} from "./setup-wizard.js";
 import { validateSetupReadiness } from "./setup-validation.js";
 import {
   isCountryCityTimezone,
@@ -150,13 +157,7 @@ function providerSupportsAccountLink(type: ProviderType): boolean {
 }
 
 function providerLabel(type: ProviderType): string {
-  if (type === "codex") {
-    return "Codex (OpenAI account login)";
-  }
-  if (type === "openai-compatible") {
-    return "OpenAI-compatible";
-  }
-  return type === "openai" ? "OpenAI (API key)" : "Anthropic";
+  return providerRouteLabel(type);
 }
 
 function parseOAuthCompletionInput(
@@ -401,12 +402,19 @@ async function promptProvider(
     existing?.defaultModel ?? suggested.model
   );
   const baseUrlInput = await prompts.input("Base URL (blank for default)", existing?.baseUrl ?? suggested.baseUrl ?? "");
+  const reasoningEffort =
+    type === "openai"
+      ? await promptReasoningEffort(prompts, "OpenAI", existing?.type === "openai" ? existing.reasoningEffort : undefined)
+      : type === "codex"
+        ? await promptReasoningEffort(prompts, "Codex", existing?.type === "codex" ? existing.reasoningEffort : undefined)
+        : undefined;
 
   return {
     id: providerId,
     type,
     defaultModel,
     ...(baseUrlInput.trim().length > 0 ? { baseUrl: baseUrlInput.trim() } : {}),
+    ...((type === "openai" || type === "codex") && reasoningEffort ? { reasoningEffort } : {}),
     ...(existing && "oauth" in existing && existing.oauth ? { oauth: existing.oauth } : {}),
     ...(existing?.metadata ? { metadata: existing.metadata } : {})
   };
@@ -460,6 +468,7 @@ async function configureProviders(state: SetupQuickstartState, prompts: PromptAd
       "Provider quickstart guidance:",
       "- OpenAI uses API key auth on the standard OpenAI route.",
       "- Codex uses OpenAI account login on the separate Codex route.",
+      "- OpenAI and Codex can both set reasoning effort here; leave it on Default if you are not sure.",
       "- Anthropic can still use API key auth and may support account linking when configured.",
       "- Add extra providers later with: openassist setup wizard"
     ]
@@ -785,6 +794,13 @@ async function runQuickstartReviewStep(
 
     console.log(`First reply destination: ${reviewReport.context.firstReplyDestination}`);
     console.log(`Access mode: ${reviewReport.context.accessMode}`);
+    if (reviewReport.context.primaryProviderId) {
+      console.log(
+        `Primary provider: ${reviewReport.context.primaryProviderId} (${reviewReport.context.primaryProviderRoute})`
+      );
+      console.log(`Provider model: ${reviewReport.context.primaryProviderModel}`);
+      console.log(`Provider tuning: ${reviewReport.context.primaryProviderTuning}`);
+    }
     console.log(
       `Service state after save: ${
         options.skipService

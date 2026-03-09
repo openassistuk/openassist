@@ -9,6 +9,12 @@ import {
 
 function createInput(overrides: Partial<LifecycleReportInput> = {}): LifecycleReportInput {
   const config = createDefaultConfigObject();
+  config.runtime.providers[0] = {
+    id: "openai-main",
+    type: "openai",
+    defaultModel: "gpt-5.4",
+    reasoningEffort: "medium"
+  };
   config.runtime.channels.push({
     id: "telegram-main",
     type: "telegram",
@@ -146,6 +152,10 @@ describe("lifecycle readiness", () => {
     expect(report.version).toBe(2);
     expect(report.summary.firstReplyReadiness).toBe("ready");
     expect(report.summary.upgradeReadiness).toBe("safe-to-continue");
+    expect(report.context.primaryProviderId).toBe("openai-main");
+    expect(report.context.primaryProviderRoute).toBe("OpenAI (API key)");
+    expect(report.context.primaryProviderModel).toBe("gpt-5.4");
+    expect(report.context.primaryProviderTuning).toBe("Reasoning effort: medium");
     expect(report.sections.readyNow.length).toBeGreaterThan(0);
     expect(report.sections.needsActionBeforeFirstReply).toEqual([]);
     expect(
@@ -159,6 +169,8 @@ describe("lifecycle readiness", () => {
     expect(lines).toContain("Needs action");
     expect(lines).toContain("Next command");
     expect(lines.some((line) => line.includes("Install location"))).toBe(true);
+    expect(lines.some((line) => line.includes("Primary provider"))).toBe(true);
+    expect(lines.some((line) => line.includes("Provider tuning"))).toBe(true);
     expect(lines.some((line) => line.includes("Managed growth assets"))).toBe(true);
     expect(lines.some((line) => line.includes("openassist upgrade --dry-run"))).toBe(true);
   });

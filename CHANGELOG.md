@@ -31,10 +31,13 @@ The format follows Keep a Changelog conventions and this project currently track
   - lifecycle reporting is now `version: 2` in `openassist doctor --json`, preserving grouped sections while adding per-item `stage` metadata for shared rendering
 
 - Provider-native reasoning controls:
-  - `openassist setup wizard` now exposes OpenAI `reasoningEffort` (`low`, `medium`, `high`, or unset) and Anthropic `thinkingBudgetTokens` (blank to disable)
+  - `openassist setup quickstart` now exposes beginner-facing `reasoningEffort` choices for both OpenAI and Codex providers (`Default`, `Low`, `Medium`, `High`)
+  - `openassist setup wizard` now exposes OpenAI `reasoningEffort`, Codex `reasoningEffort`, and Anthropic `thinkingBudgetTokens` (blank to disable)
   - built-in OpenAI adapters now send reasoning effort only on supported Responses API model families
+  - built-in Codex adapters now send reasoning effort only on supported Codex Responses-model families
   - built-in Anthropic adapters now send thinking budgets only on supported thinking-capable Claude families
   - Anthropic tool turns now preserve provider replay metadata so thinking-enabled follow-up calls can reconstruct provider-native content blocks without leaking internal reasoning to channels
+  - quickstart summaries, wizard summaries, and `openassist doctor` now surface the active primary provider route, model, and reasoning/thinking state
 
 - General-purpose assistant identity and controlled growth:
   - `/start` and `/help` are now runtime-owned OpenAssist welcome surfaces that present OpenAssist as the broader assistant for the machine, not only a repo-maintenance bot

@@ -47,4 +47,13 @@ jobs:
         run: |
           pnpm --filter @openassist/openassist-cli exec node dist/index.js service install --dry-run --install-dir "$PWD" --config "$PWD/openassist.toml"
           pnpm --filter @openassist/openassist-cli exec node dist/index.js service status || true
-          pnpm --filter @openassist/openassist-cli exec node dist/index.js upgrade --dry-run --install-dir "$PWD"
+          upgrade_stdout="$RUNNER_TEMP/service-smoke-upgrade.stdout"
+          upgrade_stderr="$RUNNER_TEMP/service-smoke-upgrade.stderr"
+          set +e
+          pnpm --filter @openassist/openassist-cli exec node dist/index.js upgrade --dry-run --install-dir "$PWD" >"$upgrade_stdout" 2>"$upgrade_stderr"
+          upgrade_rc=$?
+          set -e
+
+          test "$upgrade_rc" -eq 1
+          grep -F "Finish setup first:" "$upgrade_stdout"
+          grep -F "openassist setup" "$upgrade_stdout"

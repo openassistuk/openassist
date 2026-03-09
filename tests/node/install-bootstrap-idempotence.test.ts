@@ -63,6 +63,11 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("Approve skipped WhatsApp/media build scripts only before using WhatsApp image or document features."));
     assert.ok(script.includes("Guided onboarding was not run because bootstrap stayed non-interactive. Next step: ${setupCommand}"));
     assert.ok(
+      script.includes(
+        "const setupCommand = `openassist setup --install-dir ${quoteArg(process.env.OPENASSIST_INSTALL_DIR)} --config ${quoteArg(process.env.OPENASSIST_CONFIG_PATH)} --env-file ${quoteArg(process.env.OPENASSIST_ENV_FILE)}`;"
+      )
+    );
+    assert.ok(
       script.includes('openassist setup --install-dir \\"${INSTALL_DIR}\\" --config \\"${CONFIG_PATH}\\" --env-file \\"${ENV_FILE}\\"')
     );
     assert.ok(script.includes("Service install and health checks were skipped."));

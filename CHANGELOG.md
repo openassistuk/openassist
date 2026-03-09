@@ -62,6 +62,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Lifecycle smoke and bootstrap handoff follow-up:
+  - non-interactive bootstrap summaries now print the setup handoff command in normal operator form (`openassist setup --install-dir ...`) instead of shell-escaped subcommand text
+  - the supplemental lifecycle E2E smoke workflow now uses static workflow env declarations for its temporary HOME/install paths so local editor/schema validation stays aligned with the actual GitHub Actions runtime behavior
+
 - Setup-hub and Codex account-linking UX follow-up:
   - bare `openassist setup` now uses a simple numbered menu instead of the re-rendering select UI that could duplicate or obscure the root lifecycle choices on some terminals
   - Codex quickstart account-linking now pauses after printing the authorization URL so headless VPS installs can copy it before continuing

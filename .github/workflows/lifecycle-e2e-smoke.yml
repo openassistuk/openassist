@@ -39,15 +39,17 @@ jobs:
 
       - name: Prepare temp HOME and install paths
         shell: bash
+        env:
+          OPENASSIST_SMOKE_HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
-          echo "OPENASSIST_SMOKE_HOME=$RUNNER_TEMP/openassist-home" >> "$GITHUB_ENV"
-          echo "OPENASSIST_SMOKE_INSTALL_DIR=$RUNNER_TEMP/openassist-install" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/openassist-home" "$RUNNER_TEMP/openassist-install"
+          mkdir -p "$OPENASSIST_SMOKE_HOME" "$OPENASSIST_SMOKE_INSTALL_DIR"
 
       - name: Bootstrap non-interactive install
         shell: bash
         env:
-          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+          HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           bash scripts/install/bootstrap.sh \
             --non-interactive \
@@ -63,7 +65,8 @@ jobs:
       - name: Verify home-state defaults and wrapper install
         shell: bash
         env:
-          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+          HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           test -d "$OPENASSIST_SMOKE_INSTALL_DIR/.git"
           test -f "$HOME/.config/openassist/install-state.json"
@@ -74,7 +77,8 @@ jobs:
       - name: Verify non-TTY setup guidance
         shell: bash
         env:
-          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+          HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           set +e
           "$HOME/.local/bin/openassist" setup \
@@ -92,7 +96,8 @@ jobs:
       - name: Verify doctor and upgrade dry-run lifecycle output
         shell: bash
         env:
-          HOME: ${{ env.OPENASSIST_SMOKE_HOME }}
+          HOME: ${{ runner.temp }}/openassist-home
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           set +e
           "$HOME/.local/bin/openassist" doctor >"$RUNNER_TEMP/doctor.txt" 2>&1
@@ -116,5 +121,7 @@ jobs:
 
       - name: Verify repo stays clean from home-state operator state
         shell: bash
+        env:
+          OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           test -z "$(git -C "$OPENASSIST_SMOKE_INSTALL_DIR" status --porcelain)"

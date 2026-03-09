@@ -241,16 +241,7 @@ if (process.env.OPENASSIST_ALLOW_DIRTY === "1") {
 
 const localWrapper = process.env.OPENASSIST_LOCAL_WRAPPER || "openassist";
 const quoteArg = (value) => `"${String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-const setupCommand = [
-  "openassist",
-  "setup",
-  "--install-dir",
-  process.env.OPENASSIST_INSTALL_DIR,
-  "--config",
-  process.env.OPENASSIST_CONFIG_PATH,
-  "--env-file",
-  process.env.OPENASSIST_ENV_FILE
-].map((part, index) => (index === 0 ? part : quoteArg(part))).join(" ");
+const setupCommand = `openassist setup --install-dir ${quoteArg(process.env.OPENASSIST_INSTALL_DIR)} --config ${quoteArg(process.env.OPENASSIST_CONFIG_PATH)} --env-file ${quoteArg(process.env.OPENASSIST_ENV_FILE)}`;
 const wrapperReady = readyItems.some((item) => item.id === "wrappers.path");
 if (!wrapperReady) {
   needs.unshift(`  - This shell may need a new login shell before 'openassist' is on PATH. Fallback: ${localWrapper}`);

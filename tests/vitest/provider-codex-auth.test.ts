@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import http from "node:http";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CodexProviderAdapter } from "../../packages/providers-codex/src/index.js";
 
@@ -176,5 +180,224 @@ describe("codex provider auth flow", () => {
     ).resolves.toMatchObject({
       valid: false
     });
+  });
+
+  it("sends reasoning effort on supported Codex Responses-model requests", async () => {
+    let capturedPayload: Record<string, unknown> | undefined;
+    const server = http.createServer(async (req, res) => {
+      if (req.method === "POST" && req.url === "/v1/responses") {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        capturedPayload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            id: "resp-1",
+            status: "completed",
+            output_text: "ok",
+            output: [],
+            usage: {
+              input_tokens: 10,
+              output_tokens: 5,
+              total_tokens: 15
+            }
+          })
+        );
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("failed to bind test server");
+    }
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4",
+      baseUrl: `http://127.0.0.1:${address.port}/v1`,
+      reasoningEffort: "high"
+    });
+
+    await adapter.chat(
+      {
+        sessionId: "telegram:c1",
+        model: "gpt-5.4",
+        messages: [{ role: "user", content: "hello" }],
+        tools: [],
+        metadata: {}
+      },
+      {
+        providerId: "codex-main",
+        accessToken: "openai-api-key"
+      }
+    );
+
+    expect(capturedPayload?.reasoning).toEqual({ effort: "high" });
+    server.close();
+  });
+
+  it("omits reasoning effort when Codex reasoning is unset", async () => {
+    let capturedPayload: Record<string, unknown> | undefined;
+    const server = http.createServer(async (req, res) => {
+      if (req.method === "POST" && req.url === "/v1/responses") {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        capturedPayload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            id: "resp-2",
+            status: "completed",
+            output_text: "ok",
+            output: [],
+            usage: {
+              input_tokens: 10,
+              output_tokens: 5,
+              total_tokens: 15
+            }
+          })
+        );
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("failed to bind test server");
+    }
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4",
+      baseUrl: `http://127.0.0.1:${address.port}/v1`
+    });
+
+    await adapter.chat(
+      {
+        sessionId: "telegram:c1",
+        model: "gpt-5.4",
+        messages: [{ role: "user", content: "hello" }],
+        tools: [],
+        metadata: {}
+      },
+      {
+        providerId: "codex-main",
+        accessToken: "openai-api-key"
+      }
+    );
+
+    expect("reasoning" in (capturedPayload ?? {})).toBe(false);
+    server.close();
+  });
+
+  it("omits reasoning effort on unsupported Codex models", async () => {
+    let capturedPayload: Record<string, unknown> | undefined;
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "openassist-codex-reasoning-"));
+    const imagePath = path.join(tempRoot, "sample.png");
+    fs.writeFileSync(
+      imagePath,
+      Buffer.from(
+        "89504e470d0a1a0a0000000d4948445200000001000000010802000000907724de0000000a49444154789c6360000002000154a24f5d0000000049454e44ae426082",
+        "hex"
+      )
+    );
+    const server = http.createServer(async (req, res) => {
+      if (req.method === "POST" && req.url === "/v1/responses") {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        capturedPayload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            id: "resp-3",
+            status: "completed",
+            output_text: "ok",
+            output: [],
+            usage: {
+              input_tokens: 10,
+              output_tokens: 5,
+              total_tokens: 15
+            }
+          })
+        );
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("failed to bind test server");
+    }
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-4o-mini",
+      baseUrl: `http://127.0.0.1:${address.port}/v1`,
+      reasoningEffort: "medium"
+    });
+
+    await adapter.chat(
+      {
+        sessionId: "telegram:c1",
+        model: "gpt-5.4",
+        messages: [{ role: "user", content: "hello" }],
+        tools: [],
+        metadata: {}
+      },
+      {
+        providerId: "codex-main",
+        accessToken: "openai-api-key"
+      }
+    );
+
+    expect(capturedPayload?.reasoning).toEqual({ effort: "medium" });
+
+    await adapter.chat(
+      {
+        sessionId: "telegram:c1",
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: "hello",
+            attachments: [
+              {
+                id: "image-1",
+                kind: "image",
+                name: "sample.png",
+                mimeType: "image/png",
+                localPath: imagePath
+              }
+            ]
+          }
+        ],
+        tools: [],
+        metadata: {}
+      },
+      {
+        providerId: "codex-main",
+        accessToken: "openai-api-key"
+      }
+    );
+
+    expect("reasoning" in (capturedPayload ?? {})).toBe(false);
+    server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   });
 });

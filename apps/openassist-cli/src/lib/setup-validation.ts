@@ -251,6 +251,19 @@ function validateProviderReasoningRequirements(
       continue;
     }
 
+    if (
+      provider.type === "codex" &&
+      provider.reasoningEffort &&
+      !supportsOpenAIReasoningEffort(provider.defaultModel)
+    ) {
+      pushIssue(
+        warnings,
+        "provider.codex_reasoning_model_unsupported",
+        `Provider '${provider.id}' sets Codex reasoning effort '${provider.reasoningEffort}', but model '${provider.defaultModel}' is not on the built-in reasoning-effort allow-list.`,
+        "Use gpt-5.4 or a Codex-family model for Codex reasoning effort, or leave the setting unset so OpenAssist can rely on provider defaults."
+      );
+    }
+
     if (provider.type === "codex" && !supportsCodexRouteModel(provider.defaultModel)) {
       pushIssue(
         warnings,

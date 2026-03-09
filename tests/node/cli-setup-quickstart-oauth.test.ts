@@ -124,6 +124,7 @@ function validCodexQuickstartAnswers(bindPort: number, extra: string[] = []): st
     "codex-main",
     "gpt-5.4",
     "",
+    "default",
     "telegram",
     "telegram-main",
     "telegram-token",

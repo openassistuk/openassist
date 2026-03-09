@@ -56,6 +56,8 @@ defaultModel = "gpt-5.4"
 # id = "codex-main"
 # type = "codex"
 # defaultModel = "gpt-5.4"
+# Optional for supported Codex Responses-model families:
+# reasoningEffort = "medium"
 # Link later with:
 # openassist auth start --provider codex-main --account default --open-browser
 

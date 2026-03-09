@@ -4,7 +4,6 @@ import type {
   ApiKeyAuth,
   ChatRequest,
   ChatResponse,
-  OpenAIReasoningEffort,
   OAuthCompleteContext,
   OAuthStartContext,
   OAuthStartResult,
@@ -21,6 +20,7 @@ import {
   mapResponsesInput,
   mapResponsesTools,
   mapTools,
+  reasoningPayload,
   shouldFallbackToResponses,
   shouldPreferResponsesApi
 } from "@openassist/providers-openai-shared";
@@ -51,20 +51,6 @@ const configSchema = z.object({
 });
 
 export interface OpenAIProviderConfig extends z.infer<typeof configSchema> {}
-
-function supportsOpenAIReasoningEffort(model: string): boolean {
-  return shouldPreferResponsesApi(model);
-}
-
-function reasoningPayload(
-  model: string,
-  effort: OpenAIReasoningEffort | undefined
-): { effort: OpenAIReasoningEffort } | undefined {
-  if (!effort || !supportsOpenAIReasoningEffort(model)) {
-    return undefined;
-  }
-  return { effort };
-}
 
 export class OpenAIProviderAdapter implements ProviderAdapter {
   private readonly config: OpenAIProviderConfig;

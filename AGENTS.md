@@ -79,6 +79,12 @@ When changing installer/setup/service behavior:
    - Codex remains the public account-login route in setup/docs
    - Codex must be described truthfully as Codex-only in V1, not as generic ChatGPT API auth for arbitrary OpenAI models
    - legacy `openai + oauth` configs may remain readable for compatibility, but new account-login guidance must steer operators to `codex`
+   - quickstart must expose the beginner-facing reasoning-effort choice for `openai` and `codex`
+   - wizard remains the full provider-tuning surface:
+     - `openai.reasoningEffort`
+     - `codex.reasoningEffort`
+     - `anthropic.thinkingBudgetTokens`
+   - lifecycle and status output must surface the active primary provider route, model, and reasoning/thinking state
 12. preserve Telegram default UX semantics (inline chat memory + inline responses by default; threaded mode only when explicitly configured)
 13. preserve access-mode onboarding semantics:
    - quickstart and wizard use beginner-facing `access mode` wording on operator paths

@@ -18,6 +18,11 @@ import {
   type SetupAccessMode
 } from "./setup-access.js";
 import {
+  formatProviderMenuLabel,
+  providerRouteLabel,
+  providerTuningLabel
+} from "./provider-display.js";
+import {
   promptBindAddress,
   promptGeneratedIdentifier,
   promptIdentifier,
@@ -102,14 +107,15 @@ function parseCsv(value: string): string[] {
 
 type ReasoningEffortPromptChoice = "default" | OpenAIReasoningEffort;
 
-async function promptOpenAIReasoningEffort(
+export async function promptReasoningEffort(
   prompts: PromptAdapter,
+  routeLabel: string,
   initial?: OpenAIReasoningEffort
 ): Promise<OpenAIReasoningEffort | undefined> {
-  console.log("- OpenAI reasoning effort is only sent on supported Responses API model families.");
+  console.log(`- ${routeLabel} reasoning effort is only sent on supported Responses API model families.`);
   console.log("- Leave it on Default to keep provider defaults and avoid unsupported request fields.");
   const selected = await prompts.select<ReasoningEffortPromptChoice>(
-    "OpenAI reasoning effort",
+    `${routeLabel} reasoning effort`,
     [
       { name: "Default (do not send a reasoning parameter)", value: "default" },
       { name: "low", value: "low" },
@@ -119,6 +125,20 @@ async function promptOpenAIReasoningEffort(
     initial ?? "default"
   );
   return selected === "default" ? undefined : selected;
+}
+
+async function promptOpenAIReasoningEffort(
+  prompts: PromptAdapter,
+  initial?: OpenAIReasoningEffort
+): Promise<OpenAIReasoningEffort | undefined> {
+  return promptReasoningEffort(prompts, "OpenAI", initial);
+}
+
+async function promptCodexReasoningEffort(
+  prompts: PromptAdapter,
+  initial?: OpenAIReasoningEffort
+): Promise<OpenAIReasoningEffort | undefined> {
+  return promptReasoningEffort(prompts, "Codex", initial);
 }
 
 async function promptOptionalPositiveInteger(
@@ -361,6 +381,15 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       ...(baseUrl ? { baseUrl } : {}),
       ...(reasoningEffort ? { reasoningEffort } : {})
     });
+  } else if (providerType === "codex") {
+    const reasoningEffort = await promptCodexReasoningEffort(prompts);
+    state.config.runtime.providers.push({
+      id: providerId,
+      type: providerType,
+      defaultModel,
+      ...(baseUrl ? { baseUrl } : {}),
+      ...(reasoningEffort ? { reasoningEffort } : {})
+    });
   } else if (providerType === "anthropic") {
     const thinkingBudgetTokens = await promptAnthropicThinkingBudget(prompts);
     state.config.runtime.providers.push({
@@ -412,7 +441,10 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
 
   const providerId = await prompts.select(
     "Select provider to edit",
-    state.config.runtime.providers.map((provider) => ({ name: provider.id, value: provider.id }))
+    state.config.runtime.providers.map((provider) => ({
+      name: formatProviderMenuLabel(provider),
+      value: provider.id
+    }))
   );
 
   const provider = state.config.runtime.providers.find((candidate) => candidate.id === providerId);
@@ -430,6 +462,15 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
 
   if (provider.type === "openai") {
     const reasoningEffort = await promptOpenAIReasoningEffort(prompts, provider.reasoningEffort);
+    if (reasoningEffort) {
+      provider.reasoningEffort = reasoningEffort;
+    } else {
+      delete provider.reasoningEffort;
+    }
+  }
+
+  if (provider.type === "codex") {
+    const reasoningEffort = await promptCodexReasoningEffort(prompts, provider.reasoningEffort);
     if (reasoningEffort) {
       provider.reasoningEffort = reasoningEffort;
     } else {
@@ -475,7 +516,10 @@ async function removeProvider(state: SetupWizardState, prompts: PromptAdapter): 
 
   const providerId = await prompts.select(
     "Select provider to remove",
-    state.config.runtime.providers.map((provider) => ({ name: provider.id, value: provider.id }))
+    state.config.runtime.providers.map((provider) => ({
+      name: formatProviderMenuLabel(provider),
+      value: provider.id
+    }))
   );
   state.config.runtime.providers = state.config.runtime.providers.filter((provider) => provider.id !== providerId);
   if (state.config.runtime.defaultProviderId === providerId) {
@@ -489,15 +533,24 @@ async function setDefaultProvider(state: SetupWizardState, prompts: PromptAdapte
   }
   state.config.runtime.defaultProviderId = await prompts.select(
     "Select default provider",
-    state.config.runtime.providers.map((provider) => ({ name: provider.id, value: provider.id })),
+    state.config.runtime.providers.map((provider) => ({
+      name: formatProviderMenuLabel(provider),
+      value: provider.id
+    })),
     state.config.runtime.defaultProviderId
   );
 }
 
 async function editProviders(state: SetupWizardState, prompts: PromptAdapter): Promise<void> {
   while (true) {
+    const providerSummary =
+      state.config.runtime.providers.length === 0
+        ? "none"
+        : state.config.runtime.providers
+            .map((provider) => `${provider.id} (${providerRouteLabel(provider.type)}; ${provider.defaultModel}; ${providerTuningLabel(provider)})`)
+            .join(", ");
     const action = await prompts.select(
-      `Providers (${state.config.runtime.providers.map((provider) => provider.id).join(", ") || "none"})`,
+      `Providers (${providerSummary})`,
       [
         { name: "Add provider", value: "add" },
         { name: "Edit provider", value: "edit" },

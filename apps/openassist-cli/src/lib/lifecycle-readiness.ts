@@ -1,4 +1,5 @@
 import type { OpenAssistConfig } from "@openassist/config";
+import { describePrimaryProvider } from "./provider-display.js";
 import type { ServiceManagerKind } from "./install-state.js";
 import { detectSetupAccessMode, getOperatorUserIds } from "./setup-access.js";
 import type { SetupValidationIssue } from "./setup-validation.js";
@@ -57,6 +58,10 @@ export interface LifecycleReport {
     accessMode: string;
     serviceState: string;
     updateTrack: string;
+    primaryProviderId?: string;
+    primaryProviderRoute?: string;
+    primaryProviderModel?: string;
+    primaryProviderTuning?: string;
   };
   sections: {
     readyNow: LifecycleReportItem[];
@@ -388,6 +393,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
   const accessWarnings = groupValidationIssuesByLifecycleBucket(
     validationWarnings.filter((issue) => mapIssueToBucketId(issue) === "access-operator-ids")
   );
+  const primaryProvider = describePrimaryProvider(input.config);
 
   readyNow.push(
     createItem(
@@ -480,6 +486,25 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       readyNow,
       createItem("first-reply.destination", "first-reply", "First reply destination", describeFirstReplyDestination(input.config))
     );
+    if (primaryProvider) {
+      uniquePush(
+        readyNow,
+        createItem(
+          "provider.primary",
+          "first-reply",
+          "Primary provider",
+          `${primaryProvider.id} (${primaryProvider.routeLabel})`
+        )
+      );
+      uniquePush(
+        readyNow,
+        createItem("provider.model", "first-reply", "Provider model", primaryProvider.model)
+      );
+      uniquePush(
+        readyNow,
+        createItem("provider.tuning", "first-reply", "Provider tuning", primaryProvider.tuningLabel)
+      );
+    }
     uniquePush(
       readyNow,
       createItem("access.mode", "full-access", "Access mode", describeAccessMode(input.config))
@@ -671,7 +696,15 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       firstReplyDestination: describeFirstReplyDestination(input.config),
       accessMode: describeAccessMode(input.config),
       serviceState: describeServiceState(input.serviceWasSkipped, input.serviceHealthOk, input.serviceInstalled),
-      updateTrack: input.trackedRef?.trim() || "main"
+      updateTrack: input.trackedRef?.trim() || "main",
+      ...(primaryProvider
+        ? {
+            primaryProviderId: primaryProvider.id,
+            primaryProviderRoute: primaryProvider.routeLabel,
+            primaryProviderModel: primaryProvider.model,
+            primaryProviderTuning: primaryProvider.tuningLabel
+          }
+        : {})
     },
     sections: {
       readyNow,

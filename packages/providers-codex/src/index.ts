@@ -20,6 +20,7 @@ import {
   mapResponsesInput,
   mapResponsesTools,
   mapTools,
+  reasoningPayload,
   shouldFallbackToResponses,
   shouldPreferResponsesApi
 } from "@openassist/providers-openai-shared";
@@ -42,7 +43,8 @@ const CODEX_REFRESH_INTERVAL_MS = 8 * 24 * 60 * 60 * 1000;
 const configSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
-  baseUrl: z.string().url().optional()
+  baseUrl: z.string().url().optional(),
+  reasoningEffort: z.enum(["low", "medium", "high"]).optional()
 });
 
 export interface CodexProviderConfig extends z.infer<typeof configSchema> {}
@@ -243,6 +245,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
+        reasoning: reasoningPayload(model, this.config.reasoningEffort),
         input: (await mapResponsesInput(req.messages)) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
@@ -270,6 +273,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
+        reasoning: reasoningPayload(model, this.config.reasoningEffort),
         input: (await mapResponsesInput(req.messages)) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata

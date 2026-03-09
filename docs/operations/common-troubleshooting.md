@@ -168,6 +168,35 @@ Important:
 - `openai` remains the API-key route
 - new account-login installs should use `codex`, not a new mixed `openai + oauth` provider
 
+## I cannot tell which provider reasoning setting is active
+
+What it usually means:
+
+- reasoning effort was left on the safe default and nothing is being sent
+- the current primary provider is different from the one you edited
+- the configured model does not support the selected reasoning or thinking field, so OpenAssist is omitting it safely
+
+What to run:
+
+```bash
+openassist doctor
+openassist doctor --json
+openassist setup wizard
+```
+
+What to look for:
+
+- `Primary provider`
+- `Provider model`
+- `Provider tuning`
+
+Current operator story:
+
+- OpenAI quickstart and wizard both expose `reasoningEffort`
+- Codex quickstart and wizard both expose `reasoningEffort`
+- Anthropic `thinkingBudgetTokens` stays wizard-editable only
+- OpenAI-compatible stays provider-default only
+
 ## Full access is not working
 
 What it usually means:

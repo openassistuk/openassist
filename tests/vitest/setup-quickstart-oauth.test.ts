@@ -123,6 +123,7 @@ function validCodexQuickstartAnswers(bindPort: number, extra: string[] = []): st
     "codex-main",
     "gpt-5.4",
     "",
+    "default",
     "telegram",
     "telegram-main",
     "telegram-token",
@@ -255,6 +256,10 @@ describe("setup quickstart oauth path", () => {
         id: "codex-main",
         type: "codex"
       });
+      expect(state.config.runtime.providers[0]).not.toHaveProperty("reasoningEffort");
+      expect(
+        result.summary.some((line) => line.includes("Provider tuning: Reasoning effort: Default (recommended)"))
+      ).toBe(true);
       expect(
         requestCalls.some(
           (entry) => entry.method === "POST" && entry.url.includes("/v1/time/timezone/confirm")
@@ -399,6 +404,7 @@ describe("setup quickstart oauth path", () => {
       );
 
       expect(result.saved).toBe(true);
+      expect(state.config.runtime.providers[0]).not.toHaveProperty("reasoningEffort");
       expect(
         requestCalls.filter(
           (entry) => entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/start")

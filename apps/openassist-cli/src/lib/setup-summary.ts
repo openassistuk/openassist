@@ -57,7 +57,13 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   if (input.backupPath) {
     lines.push(`- Backup: ${input.backupPath}`);
   }
-  lines.push(`- Primary provider: ${input.config.runtime.defaultProviderId}`);
+  if (report.context.primaryProviderId && report.context.primaryProviderRoute) {
+    lines.push(`- Primary provider: ${report.context.primaryProviderId} (${report.context.primaryProviderRoute})`);
+    lines.push(`- Provider model: ${report.context.primaryProviderModel}`);
+    lines.push(`- Provider tuning: ${report.context.primaryProviderTuning}`);
+  } else {
+    lines.push(`- Primary provider: ${input.config.runtime.defaultProviderId}`);
+  }
   lines.push(`- Primary channel: ${primaryChannel ? `${primaryChannel.id} (${primaryChannel.type})` : "(not configured)"}`);
   if (input.changedEnvKeys.length > 0) {
     lines.push(`- Updated env keys: ${input.changedEnvKeys.join(", ")}`);

@@ -142,7 +142,7 @@ Use wizard for:
   - OpenAI-compatible
 - advanced provider-native reasoning controls:
   - OpenAI `reasoningEffort` (`Default`, `low`, `medium`, `high`)
-  - Codex has no separate public reasoning control in this release
+  - Codex `reasoningEffort` (`Default`, `low`, `medium`, `high`)
   - Anthropic `thinkingBudgetTokens` (blank disables it)
   - OpenAI-compatible stays unchanged in this release
 - additional channels or non-default channel behavior
@@ -153,10 +153,12 @@ Use wizard for:
 
 Provider reasoning-control notes:
 
-- These controls live in wizard, not quickstart.
+- Quickstart now exposes the same beginner-facing reasoning-effort choice for OpenAI and Codex.
+- Wizard remains the full provider-tuning surface.
 - Safe default is unset, which means OpenAssist sends no provider-specific reasoning/thinking parameter.
 - OpenAssist omits unsupported request fields automatically:
   - OpenAI reasoning effort is only sent on supported Responses API model families.
+  - Codex reasoning effort is only sent on supported Codex Responses-model families.
   - Anthropic thinking budget is only sent on supported thinking-capable Claude families.
 - If your configured default model does not match a supported family, setup validation warns but still saves safely.
 

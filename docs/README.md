@@ -55,13 +55,17 @@ Built-in provider routes now split cleanly in operator-facing docs and setup:
 
 Codex is intentionally documented as Codex-only in this release. It is not the generic "ChatGPT API auth" path for arbitrary OpenAI models.
 
-Advanced provider reasoning controls stay in `openassist setup wizard`:
+Provider reasoning controls now follow the actual operator path:
 
+- quickstart exposes `reasoningEffort` for OpenAI and Codex with a beginner-facing `Default / Low / Medium / High` choice
+- wizard remains the full provider-tuning surface
 - OpenAI providers can set `reasoningEffort` for supported Responses API model families
-- Codex providers do not expose a separate public reasoning control in this release
+- Codex providers can also set `reasoningEffort` for supported Codex Responses-model families
 - Anthropic providers can set `thinkingBudgetTokens` for supported thinking-capable Claude families
 - OpenAI-compatible providers stay unchanged in this release
 - leaving the setting unset is the safe default and sends no provider-specific reasoning parameter
+
+Lifecycle and status surfaces now also show the current primary provider route, default model, and reasoning/thinking state so operators do not need to reopen wizard just to confirm what is active.
 
 Runtime turns and `/status` now carry a bounded self-knowledge contract so OpenAssist can cite its own local docs, config path, env path, install directory, update track, and safe-maintenance limits without pretending it has permissions it does not have. In chat, the full config/env/install path view is reserved for approved operators; other senders still get the high-level lifecycle summary and host-side command guidance.
 

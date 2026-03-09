@@ -110,6 +110,7 @@ export interface OpenAIProviderRuntimeConfig extends OAuthCapableProviderConfig 
 
 export interface CodexProviderRuntimeConfig extends CommonProviderConfig {
   type: "codex";
+  reasoningEffort?: OpenAIReasoningEffort;
 }
 
 export interface AnthropicProviderRuntimeConfig extends OAuthCapableProviderConfig {

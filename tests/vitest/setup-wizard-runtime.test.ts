@@ -291,6 +291,12 @@ describe("setup wizard runtime flow", () => {
       "high",
       "false",
       "add",
+      "codex-main",
+      "codex",
+      "gpt-5.4",
+      "",
+      "medium",
+      "add",
       "anthropic-main",
       "anthropic",
       "claude-sonnet-4-6",
@@ -308,6 +314,11 @@ describe("setup wizard runtime flow", () => {
     expect(result.saved).toBe(true);
     expect(state.config.runtime.providers.find((provider) => provider.id === "openai-main")).toMatchObject({
       reasoningEffort: "high"
+    });
+    expect(
+      state.config.runtime.providers.find((provider) => provider.id === "codex-main")
+    ).toMatchObject({
+      reasoningEffort: "medium"
     });
     expect(
       state.config.runtime.providers.find((provider) => provider.id === "anthropic-main")
@@ -329,10 +340,12 @@ describe("setup wizard runtime flow", () => {
       "codex",
       "gpt-5.4",
       "",
+      "high",
       "edit",
       "codex-main",
       "gpt-5.4",
       "",
+      "default",
       "back",
       "save"
     ]);
@@ -349,6 +362,9 @@ describe("setup wizard runtime flow", () => {
       type: "codex",
       defaultModel: "gpt-5.4"
     });
+    expect(
+      state.config.runtime.providers.find((provider) => provider.id === "codex-main")
+    ).not.toHaveProperty("reasoningEffort");
     expect(Object.keys(state.env).some((key) => key.includes("CODEX_MAIN_API_KEY"))).toBe(false);
   });
 });

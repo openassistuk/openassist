@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import type { ChatRequest, ChatResponse } from "@openassist/core-types";
+import type { ChatRequest, ChatResponse, OpenAIReasoningEffort } from "@openassist/core-types";
 
 const TOOL_NAME_SAFE_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const TOOL_NAME_ENCODING_PREFIX = "oa__";
@@ -182,6 +182,20 @@ export function shouldPreferResponsesApi(model: string): boolean {
     normalized.startsWith("o3") ||
     normalized.startsWith("o4")
   );
+}
+
+export function supportsOpenAIReasoningEffort(model: string): boolean {
+  return shouldPreferResponsesApi(model);
+}
+
+export function reasoningPayload(
+  model: string,
+  effort: OpenAIReasoningEffort | undefined
+): { effort: OpenAIReasoningEffort } | undefined {
+  if (!effort || !supportsOpenAIReasoningEffort(model)) {
+    return undefined;
+  }
+  return { effort };
 }
 
 function extractErrorMessage(error: unknown): string {

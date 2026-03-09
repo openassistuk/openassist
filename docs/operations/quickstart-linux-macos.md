@@ -190,6 +190,12 @@ Provider and channel guidance:
 
 - OpenAI stays the standard API-key route.
 - Codex stays the separate OpenAI account-login route.
+- OpenAI and Codex quickstart both expose a beginner-friendly reasoning-effort choice:
+  - `Default (recommended)`
+  - `Low`
+  - `Medium`
+  - `High`
+- Leaving that quickstart choice on `Default` keeps the field unset, so OpenAssist sends no provider-specific reasoning parameter.
 - If you choose Codex, quickstart guides the account-link flow after the daemon is healthy, prints the authorization URL, pauses so you can copy or open it on this host or another device, accepts either the full callback URL or a pasted code, and requires that linked account before the first reply can use the default provider.
 - If automatic browser launch is unavailable on a headless host, OpenAssist still prints the authorization URL and treats that as an account-linking step, not as a service failure.
 - Anthropic stays API-key-first for the fastest first reply; optional provider OAuth configuration still lives in `openassist setup wizard`.
@@ -221,6 +227,7 @@ openassist time status
 - configured access mode
 - whether enabled channels already have approved operator IDs
 - whether in-chat `/access` switching is available yet
+- the primary provider route, default model, and current reasoning/thinking state
 - whether upgrade prerequisites are satisfied
 - the next command you should run
 - a healthy daemon already bound to the configured port is treated as success, not as a post-setup port-conflict warning

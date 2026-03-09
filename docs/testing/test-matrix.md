@@ -72,6 +72,7 @@ Current suite files under `tests/vitest/`:
 - `prompt-validation.test.ts`
 - `provider-anthropic-tool-mapping.test.ts`
 - `provider-codex-auth.test.ts`
+- `provider-display.test.ts`
 - `provider-openai-compatible-tool-mapping.test.ts`
 - `provider-openai-tool-mapping.test.ts`
 - `runtime-attachments-rendering.test.ts`

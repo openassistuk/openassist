@@ -111,6 +111,7 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
     "openai-main",
     "gpt-5.4",
     "",
+    "default",
     "openai-key",
     "telegram",
     "telegram-main",

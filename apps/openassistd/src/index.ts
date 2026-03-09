@@ -181,6 +181,7 @@ program
           id: providerConfig.id,
           defaultModel: providerConfig.defaultModel,
           baseUrl: providerConfig.baseUrl,
+          reasoningEffort: providerConfig.reasoningEffort,
           oauth: providerConfig.oauth
         });
       }
@@ -188,7 +189,8 @@ program
         return new CodexProviderAdapter({
           id: providerConfig.id,
           defaultModel: providerConfig.defaultModel,
-          baseUrl: providerConfig.baseUrl
+          baseUrl: providerConfig.baseUrl,
+          reasoningEffort: providerConfig.reasoningEffort
         });
       }
       if (providerConfig.type === "anthropic") {
@@ -196,6 +198,7 @@ program
           id: providerConfig.id,
           defaultModel: providerConfig.defaultModel,
           baseUrl: providerConfig.baseUrl,
+          thinkingBudgetTokens: providerConfig.thinkingBudgetTokens,
           oauth: providerConfig.oauth
         });
       }

@@ -33,7 +33,7 @@ export function providerTuningLabel(provider: ProviderConfig): string {
       ? `Thinking budget: ${provider.thinkingBudgetTokens} tokens`
       : "Thinking budget: Default (disabled)";
   }
-  return "Provider tuning: Provider defaults";
+  return "Provider defaults";
 }
 
 export function describeProvider(provider: ProviderConfig): ProviderDisplayState {

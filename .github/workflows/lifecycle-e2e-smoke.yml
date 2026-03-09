@@ -103,14 +103,15 @@ jobs:
           OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           set +e
-          "$HOME/.local/bin/openassist" doctor >"$RUNNER_TEMP/doctor.txt" 2>&1
+          "$HOME/.local/bin/openassist" doctor >"$RUNNER_TEMP/doctor.txt" 2>"$RUNNER_TEMP/doctor.stderr"
           doctor_status=$?
-          "$HOME/.local/bin/openassist" doctor --json >"$RUNNER_TEMP/doctor.json" 2>&1
+          "$HOME/.local/bin/openassist" doctor --json >"$RUNNER_TEMP/doctor.json" 2>"$RUNNER_TEMP/doctor-json.stderr"
           doctor_json_status=$?
-          "$HOME/.local/bin/openassist" upgrade --dry-run --install-dir "$OPENASSIST_SMOKE_INSTALL_DIR" >"$RUNNER_TEMP/upgrade.txt" 2>&1
+          "$HOME/.local/bin/openassist" upgrade --dry-run --install-dir "$OPENASSIST_SMOKE_INSTALL_DIR" >"$RUNNER_TEMP/upgrade.txt" 2>"$RUNNER_TEMP/upgrade.stderr"
           upgrade_status=$?
           set -e
 
+          printf 'doctor_status=%s\ndoctor_json_status=%s\nupgrade_status=%s\n' "$doctor_status" "$doctor_json_status" "$upgrade_status"
           test "$doctor_status" -eq 1
           test "$doctor_json_status" -eq 1
           test "$upgrade_status" -eq 0

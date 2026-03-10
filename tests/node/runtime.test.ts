@@ -78,6 +78,18 @@ class MockProvider implements ProviderAdapter {
   }
 }
 
+class FailingOAuthProvider extends MockProvider {
+  public completeAttempts = 0;
+
+  override async completeOAuthLogin(ctx: OAuthCompleteContext): Promise<ProviderAuthHandle> {
+    this.completeAttempts += 1;
+    if (this.completeAttempts === 1) {
+      throw new Error("transient oauth completion failure");
+    }
+    return super.completeOAuthLogin(ctx);
+  }
+}
+
 class MockToolLoopProvider implements ProviderAdapter {
   private readonly targetPath: string;
   private calls = 0;
@@ -1013,6 +1025,103 @@ describe("OpenAssistRuntime", () => {
 
     const removed = runtime.removeOAuthAccount("mock-provider", "acct-1");
     assert.equal(removed, true);
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("keeps oauth flow state reusable until provider completion succeeds", async () => {
+    const root = tempDir("openassist-runtime-oauth-retryable-");
+    roots.push(root);
+
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+
+    const channel = new MockChannel();
+    const runtimeConfig: RuntimeConfig = {
+      bindAddress: "127.0.0.1",
+      bindPort: 3344,
+      defaultProviderId: "mock-provider",
+      providers: [
+        {
+          id: "mock-provider",
+          type: "openai",
+          defaultModel: "x",
+          oauth: {
+            authorizeUrl: "https://example.test/oauth/authorize",
+            tokenUrl: "https://example.test/oauth/token",
+            clientId: "client-id"
+          }
+        }
+      ],
+      channels: [
+        {
+          id: "telegram-mock",
+          type: "telegram",
+          enabled: true,
+          settings: {}
+        }
+      ],
+      defaultPolicyProfile: "operator",
+      paths: {
+        dataDir: root,
+        skillsDir: path.join(root, "skills"),
+        logsDir: path.join(root, "logs")
+      },
+      time: {
+        ntpPolicy: "off",
+        ntpCheckIntervalSec: 300,
+        ntpMaxSkewMs: 10_000,
+        ntpHttpSources: [],
+        requireTimezoneConfirmation: false
+      },
+      scheduler: {
+        enabled: false,
+        tickIntervalMs: 1000,
+        heartbeatIntervalSec: 30,
+        defaultMisfirePolicy: "catch-up-once",
+        tasks: []
+      }
+    };
+
+    const provider = new FailingOAuthProvider();
+    const runtime = new OpenAssistRuntime(
+      runtimeConfig,
+      {
+        db,
+        logger,
+        installContext: {
+          repoBackedInstall: true,
+          installDir: root,
+          configPath: path.join(root, "openassist.toml"),
+          envFilePath: path.join(root, "openassistd.env"),
+          trackedRef: "main",
+          lastKnownGoodCommit: "abc123"
+        }
+      },
+      { providers: [provider], channels: [channel] }
+    );
+    await runtime.start();
+
+    const started = await runtime.startOAuthLogin(
+      "mock-provider",
+      "acct-1",
+      "http://127.0.0.1:3344/v1/oauth/mock-provider/callback"
+    );
+
+    await assert.rejects(
+      runtime.completeOAuthLogin("mock-provider", started.state, "auth-code"),
+      /transient oauth completion failure/
+    );
+    const flowAfterFailure = db.getOauthFlow(started.state);
+    assert.ok(flowAfterFailure);
+    assert.equal(flowAfterFailure?.consumedAt, undefined);
+
+    const completed = await runtime.completeOAuthLogin("mock-provider", started.state, "auth-code");
+    assert.equal(completed.accountId, "acct-1");
+    assert.equal(provider.completeAttempts, 2);
+    const flowAfterSuccess = db.getOauthFlow(started.state);
+    assert.ok(flowAfterSuccess?.consumedAt);
 
     await runtime.stop();
     db.close();

@@ -107,6 +107,7 @@ type AuthStatusResponse = {
   currentAuth?: {
     kind?: string;
     tokenType?: string;
+    authMethod?: "callback" | "device-code";
     expiresAt?: string;
     chatReady?: boolean;
     detail?: string;
@@ -118,6 +119,7 @@ type AuthStatusResponse = {
     currentAuth?: {
       kind?: string;
       tokenType?: string;
+      authMethod?: "callback" | "device-code";
       expiresAt?: string;
       chatReady?: boolean;
       detail?: string;
@@ -148,6 +150,11 @@ function printProviderAuthStatus(status: NonNullable<AuthStatusResponse["provide
   console.log(`Active auth: ${authKind}`);
   if (typeof currentAuth.chatReady === "boolean") {
     console.log(`Chat-ready auth: ${currentAuth.chatReady ? "Yes" : "No"}`);
+  }
+  if (currentAuth.authMethod) {
+    console.log(
+      `Auth method: ${currentAuth.authMethod === "device-code" ? "Device code" : "Browser callback/manual paste"}`
+    );
   }
   if (currentAuth.tokenType) {
     console.log(`Token type: ${currentAuth.tokenType}`);
@@ -510,6 +517,7 @@ authCommand
   .option("--redirect-uri <uri>", "Redirect URI override")
   .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
   .option("--open-browser", "Open login URL in your default browser")
+  .option("--device-code", "Use device-code login when supported by the provider")
   .action(async (options) => {
     try {
       const providerId = String(options.provider);
@@ -519,6 +527,74 @@ authCommand
         accountId,
         scopes: options.scope as string[]
       };
+      if (options.deviceCode) {
+        const result = await requestJson(
+          "POST",
+          `${baseUrl}/v1/oauth/${providerId}/device-code/start`,
+          body
+        );
+        if (result.status >= 400) {
+          throw new Error(
+            extractApiErrorMessage(result.data, `Request failed with status ${result.status}`)
+          );
+        }
+
+        const response = result.data as {
+          verificationUri: string;
+          userCode: string;
+          deviceCodeId: string;
+          intervalSeconds: number;
+          expiresAt?: string;
+          accountId: string;
+        };
+
+        console.log(`Provider: ${providerId}`);
+        console.log(`Account: ${response.accountId}`);
+        if (response.expiresAt) {
+          console.log(`Expires: ${response.expiresAt}`);
+        }
+        console.log(`Verification URL:\n${response.verificationUri}`);
+        console.log(`User code: ${response.userCode}`);
+        console.log("Open the verification URL in a browser, enter the device code, then this command will wait for approval.");
+
+        if (options.openBrowser) {
+          const launch = await openUrlInBrowser(response.verificationUri);
+          if (launch.opened) {
+            console.log("Opened verification URL in browser.");
+          } else {
+            console.log("Could not open a browser automatically on this host.");
+            if (launch.detail) {
+              console.log(`Browser launch detail: ${launch.detail}`);
+            }
+            console.log("Open the verification URL manually in a browser, then complete the device-code approval.");
+          }
+        }
+
+        console.log("Waiting for Codex account approval...");
+        const completed = await requestJson(
+          "POST",
+          `${baseUrl}/v1/oauth/${providerId}/device-code/complete`,
+          {
+            accountId,
+            deviceCodeId: response.deviceCodeId,
+            userCode: response.userCode,
+            intervalSeconds: response.intervalSeconds,
+            ...(response.expiresAt ? { expiresAt: response.expiresAt } : {})
+          }
+        );
+        if (completed.status >= 400) {
+          throw new Error(
+            extractApiErrorMessage(completed.data, `Request failed with status ${completed.status}`)
+          );
+        }
+        const completion = completed.data as { accountId: string; expiresAt?: string };
+        console.log(`OAuth linked for provider ${providerId}, account ${completion.accountId}`);
+        if (completion.expiresAt) {
+          console.log(`Token expires at: ${completion.expiresAt}`);
+        }
+        return;
+      }
+
       if (typeof options.redirectUri === "string" && options.redirectUri.length > 0) {
         body.redirectUri = options.redirectUri;
       }

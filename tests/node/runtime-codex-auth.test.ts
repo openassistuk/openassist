@@ -122,7 +122,7 @@ class MockCodexProvider implements ProviderAdapter {
       accountId: ctx.accountId,
       accessToken: "codex-token-initial",
       refreshToken: "codex-refresh-1",
-      tokenType: "openai-api-key",
+      tokenType: "chatgpt-access-token",
       expiresAt: new Date(Date.now() + this.initialExpiryOffsetMs).toISOString(),
       scopes: ["openid", "offline_access"]
     };
@@ -138,7 +138,7 @@ class MockCodexProvider implements ProviderAdapter {
       accountId: auth.accountId,
       accessToken: "codex-token-refreshed",
       refreshToken: "codex-refresh-2",
-      tokenType: "openai-api-key",
+      tokenType: "chatgpt-access-token",
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       scopes: auth.scopes
     };
@@ -478,7 +478,7 @@ describe("runtime codex auth route", () => {
       accountId: "default",
       accessToken: "codex-token-initial",
       refreshToken: "codex-refresh-1",
-      tokenType: "openai-api-key",
+      tokenType: "chatgpt-access-token",
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       scopes: ["openid", "offline_access"]
     });

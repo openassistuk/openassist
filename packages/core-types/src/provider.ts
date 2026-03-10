@@ -14,6 +14,7 @@ export interface ProviderAuthHandle {
   refreshToken?: string;
   scopes?: string[];
   tokenType?: string;
+  authMethod?: "callback" | "device-code";
 }
 
 export interface ApiKeyAuth {
@@ -42,6 +43,27 @@ export interface OAuthCompleteContext {
   state: string;
   redirectUri: string;
   codeVerifier?: string;
+}
+
+export interface OAuthDeviceCodeStartContext {
+  accountId: string;
+  scopes: string[];
+}
+
+export interface OAuthDeviceCodeStartResult {
+  verificationUri: string;
+  userCode: string;
+  deviceCodeId: string;
+  intervalSeconds: number;
+  expiresAt?: string;
+}
+
+export interface OAuthDeviceCodeCompleteContext {
+  accountId: string;
+  deviceCodeId: string;
+  userCode: string;
+  intervalSeconds: number;
+  expiresAt?: string;
 }
 
 export interface ProviderCapabilities {
@@ -78,6 +100,8 @@ export interface ProviderAdapter {
   capabilities(): ProviderCapabilities;
   startOAuthLogin?(ctx: OAuthStartContext): Promise<OAuthStartResult>;
   completeOAuthLogin?(ctx: OAuthCompleteContext): Promise<ProviderAuthHandle>;
+  startOAuthDeviceCodeLogin?(ctx: OAuthDeviceCodeStartContext): Promise<OAuthDeviceCodeStartResult>;
+  completeOAuthDeviceCodeLogin?(ctx: OAuthDeviceCodeCompleteContext): Promise<ProviderAuthHandle>;
   refreshOAuthAuth?(auth: ProviderAuthHandle): Promise<ProviderAuthHandle>;
   validateConfig(config: unknown): Promise<ValidationResult>;
   chat(req: ChatRequest, auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse>;

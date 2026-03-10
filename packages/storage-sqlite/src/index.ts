@@ -1234,6 +1234,21 @@ export class OpenAssistDatabase {
     });
   }
 
+  markOauthFlowConsumed(state: string): boolean {
+    return this.runInTransaction(() => {
+      const flow = this.getOauthFlow(state);
+      if (!flow || flow.consumedAt) {
+        return false;
+      }
+
+      const consumedAt = nowIso();
+      this.db
+        .prepare(`UPDATE oauth_flows SET consumed_at = ? WHERE state = ?`)
+        .run(consumedAt, state);
+      return true;
+    });
+  }
+
   purgeExpiredOauthFlows(now = nowIso()): number {
     const result = this.db
       .prepare(`DELETE FROM oauth_flows WHERE expires_at < ?`)

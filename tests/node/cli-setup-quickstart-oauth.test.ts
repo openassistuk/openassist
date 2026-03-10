@@ -137,7 +137,7 @@ function validCodexQuickstartAnswers(bindPort: number, extra: string[] = []): st
 }
 
 describe("cli setup quickstart oauth coverage", () => {
-  it("supports Codex account linking during quickstart after daemon health checks pass", async () => {
+  it("supports Codex device-code linking during quickstart after daemon health checks pass", async () => {
     const root = tempDir("openassist-node-quickstart-oauth-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -177,8 +177,8 @@ describe("cli setup quickstart oauth coverage", () => {
             ...validationContinuationAnswers,
             "true",
             "true",
-            "true",
-            "http://localhost:1455/auth/callback?state=state-codex&code=auth-code-1"
+            "device-code",
+            "true"
           ])
         ),
         {
@@ -216,17 +216,19 @@ describe("cli setup quickstart oauth coverage", () => {
                 }
               };
             }
-            if (url.endsWith("/start")) {
+            if (url.endsWith("/device-code/start")) {
               return {
                 status: 200,
                 data: {
-                  authorizationUrl: "https://example.test/oauth/start",
-                  state: "state-codex",
-                  redirectUri: "http://localhost:1455/auth/callback"
+                  verificationUri: "https://auth.openai.com/codex/device",
+                  userCode: "ABCD-EFGH",
+                  deviceCodeId: "device-auth-1",
+                  intervalSeconds: 1,
+                  expiresAt: new Date(Date.now() + 60_000).toISOString()
                 }
               };
             }
-            if (url.endsWith("/complete")) {
+            if (url.endsWith("/device-code/complete")) {
               return {
                 status: 200,
                 data: {
@@ -244,9 +246,10 @@ describe("cli setup quickstart oauth coverage", () => {
                   linkedAccountCount: 1,
                   currentAuth: {
                     kind: "oauth",
-                    tokenType: "openai-api-key",
+                    tokenType: "chatgpt-access-token",
+                    authMethod: "device-code",
                     chatReady: true,
-                    detail: "Codex account login is linked and ready for chat."
+                    detail: "Codex device-code login is loaded for this provider."
                   }
                 }
               };
@@ -270,13 +273,15 @@ describe("cli setup quickstart oauth coverage", () => {
       );
       assert.equal(
         requestCalls.some(
-          (entry) => entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/start")
+          (entry) =>
+            entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/device-code/start")
         ),
         true
       );
       assert.equal(
         requestCalls.some(
-          (entry) => entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/complete")
+          (entry) =>
+            entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/device-code/complete")
         ),
         true
       );

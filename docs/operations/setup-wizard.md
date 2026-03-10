@@ -87,7 +87,7 @@ Quickstart rules:
 - Codex stays the separate OpenAI account-login route and quickstart can complete its account linking during onboarding
 - Anthropic stays API-key-first for the fastest first reply; provider OAuth client configuration still belongs in wizard
 - legacy `openai + oauth` configs remain readable for compatibility, but new account-login installs should use `codex`
-- account linking later still uses `openassist auth start --provider <provider-id> --account default --open-browser`
+- account linking later uses `openassist auth start --provider <provider-id> --device-code` on headless or remote hosts, with `--open-browser` kept as the browser/manual fallback
 - quickstart only asks for approved operator IDs if you opt into full access
 - if you opt into full access before you know the operator IDs, quickstart offers a return path back to standard mode instead of failing
 

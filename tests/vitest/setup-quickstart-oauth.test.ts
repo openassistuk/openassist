@@ -136,7 +136,7 @@ function validCodexQuickstartAnswers(bindPort: number, extra: string[] = []): st
 }
 
 describe("setup quickstart oauth path", () => {
-  it("guides Codex account linking as a first-class quickstart provider path", async () => {
+  it("guides Codex account linking through the recommended device-code path", async () => {
     const root = tempDir("openassist-quickstart-oauth-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -176,8 +176,8 @@ describe("setup quickstart oauth path", () => {
             ...validationContinuationAnswers,
             "true",
             "true",
-            "true",
-            "http://localhost:1455/auth/callback?state=state-codex&code=auth-code-1"
+            "device-code",
+            "true"
           ])
         ),
         {
@@ -215,17 +215,19 @@ describe("setup quickstart oauth path", () => {
                 }
               };
             }
-            if (url.endsWith("/start")) {
+            if (url.endsWith("/device-code/start")) {
               return {
                 status: 200,
                 data: {
-                  authorizationUrl: "https://example.test/oauth/start",
-                  state: "state-codex",
-                  redirectUri: "http://localhost:1455/auth/callback"
+                  verificationUri: "https://auth.openai.com/codex/device",
+                  userCode: "ABCD-EFGH",
+                  deviceCodeId: "device-auth-1",
+                  intervalSeconds: 1,
+                  expiresAt: new Date(Date.now() + 60_000).toISOString()
                 }
               };
             }
-            if (url.endsWith("/complete")) {
+            if (url.endsWith("/device-code/complete")) {
               return {
                 status: 200,
                 data: {
@@ -243,9 +245,10 @@ describe("setup quickstart oauth path", () => {
                   linkedAccountCount: 1,
                   currentAuth: {
                     kind: "oauth",
-                    tokenType: "openai-api-key",
+                    tokenType: "chatgpt-access-token",
+                    authMethod: "device-code",
                     chatReady: true,
-                    detail: "OAuth auth is loaded for this provider."
+                    detail: "Codex device-code login is loaded for this provider."
                   }
                 }
               };
@@ -275,12 +278,14 @@ describe("setup quickstart oauth path", () => {
       ).toBe(true);
       expect(
         requestCalls.some(
-          (entry) => entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/start")
+          (entry) =>
+            entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/device-code/start")
         )
       ).toBe(true);
       expect(
         requestCalls.some(
-          (entry) => entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/complete")
+          (entry) =>
+            entry.method === "POST" && entry.url.includes("/v1/oauth/codex-main/device-code/complete")
         )
       ).toBe(true);
       expect(
@@ -333,6 +338,7 @@ describe("setup quickstart oauth path", () => {
             ...validationContinuationAnswers,
             "true",
             "true",
+            "browser",
             "true",
             "http://localhost:1455/auth/callback?state=state-codex&code=auth-\ncode-3"
           ])
@@ -400,9 +406,10 @@ describe("setup quickstart oauth path", () => {
                   linkedAccountCount: 1,
                   currentAuth: {
                     kind: "oauth",
-                    tokenType: "openai-api-key",
+                    tokenType: "chatgpt-access-token",
+                    authMethod: "callback",
                     chatReady: true,
-                    detail: "OAuth auth is loaded for this provider."
+                    detail: "Codex browser/manual callback login is loaded for this provider."
                   }
                 }
               };
@@ -466,6 +473,7 @@ describe("setup quickstart oauth path", () => {
             ...validationContinuationAnswers,
             "true",
             "true",
+            "browser",
             "true",
             "auth-code-raw-4"
           ])
@@ -533,9 +541,10 @@ describe("setup quickstart oauth path", () => {
                   linkedAccountCount: 1,
                   currentAuth: {
                     kind: "oauth",
-                    tokenType: "openai-api-key",
+                    tokenType: "chatgpt-access-token",
+                    authMethod: "callback",
                     chatReady: true,
-                    detail: "OAuth auth is loaded for this provider."
+                    detail: "Codex browser/manual callback login is loaded for this provider."
                   }
                 }
               };
@@ -600,10 +609,12 @@ describe("setup quickstart oauth path", () => {
             ...validationContinuationAnswers,
             "true",
             "true",
+            "browser",
             "false",
             "retry",
             "true",
             "true",
+            "browser",
             "true",
             "http://localhost:1455/auth/callback?state=state-codex&code=auth-code-2"
           ])
@@ -671,9 +682,10 @@ describe("setup quickstart oauth path", () => {
                   linkedAccountCount: 1,
                   currentAuth: {
                     kind: "oauth",
-                    tokenType: "openai-api-key",
+                    tokenType: "chatgpt-access-token",
+                    authMethod: "callback",
                     chatReady: true,
-                    detail: "OAuth auth is loaded for this provider."
+                    detail: "Codex browser/manual callback login is loaded for this provider."
                   }
                 }
               };
@@ -696,6 +708,9 @@ describe("setup quickstart oauth path", () => {
       const errorOutput = errorSpy.mock.calls.flat().join("\n");
       expect(errorOutput).toContain("Account linking still needs attention");
       expect(errorOutput).toContain("The daemon is already healthy. This is an account-linking step, not a service failure.");
+      expect(errorOutput).toMatch(
+        /openassist auth start --provider codex-main --device-code --base-url http:\/\/127\.0\.0\.1:\d+/
+      );
       expect(errorOutput).toMatch(
         /openassist auth start --provider codex-main --account default --open-browser --base-url http:\/\/127\.0\.0\.1:\d+/
       );
@@ -748,11 +763,13 @@ describe("setup quickstart oauth path", () => {
             ...validationContinuationAnswers,
             "true",
             "true",
+            "browser",
             "true",
             "http://localhost:1455/auth/callback?state=state-codex&code=auth-code-err",
             "retry",
             "true",
             "true",
+            "browser",
             "true",
             "http://localhost:1455/auth/callback?state=state-codex&code=auth-code-ok"
           ])
@@ -828,9 +845,10 @@ describe("setup quickstart oauth path", () => {
                   linkedAccountCount: 1,
                   currentAuth: {
                     kind: "oauth",
-                    tokenType: "openai-api-key",
+                    tokenType: "chatgpt-access-token",
+                    authMethod: "callback",
                     chatReady: true,
-                    detail: "OAuth auth is loaded for this provider."
+                    detail: "Codex browser/manual callback login is loaded for this provider."
                   }
                 }
               };
@@ -856,7 +874,7 @@ describe("setup quickstart oauth path", () => {
     }
   });
 
-  it("treats a linked-but-not-chat-ready codex account as an auth-readiness failure", async () => {
+  it("treats a stored-but-not-chat-ready codex account as an auth-readiness failure", async () => {
     const root = tempDir("openassist-quickstart-oauth-not-ready-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -896,6 +914,7 @@ describe("setup quickstart oauth path", () => {
             ...validationContinuationAnswers,
             "true",
             "true",
+            "browser",
             "true",
             "http://localhost:1455/auth/callback?state=state-codex&code=auth-code-5",
             "abort"
@@ -963,10 +982,10 @@ describe("setup quickstart oauth path", () => {
                   linkedAccountCount: 1,
                   currentAuth: {
                     kind: "oauth",
-                    tokenType: "oauth-access-token",
+                    tokenType: "chatgpt-access-token",
+                    authMethod: "callback",
                     chatReady: false,
-                    detail:
-                      "Codex account login is stored, but it is not chat-ready because it is missing the exchanged OpenAI API key."
+                    detail: "Codex account login is stored, but no active access token is loaded."
                   }
                 }
               };
@@ -981,7 +1000,7 @@ describe("setup quickstart oauth path", () => {
 
       const errorOutput = errorSpy.mock.calls.flat().join("\n");
       expect(errorOutput).toContain("Account linking still needs attention");
-      expect(errorOutput).toContain("missing the exchanged OpenAI API key");
+      expect(errorOutput).toContain("no active access token is loaded");
       expect(errorOutput).toContain("This is an account-linking step, not a service failure.");
       expect(errorOutput).not.toContain("Service + health step failed");
     } finally {

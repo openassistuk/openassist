@@ -48,6 +48,7 @@ describe("cli api surface coverage", () => {
   it("covers status and mutation command paths against daemon APIs", async () => {
     const seenToolStatusQueries: string[] = [];
     const seenCodexCompleteBodies: Array<Record<string, unknown>> = [];
+    const seenCodexDeviceCodeBodies: Array<Record<string, unknown>> = [];
     const server = http.createServer((req, res) => {
       const requestUrl = new URL(req.url ?? "/", "http://localhost");
       const pathname = requestUrl.pathname;
@@ -183,6 +184,39 @@ describe("cli api surface coverage", () => {
             state: "state-codex",
             accountId: "default",
             expiresAt: "2026-03-04T00:00:00.000Z"
+          })
+        );
+        return;
+      }
+      if (method === "POST" && pathname === "/v1/oauth/codex-main/device-code/start") {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+        req.on("end", () => {
+          seenCodexDeviceCodeBodies.push(
+            JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>
+          );
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(
+            JSON.stringify({
+              verificationUri: "https://auth.openai.com/codex/device",
+              userCode: "ABCD-EFGH",
+              deviceCodeId: "device-auth-1",
+              intervalSeconds: 1,
+              expiresAt: "2026-03-05T00:00:00.000Z",
+              accountId: "default"
+            })
+          );
+        });
+        return;
+      }
+      if (method === "POST" && pathname === "/v1/oauth/codex-main/device-code/complete") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            accountId: "default",
+            expiresAt: "2026-03-05T00:10:00.000Z"
           })
         );
         return;
@@ -361,6 +395,18 @@ describe("cli api surface coverage", () => {
       {
         args: [
           "auth",
+          "start",
+          "--provider",
+          "codex-main",
+          "--device-code",
+          "--base-url",
+          baseUrl
+        ],
+        outputPattern: /Verification URL/
+      },
+      {
+        args: [
+          "auth",
           "complete",
           "--provider",
           "openai-main",
@@ -424,6 +470,12 @@ describe("cli api surface coverage", () => {
       }
 
       assert.deepEqual(seenToolStatusQueries, ["?sessionId=telegram-main%3Aops-room&senderId=123456789"]);
+      assert.deepEqual(seenCodexDeviceCodeBodies, [
+        {
+          accountId: "default",
+          scopes: []
+        }
+      ]);
       assert.deepEqual(seenCodexCompleteBodies, [
         {
           state: "state-codex",

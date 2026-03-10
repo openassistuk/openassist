@@ -14,6 +14,7 @@ import type {
   MisfirePolicy,
   NormalizedMessage,
   OAuthStartResult,
+  OAuthDeviceCodeStartResult,
   OutboundEnvelope,
   PolicyProfile,
   PolicyResolution,
@@ -379,6 +380,7 @@ interface ProviderAuthStatusSnapshot {
   currentAuth: {
     kind: "none" | "api-key" | "oauth";
     tokenType?: string;
+    authMethod?: ProviderAuthHandle["authMethod"];
     expiresAt?: string;
     chatReady: boolean;
     detail: string;
@@ -619,7 +621,8 @@ export class OpenAssistRuntime {
         accessToken: handle.accessToken,
         refreshToken: handle.refreshToken,
         tokenType: handle.tokenType,
-        scopes: handle.scopes
+        scopes: handle.scopes,
+        authMethod: handle.authMethod
       })
     );
   }
@@ -806,6 +809,39 @@ export class OpenAssistRuntime {
     };
   }
 
+  async startOAuthDeviceCodeLogin(
+    providerId: string,
+    accountId: string,
+    scopes: string[] = []
+  ): Promise<OAuthDeviceCodeStartResult & { providerId: string; accountId: string }> {
+    const provider = this.providers.get(providerId);
+    if (!provider) {
+      throw new Error(`Provider ${providerId} not found`);
+    }
+    if (!provider.startOAuthDeviceCodeLogin || !provider.completeOAuthDeviceCodeLogin) {
+      throw new Error(
+        `Provider ${providerId} does not support device-code login in this deployment.`
+      );
+    }
+
+    const configuredProvider = this.config.providers.find((item) => item.id === providerId);
+    const providerScopes =
+      configuredProvider && "oauth" in configuredProvider
+        ? configuredProvider.oauth?.scopes ?? []
+        : [];
+
+    const start = await provider.startOAuthDeviceCodeLogin({
+      accountId,
+      scopes: scopes.length > 0 ? scopes : providerScopes
+    });
+
+    return {
+      ...start,
+      providerId,
+      accountId
+    };
+  }
+
   async completeOAuthLogin(
     providerId: string,
     state: string,
@@ -818,8 +854,8 @@ export class OpenAssistRuntime {
       throw new Error("OAuth code is required");
     }
 
-    const flow = this.db.consumeOauthFlow(state);
-    if (!flow) {
+    const flow = this.db.getOauthFlow(state);
+    if (!flow || flow.consumedAt) {
       throw new Error("OAuth flow state not found or already consumed");
     }
     if (flow.providerId !== providerId) {
@@ -844,6 +880,49 @@ export class OpenAssistRuntime {
 
     if (!handle.accessToken) {
       throw new Error("OAuth completion did not return access token");
+    }
+
+    this.persistOAuthHandle(handle);
+    this.db.markOauthFlowConsumed(state);
+
+    return {
+      providerId,
+      accountId: handle.accountId,
+      expiresAt: handle.expiresAt,
+      scopes: handle.scopes
+    };
+  }
+
+  async completeOAuthDeviceCodeLogin(
+    providerId: string,
+    accountId: string,
+    deviceCodeId: string,
+    userCode: string,
+    intervalSeconds: number,
+    expiresAt?: string
+  ): Promise<{ providerId: string; accountId: string; expiresAt?: string; scopes?: string[] }> {
+    if (deviceCodeId.trim().length === 0) {
+      throw new Error("Device-code login id is required");
+    }
+    if (userCode.trim().length === 0) {
+      throw new Error("Device-code user code is required");
+    }
+
+    const provider = this.providers.get(providerId);
+    if (!provider || !provider.completeOAuthDeviceCodeLogin) {
+      throw new Error(`Provider ${providerId} does not support device-code completion.`);
+    }
+
+    const handle = await provider.completeOAuthDeviceCodeLogin({
+      accountId,
+      deviceCodeId,
+      userCode,
+      intervalSeconds,
+      expiresAt
+    });
+
+    if (!handle.accessToken) {
+      throw new Error("Device-code completion did not return access token");
     }
 
     this.persistOAuthHandle(handle);
@@ -936,7 +1015,6 @@ export class OpenAssistRuntime {
       };
     }
 
-    const isCodexReady = providerConfig?.type !== "codex" || current.tokenType === "openai-api-key";
     return {
       providerId,
       providerType: providerConfig?.type,
@@ -945,12 +1023,16 @@ export class OpenAssistRuntime {
       currentAuth: {
         kind: "oauth",
         tokenType: current.tokenType,
+        authMethod: current.authMethod,
         expiresAt: current.expiresAt,
-        chatReady: Boolean(current.accessToken) && isCodexReady,
-        detail:
-          providerConfig?.type === "codex" && !isCodexReady
-            ? "Codex account login is stored, but it is not chat-ready because it is missing the exchanged OpenAI API key."
+        chatReady: Boolean(current.accessToken),
+        detail: Boolean(current.accessToken)
+          ? providerConfig?.type === "codex"
+            ? current.authMethod === "device-code"
+              ? "Codex device-code login is loaded for this provider."
+              : "Codex browser/manual callback login is loaded for this provider."
             : "OAuth auth is loaded for this provider."
+          : "Linked account is stored, but no active access token is loaded."
       }
     };
   }
@@ -1342,6 +1424,7 @@ export class OpenAssistRuntime {
           refreshToken?: string;
           tokenType?: string;
           scopes?: string[];
+          authMethod?: ProviderAuthHandle["authMethod"];
         };
 
         if (!parsed.accessToken && !parsed.refreshToken) {
@@ -1362,6 +1445,7 @@ export class OpenAssistRuntime {
           refreshToken: parsed.refreshToken,
           tokenType: parsed.tokenType,
           scopes: parsed.scopes,
+          authMethod: parsed.authMethod,
           expiresAt: row.expiresAt
         });
       } catch (error) {

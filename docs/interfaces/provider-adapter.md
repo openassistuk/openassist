@@ -150,13 +150,15 @@ Codex adapter behavior:
 - The Codex route is account-login only in operator-facing setup and docs; it is not the generic OpenAI API-key route.
 - The Codex route validates `gpt-5.4` and Codex-family models only in this release.
 - The Codex route now exposes the same public `reasoningEffort` control shape as the OpenAI API-key route, but it still omits the field automatically when the model is outside the built-in supported set.
+- Device code is the recommended Codex headless login path, while browser callback/manual paste remains a supported fallback.
 - New Codex login flows default to `http://localhost:1455/auth/callback` instead of the daemon callback route because that matches the supported public account-login redirect shape.
 - CLI and setup guidance must make the pasted callback path explicit on remote hosts: if the localhost page cannot load after browser approval, operators copy the full URL from the browser address bar and paste it back into OpenAssist.
+- `openassist auth start --provider <provider-id> --device-code` is the recommended Codex auth entrypoint for VPS and remote hosts.
 - The additive host-side completion path is `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`; the older `--state` plus `--code` path remains for scripting and compatibility.
 - Provider and daemon OAuth failures must stay sanitized and operator-actionable. Codex completion failures should classify invalid or expired codes, redirect mismatches, upstream token-exchange failures, and missing usable token fields without leaking raw token bodies.
 - CLI and setup auth helpers must treat browser launch as best-effort only; missing local browser launchers on headless hosts must leave the printed authorization URL usable instead of crashing the account-link flow.
 - Fresh quickstart installs that choose Codex must replace the seeded `openai-main` placeholder provider instead of persisting both routes in the saved config.
-- A linked Codex account row is not sufficient on its own; completion and refresh only count as successful when the provider has the exchanged OpenAI API key required for chat-ready Responses API calls.
+- A linked Codex account row is not sufficient on its own; completion and refresh only count as successful when the provider has a usable Codex/ChatGPT token auth handle loaded for chat.
 - `openassist auth status` remains redacted, but it must surface route, linked-account presence, active auth kind, expiry when known, and whether the stored auth is chat-ready for the provider route.
 
 Anthropic thinking replay behavior:

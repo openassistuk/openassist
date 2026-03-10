@@ -92,9 +92,15 @@ The format follows Keep a Changelog conventions and this project currently track
 
 - Fresh Codex quickstart and auth-readiness fix:
   - a true first-run quickstart that selects Codex now replaces the seeded `openai-main` placeholder instead of saving both providers in the resulting config
-  - Codex account completion and refresh now require the exchanged OpenAI API key needed for chat-ready Responses API use; a raw OAuth access token alone no longer counts as successful auth
+  - Codex account completion and refresh now use the real Codex/ChatGPT token auth handle as the chat-ready success path; exchanging into a separate OpenAI API key is now optional auxiliary metadata instead of the definition of success
   - `openassist auth status` stays redacted but now surfaces linked-account presence, active auth kind, expiry when known, chat-readiness, and a redacted detail message for account-login routes
   - quickstart now keeps linked-but-unusable Codex auth in the account-linking recovery path instead of silently saving a provider that will fail on the first chat reply
+
+- Codex account-login realignment and device-code support:
+  - Codex now follows the current upstream account-login model instead of treating exchanged OpenAI API keys as mandatory for successful login
+  - `openassist auth start --provider <provider-id> --device-code` is now the recommended headless/VPS Codex login path, with browser callback/manual paste kept as a fallback
+  - runtime no longer consumes OAuth flow state before Codex callback completion actually succeeds, so transient failures can be retried with the same valid state until expiry
+  - quickstart, wizard, README, troubleshooting docs, and `AGENTS.md` now describe Codex login as device-code-first for remote hosts and keep browser/manual completion as the fallback path
 
 - Provider-route docs and samples now describe four equal public routes consistently:
   - OpenAI (API Key)

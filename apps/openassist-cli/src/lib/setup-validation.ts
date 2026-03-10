@@ -162,7 +162,7 @@ function validateProviderRequirements(
         warnings,
         "provider.default_codex_account_link_pending",
         `The primary provider '${config.runtime.defaultProviderId}' uses the Codex account-login route and still needs a linked account.`,
-        `Complete Codex account login after daemon startup: openassist auth start --provider ${config.runtime.defaultProviderId} --account default --open-browser`
+        `Complete Codex account login after daemon startup with the recommended headless path: openassist auth start --provider ${config.runtime.defaultProviderId} --device-code`
       );
       return;
     }

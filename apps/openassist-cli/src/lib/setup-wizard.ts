@@ -420,9 +420,14 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
   if (providerSupportsAccountLink(providerType)) {
     console.log(
       providerType === "codex"
-        ? `Codex account login uses the separate Codex route. Link with: openassist auth start --provider ${providerId} --account default --open-browser`
+        ? `Codex account login uses the separate Codex route. Recommended headless path: openassist auth start --provider ${providerId} --device-code`
         : `OAuth account login for ${providerType} is supported when provider OAuth config is set. Link with: openassist auth start --provider ${providerId} --account default --open-browser`
     );
+    if (providerType === "codex") {
+      console.log(
+        `Browser/manual fallback: openassist auth start --provider ${providerId} --account default --open-browser`
+      );
+    }
   }
 
   if (providerUsesApiKey(providerType)) {
@@ -500,7 +505,10 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
 
   if (provider.type === "codex") {
     console.log(
-      `Codex account login stays separate from OpenAI API-key auth. Link with: openassist auth start --provider ${provider.id} --account default --open-browser`
+      `Codex account login stays separate from OpenAI API-key auth. Recommended headless path: openassist auth start --provider ${provider.id} --device-code`
+    );
+    console.log(
+      `Browser/manual fallback: openassist auth start --provider ${provider.id} --account default --open-browser`
     );
   }
 

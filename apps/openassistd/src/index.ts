@@ -544,6 +544,23 @@ program
             return;
           }
 
+          if (method === "POST" && parts.length === 5 && parts[3] === "device-code" && parts[4] === "start") {
+            const body = await readJsonBody(req);
+            const accountId = String(body.accountId ?? "default");
+            const scopes = Array.isArray(body.scopes)
+              ? body.scopes.map((value) => String(value))
+              : [];
+
+            const started = await runtime.startOAuthDeviceCodeLogin(
+              providerId,
+              accountId,
+              scopes
+            );
+
+            sendJson(res, 200, { ...started });
+            return;
+          }
+
           if (method === "GET" && parts.length === 4 && parts[3] === "callback") {
             const state = String(requestUrl.searchParams.get("state") ?? "");
             const code = String(requestUrl.searchParams.get("code") ?? "");
@@ -563,6 +580,29 @@ program
             const code = String(body.code ?? "");
 
             const completed = await runtime.completeOAuthLogin(providerId, state, code);
+            sendJson(res, 200, completed);
+            return;
+          }
+
+          if (method === "POST" && parts.length === 5 && parts[3] === "device-code" && parts[4] === "complete") {
+            const body = await readJsonBody(req);
+            const accountId = String(body.accountId ?? "default");
+            const deviceCodeId = String(body.deviceCodeId ?? "");
+            const userCode = String(body.userCode ?? "");
+            const intervalSeconds = Number.parseInt(String(body.intervalSeconds ?? "5"), 10);
+            const expiresAt =
+              typeof body.expiresAt === "string" && body.expiresAt.trim().length > 0
+                ? body.expiresAt
+                : undefined;
+
+            const completed = await runtime.completeOAuthDeviceCodeLogin(
+              providerId,
+              accountId,
+              deviceCodeId,
+              userCode,
+              Number.isFinite(intervalSeconds) && intervalSeconds > 0 ? intervalSeconds : 5,
+              expiresAt
+            );
             sendJson(res, 200, completed);
             return;
           }

@@ -109,7 +109,7 @@ describe("codex provider auth flow", () => {
     expect(secondBody.get("subject_token")).toBe("id-token-1");
   });
 
-  it("accepts a usable OAuth access token when the code exchange omits id_token", async () => {
+  it("rejects completion when the code exchange omits the id token required for chat-ready auth", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -129,25 +129,22 @@ describe("codex provider auth flow", () => {
       defaultModel: "gpt-5.4"
     });
 
-    const handle = await adapter.completeOAuthLogin({
-      accountId: "default",
-      code: "auth-code-1",
-      state: "state-123",
-      redirectUri: "http://localhost:1455/auth/callback",
-      codeVerifier: "verifier-123"
-    });
-
-    expect(handle).toMatchObject({
-      providerId: "codex-main",
-      accountId: "default",
-      accessToken: "oauth-access-1",
-      refreshToken: "refresh-token-1",
-      tokenType: "oauth-access-token"
+    await expect(
+      adapter.completeOAuthLogin({
+        accountId: "default",
+        code: "auth-code-1",
+        state: "state-123",
+        redirectUri: "http://localhost:1455/auth/callback",
+        codeVerifier: "verifier-123"
+      })
+    ).rejects.toMatchObject({
+      statusCode: 502,
+      operatorMessage: expect.stringContaining("did not include the id token")
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to the OAuth access token when API-key exchange fails upstream", async () => {
+  it("fails completion when API-key exchange fails upstream", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -182,20 +179,18 @@ describe("codex provider auth flow", () => {
       defaultModel: "gpt-5.4"
     });
 
-    const handle = await adapter.completeOAuthLogin({
-      accountId: "default",
-      code: "auth-code-1",
-      state: "state-123",
-      redirectUri: "http://localhost:1455/auth/callback",
-      codeVerifier: "verifier-123"
-    });
-
-    expect(handle).toMatchObject({
-      providerId: "codex-main",
-      accountId: "default",
-      accessToken: "oauth-access-1",
-      refreshToken: "refresh-token-1",
-      tokenType: "oauth-access-token"
+    await expect(
+      adapter.completeOAuthLogin({
+        accountId: "default",
+        code: "auth-code-1",
+        state: "state-123",
+        redirectUri: "http://localhost:1455/auth/callback",
+        codeVerifier: "verifier-123"
+      })
+    ).rejects.toMatchObject({
+      statusCode: 502,
+      operatorMessage: expect.stringContaining("token exchange failed upstream"),
+      message: expect.stringContaining("Request ID: req_codex_exchange_1")
     });
   });
 
@@ -293,7 +288,7 @@ describe("codex provider auth flow", () => {
     expect(secondBody.get("subject_token")).toBe("id-token-2");
   });
 
-  it("refreshes Codex auth from a usable OAuth access token when no id_token is returned", async () => {
+  it("fails refresh when the upstream response omits the id token required for chat-ready auth", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -313,36 +308,46 @@ describe("codex provider auth flow", () => {
       defaultModel: "gpt-5.4"
     });
 
-    const refreshed = await adapter.refreshOAuthAuth({
-      providerId: "codex-main",
-      accountId: "default",
-      accessToken: "stale-access-token",
-      refreshToken: "refresh-token-1",
-      expiresAt: new Date(Date.now() - 60_000).toISOString()
-    });
-
-    expect(refreshed).toMatchObject({
-      providerId: "codex-main",
-      accountId: "default",
-      accessToken: "oauth-access-2",
-      refreshToken: "refresh-token-2",
-      tokenType: "oauth-access-token"
+    await expect(
+      adapter.refreshOAuthAuth({
+        providerId: "codex-main",
+        accountId: "default",
+        accessToken: "stale-access-token",
+        refreshToken: "refresh-token-1",
+        expiresAt: new Date(Date.now() - 60_000).toISOString()
+      })
+    ).rejects.toMatchObject({
+      statusCode: 502,
+      operatorMessage: expect.stringContaining("did not include the id token")
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("synthesizes a fresh expiry when refresh returns only an access token", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(
+  it("synthesizes a fresh expiry when refresh returns a new id token and refresh token", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id_token: "id-token-3",
+            refresh_token: "refresh-token-3"
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        )
+      )
+      .mockResolvedValueOnce(
       new Response(
         JSON.stringify({
-          access_token: "oauth-access-3"
+          access_token: "openai-api-key-3"
         }),
         {
           status: 200,
           headers: { "content-type": "application/json" }
         }
-      )
-    );
+      ));
     vi.stubGlobal("fetch", fetchMock);
 
     const adapter = new CodexProviderAdapter({
@@ -354,7 +359,7 @@ describe("codex provider auth flow", () => {
     const refreshed = await adapter.refreshOAuthAuth({
       providerId: "codex-main",
       accountId: "default",
-      accessToken: "stale-access-token",
+      accessToken: "stale-api-key",
       refreshToken: "refresh-token-1",
       expiresAt: expiredAt
     });
@@ -362,9 +367,9 @@ describe("codex provider auth flow", () => {
     expect(refreshed).toMatchObject({
       providerId: "codex-main",
       accountId: "default",
-      accessToken: "oauth-access-3",
-      refreshToken: "refresh-token-1",
-      tokenType: "oauth-access-token"
+      accessToken: "openai-api-key-3",
+      refreshToken: "refresh-token-3",
+      tokenType: "openai-api-key"
     });
     expect(refreshed.expiresAt).toBeTruthy();
     expect(Date.parse(refreshed.expiresAt ?? "")).toBeGreaterThan(Date.now());

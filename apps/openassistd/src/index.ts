@@ -508,7 +508,8 @@ program
         if (parts[0] === "v1" && parts[1] === "oauth") {
           if (method === "GET" && parts.length === 3 && parts[2] === "status") {
             sendJson(res, 200, {
-              accounts: runtime.listOAuthAccounts()
+              accounts: runtime.listOAuthAccounts(),
+              providers: runtime.getAllProviderAuthStatuses()
             });
             return;
           }
@@ -567,9 +568,13 @@ program
           }
 
           if (method === "GET" && parts.length === 4 && parts[3] === "status") {
+            const status = runtime.getProviderAuthStatus(providerId);
             sendJson(res, 200, {
               providerId,
-              accounts: runtime.listOAuthAccounts(providerId)
+              accounts: status.accounts,
+              providerType: status.providerType,
+              linkedAccountCount: status.linkedAccountCount,
+              currentAuth: status.currentAuth
             });
             return;
           }

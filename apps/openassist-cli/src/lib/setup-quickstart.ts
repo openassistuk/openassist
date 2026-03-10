@@ -4,6 +4,7 @@ import path from "node:path";
 import type { OpenAssistConfig } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
 import {
+  isUntouchedDefaultConfigObject,
   loadWizardState,
   saveWizardState,
   toChannelSecretEnvVar,
@@ -89,6 +90,7 @@ interface SetupQuickstartState {
   timezoneCandidate: string;
   timezoneConfirmed: boolean;
   confirmedTimezone?: string;
+  startedFromUntouchedDefaultConfig: boolean;
   guidanceShown: Record<string, boolean>;
 }
 
@@ -210,6 +212,21 @@ function upsertChannel(config: OpenAssistConfig, channel: OpenAssistConfig["runt
     return;
   }
   config.runtime.channels.push(channel);
+}
+
+function shouldReplaceSeededDefaultProvider(
+  state: SetupQuickstartState,
+  provider: OpenAssistConfig["runtime"]["providers"][number]
+): boolean {
+  if (provider.type === "openai" || !state.startedFromUntouchedDefaultConfig) {
+    return false;
+  }
+  return (
+    state.config.runtime.defaultProviderId === "openai-main" &&
+    state.config.runtime.providers.length === 1 &&
+    state.config.runtime.providers[0]?.id === "openai-main" &&
+    state.config.runtime.providers[0]?.type === "openai"
+  );
 }
 
 function envDiff(before: Record<string, string>, after: Record<string, string>): string[] {
@@ -462,7 +479,11 @@ async function configureProviders(state: SetupQuickstartState, prompts: PromptAd
   );
   const configuredDefault = await promptProvider(prompts, existingDefault);
   await configureProviderAuthentication(state, prompts, configuredDefault);
-  upsertProvider(state.config, configuredDefault);
+  if (shouldReplaceSeededDefaultProvider(state, configuredDefault)) {
+    state.config.runtime.providers = [configuredDefault];
+  } else {
+    upsertProvider(state.config, configuredDefault);
+  }
   state.config.runtime.defaultProviderId = configuredDefault.id;
 }
 
@@ -1145,11 +1166,18 @@ async function runServiceStep(
         "GET",
         `${healthyBaseUrl}/v1/oauth/${encodeURIComponent(provider.id)}/status`
       );
-      const accounts =
-        ((status.data as { accounts?: Array<{ accountId: string }> })?.accounts ?? []);
-      if (status.status >= 400 || accounts.length === 0) {
+      const statusPayload = status.data as {
+        accounts?: Array<{ accountId: string }>;
+        currentAuth?: { chatReady?: boolean; detail?: string };
+      };
+      const accounts = statusPayload.accounts ?? [];
+      const chatReady = statusPayload.currentAuth?.chatReady ?? false;
+      if (status.status >= 400 || accounts.length === 0 || (provider.type === "codex" && !chatReady)) {
         throw new OAuthAccountLinkError(
-          `Account login did not leave an active linked account for ${provider.id}.`,
+          provider.type === "codex" && accounts.length > 0 && !chatReady
+            ? statusPayload.currentAuth?.detail ??
+                `Codex account login finished, but ${provider.id} is still not chat-ready.`
+            : `Account login did not leave an active linked account for ${provider.id}.`,
           provider.id,
           provider.id === state.config.runtime.defaultProviderId && provider.type === "codex"
         );
@@ -1324,6 +1352,7 @@ export function loadSetupQuickstartState(
     originalEnv: { ...loaded.env },
     timezoneCandidate,
     timezoneConfirmed: false,
+    startedFromUntouchedDefaultConfig: isUntouchedDefaultConfigObject(loaded.config),
     guidanceShown: {}
   };
 }

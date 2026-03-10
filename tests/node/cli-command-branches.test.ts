@@ -139,7 +139,7 @@ describe("cli command branch coverage", () => {
     }
   });
 
-  it("covers auth status output with API-key signals", async () => {
+  it("covers auth status output with redacted readiness signals", async () => {
     const root = tempDir("openassist-cli-auth-status-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -156,7 +156,23 @@ describe("cli command branch coverage", () => {
     const server = http.createServer((req, res) => {
       if (req.url === "/v1/oauth/status") {
         res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ accounts: [] }));
+        res.end(
+          JSON.stringify({
+            accounts: [],
+            providers: [
+              {
+                providerId: "openai-main",
+                providerType: "openai",
+                linkedAccountCount: 0,
+                currentAuth: {
+                  kind: "api-key",
+                  chatReady: true,
+                  detail: "API key auth is loaded for this provider."
+                }
+              }
+            ]
+          })
+        );
         return;
       }
       res.writeHead(404, { "content-type": "application/json" });
@@ -196,9 +212,11 @@ describe("cli command branch coverage", () => {
     });
 
     assert.equal(result.code, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /OAuth status request succeeded/);
-    assert.match(result.stdout, /API-key status details are intentionally redacted/);
-    assert.match(result.stdout, /OAuth account details are intentionally redacted/i);
+    assert.match(result.stdout, /Provider auth status/);
+    assert.match(result.stdout, /Provider: openai-main/);
+    assert.match(result.stdout, /Route: OpenAI \(API Key\)/);
+    assert.match(result.stdout, /Active auth: API key/);
+    assert.match(result.stdout, /Chat-ready auth: Yes/);
     assert.equal(result.stdout.includes("sk-test-long-key-value"), false);
   });
 

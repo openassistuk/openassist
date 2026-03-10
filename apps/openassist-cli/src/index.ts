@@ -33,6 +33,7 @@ import {
 import { buildLifecycleReport, renderLifecycleReport } from "./lib/lifecycle-readiness.js";
 import { detectLegacyDefaultLayout } from "./lib/operator-layout.js";
 import { parseOAuthCompletionInput } from "./lib/oauth-completion.js";
+import { providerRouteLabel } from "./lib/provider-display.js";
 import { detectDefaultDaemonBaseUrl, extractApiErrorMessage } from "./lib/runtime-context.js";
 import { createServiceManager, detectServiceManagerKind } from "./lib/service-manager.js";
 import { validateSetupReadiness, type SetupValidationIssue } from "./lib/setup-validation.js";
@@ -96,6 +97,69 @@ function normalizeBrowserUrl(candidate: string): string {
     throw new Error("Authorization URL must not contain credentials");
   }
   return parsed.toString();
+}
+
+type AuthStatusResponse = {
+  providerId?: string;
+  providerType?: "openai" | "codex" | "anthropic" | "openai-compatible";
+  linkedAccountCount?: number;
+  accounts?: Array<{ accountId: string; expiresAt?: string }>;
+  currentAuth?: {
+    kind?: string;
+    tokenType?: string;
+    expiresAt?: string;
+    chatReady?: boolean;
+    detail?: string;
+  };
+  providers?: Array<{
+    providerId: string;
+    providerType?: "openai" | "codex" | "anthropic" | "openai-compatible";
+    linkedAccountCount?: number;
+    currentAuth?: {
+      kind?: string;
+      tokenType?: string;
+      expiresAt?: string;
+      chatReady?: boolean;
+      detail?: string;
+    };
+  }>;
+};
+
+function printProviderAuthStatus(status: NonNullable<AuthStatusResponse["providers"]>[number] | AuthStatusResponse): void {
+  if (!status.providerId) {
+    return;
+  }
+  const routeLabel = status.providerType ? providerRouteLabel(status.providerType) : "Unknown provider route";
+  console.log(`Provider: ${status.providerId}`);
+  console.log(`Route: ${routeLabel}`);
+  if (typeof status.linkedAccountCount === "number") {
+    console.log(`Linked accounts: ${status.linkedAccountCount}`);
+  }
+  const currentAuth = status.currentAuth;
+  if (!currentAuth) {
+    return;
+  }
+  const authKind =
+    currentAuth.kind === "api-key"
+      ? "API key"
+      : currentAuth.kind === "oauth"
+        ? "Account login"
+        : "None";
+  console.log(`Active auth: ${authKind}`);
+  if (typeof currentAuth.chatReady === "boolean") {
+    console.log(`Chat-ready auth: ${currentAuth.chatReady ? "Yes" : "No"}`);
+  }
+  if (currentAuth.tokenType) {
+    console.log(`Token type: ${currentAuth.tokenType}`);
+  }
+  if (currentAuth.expiresAt) {
+    console.log(`Token expiry: ${currentAuth.expiresAt}`);
+  } else {
+    console.log("Token expiry: Unknown");
+  }
+  if (currentAuth.detail) {
+    console.log(`Status detail: ${currentAuth.detail}`);
+  }
 }
 
 async function requestJson(
@@ -601,9 +665,24 @@ authCommand
         );
       }
 
-      console.log("OAuth status request succeeded.");
-      console.log("API-key status details are intentionally redacted from CLI output.");
-      console.log("OAuth account details are intentionally redacted from CLI output.");
+      const response = result.data as AuthStatusResponse;
+      console.log("Provider auth status");
+      console.log("Secrets are intentionally redacted from CLI output.");
+      if (providerId) {
+        printProviderAuthStatus(response);
+        return;
+      }
+      const providers = response.providers ?? [];
+      if (providers.length === 0) {
+        console.log("No provider auth status is available.");
+        return;
+      }
+      for (const [index, status] of providers.entries()) {
+        if (index > 0) {
+          console.log("");
+        }
+        printProviderAuthStatus(status);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`OAuth status failed: ${message}`);

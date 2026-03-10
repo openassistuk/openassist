@@ -95,6 +95,31 @@ export function createDefaultConfigObject(): OpenAssistConfig {
   return parseConfig(defaultConfigObjectRaw());
 }
 
+export function isUntouchedDefaultConfigObject(config: OpenAssistConfig): boolean {
+  if (config.runtime.channels.length > 0) {
+    return false;
+  }
+  if (config.runtime.assistant.name !== "OpenAssist") {
+    return false;
+  }
+  if (config.runtime.assistant.persona !== "Pragmatic, concise, and execution-focused local AI assistant.") {
+    return false;
+  }
+  if ((config.runtime.assistant.operatorPreferences ?? "").trim().length > 0) {
+    return false;
+  }
+  if (config.runtime.assistant.promptOnFirstContact === false) {
+    return false;
+  }
+  return (
+    config.runtime.defaultProviderId === "openai-main" &&
+    config.runtime.providers.length === 1 &&
+    config.runtime.providers[0]?.id === "openai-main" &&
+    config.runtime.providers[0]?.type === "openai" &&
+    config.runtime.providers[0]?.defaultModel === "gpt-5.4"
+  );
+}
+
 export function loadBaseConfigObject(configPath: string): OpenAssistConfig {
   if (!fs.existsSync(configPath)) {
     return createDefaultConfigObject();

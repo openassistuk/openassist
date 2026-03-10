@@ -239,7 +239,15 @@ describe("cli setup quickstart oauth coverage", () => {
               return {
                 status: 200,
                 data: {
-                  accounts: [{ accountId: "default" }]
+                  accounts: [{ accountId: "default" }],
+                  providerType: "codex",
+                  linkedAccountCount: 1,
+                  currentAuth: {
+                    kind: "oauth",
+                    tokenType: "openai-api-key",
+                    chatReady: true,
+                    detail: "Codex account login is linked and ready for chat."
+                  }
                 }
               };
             }

@@ -87,9 +87,14 @@ The format follows Keep a Changelog conventions and this project currently track
   - provider setup labels are now harmonized as `OpenAI (API Key)`, `Codex (OpenAI account login)`, `Anthropic (API Key)`, and `OpenAI-compatible`
   - new Codex login starts now use the supported localhost callback `http://localhost:1455/auth/callback`, which fixes the previous browser-side `unknown_error` path caused by the unsupported daemon callback redirect
   - Codex account completion now accepts pasted localhost callback URLs through both quickstart and `openassist auth complete --callback-url ...`, including wrapped or multiline paste artifacts from remote browsers
-  - Codex token completion and refresh now accept the current live OpenAI response shapes when a usable access token is present, instead of failing early because `id_token` or exchanged API-key fields are missing
   - daemon and CLI auth surfaces now report sanitized account-linking failures with safe upstream detail when available instead of collapsing Codex completion into a generic `status=500`
   - Codex and OpenAI reasoning controls now include `xhigh` alongside `low`, `medium`, and `high`
+
+- Fresh Codex quickstart and auth-readiness fix:
+  - a true first-run quickstart that selects Codex now replaces the seeded `openai-main` placeholder instead of saving both providers in the resulting config
+  - Codex account completion and refresh now require the exchanged OpenAI API key needed for chat-ready Responses API use; a raw OAuth access token alone no longer counts as successful auth
+  - `openassist auth status` stays redacted but now surfaces linked-account presence, active auth kind, expiry when known, chat-readiness, and a redacted detail message for account-login routes
+  - quickstart now keeps linked-but-unusable Codex auth in the account-linking recovery path instead of silently saving a provider that will fail on the first chat reply
 
 - Provider-route docs and samples now describe four equal public routes consistently:
   - OpenAI (API Key)

@@ -179,12 +179,13 @@ Quickstart provider guidance now follows the split-route model:
 
 - OpenAI stays the API-key route
 - Codex stays the OpenAI account-login route and completes linking during onboarding with a printed authorization URL plus pasted callback URL or code flow
+- Device code is now the recommended Codex login mode for VPS and other remote hosts; browser callback/manual paste remains available as a fallback
 - On headless hosts, OpenAssist pauses after printing the Codex authorization URL so you can copy it into another browser before continuing
 - Codex no longer prompts for a custom base URL in quickstart or wizard; the normal route uses the built-in Codex login endpoint
 - After browser approval, Codex now returns to `http://localhost:1455/auth/callback`; if that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into OpenAssist
 - The additive host-side completion path is now explicit too: `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - a fresh quickstart that selects Codex now saves only `codex-main`; it no longer keeps an unused seeded `openai-main` placeholder provider in the resulting config
-- Codex account login now only counts as complete when OpenAssist has a chat-ready Codex/OpenAI auth handle; a stored but unusable linked-account row is treated as an auth-readiness failure instead of succeeding silently
+- Codex account login now counts as complete when OpenAssist has a chat-ready Codex/ChatGPT token auth handle; it no longer depends on exchanging into a separate OpenAI API key
 - OpenAI and Codex quickstart both expose a beginner-facing reasoning effort choice:
   - `Default (recommended)`
   - `Low`
@@ -361,7 +362,7 @@ Quickstart now exposes the same beginner-facing reasoning-effort choice for the 
 
 Wizard is also where advanced provider auth and migration guidance lives:
 
-- Codex providers use OpenAI account login and are linked with `openassist auth start --provider <provider-id> --account default --open-browser`
+- Codex providers use OpenAI account login, with `openassist auth start --provider <provider-id> --device-code` recommended for headless or remote hosts and `--open-browser` kept as a fallback
 - existing legacy `openai + oauth` configs still load for compatibility, but new account-login installs should use `codex`
 - OpenAI remains the API-key route in operator-facing setup and docs
 
@@ -468,6 +469,7 @@ openassist service health
 Auth and channels:
 
 ```bash
+openassist auth start --provider codex-main --device-code
 openassist auth start --provider codex-main --account default --open-browser
 openassist auth complete --provider codex-main --callback-url "http://localhost:1455/auth/callback?state=<state>&code=<code>" --base-url http://127.0.0.1:3344
 openassist auth status

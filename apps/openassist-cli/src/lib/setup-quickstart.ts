@@ -441,9 +441,14 @@ async function configureProviderAuthentication(
 
   if (provider.type === "codex") {
     console.log("Codex uses OpenAI account login instead of an API key.");
-    console.log("Quickstart will guide you through Codex account linking after the daemon is healthy.");
     console.log(
-      `You can also link later with: openassist auth start --provider ${provider.id} --account default --open-browser`
+      "Quickstart will guide you through Codex account linking after the daemon is healthy."
+    );
+    console.log(
+      `Headless-friendly fallback: openassist auth start --provider ${provider.id} --device-code`
+    );
+    console.log(
+      `Browser/manual fallback: openassist auth start --provider ${provider.id} --account default --open-browser`
     );
     return;
   }
@@ -1017,54 +1022,44 @@ async function runServiceStep(
   let lastRunner: SpawnCommandRunner | undefined;
 
   const maybeOfferOAuthAccountLink = async (healthyBaseUrl: string): Promise<void> => {
-    const accountLinkProviders = state.config.runtime.providers.filter((provider) => {
-      if (provider.type === "codex") {
-        return true;
-      }
-      return providerSupportsAccountLink(provider.type) && "oauth" in provider && Boolean(provider.oauth);
-    });
-    if (accountLinkProviders.length === 0) {
-      return;
-    }
-    if (!process.stdin.isTTY || !process.stdout.isTTY) {
-      return;
-    }
-
-    console.log("");
-    console.log("OAuth account linking is available for configured providers.");
-
-    const linkNow = await prompts.confirm("Start OAuth account linking now?", false);
-    if (!linkNow) {
-      const defaultProvider = state.config.runtime.providers.find(
-        (provider) => provider.id === state.config.runtime.defaultProviderId
+    const requestJsonFn = dependencies.requestJsonFn ?? requestJson;
+    const ensureProviderAccountReady = async (
+      provider: OpenAssistConfig["runtime"]["providers"][number]
+    ): Promise<void> => {
+      const status = await requestJsonFn(
+        "GET",
+        `${healthyBaseUrl}/v1/oauth/${encodeURIComponent(provider.id)}/status`
       );
-      if (defaultProvider?.type === "codex") {
+      const statusPayload = status.data as {
+        accounts?: Array<{ accountId: string }>;
+        currentAuth?: {
+          chatReady?: boolean;
+          detail?: string;
+          authMethod?: "callback" | "device-code";
+        };
+      };
+      const accounts = statusPayload.accounts ?? [];
+      const chatReady = statusPayload.currentAuth?.chatReady ?? false;
+      if (status.status >= 400 || accounts.length === 0 || (provider.type === "codex" && !chatReady)) {
         throw new OAuthAccountLinkError(
-          "Codex account login is still required before the first reply can use the default provider.",
-          defaultProvider.id,
-          true
+          provider.type === "codex" && accounts.length > 0 && !chatReady
+            ? statusPayload.currentAuth?.detail ??
+                `Codex account login finished, but ${provider.id} is still not chat-ready.`
+            : `Account login did not leave an active linked account for ${provider.id}.`,
+          provider.id,
+          provider.id === state.config.runtime.defaultProviderId && provider.type === "codex"
         );
       }
-      return;
-    }
-
-    const requestJsonFn = dependencies.requestJsonFn ?? requestJson;
-    for (const provider of accountLinkProviders) {
-      const startThisProvider = await prompts.confirm(
-        `Start account login for ${providerLabel(provider.type)} provider ${provider.id}?`,
-        true
+      console.log(
+        provider.type === "codex" && statusPayload.currentAuth?.authMethod === "device-code"
+          ? `Linked account ready for ${provider.id} via device code.`
+          : `Linked account ready for ${provider.id}.`
       );
-      if (!startThisProvider) {
-        if (provider.id === state.config.runtime.defaultProviderId && provider.type === "codex") {
-          throw new OAuthAccountLinkError(
-            "Codex account login is required for the selected default provider.",
-            provider.id,
-            true
-          );
-        }
-        continue;
-      }
+    };
 
+    const runBrowserAccountLink = async (
+      provider: OpenAssistConfig["runtime"]["providers"][number]
+    ): Promise<void> => {
       const response = await requestJsonFn(
         "POST",
         `${healthyBaseUrl}/v1/oauth/${encodeURIComponent(provider.id)}/start`,
@@ -1124,7 +1119,7 @@ async function runServiceStep(
             true
           );
         }
-        continue;
+        return;
       }
 
       const completionRaw = await prompts.input(
@@ -1142,7 +1137,7 @@ async function runServiceStep(
             true
           );
         }
-        continue;
+        return;
       }
 
       const completed = await requestJsonFn(
@@ -1162,27 +1157,157 @@ async function runServiceStep(
         );
       }
 
-      const status = await requestJsonFn(
-        "GET",
-        `${healthyBaseUrl}/v1/oauth/${encodeURIComponent(provider.id)}/status`
+      await ensureProviderAccountReady(provider);
+    };
+
+    const runCodexDeviceCodeLink = async (
+      provider: OpenAssistConfig["runtime"]["providers"][number]
+    ): Promise<void> => {
+      const response = await requestJsonFn(
+        "POST",
+        `${healthyBaseUrl}/v1/oauth/${encodeURIComponent(provider.id)}/device-code/start`,
+        {
+          accountId: "default"
+        }
       );
-      const statusPayload = status.data as {
-        accounts?: Array<{ accountId: string }>;
-        currentAuth?: { chatReady?: boolean; detail?: string };
-      };
-      const accounts = statusPayload.accounts ?? [];
-      const chatReady = statusPayload.currentAuth?.chatReady ?? false;
-      if (status.status >= 400 || accounts.length === 0 || (provider.type === "codex" && !chatReady)) {
+      if (response.status >= 400) {
+        const detail = extractApiErrorMessage(
+          response.data,
+          `Device-code login start failed for ${provider.id} (status=${response.status}).`
+        );
         throw new OAuthAccountLinkError(
-          provider.type === "codex" && accounts.length > 0 && !chatReady
-            ? statusPayload.currentAuth?.detail ??
-                `Codex account login finished, but ${provider.id} is still not chat-ready.`
-            : `Account login did not leave an active linked account for ${provider.id}.`,
+          detail,
           provider.id,
-          provider.id === state.config.runtime.defaultProviderId && provider.type === "codex"
+          provider.id === state.config.runtime.defaultProviderId
         );
       }
-      console.log(`Linked account ready for ${provider.id}.`);
+
+      const payload = response.data as {
+        verificationUri: string;
+        userCode: string;
+        deviceCodeId: string;
+        intervalSeconds: number;
+        expiresAt?: string;
+      };
+      console.log("");
+      console.log(`Verification URL:\n${payload.verificationUri}`);
+      console.log(`User code: ${payload.userCode}`);
+      console.log("Open the verification URL in a browser on this machine or another device, enter the user code, then return here.");
+      console.log("Device code is the recommended Codex login path for VPS and remote hosts.");
+      console.log(
+        `Host fallback: openassist auth start --provider ${provider.id} --device-code --base-url ${healthyBaseUrl}`
+      );
+      const readyToContinue = await prompts.confirm(
+        `I have opened or copied the verification URL and user code for ${provider.id}`,
+        true
+      );
+      if (!readyToContinue) {
+        if (provider.id === state.config.runtime.defaultProviderId) {
+          throw new OAuthAccountLinkError(
+            "Codex account login is still required before the first reply can use the default provider.",
+            provider.id,
+            true
+          );
+        }
+        return;
+      }
+
+      console.log("Waiting for Codex account approval...");
+      const completed = await requestJsonFn(
+        "POST",
+        `${healthyBaseUrl}/v1/oauth/${encodeURIComponent(provider.id)}/device-code/complete`,
+        {
+          accountId: "default",
+          deviceCodeId: payload.deviceCodeId,
+          userCode: payload.userCode,
+          intervalSeconds: payload.intervalSeconds,
+          ...(payload.expiresAt ? { expiresAt: payload.expiresAt } : {})
+        }
+      );
+      if (completed.status >= 400) {
+        const detail = extractApiErrorMessage(
+          completed.data,
+          `Device-code login completion failed for ${provider.id} (status=${completed.status}).`
+        );
+        throw new OAuthAccountLinkError(
+          detail,
+          provider.id,
+          provider.id === state.config.runtime.defaultProviderId
+        );
+      }
+
+      await ensureProviderAccountReady(provider);
+    };
+
+    const accountLinkProviders = state.config.runtime.providers.filter((provider) => {
+      if (provider.type === "codex") {
+        return true;
+      }
+      return providerSupportsAccountLink(provider.type) && "oauth" in provider && Boolean(provider.oauth);
+    });
+    if (accountLinkProviders.length === 0) {
+      return;
+    }
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      return;
+    }
+
+    console.log("");
+    console.log("OAuth account linking is available for configured providers.");
+
+    const linkNow = await prompts.confirm("Start OAuth account linking now?", false);
+    if (!linkNow) {
+      const defaultProvider = state.config.runtime.providers.find(
+        (provider) => provider.id === state.config.runtime.defaultProviderId
+      );
+      if (defaultProvider?.type === "codex") {
+        throw new OAuthAccountLinkError(
+          "Codex account login is still required before the first reply can use the default provider.",
+          defaultProvider.id,
+          true
+        );
+      }
+      return;
+    }
+    for (const provider of accountLinkProviders) {
+      const startThisProvider = await prompts.confirm(
+        `Start account login for ${providerLabel(provider.type)} provider ${provider.id}?`,
+        true
+      );
+      if (!startThisProvider) {
+        if (provider.id === state.config.runtime.defaultProviderId && provider.type === "codex") {
+          throw new OAuthAccountLinkError(
+            "Codex account login is required for the selected default provider.",
+            provider.id,
+            true
+          );
+        }
+        continue;
+      }
+      if (provider.type === "codex") {
+        const authMode = await prompts.select<"device-code" | "browser">(
+          `Codex login method for ${provider.id}`,
+          [
+            {
+              name: "Device code (recommended for VPS or remote hosts)",
+              value: "device-code"
+            },
+            {
+              name: "Browser callback/manual paste",
+              value: "browser"
+            }
+          ],
+          "device-code"
+        );
+        if (authMode === "device-code") {
+          await runCodexDeviceCodeLink(provider);
+        } else {
+          await runBrowserAccountLink(provider);
+        }
+        continue;
+      }
+
+      await runBrowserAccountLink(provider);
     }
   };
 
@@ -1292,11 +1417,23 @@ async function runServiceStep(
       const message = error instanceof Error ? error.message : String(error);
       const oauthError = error instanceof OAuthAccountLinkError ? error : undefined;
       if (oauthError) {
+        const oauthProvider = state.config.runtime.providers.find(
+          (provider) => provider.id === oauthError.providerId
+        );
         console.error(`Account linking still needs attention: ${message}`);
         console.error(`- Retry account login for ${oauthError.providerId} now.`);
-        console.error(
-          `- Host fallback: openassist auth start --provider ${oauthError.providerId} --account default --open-browser --base-url ${baseUrl}`
-        );
+        if (oauthProvider?.type === "codex") {
+          console.error(
+            `- Host fallback: openassist auth start --provider ${oauthError.providerId} --device-code --base-url ${baseUrl}`
+          );
+          console.error(
+            `- Browser/manual fallback: openassist auth start --provider ${oauthError.providerId} --account default --open-browser --base-url ${baseUrl}`
+          );
+        } else {
+          console.error(
+            `- Host fallback: openassist auth start --provider ${oauthError.providerId} --account default --open-browser --base-url ${baseUrl}`
+          );
+        }
         console.error(
           `- Check linked account state: openassist auth status --provider ${oauthError.providerId} --base-url ${baseUrl}`
         );

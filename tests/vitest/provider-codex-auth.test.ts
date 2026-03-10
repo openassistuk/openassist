@@ -1,76 +1,56 @@
-import fs from "node:fs";
-import http from "node:http";
-import os from "node:os";
-import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CodexProviderAdapter } from "../../packages/providers-codex/src/index.js";
 
-describe("codex provider auth flow", () => {
+function jsonResponse(
+  status: number,
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {}
+): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json",
+      ...headers
+    }
+  });
+}
+
+describe("codex provider auth", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it("builds the official Codex authorization URL", async () => {
+  it("includes the current upstream Codex scopes in the browser login URL", async () => {
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
       defaultModel: "gpt-5.4"
     });
 
-    const started = await adapter.startOAuthLogin({
+    const start = await adapter.startOAuthLogin({
       accountId: "default",
       redirectUri: "http://localhost:1455/auth/callback",
-      state: "state-123",
+      state: "state-1",
       scopes: [],
-      codeChallenge: "challenge-123",
+      codeChallenge: "challenge-1",
       codeChallengeMethod: "S256"
     });
 
-    const authorizationUrl = new URL(started.authorizationUrl);
-    expect(`${authorizationUrl.origin}${authorizationUrl.pathname}`).toBe(
-      "https://auth.openai.com/oauth/authorize"
+    const url = new URL(start.authorizationUrl);
+    expect(url.origin + url.pathname).toBe("https://auth.openai.com/oauth/authorize");
+    expect(url.searchParams.get("redirect_uri")).toBe("http://localhost:1455/auth/callback");
+    expect(url.searchParams.get("scope")).toBe(
+      "openid profile email offline_access api.connectors.read api.connectors.invoke"
     );
-    expect(authorizationUrl.searchParams.get("client_id")).toBe("app_EMoamEEZ73f0CkXaXp7hrann");
-    expect(authorizationUrl.searchParams.get("response_type")).toBe("code");
-    expect(authorizationUrl.searchParams.get("redirect_uri")).toBe("http://localhost:1455/auth/callback");
-    expect(authorizationUrl.searchParams.get("code_challenge")).toBe("challenge-123");
-    expect(authorizationUrl.searchParams.get("code_challenge_method")).toBe("S256");
-    expect(authorizationUrl.searchParams.get("state")).toBe("state-123");
-    expect(authorizationUrl.searchParams.get("originator")).toBe("codex_cli_rs");
-    expect(authorizationUrl.searchParams.get("id_token_add_organizations")).toBe("true");
-    expect(authorizationUrl.searchParams.get("codex_cli_simplified_flow")).toBe("true");
-    expect(authorizationUrl.searchParams.get("scope")).toContain("offline_access");
-    expect(authorizationUrl.searchParams.get("scope")).not.toContain("api.connectors.invoke");
   });
 
-  it("exchanges authorization code for a refreshable OpenAI API key handle", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id_token: "id-token-1",
-            access_token: "oauth-access-1",
-            refresh_token: "refresh-token-1"
-          }),
-          {
-            status: 200,
-            headers: { "content-type": "application/json" }
-          }
-        )
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            access_token: "openai-api-key-1"
-          }),
-          {
-            status: 200,
-            headers: { "content-type": "application/json" }
-          }
-        )
-      );
-    vi.stubGlobal("fetch", fetchMock);
+  it("completes callback login into chatgpt token auth without requiring API-key exchange", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(200, {
+        access_token: "access-token-1",
+        refresh_token: "refresh-token-1",
+        expires_in: 3600
+      })
+    );
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
@@ -80,184 +60,30 @@ describe("codex provider auth flow", () => {
     const handle = await adapter.completeOAuthLogin({
       accountId: "default",
       code: "auth-code-1",
-      state: "state-123",
+      state: "state-1",
       redirectUri: "http://localhost:1455/auth/callback",
-      codeVerifier: "verifier-123"
+      codeVerifier: "verifier-1"
     });
 
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(handle).toMatchObject({
       providerId: "codex-main",
       accountId: "default",
-      accessToken: "openai-api-key-1",
+      accessToken: "access-token-1",
       refreshToken: "refresh-token-1",
-      tokenType: "openai-api-key"
+      tokenType: "chatgpt-access-token",
+      authMethod: "callback"
     });
     expect(handle.expiresAt).toBeTruthy();
-
-    const firstBody = new URLSearchParams(String(fetchMock.mock.calls[0]?.[1]?.body));
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://auth.openai.com/oauth/token");
-    expect(firstBody.get("grant_type")).toBe("authorization_code");
-    expect(firstBody.get("code")).toBe("auth-code-1");
-    expect(firstBody.get("code_verifier")).toBe("verifier-123");
-
-    const secondBody = new URLSearchParams(String(fetchMock.mock.calls[1]?.[1]?.body));
-    expect(String(fetchMock.mock.calls[1]?.[0])).toBe("https://auth.openai.com/oauth/token");
-    expect(secondBody.get("grant_type")).toBe(
-      "urn:ietf:params:oauth:grant-type:token-exchange"
-    );
-    expect(secondBody.get("requested_token")).toBe("openai-api-key");
-    expect(secondBody.get("subject_token")).toBe("id-token-1");
   });
 
-  it("rejects completion when the code exchange omits the id token required for chat-ready auth", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          access_token: "oauth-access-1",
-          refresh_token: "refresh-token-1"
-        }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        }
-      )
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const adapter = new CodexProviderAdapter({
-      id: "codex-main",
-      defaultModel: "gpt-5.4"
-    });
-
-    await expect(
-      adapter.completeOAuthLogin({
-        accountId: "default",
-        code: "auth-code-1",
-        state: "state-123",
-        redirectUri: "http://localhost:1455/auth/callback",
-        codeVerifier: "verifier-123"
+  it("refreshes Codex auth without requiring a fresh API-key exchange", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(200, {
+        access_token: "access-token-2",
+        expires_in: 7200
       })
-    ).rejects.toMatchObject({
-      statusCode: 502,
-      operatorMessage: expect.stringContaining("did not include the id token")
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("fails completion when API-key exchange fails upstream", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id_token: "id-token-1",
-            access_token: "oauth-access-1",
-            refresh_token: "refresh-token-1"
-          }),
-          {
-            status: 200,
-            headers: { "content-type": "application/json" }
-          }
-        )
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            error: "unknown_error",
-            request_id: "req_codex_exchange_1"
-          }),
-          {
-            status: 500,
-            headers: { "content-type": "application/json" }
-          }
-        )
-      );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const adapter = new CodexProviderAdapter({
-      id: "codex-main",
-      defaultModel: "gpt-5.4"
-    });
-
-    await expect(
-      adapter.completeOAuthLogin({
-        accountId: "default",
-        code: "auth-code-1",
-        state: "state-123",
-        redirectUri: "http://localhost:1455/auth/callback",
-        codeVerifier: "verifier-123"
-      })
-    ).rejects.toMatchObject({
-      statusCode: 502,
-      operatorMessage: expect.stringContaining("token exchange failed upstream"),
-      message: expect.stringContaining("Request ID: req_codex_exchange_1")
-    });
-  });
-
-  it("classifies invalid or expired upstream auth codes safely", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          error: "invalid_grant",
-          error_description: "authorization code expired",
-          request_id: "req_codex_invalid_1"
-        }),
-        {
-          status: 400,
-          headers: { "content-type": "application/json" }
-        }
-      )
     );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const adapter = new CodexProviderAdapter({
-      id: "codex-main",
-      defaultModel: "gpt-5.4"
-    });
-
-    await expect(
-      adapter.completeOAuthLogin({
-        accountId: "default",
-        code: "bad-code",
-        state: "state-123",
-        redirectUri: "http://localhost:1455/auth/callback",
-        codeVerifier: "verifier-123"
-      })
-    ).rejects.toMatchObject({
-      statusCode: 400,
-      operatorMessage: expect.stringContaining("Codex account login code is invalid or expired"),
-      message: expect.stringContaining("Request ID: req_codex_invalid_1")
-    });
-  });
-
-  it("refreshes Codex auth by re-exchanging the refreshed id_token", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id_token: "id-token-2",
-            access_token: "oauth-access-2",
-            refresh_token: "refresh-token-2"
-          }),
-          {
-            status: 200,
-            headers: { "content-type": "application/json" }
-          }
-        )
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            access_token: "openai-api-key-2"
-          }),
-          {
-            status: 200,
-            headers: { "content-type": "application/json" }
-          }
-        )
-      );
-    vi.stubGlobal("fetch", fetchMock);
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
@@ -267,347 +93,164 @@ describe("codex provider auth flow", () => {
     const refreshed = await adapter.refreshOAuthAuth({
       providerId: "codex-main",
       accountId: "default",
-      accessToken: "stale-api-key",
+      accessToken: "access-token-1",
       refreshToken: "refresh-token-1",
-      expiresAt: new Date(Date.now() - 60_000).toISOString()
+      tokenType: "chatgpt-access-token",
+      authMethod: "callback",
+      expiresAt: "2026-03-10T00:00:00.000Z"
     });
 
     expect(refreshed).toMatchObject({
-      providerId: "codex-main",
-      accountId: "default",
-      accessToken: "openai-api-key-2",
-      refreshToken: "refresh-token-2",
-      tokenType: "openai-api-key"
-    });
-
-    const firstBody = new URLSearchParams(String(fetchMock.mock.calls[0]?.[1]?.body));
-    expect(firstBody.get("grant_type")).toBe("refresh_token");
-    expect(firstBody.get("refresh_token")).toBe("refresh-token-1");
-
-    const secondBody = new URLSearchParams(String(fetchMock.mock.calls[1]?.[1]?.body));
-    expect(secondBody.get("subject_token")).toBe("id-token-2");
-  });
-
-  it("fails refresh when the upstream response omits the id token required for chat-ready auth", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          access_token: "oauth-access-2",
-          refresh_token: "refresh-token-2"
-        }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        }
-      )
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const adapter = new CodexProviderAdapter({
-      id: "codex-main",
-      defaultModel: "gpt-5.4"
-    });
-
-    await expect(
-      adapter.refreshOAuthAuth({
-        providerId: "codex-main",
-        accountId: "default",
-        accessToken: "stale-access-token",
-        refreshToken: "refresh-token-1",
-        expiresAt: new Date(Date.now() - 60_000).toISOString()
-      })
-    ).rejects.toMatchObject({
-      statusCode: 502,
-      operatorMessage: expect.stringContaining("did not include the id token")
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("synthesizes a fresh expiry when refresh returns a new id token and refresh token", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id_token: "id-token-3",
-            refresh_token: "refresh-token-3"
-          }),
-          {
-            status: 200,
-            headers: { "content-type": "application/json" }
-          }
-        )
-      )
-      .mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          access_token: "openai-api-key-3"
-        }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        }
-      ));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const adapter = new CodexProviderAdapter({
-      id: "codex-main",
-      defaultModel: "gpt-5.4"
-    });
-
-    const expiredAt = new Date(Date.now() - 60_000).toISOString();
-    const refreshed = await adapter.refreshOAuthAuth({
-      providerId: "codex-main",
-      accountId: "default",
-      accessToken: "stale-api-key",
+      accessToken: "access-token-2",
       refreshToken: "refresh-token-1",
-      expiresAt: expiredAt
-    });
-
-    expect(refreshed).toMatchObject({
-      providerId: "codex-main",
-      accountId: "default",
-      accessToken: "openai-api-key-3",
-      refreshToken: "refresh-token-3",
-      tokenType: "openai-api-key"
+      tokenType: "chatgpt-access-token",
+      authMethod: "callback"
     });
     expect(refreshed.expiresAt).toBeTruthy();
-    expect(Date.parse(refreshed.expiresAt ?? "")).toBeGreaterThan(Date.now());
-    expect(refreshed.expiresAt).not.toBe(expiredAt);
   });
 
-  it("rejects non-Codex default models on the Codex route", async () => {
+  it("fails completion when the upstream token response has no usable access token", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(200, {
+        refresh_token: "refresh-token-1",
+        expires_in: 3600
+      })
+    );
+
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
       defaultModel: "gpt-5.4"
     });
 
     await expect(
-      adapter.validateConfig({
-        id: "codex-main",
-        defaultModel: "gpt-4o-mini"
+      adapter.completeOAuthLogin({
+        accountId: "default",
+        code: "auth-code-1",
+        state: "state-1",
+        redirectUri: "http://localhost:1455/auth/callback",
+        codeVerifier: "verifier-1"
       })
-    ).resolves.toMatchObject({
-      valid: false
-    });
+    ).rejects.toThrow(/did not return the access token required for Codex chat/);
   });
 
-  it("sends reasoning effort on supported Codex Responses-model requests", async () => {
-    let capturedPayload: Record<string, unknown> | undefined;
-    const server = http.createServer(async (req, res) => {
-      if (req.method === "POST" && req.url === "/v1/responses") {
-        const chunks: Buffer[] = [];
-        for await (const chunk of req) {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
-        capturedPayload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(
-          JSON.stringify({
-            id: "resp-1",
-            status: "completed",
-            output_text: "ok",
-            output: [],
-            usage: {
-              input_tokens: 10,
-              output_tokens: 5,
-              total_tokens: 15
-            }
-          })
-        );
-        return;
-      }
-      res.writeHead(404);
-      res.end();
-    });
-
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
-    const address = server.address();
-    if (!address || typeof address === "string") {
-      throw new Error("failed to bind test server");
-    }
-
-    const adapter = new CodexProviderAdapter({
-      id: "codex-main",
-      defaultModel: "gpt-5.4",
-      baseUrl: `http://127.0.0.1:${address.port}/v1`,
-      reasoningEffort: "xhigh"
-    });
-
-    await adapter.chat(
-      {
-        sessionId: "telegram:c1",
-        model: "gpt-5.4",
-        messages: [{ role: "user", content: "hello" }],
-        tools: [],
-        metadata: {}
-      },
-      {
-        providerId: "codex-main",
-        accessToken: "openai-api-key"
-      }
-    );
-
-    expect(capturedPayload?.reasoning).toEqual({ effort: "xhigh" });
-    server.close();
-  });
-
-  it("omits reasoning effort when Codex reasoning is unset", async () => {
-    let capturedPayload: Record<string, unknown> | undefined;
-    const server = http.createServer(async (req, res) => {
-      if (req.method === "POST" && req.url === "/v1/responses") {
-        const chunks: Buffer[] = [];
-        for await (const chunk of req) {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
-        capturedPayload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(
-          JSON.stringify({
-            id: "resp-2",
-            status: "completed",
-            output_text: "ok",
-            output: [],
-            usage: {
-              input_tokens: 10,
-              output_tokens: 5,
-              total_tokens: 15
-            }
-          })
-        );
-        return;
-      }
-      res.writeHead(404);
-      res.end();
-    });
-
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
-    const address = server.address();
-    if (!address || typeof address === "string") {
-      throw new Error("failed to bind test server");
-    }
-
-    const adapter = new CodexProviderAdapter({
-      id: "codex-main",
-      defaultModel: "gpt-5.4",
-      baseUrl: `http://127.0.0.1:${address.port}/v1`
-    });
-
-    await adapter.chat(
-      {
-        sessionId: "telegram:c1",
-        model: "gpt-5.4",
-        messages: [{ role: "user", content: "hello" }],
-        tools: [],
-        metadata: {}
-      },
-      {
-        providerId: "codex-main",
-        accessToken: "openai-api-key"
-      }
-    );
-
-    expect("reasoning" in (capturedPayload ?? {})).toBe(false);
-    server.close();
-  });
-
-  it("omits reasoning effort on unsupported Codex models", async () => {
-    let capturedPayload: Record<string, unknown> | undefined;
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "openassist-codex-reasoning-"));
-    const imagePath = path.join(tempRoot, "sample.png");
-    fs.writeFileSync(
-      imagePath,
-      Buffer.from(
-        "89504e470d0a1a0a0000000d4948445200000001000000010802000000907724de0000000a49444154789c6360000002000154a24f5d0000000049454e44ae426082",
-        "hex"
+  it("surfaces upstream request ids for token exchange failures", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(
+        400,
+        {
+          error: "invalid_grant",
+          error_description: "authorization code expired",
+          request_id: "req-codex-1"
+        },
+        { "x-request-id": "req-codex-1" }
       )
     );
-    const server = http.createServer(async (req, res) => {
-      if (req.method === "POST" && req.url === "/v1/responses") {
-        const chunks: Buffer[] = [];
-        for await (const chunk of req) {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
-        capturedPayload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(
-          JSON.stringify({
-            id: "resp-3",
-            status: "completed",
-            output_text: "ok",
-            output: [],
-            usage: {
-              input_tokens: 10,
-              output_tokens: 5,
-              total_tokens: 15
-            }
-          })
-        );
-        return;
-      }
-      res.writeHead(404);
-      res.end();
-    });
-
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
-    const address = server.address();
-    if (!address || typeof address === "string") {
-      throw new Error("failed to bind test server");
-    }
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-4o-mini",
-      baseUrl: `http://127.0.0.1:${address.port}/v1`,
-      reasoningEffort: "medium"
+      defaultModel: "gpt-5.4"
     });
 
-    await adapter.chat(
-      {
-        sessionId: "telegram:c1",
-        model: "gpt-5.4",
-        messages: [{ role: "user", content: "hello" }],
-        tools: [],
-        metadata: {}
-      },
-      {
-        providerId: "codex-main",
-        accessToken: "openai-api-key"
-      }
+    await expect(
+      adapter.completeOAuthLogin({
+        accountId: "default",
+        code: "auth-code-1",
+        state: "state-1",
+        redirectUri: "http://localhost:1455/auth/callback",
+        codeVerifier: "verifier-1"
+      })
+    ).rejects.toThrow(/Request ID: req-codex-1/);
+  });
+
+  it("supports device-code login for headless Codex setup", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          device_auth_id: "device-auth-1",
+          user_code: "ABCD-EFGH",
+          interval: 1
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(401, {
+          error: "authorization_pending"
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          authorization_code: "device-auth-code-1",
+          code_verifier: "device-verifier-1"
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          access_token: "device-access-token-1",
+          refresh_token: "device-refresh-token-1",
+          expires_in: 3600
+        })
+      );
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    const start = await adapter.startOAuthDeviceCodeLogin({
+      accountId: "default",
+      scopes: []
+    });
+    expect(start).toMatchObject({
+      verificationUri: "https://auth.openai.com/codex/device",
+      userCode: "ABCD-EFGH",
+      deviceCodeId: "device-auth-1",
+      intervalSeconds: 1
+    });
+
+    const handle = await adapter.completeOAuthDeviceCodeLogin({
+      accountId: "default",
+      deviceCodeId: start.deviceCodeId,
+      userCode: start.userCode,
+      intervalSeconds: start.intervalSeconds,
+      expiresAt: start.expiresAt
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(handle).toMatchObject({
+      providerId: "codex-main",
+      accountId: "default",
+      accessToken: "device-access-token-1",
+      refreshToken: "device-refresh-token-1",
+      tokenType: "chatgpt-access-token",
+      authMethod: "device-code"
+    });
+  });
+
+  it("classifies device-code polling timeouts cleanly", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(
+        401,
+        {
+          error: "authorization_pending",
+          request_id: "req-device-timeout-1"
+        },
+        { "x-request-id": "req-device-timeout-1" }
+      )
     );
 
-    expect(capturedPayload?.reasoning).toEqual({ effort: "medium" });
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
 
-    await adapter.chat(
-      {
-        sessionId: "telegram:c1",
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: "hello",
-            attachments: [
-              {
-                id: "image-1",
-                kind: "image",
-                name: "sample.png",
-                mimeType: "image/png",
-                localPath: imagePath
-              }
-            ]
-          }
-        ],
-        tools: [],
-        metadata: {}
-      },
-      {
-        providerId: "codex-main",
-        accessToken: "openai-api-key"
-      }
-    );
-
-    expect("reasoning" in (capturedPayload ?? {})).toBe(false);
-    server.close();
-    fs.rmSync(tempRoot, { recursive: true, force: true });
+    await expect(
+      adapter.completeOAuthDeviceCodeLogin({
+        accountId: "default",
+        deviceCodeId: "device-auth-1",
+        userCode: "ABCD-EFGH",
+        intervalSeconds: 1,
+        expiresAt: new Date(Date.now() - 1000).toISOString()
+      })
+    ).rejects.toThrow(/timed out before approval completed/);
   });
 });

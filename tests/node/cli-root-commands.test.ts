@@ -741,10 +741,10 @@ describe("cli root command coverage", () => {
             ],
             currentAuth: {
               kind: "oauth",
-              tokenType: "oauth-access-token",
-              chatReady: false,
-              detail:
-                "Codex account login is stored, but it is not chat-ready because it is missing the exchanged OpenAI API key."
+              tokenType: "chatgpt-access-token",
+              authMethod: "device-code",
+              chatReady: true,
+              detail: "Codex device-code login is loaded for this provider."
             }
           })
         );
@@ -789,9 +789,10 @@ describe("cli root command coverage", () => {
       assert.match(result.stdout, /Route: Codex \(OpenAI account login\)/);
       assert.match(result.stdout, /Linked accounts: 1/);
       assert.match(result.stdout, /Active auth: Account login/);
-      assert.match(result.stdout, /Chat-ready auth: No/);
-      assert.match(result.stdout, /Token type: oauth-access-token/);
-      assert.match(result.stdout, /missing the exchanged OpenAI API key/);
+      assert.match(result.stdout, /Chat-ready auth: Yes/);
+      assert.match(result.stdout, /Auth method: Device code/);
+      assert.match(result.stdout, /Token type: chatgpt-access-token/);
+      assert.match(result.stdout, /Codex device-code login is loaded for this provider\./);
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.close((error) => {

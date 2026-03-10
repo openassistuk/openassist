@@ -285,6 +285,256 @@ describe("setup quickstart oauth path", () => {
     }
   });
 
+  it("accepts wrapped localhost callback URLs during Codex account linking", async () => {
+    const root = tempDir("openassist-quickstart-oauth-wrapped-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.providers = [
+      {
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-5.4"
+      }
+    ];
+    state.config.runtime.defaultProviderId = "codex-main";
+
+    const completionBodies: Array<Record<string, unknown>> = [];
+    const restoreTty = setTty(true);
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
+
+    try {
+      const result = await runSetupQuickstart(
+        state,
+        {
+          configPath,
+          envFilePath: envPath,
+          installDir,
+          allowIncomplete: true,
+          skipService: false,
+          requireTty: false,
+          preflightCommandChecks: false
+        },
+        new ScriptedPromptAdapter(
+          validCodexQuickstartAnswers(bindPort, [
+            ...validationContinuationAnswers,
+            "true",
+            "true",
+            "true",
+            "http://localhost:1455/auth/callback?state=state-codex&code=auth-\ncode-3"
+          ])
+        ),
+        {
+          createServiceManagerFn: () => createFakeService(),
+          waitForHealthyFn: async (baseUrl) => ({
+            ok: true,
+            status: 200,
+            bodyText: "{\"status\":\"ok\"}",
+            baseUrl: Array.isArray(baseUrl) ? baseUrl[0] : baseUrl
+          }),
+          requestJsonFn: async (method, url, body) => {
+            if (url.endsWith("/v1/time/status")) {
+              return {
+                status: 200,
+                data: {
+                  time: {
+                    timezone: "Europe/London",
+                    timezoneConfirmed: true,
+                    clockHealth: "healthy"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/v1/scheduler/status")) {
+              return {
+                status: 200,
+                data: {
+                  scheduler: {
+                    running: true,
+                    enabled: true,
+                    taskCount: 0,
+                    timezone: "Europe/London"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/start")) {
+              return {
+                status: 200,
+                data: {
+                  authorizationUrl: "https://example.test/oauth/start",
+                  state: "state-codex",
+                  redirectUri: "http://localhost:1455/auth/callback"
+                }
+              };
+            }
+            if (url.endsWith("/complete")) {
+              completionBodies.push((body ?? {}) as Record<string, unknown>);
+              return {
+                status: 200,
+                data: {
+                  accountId: "default",
+                  expiresAt: new Date(Date.now() + 60_000).toISOString()
+                }
+              };
+            }
+            if (url.endsWith("/status")) {
+              return {
+                status: 200,
+                data: {
+                  accounts: [{ accountId: "default" }]
+                }
+              };
+            }
+            return {
+              status: 200,
+              data: { status: "ok" }
+            };
+          }
+        }
+      );
+
+      expect(result.saved).toBe(true);
+      expect(completionBodies).toHaveLength(1);
+      expect(completionBodies[0]).toMatchObject({
+        state: "state-codex",
+        code: "auth-code-3"
+      });
+    } finally {
+      restoreTty();
+    }
+  });
+
+  it("accepts raw auth-code input for Codex account linking", async () => {
+    const root = tempDir("openassist-quickstart-oauth-raw-code-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.providers = [
+      {
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-5.4"
+      }
+    ];
+    state.config.runtime.defaultProviderId = "codex-main";
+
+    const completionBodies: Array<Record<string, unknown>> = [];
+    const restoreTty = setTty(true);
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
+
+    try {
+      const result = await runSetupQuickstart(
+        state,
+        {
+          configPath,
+          envFilePath: envPath,
+          installDir,
+          allowIncomplete: true,
+          skipService: false,
+          requireTty: false,
+          preflightCommandChecks: false
+        },
+        new ScriptedPromptAdapter(
+          validCodexQuickstartAnswers(bindPort, [
+            ...validationContinuationAnswers,
+            "true",
+            "true",
+            "true",
+            "auth-code-raw-4"
+          ])
+        ),
+        {
+          createServiceManagerFn: () => createFakeService(),
+          waitForHealthyFn: async (baseUrl) => ({
+            ok: true,
+            status: 200,
+            bodyText: "{\"status\":\"ok\"}",
+            baseUrl: Array.isArray(baseUrl) ? baseUrl[0] : baseUrl
+          }),
+          requestJsonFn: async (_method, url, body) => {
+            if (url.endsWith("/v1/time/status")) {
+              return {
+                status: 200,
+                data: {
+                  time: {
+                    timezone: "Europe/London",
+                    timezoneConfirmed: true,
+                    clockHealth: "healthy"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/v1/scheduler/status")) {
+              return {
+                status: 200,
+                data: {
+                  scheduler: {
+                    running: true,
+                    enabled: true,
+                    taskCount: 0,
+                    timezone: "Europe/London"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/start")) {
+              return {
+                status: 200,
+                data: {
+                  authorizationUrl: "https://example.test/oauth/start",
+                  state: "state-codex",
+                  redirectUri: "http://localhost:1455/auth/callback"
+                }
+              };
+            }
+            if (url.endsWith("/complete")) {
+              completionBodies.push((body ?? {}) as Record<string, unknown>);
+              return {
+                status: 200,
+                data: {
+                  accountId: "default",
+                  expiresAt: new Date(Date.now() + 60_000).toISOString()
+                }
+              };
+            }
+            if (url.endsWith("/status")) {
+              return {
+                status: 200,
+                data: {
+                  accounts: [{ accountId: "default" }]
+                }
+              };
+            }
+            return {
+              status: 200,
+              data: { status: "ok" }
+            };
+          }
+        }
+      );
+
+      expect(result.saved).toBe(true);
+      expect(completionBodies).toHaveLength(1);
+      expect(completionBodies[0]).toMatchObject({
+        state: "state-codex",
+        code: "auth-code-raw-4"
+      });
+    } finally {
+      restoreTty();
+    }
+  });
+
   it("retries default Codex account linking without misreporting a service failure", async () => {
     const root = tempDir("openassist-quickstart-oauth-retry-");
     const configPath = path.join(root, "openassist.toml");
@@ -419,6 +669,147 @@ describe("setup quickstart oauth path", () => {
       );
       expect(errorOutput).not.toContain("Service + health step failed");
       expect(errorOutput).not.toContain("systemctl status openassistd.service");
+    } finally {
+      errorSpy.mockRestore();
+      restoreTty();
+    }
+  });
+
+  it("surfaces Codex completion errors as auth problems with actionable detail", async () => {
+    const root = tempDir("openassist-quickstart-oauth-error-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.providers = [
+      {
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-5.4"
+      }
+    ];
+    state.config.runtime.defaultProviderId = "codex-main";
+
+    const restoreTty = setTty(true);
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    let completeAttempt = 0;
+
+    try {
+      const result = await runSetupQuickstart(
+        state,
+        {
+          configPath,
+          envFilePath: envPath,
+          installDir,
+          allowIncomplete: true,
+          skipService: false,
+          requireTty: false,
+          preflightCommandChecks: false
+        },
+        new ScriptedPromptAdapter(
+          validCodexQuickstartAnswers(bindPort, [
+            ...validationContinuationAnswers,
+            "true",
+            "true",
+            "true",
+            "http://localhost:1455/auth/callback?state=state-codex&code=auth-code-err",
+            "retry",
+            "true",
+            "true",
+            "true",
+            "http://localhost:1455/auth/callback?state=state-codex&code=auth-code-ok"
+          ])
+        ),
+        {
+          createServiceManagerFn: () => createFakeService(),
+          waitForHealthyFn: async (baseUrl) => ({
+            ok: true,
+            status: 200,
+            bodyText: "{\"status\":\"ok\"}",
+            baseUrl: Array.isArray(baseUrl) ? baseUrl[0] : baseUrl
+          }),
+          requestJsonFn: async (_method, url) => {
+            if (url.endsWith("/v1/time/status")) {
+              return {
+                status: 200,
+                data: {
+                  time: {
+                    timezone: "Europe/London",
+                    timezoneConfirmed: true,
+                    clockHealth: "healthy"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/v1/scheduler/status")) {
+              return {
+                status: 200,
+                data: {
+                  scheduler: {
+                    running: true,
+                    enabled: true,
+                    taskCount: 0,
+                    timezone: "Europe/London"
+                  }
+                }
+              };
+            }
+            if (url.endsWith("/start")) {
+              return {
+                status: 200,
+                data: {
+                  authorizationUrl: "https://example.test/oauth/start",
+                  state: "state-codex",
+                  redirectUri: "http://localhost:1455/auth/callback"
+                }
+              };
+            }
+            if (url.endsWith("/complete")) {
+              completeAttempt += 1;
+              if (completeAttempt === 1) {
+                return {
+                  status: 502,
+                  data: {
+                    error: "Codex account login token exchange failed upstream. Request ID: req_codex_500"
+                  }
+                };
+              }
+              return {
+                status: 200,
+                data: {
+                  accountId: "default",
+                  expiresAt: new Date(Date.now() + 60_000).toISOString()
+                }
+              };
+            }
+            if (url.endsWith("/status")) {
+              return {
+                status: 200,
+                data: {
+                  accounts: [{ accountId: "default" }]
+                }
+              };
+            }
+            return {
+              status: 200,
+              data: { status: "ok" }
+            };
+          }
+        }
+      );
+
+      expect(result.saved).toBe(true);
+      const errorOutput = errorSpy.mock.calls.flat().join("\n");
+      expect(errorOutput).toContain(
+        "Account linking still needs attention: Codex account login token exchange failed upstream. Request ID: req_codex_500"
+      );
+      expect(errorOutput).toContain("The daemon is already healthy. This is an account-linking step, not a service failure.");
+      expect(errorOutput).not.toContain("Service + health step failed");
     } finally {
       errorSpy.mockRestore();
       restoreTty();

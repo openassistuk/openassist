@@ -47,6 +47,7 @@ async function runCli(args: string[], cwd = repoRoot()): Promise<{ code: number;
 describe("cli api surface coverage", () => {
   it("covers status and mutation command paths against daemon APIs", async () => {
     const seenToolStatusQueries: string[] = [];
+    const seenCodexCompleteBodies: Array<Record<string, unknown>> = [];
     const server = http.createServer((req, res) => {
       const requestUrl = new URL(req.url ?? "/", "http://localhost");
       const pathname = requestUrl.pathname;
@@ -187,13 +188,22 @@ describe("cli api surface coverage", () => {
         return;
       }
       if (method === "POST" && pathname === "/v1/oauth/codex-main/complete") {
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(
-          JSON.stringify({
-            accountId: "default",
-            expiresAt: "2026-03-05T00:00:00.000Z"
-          })
-        );
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+        req.on("end", () => {
+          seenCodexCompleteBodies.push(
+            JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>
+          );
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(
+            JSON.stringify({
+              accountId: "default",
+              expiresAt: "2026-03-05T00:00:00.000Z"
+            })
+          );
+        });
         return;
       }
       if (method === "DELETE" && pathname === "/v1/oauth/codex-main/account/default/disconnect") {
@@ -369,10 +379,8 @@ describe("cli api surface coverage", () => {
           "complete",
           "--provider",
           "codex-main",
-          "--state",
-          "state-codex",
-          "--code",
-          "code-codex",
+          "--callback-url",
+          "http://localhost:1455/auth/callback?state=state-codex&code=code-codex",
           "--base-url",
           baseUrl
         ],
@@ -416,6 +424,12 @@ describe("cli api surface coverage", () => {
       }
 
       assert.deepEqual(seenToolStatusQueries, ["?sessionId=telegram-main%3Aops-room&senderId=123456789"]);
+      assert.deepEqual(seenCodexCompleteBodies, [
+        {
+          state: "state-codex",
+          code: "code-codex"
+        }
+      ]);
 
       const failedStart = await runCli([
         "auth",

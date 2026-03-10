@@ -109,6 +109,132 @@ describe("codex provider auth flow", () => {
     expect(secondBody.get("subject_token")).toBe("id-token-1");
   });
 
+  it("accepts a usable OAuth access token when the code exchange omits id_token", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          access_token: "oauth-access-1",
+          refresh_token: "refresh-token-1"
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    const handle = await adapter.completeOAuthLogin({
+      accountId: "default",
+      code: "auth-code-1",
+      state: "state-123",
+      redirectUri: "http://localhost:1455/auth/callback",
+      codeVerifier: "verifier-123"
+    });
+
+    expect(handle).toMatchObject({
+      providerId: "codex-main",
+      accountId: "default",
+      accessToken: "oauth-access-1",
+      refreshToken: "refresh-token-1",
+      tokenType: "oauth-access-token"
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the OAuth access token when API-key exchange fails upstream", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id_token: "id-token-1",
+            access_token: "oauth-access-1",
+            refresh_token: "refresh-token-1"
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: "unknown_error",
+            request_id: "req_codex_exchange_1"
+          }),
+          {
+            status: 500,
+            headers: { "content-type": "application/json" }
+          }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    const handle = await adapter.completeOAuthLogin({
+      accountId: "default",
+      code: "auth-code-1",
+      state: "state-123",
+      redirectUri: "http://localhost:1455/auth/callback",
+      codeVerifier: "verifier-123"
+    });
+
+    expect(handle).toMatchObject({
+      providerId: "codex-main",
+      accountId: "default",
+      accessToken: "oauth-access-1",
+      refreshToken: "refresh-token-1",
+      tokenType: "oauth-access-token"
+    });
+  });
+
+  it("classifies invalid or expired upstream auth codes safely", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "invalid_grant",
+          error_description: "authorization code expired",
+          request_id: "req_codex_invalid_1"
+        }),
+        {
+          status: 400,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    await expect(
+      adapter.completeOAuthLogin({
+        accountId: "default",
+        code: "bad-code",
+        state: "state-123",
+        redirectUri: "http://localhost:1455/auth/callback",
+        codeVerifier: "verifier-123"
+      })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      operatorMessage: expect.stringContaining("Codex account login code is invalid or expired"),
+      message: expect.stringContaining("Request ID: req_codex_invalid_1")
+    });
+  });
+
   it("refreshes Codex auth by re-exchanging the refreshed id_token", async () => {
     const fetchMock = vi
       .fn()
@@ -165,6 +291,44 @@ describe("codex provider auth flow", () => {
 
     const secondBody = new URLSearchParams(String(fetchMock.mock.calls[1]?.[1]?.body));
     expect(secondBody.get("subject_token")).toBe("id-token-2");
+  });
+
+  it("refreshes Codex auth from a usable OAuth access token when no id_token is returned", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          access_token: "oauth-access-2",
+          refresh_token: "refresh-token-2"
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    const refreshed = await adapter.refreshOAuthAuth({
+      providerId: "codex-main",
+      accountId: "default",
+      accessToken: "stale-access-token",
+      refreshToken: "refresh-token-1",
+      expiresAt: new Date(Date.now() - 60_000).toISOString()
+    });
+
+    expect(refreshed).toMatchObject({
+      providerId: "codex-main",
+      accountId: "default",
+      accessToken: "oauth-access-2",
+      refreshToken: "refresh-token-2",
+      tokenType: "oauth-access-token"
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects non-Codex default models on the Codex route", async () => {

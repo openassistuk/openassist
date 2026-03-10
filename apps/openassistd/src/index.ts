@@ -103,7 +103,23 @@ async function readJsonBody(req: http.IncomingMessage): Promise<Record<string, u
   return JSON.parse(text) as Record<string, unknown>;
 }
 
-function classifyHttpErrorStatus(message: string): 400 | 500 {
+function classifyHttpError(error: unknown): { statusCode: 400 | 500 | 502; operatorMessage: string } {
+  if (typeof error === "object" && error !== null) {
+    const statusCode = (error as { statusCode?: unknown }).statusCode;
+    const operatorMessage = (error as { operatorMessage?: unknown }).operatorMessage;
+    if (
+      (statusCode === 400 || statusCode === 502) &&
+      typeof operatorMessage === "string" &&
+      operatorMessage.trim().length > 0
+    ) {
+      return {
+        statusCode,
+        operatorMessage: operatorMessage.trim()
+      };
+    }
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
   const normalized = message.toLowerCase();
   if (
     normalized.includes("oauth state is required") ||
@@ -112,9 +128,15 @@ function classifyHttpErrorStatus(message: string): 400 | 500 {
     normalized.includes("oauth flow provider mismatch") ||
     normalized.includes("oauth flow expired")
   ) {
-    return 400;
+    return {
+      statusCode: 400,
+      operatorMessage: message
+    };
   }
-  return 500;
+  return {
+    statusCode: 500,
+    operatorMessage: "internal server error"
+  };
 }
 
 const program = new Command();
@@ -573,13 +595,9 @@ program
         sendJson(res, 404, { error: "not found" });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const statusCode = classifyHttpErrorStatus(message);
-        logger.error({ error: message, statusCode }, "http request failed");
-        if (statusCode === 500) {
-          sendJson(res, statusCode, { error: "internal server error" });
-          return;
-        }
-        sendJson(res, statusCode, { error: "invalid oauth request" });
+        const classified = classifyHttpError(error);
+        logger.error({ error: message, statusCode: classified.statusCode }, "http request failed");
+        sendJson(res, classified.statusCode, { error: classified.operatorMessage });
       }
     });
 

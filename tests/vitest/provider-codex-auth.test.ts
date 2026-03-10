@@ -303,10 +303,10 @@ describe("codex provider auth", () => {
     });
   });
 
-  it("surfaces blank-body Codex upstream request failures with request ids", async () => {
+  it("surfaces blank-body Codex upstream request failures with status and request ids", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response("", {
-        status: 400,
+        status: 401,
         headers: {
           "x-request-id": "req-codex-chat-1"
         }
@@ -334,8 +334,11 @@ describe("codex provider auth", () => {
           tokenType: "chatgpt-access-token"
         }
       )
-    ).rejects.toThrow(
-      /Codex upstream request failed before returning a response body\. Request ID: req-codex-chat-1/
-    );
+    ).rejects.toMatchObject({
+      message:
+        "Codex upstream request failed with HTTP 401 before returning a response body. Request ID: req-codex-chat-1",
+      status: 401,
+      statusCode: 401
+    });
   });
 });

@@ -101,26 +101,30 @@ interface ChatGptTokenClaims {
 }
 
 class CodexOAuthError extends Error {
-  readonly statusCode: 400 | 502;
+  readonly statusCode: number;
+  readonly status: number;
   readonly operatorMessage: string;
 
-  constructor(operatorMessage: string, statusCode: 400 | 502) {
+  constructor(operatorMessage: string, statusCode: number) {
     super(operatorMessage);
     this.name = "CodexOAuthError";
     this.operatorMessage = operatorMessage;
     this.statusCode = statusCode;
+    this.status = statusCode;
   }
 }
 
 class CodexUpstreamChatError extends Error {
-  readonly statusCode: 400 | 502;
+  readonly statusCode: number;
+  readonly status: number;
   readonly operatorMessage: string;
 
-  constructor(operatorMessage: string, statusCode: 400 | 502) {
+  constructor(operatorMessage: string, statusCode: number) {
     super(operatorMessage);
     this.name = "CodexUpstreamChatError";
     this.operatorMessage = operatorMessage;
     this.statusCode = statusCode;
+    this.status = statusCode;
   }
 }
 
@@ -227,17 +231,20 @@ function classifyUpstreamCodexChatFailure(
 
   if (bodyMessage) {
     return new CodexUpstreamChatError(
-      appendRequestId(`Codex upstream request failed: ${bodyMessage}.`, requestId),
-      response.status >= 500 ? 502 : 400
+      appendRequestId(
+        `Codex upstream request failed (HTTP ${response.status}): ${bodyMessage}.`,
+        requestId
+      ),
+      response.status
     );
   }
 
   return new CodexUpstreamChatError(
     appendRequestId(
-      "Codex upstream request failed before returning a response body.",
+      `Codex upstream request failed with HTTP ${response.status} before returning a response body.`,
       requestId
     ),
-    response.status >= 500 ? 502 : 400
+    response.status
   );
 }
 

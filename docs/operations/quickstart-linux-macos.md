@@ -203,7 +203,7 @@ Provider and channel guidance:
 - After browser approval, the Codex flow now redirects to `http://localhost:1455/auth/callback`. If that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into quickstart.
 - A fresh quickstart that selects Codex now saves only the `codex-main` provider; it no longer keeps an unused seeded `openai-main` placeholder in the saved config.
 - Codex account linking now only completes when OpenAssist has a chat-ready Codex/ChatGPT token auth handle. If the linked account is present but unusable for chat, quickstart keeps the issue in the account-linking flow instead of silently succeeding.
-- Once linked, Codex chat requests carry the OpenAssist runtime session id and account header expected by the upstream Codex backend. If `openassist auth status --provider codex-main` reports `Chat-ready auth: Yes` and chat still fails, treat that as a provider request issue rather than re-running setup blindly.
+- Once linked, Codex chat requests carry the OpenAssist runtime session id, account header, and top-level instructions payload expected by the upstream Codex backend. If `openassist auth status --provider codex-main` reports `Chat-ready auth: Yes` and chat still fails, treat that as a provider request issue rather than re-running setup blindly.
 - Quickstart now also prints the exact host-side manual completion fallback:
 
 ```bash
@@ -213,6 +213,7 @@ openassist auth complete --provider codex-main --callback-url "<full callback UR
 - If automatic browser launch is unavailable on a headless host, OpenAssist still prints the authorization URL and treats that as an account-linking step, not as a service failure.
 - If completion still fails, quickstart now keeps the daemon/service result separate and reports a sanitized account-linking problem instead of a generic `status=500`.
 - `openassist auth status --provider codex-main` now stays redacted while still showing whether the linked account is present, which auth method is active, whether the current auth is chat-ready, and the token expiry when known. The linked account state is stored encrypted in SQLite, and OpenAssist attempts automatic refresh before expiry and again on auth-style provider failures when a refresh token is available.
+- If Codex auth is chat-ready and the daemon plus channel are healthy, remaining failures should now be investigated as upstream Codex request-contract problems rather than as login failures.
 - Anthropic stays API-key-first for the fastest first reply; optional provider OAuth configuration still lives in `openassist setup wizard`.
 - OpenAI-compatible stays the custom API-compatible route.
 - legacy `openai + oauth` configs still load, but new account-login installs should use `codex`.

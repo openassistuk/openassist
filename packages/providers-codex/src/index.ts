@@ -20,6 +20,7 @@ import {
   mapResponsesTools,
   reasoningPayload
 } from "@openassist/providers-openai-shared";
+import { CODEX_BASELINE_INSTRUCTIONS } from "./baseline-instructions.js";
 
 const CODEX_OAUTH_ISSUER = "https://auth.openai.com";
 const CODEX_OAUTH_AUTHORIZE_URL = `${CODEX_OAUTH_ISSUER}/oauth/authorize`;
@@ -222,12 +223,7 @@ function classifyUpstreamCodexChatFailure(
   body: Record<string, unknown> | undefined
 ): CodexUpstreamChatError {
   const requestId = extractRequestId(response.headers, body);
-  const bodyMessage =
-    typeof body?.message === "string" && body.message.trim().length > 0
-      ? body.message.trim()
-      : typeof body?.error === "string" && body.error.trim().length > 0
-        ? body.error.trim()
-        : undefined;
+  const bodyMessage = extractUpstreamChatFailureMessage(body);
 
   if (bodyMessage) {
     return new CodexUpstreamChatError(
@@ -246,6 +242,43 @@ function classifyUpstreamCodexChatFailure(
     ),
     response.status
   );
+}
+
+function extractUpstreamChatFailureMessage(
+  body: Record<string, unknown> | undefined
+): string | undefined {
+  if (!body) {
+    return undefined;
+  }
+
+  const directFields = ["detail", "message", "error"] as const;
+  for (const field of directFields) {
+    const value = body[field];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+    if (Array.isArray(value)) {
+      const text = value
+        .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+        .map((entry) => entry.trim())
+        .join("; ");
+      if (text.length > 0) {
+        return text;
+      }
+    }
+    if (value && typeof value === "object") {
+      const nested = value as Record<string, unknown>;
+      const nestedMessage =
+        (typeof nested.message === "string" && nested.message.trim()) ||
+        (typeof nested.detail === "string" && nested.detail.trim()) ||
+        (typeof nested.error === "string" && nested.error.trim());
+      if (nestedMessage) {
+        return nestedMessage;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function normalizeTokenValue(value: string | undefined): string | undefined {
@@ -545,6 +578,24 @@ function defaultCodexBaseUrl(baseUrl?: string): string {
   return baseUrl.replace(/\/+$/, "");
 }
 
+function buildCodexInstructions(
+  messages: ChatRequest["messages"]
+): { instructions: string; nonSystemMessages: ChatRequest["messages"] } {
+  const systemMessages = messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content.trim())
+    .filter((content) => content.length > 0);
+  const sections = [CODEX_BASELINE_INSTRUCTIONS];
+  if (systemMessages.length > 0) {
+    sections.push(systemMessages.join("\n\n"));
+  }
+
+  return {
+    instructions: sections.join("\n\n"),
+    nonSystemMessages: messages.filter((message) => message.role !== "system")
+  };
+}
+
 async function postCodexResponses(
   baseUrl: string,
   accessToken: string,
@@ -715,16 +766,18 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
 
     const model = req.model || this.config.defaultModel;
+    const { instructions, nonSystemMessages } = buildCodexInstructions(req.messages);
     const response = await postCodexResponses(
       defaultCodexBaseUrl(this.config.baseUrl),
       accessToken,
       defaultHeaders,
       {
         model,
+        instructions,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
         reasoning: reasoningPayload(model, this.config.reasoningEffort),
-        input: await mapResponsesInput(req.messages),
+        input: await mapResponsesInput(nonSystemMessages),
         tools: mapResponsesTools(req.tools),
         metadata: req.metadata
       }

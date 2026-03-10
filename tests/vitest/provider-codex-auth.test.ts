@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CodexProviderAdapter } from "../../packages/providers-codex/src/index.js";
+import { CODEX_BASELINE_INSTRUCTIONS } from "../../packages/providers-codex/src/baseline-instructions.js";
 
 function jsonResponse(
   status: number,
@@ -254,7 +255,7 @@ describe("codex provider auth", () => {
     ).rejects.toThrow(/timed out before approval completed/);
   });
 
-  it("sends Codex responses requests with session and account headers", async () => {
+  it("sends Codex responses requests with instructions plus session and account headers", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse(200, {
         id: "resp-codex-1",
@@ -278,7 +279,10 @@ describe("codex provider auth", () => {
       {
         sessionId: "telegram-main:27328245",
         model: "gpt-5.4",
-        messages: [{ role: "user", content: "hello codex" }],
+        messages: [
+          { role: "system", content: "OpenAssist runtime guidance" },
+          { role: "user", content: "hello codex" }
+        ],
         tools: [],
         metadata: { source: "test-suite" }
       },
@@ -301,6 +305,79 @@ describe("codex provider auth", () => {
       "ChatGPT-Account-ID": "acct-123",
       session_id: "telegram-main:27328245"
     });
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>;
+    expect(body.instructions).toContain(CODEX_BASELINE_INSTRUCTIONS);
+    expect(body.instructions).toContain("OpenAssist runtime guidance");
+    expect(body.input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: "hello codex"
+      }
+    ]);
+  });
+
+  it("does not duplicate lifted system messages inside Codex input", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(200, {
+        id: "resp-codex-2",
+        status: "completed",
+        output_text: "codex ok",
+        output: [],
+        usage: {
+          input_tokens: 10,
+          output_tokens: 5,
+          total_tokens: 15
+        }
+      })
+    );
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    await adapter.chat(
+      {
+        sessionId: "telegram-main:27328245",
+        model: "gpt-5.4",
+        messages: [
+          { role: "system", content: "system one" },
+          { role: "system", content: "system two" },
+          { role: "assistant", content: "previous reply" },
+          { role: "user", content: "hello codex" }
+        ],
+        tools: [],
+        metadata: {}
+      },
+      {
+        providerId: "codex-main",
+        accountId: "default",
+        accessToken: "chatgpt-access-token-1",
+        tokenType: "chatgpt-access-token"
+      }
+    );
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    const body = JSON.parse(String((init as RequestInit).body)) as {
+      instructions: string;
+      input: Array<Record<string, unknown>>;
+    };
+
+    expect(body.instructions).toContain("system one");
+    expect(body.instructions).toContain("system two");
+    expect(body.input).toEqual([
+      {
+        type: "message",
+        role: "assistant",
+        content: "previous reply"
+      },
+      {
+        type: "message",
+        role: "user",
+        content: "hello codex"
+      }
+    ]);
   });
 
   it("surfaces blank-body Codex upstream request failures with status and request ids", async () => {
@@ -339,6 +416,46 @@ describe("codex provider auth", () => {
         "Codex upstream request failed with HTTP 401 before returning a response body. Request ID: req-codex-chat-1",
       status: 401,
       statusCode: 401
+    });
+  });
+
+  it("surfaces upstream detail errors from Codex responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(
+        400,
+        {
+          detail: "Instructions are required"
+        },
+        { "x-request-id": "req-codex-chat-2" }
+      )
+    );
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    await expect(
+      adapter.chat(
+        {
+          sessionId: "telegram-main:27328245",
+          model: "gpt-5.4",
+          messages: [{ role: "user", content: "hello codex" }],
+          tools: [],
+          metadata: {}
+        },
+        {
+          providerId: "codex-main",
+          accountId: "default",
+          accessToken: "chatgpt-access-token-1",
+          tokenType: "chatgpt-access-token"
+        }
+      )
+    ).rejects.toMatchObject({
+      message:
+        "Codex upstream request failed (HTTP 400): Instructions are required. Request ID: req-codex-chat-2",
+      status: 400,
+      statusCode: 400
     });
   });
 });

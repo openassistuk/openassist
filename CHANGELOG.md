@@ -69,6 +69,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Bootstrap branch-track follow-up:
+  - fixed a shell-conditional regression in `scripts/install/bootstrap.sh` so non-interactive bootstrap works again for scheduled lifecycle smoke and real installs on `main`
+  - added bootstrap shell-syntax coverage so invalid bash conditionals are caught before merge
+
 - Lifecycle smoke and bootstrap handoff follow-up:
   - non-interactive bootstrap summaries now print the setup handoff command in normal operator form (`openassist setup --install-dir ...`) instead of shell-escaped subcommand text
   - the supplemental lifecycle E2E smoke workflow now uses static workflow env declarations for its temporary HOME/install paths so local editor/schema validation stays aligned with the actual GitHub Actions runtime behavior

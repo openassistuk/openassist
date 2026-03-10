@@ -728,9 +728,11 @@ checkout_requested_track() {
       git -C "${INSTALL_DIR}" fetch --all --prune
   fi
 
-  if [[ -n "${requested_ref}" && remote_branch_exists "${requested_ref}" ]]; then
-    checkout_remote_branch "${requested_ref}"
-    return
+  if [[ -n "${requested_ref}" ]]; then
+    if remote_branch_exists "${requested_ref}"; then
+      checkout_remote_branch "${requested_ref}"
+      return
+    fi
   fi
 
   if [[ -n "${requested_ref}" ]]; then
@@ -1047,16 +1049,20 @@ if [[ -d "${INSTALL_DIR}/.git" ]]; then
     fi
   fi
 
-  if [[ -z "${PR_NUMBER}" && -n "${REF}" && git -C "${INSTALL_DIR}" show-ref --verify --quiet "refs/heads/${REF}" ]]; then
-    run_git_step "Git checkout failed for ref ${REF}" git -C "${INSTALL_DIR}" checkout "${REF}"
-    if remote_branch_exists "${REF}"; then
-      run_git_step \
-        "Git fetch failed for branch ${REF}" \
-        git -C "${INSTALL_DIR}" fetch origin "refs/heads/${REF}:refs/remotes/origin/${REF}"
-      run_git_step "Git fast-forward failed for ref ${REF}" \
-        git -C "${INSTALL_DIR}" merge --ff-only "refs/remotes/origin/${REF}"
+  if [[ -z "${PR_NUMBER}" && -n "${REF}" ]]; then
+    if git -C "${INSTALL_DIR}" show-ref --verify --quiet "refs/heads/${REF}"; then
+      run_git_step "Git checkout failed for ref ${REF}" git -C "${INSTALL_DIR}" checkout "${REF}"
+      if remote_branch_exists "${REF}"; then
+        run_git_step \
+          "Git fetch failed for branch ${REF}" \
+          git -C "${INSTALL_DIR}" fetch origin "refs/heads/${REF}:refs/remotes/origin/${REF}"
+        run_git_step "Git fast-forward failed for ref ${REF}" \
+          git -C "${INSTALL_DIR}" merge --ff-only "refs/remotes/origin/${REF}"
+      else
+        echo "Remote ref origin/${REF} not found after fetch; leaving local branch '${REF}' unchanged."
+      fi
     else
-      echo "Remote ref origin/${REF} not found after fetch; leaving local branch '${REF}' unchanged."
+      checkout_requested_track
     fi
   else
     checkout_requested_track

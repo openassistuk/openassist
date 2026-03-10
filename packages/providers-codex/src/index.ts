@@ -596,6 +596,101 @@ function buildCodexInstructions(
   };
 }
 
+async function buildCodexResponsesPayload(
+  req: ChatRequest,
+  model: string,
+  instructions: string,
+  nonSystemMessages: ChatRequest["messages"],
+  reasoning: ReturnType<typeof reasoningPayload>
+): Promise<Record<string, unknown>> {
+  return {
+    model,
+    instructions,
+    input: await mapResponsesInput(nonSystemMessages),
+    tools: mapResponsesTools(req.tools) ?? [],
+    tool_choice: "auto",
+    parallel_tool_calls: true,
+    reasoning,
+    store: false,
+    stream: true,
+    include: reasoning ? ["reasoning.encrypted_content"] : [],
+    prompt_cache_key: req.sessionId
+  };
+}
+
+function parseCodexEventStreamBody(bodyText: string): Record<string, unknown> | undefined {
+  const chunks = bodyText
+    .split(/\r?\n\r?\n/)
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.length > 0);
+  if (chunks.length === 0) {
+    return undefined;
+  }
+
+  let completedResponse: Record<string, unknown> | undefined;
+  let fallbackResponse: Record<string, unknown> | undefined;
+  let outputText = "";
+
+  for (const chunk of chunks) {
+    const dataLines = chunk
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice("data:".length).trimStart());
+    if (dataLines.length === 0) {
+      continue;
+    }
+
+    const rawData = dataLines.join("\n").trim();
+    if (rawData.length === 0 || rawData === "[DONE]") {
+      continue;
+    }
+
+    const parsed = parseJsonBody<Record<string, unknown>>(rawData);
+    if (!parsed) {
+      continue;
+    }
+
+    const response = parsed.response;
+    if (response && typeof response === "object" && !Array.isArray(response)) {
+      fallbackResponse = response as Record<string, unknown>;
+      if (parsed.type === "response.completed") {
+        completedResponse = response as Record<string, unknown>;
+      }
+    }
+
+    if (parsed.type === "response.output_text.delta" && typeof parsed.delta === "string") {
+      outputText += parsed.delta;
+      continue;
+    }
+
+    if (parsed.type === "response.output_text.done" && typeof parsed.text === "string") {
+      outputText = parsed.text;
+    }
+  }
+
+  const selectedResponse = completedResponse ?? fallbackResponse;
+  if (selectedResponse) {
+    return {
+      ...selectedResponse,
+      output_text:
+        outputText.length > 0
+          ? outputText
+          : typeof selectedResponse.output_text === "string"
+            ? selectedResponse.output_text
+            : ""
+    };
+  }
+
+  if (outputText.length > 0) {
+    return {
+      status: "completed",
+      output_text: outputText
+    };
+  }
+
+  return undefined;
+}
+
 async function postCodexResponses(
   baseUrl: string,
   accessToken: string,
@@ -607,7 +702,7 @@ async function postCodexResponses(
     headers: {
       authorization: `Bearer ${accessToken}`,
       "content-type": "application/json",
-      accept: "application/json",
+      accept: "text/event-stream",
       ...headers
     },
     body: JSON.stringify(payload)
@@ -621,8 +716,12 @@ async function postCodexResponses(
   if (parsedBody) {
     return parsedBody;
   }
+  const streamedBody = parseCodexEventStreamBody(bodyText);
+  if (streamedBody) {
+    return streamedBody;
+  }
   throw new CodexUpstreamChatError(
-    "Codex upstream request returned invalid JSON.",
+    "Codex upstream request returned an unreadable event stream.",
     502
   );
 }
@@ -767,20 +866,12 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
     const model = req.model || this.config.defaultModel;
     const { instructions, nonSystemMessages } = buildCodexInstructions(req.messages);
+    const reasoning = reasoningPayload(model, this.config.reasoningEffort);
     const response = await postCodexResponses(
       defaultCodexBaseUrl(this.config.baseUrl),
       accessToken,
       defaultHeaders,
-      {
-        model,
-        instructions,
-        temperature: req.temperature,
-        max_output_tokens: req.maxTokens,
-        reasoning: reasoningPayload(model, this.config.reasoningEffort),
-        input: await mapResponsesInput(nonSystemMessages),
-        tools: mapResponsesTools(req.tools),
-        metadata: req.metadata
-      }
+      await buildCodexResponsesPayload(req, model, instructions, nonSystemMessages, reasoning)
     );
 
     return mapResponsesApiResponse(response);

@@ -163,6 +163,8 @@ Codex adapter behavior:
 - Codex chat transport uses the Codex responses route directly and must preserve the upstream conversation contract by sending `session_id` from `ChatRequest.sessionId` plus `ChatGPT-Account-ID` when account metadata is available.
 - Codex chat transport must also send top-level `instructions` on every request. Those instructions are built from the vendored Codex baseline plus the bounded OpenAssist runtime/system guidance already prepared by the runtime for the current turn.
 - When Codex lifts system guidance into top-level `instructions`, the adapter must not leave duplicate `system` role messages in the normal `input` array.
+- Codex chat transport must keep the rest of the upstream `/responses` contract aligned too: `tool_choice = "auto"`, `parallel_tool_calls = true`, `store = false`, `stream = true`, and a prompt-cache key derived from the canonical runtime session id. OpenAI-specific request extras that Codex does not use, such as generic metadata or temperature fields, must not be sent by the Codex adapter.
+- Codex response handling must consume the upstream event stream and fold it back into the normal OpenAssist `ChatResponse` shape so channels still receive a normal bounded reply contract.
 - Codex request-shape failures must surface as provider request problems with safe request ids when available; they must not be collapsed into auth-failure wording when the linked account is chat-ready.
 
 Anthropic thinking replay behavior:

@@ -2277,6 +2277,9 @@ export class OpenAssistRuntime {
     if (normalized.includes("unauthorized") || normalized.includes("forbidden")) {
       return "provider rejected authentication or permissions";
     }
+    if (normalized.includes("codex upstream request failed")) {
+      return "Codex provider request failed upstream";
+    }
     return "provider/runtime request failed";
   }
 

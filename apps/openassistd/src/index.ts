@@ -507,12 +507,9 @@ program
 
         if (parts[0] === "v1" && parts[1] === "oauth") {
           if (method === "GET" && parts.length === 3 && parts[2] === "status") {
-            const statuses = config.runtime.providers.map((providerConfig) =>
-              runtime.getProviderAuthStatus(providerConfig.id)
-            );
             sendJson(res, 200, {
               accounts: runtime.listOAuthAccounts(),
-              providers: statuses
+              providers: runtime.getAllProviderAuthStatuses()
             });
             return;
           }

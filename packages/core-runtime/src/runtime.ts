@@ -870,9 +870,43 @@ export class OpenAssistRuntime {
     }));
   }
 
+  getAllProviderAuthStatuses(): ProviderAuthStatusSnapshot[] {
+    const accountsByProvider = new Map<
+      string,
+      Array<{
+        providerId: string;
+        accountId: string;
+        expiresAt?: string;
+        updatedAt: string;
+      }>
+    >();
+    for (const account of this.listOAuthAccounts()) {
+      const existing = accountsByProvider.get(account.providerId);
+      if (existing) {
+        existing.push(account);
+      } else {
+        accountsByProvider.set(account.providerId, [account]);
+      }
+    }
+    return this.config.providers.map((providerConfig) =>
+      this.buildProviderAuthStatus(providerConfig.id, accountsByProvider.get(providerConfig.id) ?? [])
+    );
+  }
+
   getProviderAuthStatus(providerId: string): ProviderAuthStatusSnapshot {
+    return this.buildProviderAuthStatus(providerId, this.listOAuthAccounts(providerId));
+  }
+
+  private buildProviderAuthStatus(
+    providerId: string,
+    accounts: Array<{
+      providerId: string;
+      accountId: string;
+      expiresAt?: string;
+      updatedAt: string;
+    }>
+  ): ProviderAuthStatusSnapshot {
     const providerConfig = this.config.providers.find((candidate) => candidate.id === providerId);
-    const accounts = this.listOAuthAccounts(providerId);
     const current = this.auth.get(providerId);
     if (!current) {
       return {

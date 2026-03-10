@@ -214,6 +214,7 @@ If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `
 
 Quickstart blocks invalid or incomplete first-reply state by default. Use `--allow-incomplete` only when you explicitly want to save a degraded setup.
 If you opt into full access, quickstart asks for approved operator IDs for the chosen channel and falls back cleanly to standard mode if you are not ready to enter them yet.
+If you configure approved operator IDs later through `openassist setup wizard`, the channel flow now also prompts to switch the install to `Full access for approved operators` so filesystem access does not stay silently workspace-only.
 Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`.
 
 ### 4. Check install and runtime readiness
@@ -537,6 +538,7 @@ Default install path is `Standard mode (recommended)`.
 - standard mode keeps `runtime.defaultPolicyProfile=operator`, keeps approved operators at standard access by default, and keeps filesystem tools workspace-only
 - full access for approved operators keeps the default chat access at `operator`, but lets explicitly approved sender IDs default to `full-root`
 - approved operator IDs are configured per channel in `channels[*].settings.operatorUserIds`
+- setup wizard now offers the matching `Full access for approved operators` switch when you add approved operator IDs while the install is still in standard mode
 - `/access` is available only to approved operators and only changes that sender's access for the current chat
 - `restricted` and `operator` do not expose autonomous tool execution
 - `full-root` enables autonomous host-impacting tools for that sender/chat resolution only

@@ -353,6 +353,46 @@ async function editAccessMode(state: SetupWizardState, prompts: PromptAdapter): 
   );
 }
 
+function operatorIdsChanged(previousOperatorIds: string[], nextOperatorIds: string[]): boolean {
+  return (
+    previousOperatorIds.length !== nextOperatorIds.length ||
+    previousOperatorIds.some((value, index) => value !== nextOperatorIds[index])
+  );
+}
+
+async function maybePromptToEnableFullAccessForApprovedOperators(
+  state: SetupWizardState,
+  prompts: PromptAdapter,
+  channel: OpenAssistConfig["runtime"]["channels"][number],
+  previousOperatorIds: string[]
+): Promise<void> {
+  const currentOperatorIds = getOperatorUserIds(channel);
+  if (currentOperatorIds.length === 0 || !operatorIdsChanged(previousOperatorIds, currentOperatorIds)) {
+    return;
+  }
+
+  if (detectSetupAccessMode(state.config) !== "standard") {
+    return;
+  }
+
+  const enableFullAccess = await prompts.confirm(
+    `Approved operator IDs are set for ${channel.id}, but access mode is still Standard and filesystem tools stay workspace-only. Enable Full access for approved operators now?`,
+    false
+  );
+
+  if (enableFullAccess) {
+    applySetupAccessModePreset(state.config, "full-access");
+    console.log(
+      "Approved operators will now default to full-root and filesystem tools will no longer stay workspace-only."
+    );
+    return;
+  }
+
+  console.log(
+    "Keeping standard mode. Approved operators can still use /access full later, and filesystem tools remain workspace-only until full access is enabled."
+  );
+}
+
 async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Promise<void> {
   const providerId = await promptGeneratedIdentifier(
     prompts,
@@ -708,7 +748,9 @@ async function addChannel(state: SetupWizardState, prompts: PromptAdapter): Prom
     enabled,
     settings
   };
+  const previousOperatorIds: string[] = [];
   setOperatorUserIds(draftChannel, await promptOperatorIdsForChannel(prompts, draftChannel));
+  await maybePromptToEnableFullAccessForApprovedOperators(state, prompts, draftChannel, previousOperatorIds);
 
   state.config.runtime.channels.push(draftChannel);
 }
@@ -726,6 +768,7 @@ async function editChannel(state: SetupWizardState, prompts: PromptAdapter): Pro
     return;
   }
 
+  const previousOperatorIds = getOperatorUserIds(channel);
   channel.enabled = await prompts.confirm("Enable this channel?", channel.enabled);
   const settings = ensureChannelSettingsObject(channel.settings);
 
@@ -824,8 +867,9 @@ async function editChannel(state: SetupWizardState, prompts: PromptAdapter): Pro
     );
   }
 
-  setOperatorUserIds(channel, await promptOperatorIdsForChannel(prompts, channel));
   channel.settings = settings;
+  setOperatorUserIds(channel, await promptOperatorIdsForChannel(prompts, channel));
+  await maybePromptToEnableFullAccessForApprovedOperators(state, prompts, channel, previousOperatorIds);
 }
 
 async function removeChannel(state: SetupWizardState, prompts: PromptAdapter): Promise<void> {

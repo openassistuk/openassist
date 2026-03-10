@@ -207,6 +207,76 @@ describe("setup wizard runtime flow", () => {
     ]);
   });
 
+  it("prompts to enable full access when adding approved operator IDs in standard mode", async () => {
+    const root = tempDir("openassist-vitest-setup-full-access-prompt-add-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const state = loadSetupWizardState(configPath, envPath);
+
+    const prompts = new ScriptedPromptAdapter([
+      "channels",
+      "add",
+      "telegram-main",
+      "telegram",
+      "true",
+      "telegram-token",
+      "123456789",
+      "123456789",
+      "true",
+      "back",
+      "save"
+    ]);
+
+    const result = await runSetupWizard(state, prompts, {
+      requireTty: false
+    });
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.operatorAccessProfile).toBe("full-root");
+    expect(state.config.tools.fs.workspaceOnly).toBe(false);
+    expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toEqual(["123456789"]);
+  });
+
+  it("keeps standard mode when the wizard full-access prompt is declined during channel edits", async () => {
+    const root = tempDir("openassist-vitest-setup-full-access-prompt-edit-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const state = loadSetupWizardState(configPath, envPath);
+    state.config.runtime.channels = [
+      {
+        id: "telegram-main",
+        type: "telegram",
+        enabled: true,
+        settings: {
+          botToken: "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN",
+          allowedChatIds: ["123456789"]
+        }
+      }
+    ];
+
+    const prompts = new ScriptedPromptAdapter([
+      "channels",
+      "edit",
+      "telegram-main",
+      "true",
+      "false",
+      "123456789",
+      "123456789",
+      "false",
+      "back",
+      "save"
+    ]);
+
+    const result = await runSetupWizard(state, prompts, {
+      requireTty: false
+    });
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.operatorAccessProfile).toBe("operator");
+    expect(state.config.tools.fs.workspaceOnly).toBe(true);
+    expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toEqual(["123456789"]);
+  });
+
   it("preserves full-length API keys in wizard provider edits", async () => {
     const root = tempDir("openassist-vitest-setup-long-api-key-");
     const configPath = path.join(root, "openassist.toml");

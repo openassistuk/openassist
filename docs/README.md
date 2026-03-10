@@ -43,6 +43,7 @@ Quickstart now also owns the beginner-facing access choice:
 
 - `Standard mode (recommended)` keeps the first install safe and workspace-scoped
 - `Full access for approved operators` is explicit opt-in and requires per-channel approved operator IDs
+- if you add approved operator IDs later in `openassist setup wizard` while the install is still in standard mode, the wizard now prompts to enable the matching full-access/filesystem preset
 - `/status` shows the exact sender ID and canonical session ID you need for actor-specific access inspection later
 
 Quickstart also restores the main assistant identity prompts:

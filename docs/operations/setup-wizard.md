@@ -128,6 +128,7 @@ Wizard access behavior:
 - `Channels, allowlists, and operator access` keeps chat allowlists separate from approved operator accounts
 - Discord DM allow-lists stay separate from guild or thread allow-lists so beginners can tell “where the bot may reply” from “which direct-message users may use it”
 - approved operator IDs decide who may use `/access full` or receive automatic full access defaults on that channel
+- when you add approved operator IDs while the install is still in `Standard mode`, wizard now prompts to switch to `Full access for approved operators` immediately so filesystem tools do not stay workspace-only by accident
 - channel allowlists still decide who may message the bot at all
 
 Use wizard for:

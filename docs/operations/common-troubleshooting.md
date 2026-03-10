@@ -288,7 +288,7 @@ openassist doctor
 openassist setup wizard
 ```
 
-and update the channel's approved operator IDs or access mode.
+and update the channel's approved operator IDs or access mode. If you add approved operator IDs there while the install is still in standard mode, wizard now prompts to enable `Full access for approved operators` immediately instead of leaving filesystem access workspace-only silently.
 
 ## Legacy repo-local layout migration stopped
 

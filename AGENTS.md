@@ -103,6 +103,7 @@ When changing installer/setup/service behavior:
      - per-turn `session_id` conversation header
      - `ChatGPT-Account-ID` when available
      - lifted Codex `system` guidance must not remain duplicated in the normal input message array
+     - upstream-aligned responses fields, including `tool_choice = "auto"`, `parallel_tool_calls = true`, `store = false`, and a prompt-cache key derived from the canonical runtime session id
    - upstream Codex request rejections must remain distinguishable from auth failures
 12. preserve Telegram default UX semantics (inline chat memory + inline responses by default; threaded mode only when explicitly configured)
 13. preserve access-mode onboarding semantics:

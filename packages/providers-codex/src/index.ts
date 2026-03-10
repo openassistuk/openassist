@@ -596,6 +596,28 @@ function buildCodexInstructions(
   };
 }
 
+async function buildCodexResponsesPayload(
+  req: ChatRequest,
+  model: string,
+  instructions: string,
+  nonSystemMessages: ChatRequest["messages"],
+  reasoning: ReturnType<typeof reasoningPayload>
+): Promise<Record<string, unknown>> {
+  return {
+    model,
+    instructions,
+    input: await mapResponsesInput(nonSystemMessages),
+    tools: mapResponsesTools(req.tools) ?? [],
+    tool_choice: "auto",
+    parallel_tool_calls: true,
+    reasoning,
+    store: false,
+    stream: false,
+    include: reasoning ? ["reasoning.encrypted_content"] : [],
+    prompt_cache_key: req.sessionId
+  };
+}
+
 async function postCodexResponses(
   baseUrl: string,
   accessToken: string,
@@ -767,20 +789,12 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
     const model = req.model || this.config.defaultModel;
     const { instructions, nonSystemMessages } = buildCodexInstructions(req.messages);
+    const reasoning = reasoningPayload(model, this.config.reasoningEffort);
     const response = await postCodexResponses(
       defaultCodexBaseUrl(this.config.baseUrl),
       accessToken,
       defaultHeaders,
-      {
-        model,
-        instructions,
-        temperature: req.temperature,
-        max_output_tokens: req.maxTokens,
-        reasoning: reasoningPayload(model, this.config.reasoningEffort),
-        input: await mapResponsesInput(nonSystemMessages),
-        tools: mapResponsesTools(req.tools),
-        metadata: req.metadata
-      }
+      await buildCodexResponsesPayload(req, model, instructions, nonSystemMessages, reasoning)
     );
 
     return mapResponsesApiResponse(response);

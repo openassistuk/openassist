@@ -255,7 +255,7 @@ describe("codex provider auth", () => {
     ).rejects.toThrow(/timed out before approval completed/);
   });
 
-  it("sends Codex responses requests with instructions plus session and account headers", async () => {
+  it("sends an upstream-aligned Codex responses request with lifted instructions and required transport fields", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse(200, {
         id: "resp-codex-1",
@@ -306,6 +306,15 @@ describe("codex provider auth", () => {
       session_id: "telegram-main:27328245"
     });
     const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      model: "gpt-5.4",
+      tool_choice: "auto",
+      parallel_tool_calls: true,
+      store: false,
+      stream: false,
+      prompt_cache_key: "telegram-main:27328245",
+      include: []
+    });
     expect(body.instructions).toContain(CODEX_BASELINE_INSTRUCTIONS);
     expect(body.instructions).toContain("OpenAssist runtime guidance");
     expect(body.input).toEqual([
@@ -315,6 +324,9 @@ describe("codex provider auth", () => {
         content: "hello codex"
       }
     ]);
+    expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("max_output_tokens");
+    expect(body).not.toHaveProperty("metadata");
   });
 
   it("does not duplicate lifted system messages inside Codex input", async () => {
@@ -378,6 +390,49 @@ describe("codex provider auth", () => {
         content: "hello codex"
       }
     ]);
+  });
+
+  it("includes upstream Codex reasoning include fields when reasoning effort is enabled", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(200, {
+        id: "resp-codex-3",
+        status: "completed",
+        output_text: "codex ok",
+        output: [],
+        usage: {
+          input_tokens: 10,
+          output_tokens: 5,
+          total_tokens: 15
+        }
+      })
+    );
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4",
+      reasoningEffort: "high"
+    });
+
+    await adapter.chat(
+      {
+        sessionId: "telegram-main:27328245",
+        model: "gpt-5.4",
+        messages: [{ role: "user", content: "hello codex" }],
+        tools: [],
+        metadata: {}
+      },
+      {
+        providerId: "codex-main",
+        accountId: "default",
+        accessToken: "chatgpt-access-token-1",
+        tokenType: "chatgpt-access-token"
+      }
+    );
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>;
+    expect(body.reasoning).toEqual({ effort: "high" });
+    expect(body.include).toEqual(["reasoning.encrypted_content"]);
   });
 
   it("surfaces blank-body Codex upstream request failures with status and request ids", async () => {
@@ -454,6 +509,46 @@ describe("codex provider auth", () => {
     ).rejects.toMatchObject({
       message:
         "Codex upstream request failed (HTTP 400): Instructions are required. Request ID: req-codex-chat-2",
+      status: 400,
+      statusCode: 400
+    });
+  });
+
+  it("surfaces upstream detail errors for the remaining Codex request contract cleanly", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(
+        400,
+        {
+          detail: "Store must be set to false."
+        },
+        { "x-request-id": "req-codex-chat-3" }
+      )
+    );
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    await expect(
+      adapter.chat(
+        {
+          sessionId: "telegram-main:27328245",
+          model: "gpt-5.4",
+          messages: [{ role: "user", content: "hello codex" }],
+          tools: [],
+          metadata: {}
+        },
+        {
+          providerId: "codex-main",
+          accountId: "default",
+          accessToken: "chatgpt-access-token-1",
+          tokenType: "chatgpt-access-token"
+        }
+      )
+    ).rejects.toMatchObject({
+      message:
+        "Codex upstream request failed (HTTP 400): Store must be set to false.. Request ID: req-codex-chat-3",
       status: 400,
       statusCode: 400
     });

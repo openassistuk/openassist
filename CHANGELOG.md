@@ -114,6 +114,11 @@ The format follows Keep a Changelog conventions and this project currently track
   - Codex system-role messages are now lifted into `instructions` and removed from the normal input payload so system intent is not duplicated across both surfaces
   - Codex upstream JSON errors that use `detail` now surface as sanitized provider request failures with safe request ids instead of generic provider/runtime wording
 
+- Codex `/responses` contract completion fix:
+  - the Codex provider now sends the remaining upstream-aligned `/responses` fields that the live backend requires, including `tool_choice="auto"`, `parallel_tool_calls=true`, `store=false`, and a prompt-cache key derived from the canonical runtime session id
+  - Codex no longer sends generic OpenAI-style request extras such as `temperature`, `max_output_tokens`, or metadata fields that are not part of the current linked-account `/responses` contract
+  - docs and troubleshooting now make it explicit that chat-ready Codex auth plus a failing chat request is a provider-request issue, not an auth lifecycle issue, while the auth state itself remains encrypted in SQLite and refreshable automatically when possible
+
 - Provider-route docs and samples now describe four equal public routes consistently:
   - OpenAI (API Key)
   - Codex (OpenAI account login)

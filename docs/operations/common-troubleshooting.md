@@ -229,7 +229,7 @@ Current Codex request truth:
 
 - linked-account auth is stored as encrypted OAuth state in SQLite
 - OpenAssist attempts refresh automatically before expiry and again on auth-style failures when possible
-- the Codex provider now sends the runtime session id, account header, and top-level instructions payload expected by the upstream backend
+- the Codex provider now sends the runtime session id, account header, top-level instructions payload, and the upstream-aligned `/responses` fields Codex currently requires, including `store=false` and a prompt-cache key derived from the session id
 - if the backend still rejects the request after auth is chat-ready, focus on the provider request failure detail and safe request id instead of restarting setup blindly
 
 ## I cannot tell which provider reasoning setting is active

@@ -353,11 +353,9 @@ async function editAccessMode(state: SetupWizardState, prompts: PromptAdapter): 
   );
 }
 
-function operatorIdsChanged(previousOperatorIds: string[], nextOperatorIds: string[]): boolean {
-  return (
-    previousOperatorIds.length !== nextOperatorIds.length ||
-    previousOperatorIds.some((value, index) => value !== nextOperatorIds[index])
-  );
+function operatorIdsAdded(previousOperatorIds: string[], nextOperatorIds: string[]): boolean {
+  const previousOperatorIdSet = new Set(previousOperatorIds);
+  return nextOperatorIds.some((value) => !previousOperatorIdSet.has(value));
 }
 
 async function maybePromptToEnableFullAccessForApprovedOperators(
@@ -367,7 +365,7 @@ async function maybePromptToEnableFullAccessForApprovedOperators(
   previousOperatorIds: string[]
 ): Promise<void> {
   const currentOperatorIds = getOperatorUserIds(channel);
-  if (currentOperatorIds.length === 0 || !operatorIdsChanged(previousOperatorIds, currentOperatorIds)) {
+  if (currentOperatorIds.length === 0 || !operatorIdsAdded(previousOperatorIds, currentOperatorIds)) {
     return;
   }
 

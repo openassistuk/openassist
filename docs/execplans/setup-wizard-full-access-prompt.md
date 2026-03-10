@@ -16,6 +16,8 @@ After this change, an operator using the normal advanced setup flow will no long
 - [x] (2026-03-10 22:39Z) Updated `README.md`, `docs/README.md`, `docs/operations/setup-wizard.md`, `docs/operations/quickstart-linux-macos.md`, `docs/operations/common-troubleshooting.md`, and `CHANGELOG.md` to document the new normal-flow wizard prompt.
 - [x] (2026-03-10 22:41Z) Ran `pnpm exec vitest run tests/vitest/setup-wizard-runtime.test.ts` successfully.
 - [x] (2026-03-10 22:44Z) Ran `pnpm verify:all` successfully.
+- [x] (2026-03-10 22:31Z) Addressed the Copilot PR review follow-up by limiting the prompt trigger to newly added operator IDs instead of any order-sensitive operator-ID change, and added a reorder regression test.
+- [x] (2026-03-10 22:34Z) Re-ran `pnpm exec vitest run tests/vitest/setup-wizard-runtime.test.ts` and `pnpm verify:all` successfully after the review-driven follow-up.
 
 ## Surprises & Discoveries
 
@@ -28,10 +30,17 @@ After this change, an operator using the normal advanced setup flow will no long
 - Observation: the existing edit-channel flow rebuilt `channel.settings` after calling `setOperatorUserIds(...)`, which would discard operator IDs on edit without an explicit follow-up fix.
   Evidence: before the patch, `editChannel(...)` called `setOperatorUserIds(channel, ...)` and then reassigned `channel.settings = settings`; the new test coverage now exercises the edit path and keeps the operator IDs intact.
 
+- Observation: a naive "operator IDs changed" check is too broad for the new prompt because reordering or removing IDs in standard mode should not be treated as a new full-access onboarding moment.
+  Evidence: Copilot review comment `discussion_r2914841978` on PR `#34` pointed out that the original order-sensitive comparison would reprompt on removals and reordering; the follow-up changed the helper to detect only newly added IDs and added a reorder regression test.
+
 ## Decision Log
 
 - Decision: keep approved operator IDs and access mode as separate persisted concepts, but add an in-flow bridge prompt when operator IDs are entered in wizard.
   Rationale: the security model is sound because approved identities and elevated access are not the same thing. The missing piece is operator guidance, so the fix should add explicit prompting instead of collapsing the model.
+  Date/Author: 2026-03-10 / Codex
+
+- Decision: trigger the wizard prompt only when at least one new approved operator ID is introduced, not on every edit to a non-empty operator-ID list.
+  Rationale: removals and reordering do not represent new access onboarding and would create noisy repeat prompts in the normal maintenance path.
   Date/Author: 2026-03-10 / Codex
 
 ## Outcomes & Retrospective
@@ -39,6 +48,8 @@ After this change, an operator using the normal advanced setup flow will no long
 The intended behavior is now implemented end to end. In the normal advanced setup flow, adding approved operator IDs while the install is still in standard mode now triggers an explicit prompt to enable `Full access for approved operators` immediately. Accepting the prompt applies the same full-access/filesystem preset that quickstart already uses. Declining the prompt keeps the approved operator IDs but leaves the install in standard mode, which preserves the valid use case where operators only want later `/access full` escalation instead of automatic full access.
 
 The implementation also tightened a directly related edit-path bug: channel edits now preserve configured approved operator IDs instead of risking a silent overwrite during settings reassignment. Focused wizard tests cover both the new accept/decline behavior and the existing custom advanced access path, and the full repository verification gate passed after the change.
+
+After the initial PR was opened, Copilot identified one legitimate edge: the first implementation would have reprompted on operator-ID reordering because it treated any change as a new addition. The follow-up narrowed the condition to true additions only and added regression coverage for the reorder case. The local focused and full verification gates passed again after that fix.
 
 ## Context and Orientation
 
@@ -98,6 +109,12 @@ Recorded results:
     pnpm verify:all
     ✓ workflow lint, workspace build, lint, typecheck, Vitest, Node tests, and both coverage gates
 
+    pnpm exec vitest run tests/vitest/setup-wizard-runtime.test.ts
+    ✓ tests/vitest/setup-wizard-runtime.test.ts (11 tests)
+
+    pnpm verify:all
+    ✓ workflow lint, workspace build, lint, typecheck, Vitest, Node tests, and both coverage gates
+
 ## Validation and Acceptance
 
 Acceptance is behavior-based:
@@ -131,4 +148,4 @@ At completion, the following behavior must exist:
 - `docs/operations/setup-wizard.md`, `README.md`, `docs/README.md`, and `CHANGELOG.md` describe the new operator-facing behavior.
 
 Revision note (2026-03-10): Created the initial ExecPlan after auditing the current quickstart and wizard behavior so the missing normal-setup prompt can be implemented with tests and docs in one change.
-Revision note (2026-03-10): Updated the plan after implementation to record the added standard-mode wizard prompt, the related edit-channel operator-ID persistence fix, the doc updates, and the successful focused/full verification results.
+Revision note (2026-03-10): Updated the plan after implementation to record the added standard-mode wizard prompt, the related edit-channel operator-ID persistence fix, the doc updates, the Copilot review follow-up that narrowed the trigger to newly added IDs only, and the successful focused/full verification results.

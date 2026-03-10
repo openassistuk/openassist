@@ -277,6 +277,49 @@ describe("setup wizard runtime flow", () => {
     expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toEqual(["123456789"]);
   });
 
+  it("does not re-prompt for full access when approved operator IDs are only reordered", async () => {
+    const root = tempDir("openassist-vitest-setup-full-access-prompt-reorder-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const state = loadSetupWizardState(configPath, envPath);
+    state.config.runtime.channels = [
+      {
+        id: "telegram-main",
+        type: "telegram",
+        enabled: true,
+        settings: {
+          botToken: "env:OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN",
+          allowedChatIds: ["123456789"],
+          operatorUserIds: ["222222222", "111111111"]
+        }
+      }
+    ];
+
+    const prompts = new ScriptedPromptAdapter([
+      "channels",
+      "edit",
+      "telegram-main",
+      "true",
+      "false",
+      "123456789",
+      "111111111,222222222",
+      "back",
+      "save"
+    ]);
+
+    const result = await runSetupWizard(state, prompts, {
+      requireTty: false
+    });
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.operatorAccessProfile).toBe("operator");
+    expect(state.config.tools.fs.workspaceOnly).toBe(true);
+    expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toEqual([
+      "111111111",
+      "222222222"
+    ]);
+  });
+
   it("preserves full-length API keys in wizard provider edits", async () => {
     const root = tempDir("openassist-vitest-setup-long-api-key-");
     const configPath = path.join(root, "openassist.toml");

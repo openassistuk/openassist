@@ -331,6 +331,46 @@ describe("codex provider auth flow", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("synthesizes a fresh expiry when refresh returns only an access token", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          access_token: "oauth-access-3"
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    const expiredAt = new Date(Date.now() - 60_000).toISOString();
+    const refreshed = await adapter.refreshOAuthAuth({
+      providerId: "codex-main",
+      accountId: "default",
+      accessToken: "stale-access-token",
+      refreshToken: "refresh-token-1",
+      expiresAt: expiredAt
+    });
+
+    expect(refreshed).toMatchObject({
+      providerId: "codex-main",
+      accountId: "default",
+      accessToken: "oauth-access-3",
+      refreshToken: "refresh-token-1",
+      tokenType: "oauth-access-token"
+    });
+    expect(refreshed.expiresAt).toBeTruthy();
+    expect(Date.parse(refreshed.expiresAt ?? "")).toBeGreaterThan(Date.now());
+    expect(refreshed.expiresAt).not.toBe(expiredAt);
+  });
+
   it("rejects non-Codex default models on the Codex route", async () => {
     const adapter = new CodexProviderAdapter({
       id: "codex-main",

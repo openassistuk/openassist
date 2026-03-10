@@ -363,14 +363,18 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
     const tokens = await refreshTokens(auth.refreshToken);
     const resolved = await resolveCodexAccessToken(tokens);
+    const effectiveRefreshToken = resolved.refreshToken ?? auth.refreshToken;
+    const effectiveExpiresAt =
+      resolved.expiresAt ??
+      (effectiveRefreshToken ? syntheticExpiresAt() : auth.expiresAt);
     return {
       providerId: this.config.id,
       accountId: auth.accountId,
       accessToken: resolved.accessToken,
-      refreshToken: resolved.refreshToken ?? auth.refreshToken,
+      refreshToken: effectiveRefreshToken,
       tokenType: resolved.tokenType,
       scopes: [...CODEX_SCOPES],
-      expiresAt: resolved.expiresAt ?? auth.expiresAt
+      expiresAt: effectiveExpiresAt
     };
   }
 

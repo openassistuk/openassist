@@ -102,6 +102,12 @@ The format follows Keep a Changelog conventions and this project currently track
   - runtime no longer consumes OAuth flow state before Codex callback completion actually succeeds, so transient failures can be retried with the same valid state until expiry
   - quickstart, wizard, README, troubleshooting docs, and `AGENTS.md` now describe Codex login as device-code-first for remote hosts and keep browser/manual completion as the fallback path
 
+- Codex chat request-shape fix:
+  - the Codex provider now sends the upstream conversation headers expected by the Codex backend, including `session_id` from the runtime session id and `ChatGPT-Account-ID` when account metadata is available
+  - Codex no longer uses the generic OpenAI SDK chat-completions fallback path; it now sends direct Codex responses requests that match the account-login route more closely
+  - blank-body Codex upstream `400` failures now surface as sanitized provider request errors with safe request ids when available instead of a useless bare `400 status code (no body)` message
+  - docs and troubleshooting now make it explicit that linked Codex auth is stored encrypted in SQLite and refreshed automatically when possible, so a chat-ready auth handle plus a failing request should be diagnosed as a provider request issue rather than a missing-auth issue
+
 - Provider-route docs and samples now describe four equal public routes consistently:
   - OpenAI (API Key)
   - Codex (OpenAI account login)

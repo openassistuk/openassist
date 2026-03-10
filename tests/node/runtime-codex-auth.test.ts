@@ -504,4 +504,59 @@ describe("runtime codex auth route", () => {
 
     db.close();
   });
+
+  it("does not misreport a chat-ready Codex upstream 400 as an auth failure", async () => {
+    const root = tempDir("openassist-runtime-codex-upstream-400-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+
+    const channel = new MockChannel();
+    const codexProvider = new MockCodexProvider({
+      initialExpiryOffsetMs: 60 * 60 * 1000,
+      chatErrorMessage:
+        "Codex upstream request failed before returning a response body. Request ID: req-codex-chat-1"
+    });
+    const runtime = new OpenAssistRuntime(
+      runtimeConfig(root),
+      { db, logger },
+      { providers: [new MockOpenAIProvider(), codexProvider], channels: [channel] }
+    );
+    runtime.setProviderOAuthAuth({
+      providerId: "codex-main",
+      accountId: "default",
+      accessToken: "codex-token-initial",
+      refreshToken: "codex-refresh-1",
+      tokenType: "chatgpt-access-token",
+      authMethod: "device-code",
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      scopes: ["openid", "offline_access"]
+    });
+    await runtime.start();
+
+    const authStatus = runtime.getProviderAuthStatus("codex-main");
+    assert.equal(authStatus.currentAuth.chatReady, true);
+
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-main",
+      transportMessageId: "m1",
+      conversationKey: "codex-upstream-400",
+      senderId: "u1",
+      text: "hello",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "codex-upstream-400-1"
+    });
+
+    assert.equal(channel.sent.length, 1);
+    assert.match(channel.sent[0]!.text, /Reason: Codex provider request failed upstream/);
+    assert.doesNotMatch(
+      channel.sent[0]!.text,
+      /provider authentication is missing or invalid/
+    );
+
+    await runtime.stop();
+    db.close();
+  });
 });

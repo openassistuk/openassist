@@ -160,6 +160,8 @@ Codex adapter behavior:
 - Fresh quickstart installs that choose Codex must replace the seeded `openai-main` placeholder provider instead of persisting both routes in the saved config.
 - A linked Codex account row is not sufficient on its own; completion and refresh only count as successful when the provider has a usable Codex/ChatGPT token auth handle loaded for chat.
 - `openassist auth status` remains redacted, but it must surface route, linked-account presence, active auth kind, expiry when known, and whether the stored auth is chat-ready for the provider route.
+- Codex chat transport uses the Codex responses route directly and must preserve the upstream conversation contract by sending `session_id` from `ChatRequest.sessionId` plus `ChatGPT-Account-ID` when account metadata is available.
+- Codex request-shape failures must surface as provider request problems with safe request ids when available; they must not be collapsed into auth-failure wording when the linked account is chat-ready.
 
 Anthropic thinking replay behavior:
 

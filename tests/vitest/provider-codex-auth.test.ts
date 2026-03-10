@@ -253,4 +253,89 @@ describe("codex provider auth", () => {
       })
     ).rejects.toThrow(/timed out before approval completed/);
   });
+
+  it("sends Codex responses requests with session and account headers", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(200, {
+        id: "resp-codex-1",
+        status: "completed",
+        output_text: "codex ok",
+        output: [],
+        usage: {
+          input_tokens: 10,
+          output_tokens: 5,
+          total_tokens: 15
+        }
+      })
+    );
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    const response = await adapter.chat(
+      {
+        sessionId: "telegram-main:27328245",
+        model: "gpt-5.4",
+        messages: [{ role: "user", content: "hello codex" }],
+        tools: [],
+        metadata: { source: "test-suite" }
+      },
+      {
+        providerId: "codex-main",
+        accountId: "default",
+        accessToken: "chatgpt-access-token-1",
+        tokenType: "chatgpt-access-token",
+        scopes: ["chatgpt-account:acct-123"]
+      }
+    );
+
+    expect(response.output.content).toBe("codex ok");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://chatgpt.com/backend-api/codex/responses");
+    expect((init as RequestInit).method).toBe("POST");
+    expect((init as RequestInit).headers).toMatchObject({
+      authorization: "Bearer chatgpt-access-token-1",
+      "ChatGPT-Account-ID": "acct-123",
+      session_id: "telegram-main:27328245"
+    });
+  });
+
+  it("surfaces blank-body Codex upstream request failures with request ids", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response("", {
+        status: 400,
+        headers: {
+          "x-request-id": "req-codex-chat-1"
+        }
+      })
+    );
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    await expect(
+      adapter.chat(
+        {
+          sessionId: "telegram-main:27328245",
+          model: "gpt-5.4",
+          messages: [{ role: "user", content: "hello codex" }],
+          tools: [],
+          metadata: {}
+        },
+        {
+          providerId: "codex-main",
+          accountId: "default",
+          accessToken: "chatgpt-access-token-1",
+          tokenType: "chatgpt-access-token"
+        }
+      )
+    ).rejects.toThrow(
+      /Codex upstream request failed before returning a response body\. Request ID: req-codex-chat-1/
+    );
+  });
 });

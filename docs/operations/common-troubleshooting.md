@@ -196,7 +196,34 @@ If the daemon is already healthy but the login still does not finish, treat that
 - the token expiry if OpenAssist knows it
 - a redacted status detail when the account is stored but not usable for chat
 
+That linked-account state is stored as encrypted OAuth material in SQLite rather than as a plain file, and OpenAssist attempts automatic refresh before expiry and again on auth-style provider failures when a refresh token is available.
+
 If quickstart was truly fresh and you chose Codex, the saved config should contain only `codex-main`. If you still see a stray `openai-main` on a fresh first-run path, that is a setup bug rather than intended compatibility behavior.
+
+## Codex auth is chat-ready, but chat still fails
+
+What it usually means:
+
+- account login is complete
+- service and channel health are fine
+- the Codex backend rejected the provider request itself
+
+What to run:
+
+```bash
+openassist auth status --provider codex-main
+openassist service health
+openassist channel status
+openassist service logs --lines 250
+```
+
+What to look for:
+
+- `Chat-ready auth: Yes`
+- healthy service and channel state
+- a provider error mentioning a Codex upstream request failure or a safe upstream request id
+
+If auth is chat-ready and the service is healthy, do not treat that as a missing-auth problem. It is a provider request issue, and relinking the account blindly is unlikely to help.
 
 ## I cannot tell which provider reasoning setting is active
 

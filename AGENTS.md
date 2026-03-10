@@ -98,6 +98,7 @@ When changing installer/setup/service behavior:
    - a fresh quickstart that selects `codex`, `anthropic`, or `openai-compatible` must not persist the seeded `openai-main` placeholder provider from the default config skeleton
    - Codex account linking only counts as complete when OpenAssist has a chat-ready Codex/ChatGPT token auth handle; an exchanged OpenAI API key is optional auxiliary metadata, not the definition of success
    - `openassist auth status` must stay redacted but still surface meaningful readiness signals for linked-account routes, including route, linked-account presence, active auth kind, token expiry when known, and whether the auth is chat-ready
+   - Codex chat transport must preserve the upstream request contract for linked-account sessions, including the per-turn `session_id` conversation header and `ChatGPT-Account-ID` when available, and upstream Codex request rejections must remain distinguishable from auth failures
 12. preserve Telegram default UX semantics (inline chat memory + inline responses by default; threaded mode only when explicitly configured)
 13. preserve access-mode onboarding semantics:
    - quickstart and wizard use beginner-facing `access mode` wording on operator paths

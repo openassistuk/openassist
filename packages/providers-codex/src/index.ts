@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import { z } from "zod";
 import type {
   ApiKeyAuth,
@@ -16,16 +15,10 @@ import type {
   ValidationResult
 } from "@openassist/core-types";
 import {
-  hasImageInputs,
-  mapChatCompletionResponse,
-  mapMessages,
   mapResponsesApiResponse,
   mapResponsesInput,
   mapResponsesTools,
-  mapTools,
-  reasoningPayload,
-  shouldFallbackToResponses,
-  shouldPreferResponsesApi
+  reasoningPayload
 } from "@openassist/providers-openai-shared";
 
 const CODEX_OAUTH_ISSUER = "https://auth.openai.com";
@@ -119,6 +112,18 @@ class CodexOAuthError extends Error {
   }
 }
 
+class CodexUpstreamChatError extends Error {
+  readonly statusCode: 400 | 502;
+  readonly operatorMessage: string;
+
+  constructor(operatorMessage: string, statusCode: 400 | 502) {
+    super(operatorMessage);
+    this.name = "CodexUpstreamChatError";
+    this.operatorMessage = operatorMessage;
+    this.statusCode = statusCode;
+  }
+}
+
 function appendRequestId(message: string, requestId?: string): string {
   if (!requestId) {
     return message;
@@ -204,6 +209,34 @@ function classifyUpstreamOAuthFailure(
 
   return new CodexOAuthError(
     appendRequestId(fallbackMessage, requestId),
+    response.status >= 500 ? 502 : 400
+  );
+}
+
+function classifyUpstreamCodexChatFailure(
+  response: Response,
+  body: Record<string, unknown> | undefined
+): CodexUpstreamChatError {
+  const requestId = extractRequestId(response.headers, body);
+  const bodyMessage =
+    typeof body?.message === "string" && body.message.trim().length > 0
+      ? body.message.trim()
+      : typeof body?.error === "string" && body.error.trim().length > 0
+        ? body.error.trim()
+        : undefined;
+
+  if (bodyMessage) {
+    return new CodexUpstreamChatError(
+      appendRequestId(`Codex upstream request failed: ${bodyMessage}.`, requestId),
+      response.status >= 500 ? 502 : 400
+    );
+  }
+
+  return new CodexUpstreamChatError(
+    appendRequestId(
+      "Codex upstream request failed before returning a response body.",
+      requestId
+    ),
     response.status >= 500 ? 502 : 400
   );
 }
@@ -505,6 +538,37 @@ function defaultCodexBaseUrl(baseUrl?: string): string {
   return baseUrl.replace(/\/+$/, "");
 }
 
+async function postCodexResponses(
+  baseUrl: string,
+  accessToken: string,
+  headers: Record<string, string>,
+  payload: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const response = await fetch(`${baseUrl}/responses`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "content-type": "application/json",
+      accept: "application/json",
+      ...headers
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const bodyText = await response.text();
+  const parsedBody = parseJsonBody<Record<string, unknown>>(bodyText);
+  if (!response.ok) {
+    throw classifyUpstreamCodexChatFailure(response, parsedBody);
+  }
+  if (parsedBody) {
+    return parsedBody;
+  }
+  throw new CodexUpstreamChatError(
+    "Codex upstream request returned invalid JSON.",
+    502
+  );
+}
+
 export class CodexProviderAdapter implements ProviderAdapter {
   private readonly config: CodexProviderConfig;
 
@@ -636,60 +700,29 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
 
     const claims = "apiKey" in auth ? {} : decodeClaimsMetadata(auth.scopes);
-    const defaultHeaders: Record<string, string> = {};
+    const defaultHeaders: Record<string, string> = {
+      session_id: req.sessionId
+    };
     if (claims.chatgptAccountId) {
-      defaultHeaders["ChatGPT-Account-Id"] = claims.chatgptAccountId;
+      defaultHeaders["ChatGPT-Account-ID"] = claims.chatgptAccountId;
     }
-
-    const client = new OpenAI({
-      apiKey: accessToken,
-      baseURL: defaultCodexBaseUrl(this.config.baseUrl),
-      ...(Object.keys(defaultHeaders).length > 0 ? { defaultHeaders } : {})
-    } as any);
 
     const model = req.model || this.config.defaultModel;
-    const useResponsesApi = shouldPreferResponsesApi(model) || hasImageInputs(req.messages);
-
-    if (useResponsesApi) {
-      const response = await client.responses.create({
+    const response = await postCodexResponses(
+      defaultCodexBaseUrl(this.config.baseUrl),
+      accessToken,
+      defaultHeaders,
+      {
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
         reasoning: reasoningPayload(model, this.config.reasoningEffort),
-        input: (await mapResponsesInput(req.messages)) as any,
-        tools: mapResponsesTools(req.tools) as any,
+        input: await mapResponsesInput(req.messages),
+        tools: mapResponsesTools(req.tools),
         metadata: req.metadata
-      } as any);
-
-      return mapResponsesApiResponse(response);
-    }
-
-    try {
-      const completion = await client.chat.completions.create({
-        model,
-        temperature: req.temperature,
-        max_tokens: req.maxTokens,
-        messages: mapMessages(req.messages) as any,
-        tools: mapTools(req.tools) as any
-      } as any);
-
-      return mapChatCompletionResponse(completion);
-    } catch (error) {
-      if (!shouldFallbackToResponses(error)) {
-        throw error;
       }
+    );
 
-      const response = await client.responses.create({
-        model,
-        temperature: req.temperature,
-        max_output_tokens: req.maxTokens,
-        reasoning: reasoningPayload(model, this.config.reasoningEffort),
-        input: (await mapResponsesInput(req.messages)) as any,
-        tools: mapResponsesTools(req.tools) as any,
-        metadata: req.metadata
-      } as any);
-
-      return mapResponsesApiResponse(response);
-    }
+    return mapResponsesApiResponse(response);
   }
 }

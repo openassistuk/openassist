@@ -16,6 +16,15 @@ function jsonResponse(
   });
 }
 
+function sseResponse(events: Array<{ event: string; data: Record<string, unknown> }>): Response {
+  const body = events
+    .map(({ event, data }) => `event: ${event}\ndata: ${JSON.stringify(data)}`)
+    .join("\n\n");
+  return new Response(body, {
+    status: 200
+  });
+}
+
 describe("codex provider auth", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -257,17 +266,42 @@ describe("codex provider auth", () => {
 
   it("sends an upstream-aligned Codex responses request with lifted instructions and required transport fields", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      jsonResponse(200, {
-        id: "resp-codex-1",
-        status: "completed",
-        output_text: "codex ok",
-        output: [],
-        usage: {
-          input_tokens: 10,
-          output_tokens: 5,
-          total_tokens: 15
+      sseResponse([
+        {
+          event: "response.created",
+          data: {
+            type: "response.created",
+            response: {
+              id: "resp-codex-1",
+              status: "in_progress",
+              output: []
+            }
+          }
+        },
+        {
+          event: "response.output_text.delta",
+          data: {
+            type: "response.output_text.delta",
+            delta: "codex ok"
+          }
+        },
+        {
+          event: "response.completed",
+          data: {
+            type: "response.completed",
+            response: {
+              id: "resp-codex-1",
+              status: "completed",
+              output: [],
+              usage: {
+                input_tokens: 10,
+                output_tokens: 5,
+                total_tokens: 15
+              }
+            }
+          }
         }
-      })
+      ])
     );
 
     const adapter = new CodexProviderAdapter({
@@ -311,7 +345,7 @@ describe("codex provider auth", () => {
       tool_choice: "auto",
       parallel_tool_calls: true,
       store: false,
-      stream: false,
+      stream: true,
       prompt_cache_key: "telegram-main:27328245",
       include: []
     });
@@ -394,17 +428,31 @@ describe("codex provider auth", () => {
 
   it("includes upstream Codex reasoning include fields when reasoning effort is enabled", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      jsonResponse(200, {
-        id: "resp-codex-3",
-        status: "completed",
-        output_text: "codex ok",
-        output: [],
-        usage: {
-          input_tokens: 10,
-          output_tokens: 5,
-          total_tokens: 15
+      sseResponse([
+        {
+          event: "response.output_text.done",
+          data: {
+            type: "response.output_text.done",
+            text: "codex ok"
+          }
+        },
+        {
+          event: "response.completed",
+          data: {
+            type: "response.completed",
+            response: {
+              id: "resp-codex-3",
+              status: "completed",
+              output: [],
+              usage: {
+                input_tokens: 10,
+                output_tokens: 5,
+                total_tokens: 15
+              }
+            }
+          }
         }
-      })
+      ])
     );
 
     const adapter = new CodexProviderAdapter({
@@ -433,6 +481,79 @@ describe("codex provider auth", () => {
     const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>;
     expect(body.reasoning).toEqual({ effort: "high" });
     expect(body.include).toEqual(["reasoning.encrypted_content"]);
+  });
+
+  it("parses Codex SSE output into a normal assistant response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      sseResponse([
+        {
+          event: "response.created",
+          data: {
+            type: "response.created",
+            response: {
+              id: "resp-codex-stream-1",
+              status: "in_progress",
+              output: []
+            }
+          }
+        },
+        {
+          event: "response.output_text.delta",
+          data: {
+            type: "response.output_text.delta",
+            delta: "codex"
+          }
+        },
+        {
+          event: "response.output_text.delta",
+          data: {
+            type: "response.output_text.delta",
+            delta: " smoke ok"
+          }
+        },
+        {
+          event: "response.completed",
+          data: {
+            type: "response.completed",
+            response: {
+              id: "resp-codex-stream-1",
+              status: "completed",
+              output: [],
+              usage: {
+                input_tokens: 10,
+                output_tokens: 5,
+                total_tokens: 15
+              }
+            }
+          }
+        }
+      ])
+    );
+
+    const adapter = new CodexProviderAdapter({
+      id: "codex-main",
+      defaultModel: "gpt-5.4"
+    });
+
+    const response = await adapter.chat(
+      {
+        sessionId: "telegram-main:27328245",
+        model: "gpt-5.4",
+        messages: [{ role: "user", content: "hello codex" }],
+        tools: [],
+        metadata: {}
+      },
+      {
+        providerId: "codex-main",
+        accountId: "default",
+        accessToken: "chatgpt-access-token-1",
+        tokenType: "chatgpt-access-token"
+      }
+    );
+
+    expect(response.output.content).toBe("codex smoke ok");
+    expect(response.rawProviderResponseId).toBe("resp-codex-stream-1");
+    expect(response.finishReason).toBe("completed");
   });
 
   it("surfaces blank-body Codex upstream request failures with status and request ids", async () => {

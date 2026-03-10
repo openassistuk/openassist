@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 
 describe("bootstrap installer idempotence contract", () => {
@@ -88,5 +89,22 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("Cannot use --ref and --pr together."));
     assert.ok(script.includes('if [[ "${TRACKED_REF}" == "HEAD" ]]; then'));
     assert.ok(script.includes('TRACKED_REF="main"'));
+  });
+
+  it("parses as valid bash syntax", () => {
+    const result = spawnSync("bash", ["-n", "scripts/install/bootstrap.sh"], {
+      cwd: path.resolve("."),
+      encoding: "utf8"
+    });
+
+    if (result.error && "code" in result.error && result.error.code === "ENOENT") {
+      return;
+    }
+
+    assert.equal(
+      result.status,
+      0,
+      `bootstrap.sh failed bash -n:\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`
+    );
   });
 });

@@ -728,9 +728,11 @@ checkout_requested_track() {
       git -C "${INSTALL_DIR}" fetch --all --prune
   fi
 
-  if [[ -n "${requested_ref}" && remote_branch_exists "${requested_ref}" ]]; then
-    checkout_remote_branch "${requested_ref}"
-    return
+  if [[ -n "${requested_ref}" ]]; then
+    if remote_branch_exists "${requested_ref}"; then
+      checkout_remote_branch "${requested_ref}"
+      return
+    fi
   fi
 
   if [[ -n "${requested_ref}" ]]; then

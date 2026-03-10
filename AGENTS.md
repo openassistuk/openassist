@@ -92,6 +92,9 @@ When changing installer/setup/service behavior:
      - operators on remote hosts must be able to copy the full callback URL from the browser and paste it back into setup or `openassist auth complete`
      - additive CLI completion with `--callback-url` must remain supported alongside the older `--state` plus `--code` path
      - provider or daemon completion failures must surface as sanitized account-link errors, not generic service-failure or bare `500` wording
+   - a fresh quickstart that selects `codex`, `anthropic`, or `openai-compatible` must not persist the seeded `openai-main` placeholder provider from the default config skeleton
+   - Codex account linking only counts as complete when OpenAssist has a chat-ready Codex/OpenAI auth handle; storing a linked account row without the exchanged OpenAI API key is not a successful login
+   - `openassist auth status` must stay redacted but still surface meaningful readiness signals for linked-account routes, including route, linked-account presence, active auth kind, token expiry when known, and whether the auth is chat-ready
 12. preserve Telegram default UX semantics (inline chat memory + inline responses by default; threaded mode only when explicitly configured)
 13. preserve access-mode onboarding semantics:
    - quickstart and wizard use beginner-facing `access mode` wording on operator paths

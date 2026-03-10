@@ -41,6 +41,7 @@ Codex mapping note:
 - new Codex login starts now use the standard localhost callback `http://localhost:1455/auth/callback`
 - on headless hosts that login can still be completed from the printed authorization URL by copying the full callback URL from the browser address bar and pasting it back into OpenAssist
 - the additive manual completion command is `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
+- imported or newly created Codex providers only count as linked when OpenAssist has the exchanged OpenAI API key needed for chat-ready Codex use; a stored but unusable linked-account row is not treated as success
 
 ### Channel mapping
 

@@ -188,6 +188,15 @@ openassist auth complete --provider codex-main --state <state> --code <code> --b
 
 If the daemon is already healthy but the login still does not finish, treat that as an auth-completion problem, not a service failure. OpenAssist should now surface a sanitized account-linking error with safe upstream detail when available.
 
+`openassist auth status --provider codex-main` remains redacted, but it should now tell you:
+
+- whether the linked account exists
+- whether the current auth handle is chat-ready
+- the token expiry if OpenAssist knows it
+- a redacted status detail when the account is stored but not usable for chat
+
+If quickstart was truly fresh and you chose Codex, the saved config should contain only `codex-main`. If you still see a stray `openai-main` on a fresh first-run path, that is a setup bug rather than intended compatibility behavior.
+
 ## I cannot tell which provider reasoning setting is active
 
 What it usually means:

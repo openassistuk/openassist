@@ -722,6 +722,89 @@ describe("cli root command coverage", () => {
     }
   });
 
+  it("shows redacted chat-readiness detail for codex auth status", async () => {
+    const server = http.createServer((req, res) => {
+      if (req.method === "GET" && req.url === "/v1/oauth/codex-main/status") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            providerId: "codex-main",
+            providerType: "codex",
+            linkedAccountCount: 1,
+            accounts: [
+              {
+                providerId: "codex-main",
+                accountId: "default",
+                expiresAt: "2026-03-20T12:54:55.604Z",
+                updatedAt: "2026-03-10T12:54:56.604Z"
+              }
+            ],
+            currentAuth: {
+              kind: "oauth",
+              tokenType: "oauth-access-token",
+              chatReady: false,
+              detail:
+                "Codex account login is stored, but it is not chat-ready because it is missing the exchanged OpenAI API key."
+            }
+          })
+        );
+        return;
+      }
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        server.removeListener("error", reject);
+        resolve();
+      });
+    });
+
+    try {
+      const address = server.address();
+      assert.notEqual(address, null);
+      assert.equal(typeof address, "object");
+      const port = (address as { port: number }).port;
+
+      const result = await runCommand(
+        process.execPath,
+        [
+          path.join(repoRoot(), "node_modules", "tsx", "dist", "cli.mjs"),
+          path.join(repoRoot(), "apps", "openassist-cli", "src", "index.ts"),
+          "auth",
+          "status",
+          "--provider",
+          "codex-main",
+          "--base-url",
+          `http://127.0.0.1:${port}`
+        ],
+        repoRoot()
+      );
+
+      assert.equal(result.code, 0, result.stderr || result.stdout);
+      assert.match(result.stdout, /Provider auth status/);
+      assert.match(result.stdout, /Provider: codex-main/);
+      assert.match(result.stdout, /Route: Codex \(OpenAI account login\)/);
+      assert.match(result.stdout, /Linked accounts: 1/);
+      assert.match(result.stdout, /Active auth: Account login/);
+      assert.match(result.stdout, /Chat-ready auth: No/);
+      assert.match(result.stdout, /Token type: oauth-access-token/);
+      assert.match(result.stdout, /missing the exchanged OpenAI API key/);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
   it("exercises remote command failure paths", async () => {
     const badBaseUrl = "http://127.0.0.1:1";
     const cases: Array<{ args: string[]; errorText: RegExp }> = [

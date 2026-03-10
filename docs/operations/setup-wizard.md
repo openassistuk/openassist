@@ -177,6 +177,8 @@ openassist auth complete --provider codex-main --callback-url "<full callback UR
 
 - Automatic browser launch is best-effort only. If the local host cannot open a browser, OpenAssist still prints the URL and keeps the account-link flow usable.
 - If the completion step still fails, OpenAssist should report a sanitized account-linking problem, not a generic service failure or raw `500`.
+- A fresh quickstart that chooses Codex now replaces the seeded `openai-main` placeholder provider instead of saving both routes in the first-run config.
+- `openassist auth status --provider <provider-id>` remains redacted, but it now reports whether the linked account is present and whether the current auth handle is actually chat-ready for the route.
 - OpenAssist does not present Codex as generic ChatGPT API auth for arbitrary OpenAI models.
 - Existing mixed `openai + oauth` configs still load for compatibility, but new account-login installs should use `codex`.
 

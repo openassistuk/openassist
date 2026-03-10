@@ -366,6 +366,25 @@ interface ManagedHelperRegistrationInput {
   summary: string;
 }
 
+interface ProviderAuthStatusSnapshot {
+  providerId: string;
+  providerType?: RuntimeConfig["providers"][number]["type"];
+  linkedAccountCount: number;
+  accounts: Array<{
+    providerId: string;
+    accountId: string;
+    expiresAt?: string;
+    updatedAt: string;
+  }>;
+  currentAuth: {
+    kind: "none" | "api-key" | "oauth";
+    tokenType?: string;
+    expiresAt?: string;
+    chatReady: boolean;
+    detail: string;
+  };
+}
+
 export class OpenAssistRuntime {
   private config: RuntimeConfig;
   private readonly db: OpenAssistDatabase;
@@ -849,6 +868,57 @@ export class OpenAssistRuntime {
       expiresAt: row.expiresAt,
       updatedAt: row.updatedAt
     }));
+  }
+
+  getProviderAuthStatus(providerId: string): ProviderAuthStatusSnapshot {
+    const providerConfig = this.config.providers.find((candidate) => candidate.id === providerId);
+    const accounts = this.listOAuthAccounts(providerId);
+    const current = this.auth.get(providerId);
+    if (!current) {
+      return {
+        providerId,
+        providerType: providerConfig?.type,
+        linkedAccountCount: accounts.length,
+        accounts,
+        currentAuth: {
+          kind: "none",
+          chatReady: false,
+          detail: accounts.length > 0 ? "Linked account is stored but not active in runtime." : "No active authentication is loaded."
+        }
+      };
+    }
+
+    if (!this.isOAuthAuthHandle(current)) {
+      return {
+        providerId,
+        providerType: providerConfig?.type,
+        linkedAccountCount: accounts.length,
+        accounts,
+        currentAuth: {
+          kind: "api-key",
+          chatReady: true,
+          detail: "API key auth is loaded for this provider."
+        }
+      };
+    }
+
+    const isCodexReady = providerConfig?.type !== "codex" || current.tokenType === "openai-api-key";
+    return {
+      providerId,
+      providerType: providerConfig?.type,
+      linkedAccountCount: accounts.length,
+      accounts,
+      currentAuth: {
+        kind: "oauth",
+        tokenType: current.tokenType,
+        expiresAt: current.expiresAt,
+        chatReady: Boolean(current.accessToken) && isCodexReady,
+        detail:
+          providerConfig?.type === "codex" && !isCodexReady
+            ? "Codex account login is stored, but it is not chat-ready because it is missing the exchanged OpenAI API key."
+            : "OAuth auth is loaded for this provider."
+      }
+    };
   }
 
   removeOAuthAccount(providerId: string, accountId: string): boolean {

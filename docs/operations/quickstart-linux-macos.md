@@ -200,6 +200,8 @@ Provider and channel guidance:
 - Leaving that quickstart choice on `Default` keeps the field unset, so OpenAssist sends no provider-specific reasoning parameter.
 - If you choose Codex, quickstart guides the account-link flow after the daemon is healthy, prints the authorization URL, pauses so you can copy or open it on this host or another device, accepts either the full callback URL or a pasted code, and requires that linked account before the first reply can use the default provider.
 - After browser approval, the Codex flow now redirects to `http://localhost:1455/auth/callback`. If that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into quickstart.
+- A fresh quickstart that selects Codex now saves only the `codex-main` provider; it no longer keeps an unused seeded `openai-main` placeholder in the saved config.
+- Codex account linking now only completes when OpenAssist has a chat-ready Codex/OpenAI auth handle. If the linked account is present but unusable for chat, quickstart keeps the issue in the account-linking flow instead of silently succeeding.
 - Quickstart now also prints the exact host-side manual completion fallback:
 
 ```bash
@@ -208,6 +210,7 @@ openassist auth complete --provider codex-main --callback-url "<full callback UR
 
 - If automatic browser launch is unavailable on a headless host, OpenAssist still prints the authorization URL and treats that as an account-linking step, not as a service failure.
 - If completion still fails, quickstart now keeps the daemon/service result separate and reports a sanitized account-linking problem instead of a generic `status=500`.
+- `openassist auth status --provider codex-main` now stays redacted while still showing whether the linked account is present and chat-ready.
 - Anthropic stays API-key-first for the fastest first reply; optional provider OAuth configuration still lives in `openassist setup wizard`.
 - OpenAI-compatible stays the custom API-compatible route.
 - legacy `openai + oauth` configs still load, but new account-login installs should use `codex`.

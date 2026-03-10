@@ -79,6 +79,8 @@ Codex setup/auth notes now follow the real supported flow:
 - on a headless VPS or remote host, operators can complete the login in another browser and paste the full callback URL or the code back into quickstart or `openassist auth complete`
 - the additive host-side completion path is `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - Codex completion failures should now surface as sanitized account-link errors with safe upstream detail when available, not a generic `status=500`
+- a fresh quickstart that chooses Codex now saves only the selected Codex provider instead of also leaving the default `openai-main` placeholder behind
+- `openassist auth status` remains redacted, but it now exposes linked-account presence and chat-readiness signals for account-login routes so operators can tell whether Codex auth is actually usable
 
 Lifecycle and status surfaces now also show the current primary provider route, default model, and reasoning/thinking state so operators do not need to reopen wizard just to confirm what is active.
 

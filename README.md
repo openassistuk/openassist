@@ -183,6 +183,8 @@ Quickstart provider guidance now follows the split-route model:
 - Codex no longer prompts for a custom base URL in quickstart or wizard; the normal route uses the built-in Codex login endpoint
 - After browser approval, Codex now returns to `http://localhost:1455/auth/callback`; if that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into OpenAssist
 - The additive host-side completion path is now explicit too: `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
+- a fresh quickstart that selects Codex now saves only `codex-main`; it no longer keeps an unused seeded `openai-main` placeholder provider in the resulting config
+- Codex account login now only counts as complete when OpenAssist has a chat-ready Codex/OpenAI auth handle; a stored but unusable linked-account row is treated as an auth-readiness failure instead of succeeding silently
 - OpenAI and Codex quickstart both expose a beginner-facing reasoning effort choice:
   - `Default (recommended)`
   - `Low`
@@ -472,6 +474,8 @@ openassist auth status
 openassist channel status
 openassist channel qr --id <channel-id>
 ```
+
+`openassist auth status` stays redacted, but it now reports whether the linked account is present and whether the current auth handle is actually chat-ready for the selected provider route.
 
 Time and scheduler:
 

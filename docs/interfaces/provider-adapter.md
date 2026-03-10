@@ -155,6 +155,9 @@ Codex adapter behavior:
 - The additive host-side completion path is `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`; the older `--state` plus `--code` path remains for scripting and compatibility.
 - Provider and daemon OAuth failures must stay sanitized and operator-actionable. Codex completion failures should classify invalid or expired codes, redirect mismatches, upstream token-exchange failures, and missing usable token fields without leaking raw token bodies.
 - CLI and setup auth helpers must treat browser launch as best-effort only; missing local browser launchers on headless hosts must leave the printed authorization URL usable instead of crashing the account-link flow.
+- Fresh quickstart installs that choose Codex must replace the seeded `openai-main` placeholder provider instead of persisting both routes in the saved config.
+- A linked Codex account row is not sufficient on its own; completion and refresh only count as successful when the provider has the exchanged OpenAI API key required for chat-ready Responses API calls.
+- `openassist auth status` remains redacted, but it must surface route, linked-account presence, active auth kind, expiry when known, and whether the stored auth is chat-ready for the provider route.
 
 Anthropic thinking replay behavior:
 

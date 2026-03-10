@@ -264,38 +264,22 @@ async function resolveCodexAccessToken(
   tokens: CodexTokenExchangeResponse
 ): Promise<Pick<ProviderAuthHandle, "accessToken" | "refreshToken" | "tokenType" | "expiresAt">> {
   const idToken = normalizeTokenValue(tokens.id_token);
-  const accessToken = normalizeTokenValue(tokens.access_token);
   const refreshToken = normalizeTokenValue(tokens.refresh_token);
 
-  if (idToken) {
-    try {
-      const apiKey = await exchangeIdTokenForApiKey(idToken);
-      return {
-        accessToken: apiKey,
-        refreshToken,
-        tokenType: "openai-api-key",
-        expiresAt: resolveExpiresAt(tokens.expires_in, refreshToken)
-      };
-    } catch (error) {
-      if (!accessToken) {
-        throw error;
-      }
-    }
+  if (!idToken) {
+    throw new CodexOAuthError(
+      "Codex account login upstream response did not include the id token required to finish chat-ready auth.",
+      502
+    );
   }
 
-  if (accessToken) {
-    return {
-      accessToken,
-      refreshToken,
-      tokenType: normalizeTokenValue(tokens.token_type) ?? "oauth-access-token",
-      expiresAt: resolveExpiresAt(tokens.expires_in, refreshToken)
-    };
-  }
-
-  throw new CodexOAuthError(
-    "Codex account login did not return a usable access token.",
-    502
-  );
+  const apiKey = await exchangeIdTokenForApiKey(idToken);
+  return {
+    accessToken: apiKey,
+    refreshToken,
+    tokenType: "openai-api-key",
+    expiresAt: resolveExpiresAt(tokens.expires_in, refreshToken)
+  };
 }
 
 export class CodexProviderAdapter implements ProviderAdapter {

@@ -139,6 +139,28 @@ function minimalWhatsAppAnthropicAnswers(extra: string[] = []): string[] {
   ];
 }
 
+function minimalCodexAnswers(extra: string[] = []): string[] {
+  return [
+    "true",
+    "OpenAssist",
+    "Pragmatic and concise",
+    "Keep answers practical",
+    "codex",
+    "codex-main",
+    "gpt-5.4",
+    "default",
+    "telegram",
+    "telegram-main",
+    "telegram-token",
+    "123,456",
+    "Europe",
+    "Europe/London",
+    "true",
+    "save",
+    ...extra
+  ];
+}
+
 describe("setup quickstart flow", () => {
   it("requires TTY by default for interactive quickstart", async () => {
     const root = tempDir("openassist-quickstart-flow-tty-required-");
@@ -510,6 +532,100 @@ describe("setup quickstart flow", () => {
     });
     expect(state.config.runtime.time.defaultTimezone).toBe("Europe/London");
     expect(result.summary.some((line) => line.includes("openassist channel qr --id whatsapp-main"))).toBe(true);
+  });
+
+  it("replaces the seeded openai placeholder provider on a fresh codex quickstart", async () => {
+    const root = tempDir("openassist-quickstart-flow-codex-fresh-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.bindPort = await getFreePort();
+    const prompts = new ScriptedPromptAdapter(minimalCodexAnswers());
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: true,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.defaultProviderId).toBe("codex-main");
+    expect(state.config.runtime.providers).toEqual([
+      {
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-5.4"
+      }
+    ]);
+  });
+
+  it("preserves existing extra providers when quickstart changes the default provider on a customized config", async () => {
+    const root = tempDir("openassist-quickstart-flow-preserve-providers-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.bindPort = await getFreePort();
+    state.config.runtime.assistant.name = "Custom assistant";
+    state.config.runtime.providers.push({
+      id: "compat-main",
+      type: "openai-compatible",
+      defaultModel: "gpt-5.4",
+      baseUrl: "http://127.0.0.1:11434/v1"
+    });
+
+    const prompts = new ScriptedPromptAdapter(minimalCodexAnswers());
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: true,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.providers).toEqual(
+      expect.arrayContaining([
+        {
+          id: "openai-main",
+          type: "openai",
+          defaultModel: "gpt-5.4"
+        },
+        {
+          id: "compat-main",
+          type: "openai-compatible",
+          defaultModel: "gpt-5.4",
+          baseUrl: "http://127.0.0.1:11434/v1"
+        },
+        {
+          id: "codex-main",
+          type: "codex",
+          defaultModel: "gpt-5.4"
+        }
+      ])
+    );
   });
 
   it("supports the quickstart full-access opt-in path for approved operators", async () => {

@@ -7,7 +7,7 @@ import {
   type OpenAssistOperatorPaths
 } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
-import { loadBaseConfigObject, saveConfigObject } from "./config-edit.js";
+import { isUntouchedDefaultConfigObject, loadBaseConfigObject, saveConfigObject } from "./config-edit.js";
 import { waitForHealthy } from "./health-check.js";
 import { loadInstallState, saveInstallState } from "./install-state.js";
 import { detectDefaultDaemonBaseUrl, defaultInstallDir, defaultInstallStatePath } from "./runtime-context.js";
@@ -89,31 +89,7 @@ function matchesLegacyRuntimePaths(config: OpenAssistConfig, legacy: LegacyDefau
 }
 
 function looksLikeCustomizedLegacyConfig(config: OpenAssistConfig): boolean {
-  if (config.runtime.channels.length > 0) {
-    return true;
-  }
-  if (config.runtime.assistant.name !== "OpenAssist") {
-    return true;
-  }
-  if (config.runtime.assistant.persona !== "Pragmatic, concise, and execution-focused local AI assistant.") {
-    return true;
-  }
-  if ((config.runtime.assistant.operatorPreferences ?? "").trim().length > 0) {
-    return true;
-  }
-  if (config.runtime.assistant.promptOnFirstContact === false) {
-    return true;
-  }
-  if (
-    config.runtime.defaultProviderId !== "openai-main" ||
-    config.runtime.providers.length !== 1 ||
-    config.runtime.providers[0]?.id !== "openai-main" ||
-    config.runtime.providers[0]?.type !== "openai" ||
-    config.runtime.providers[0]?.defaultModel !== "gpt-5.4"
-  ) {
-    return true;
-  }
-  return false;
+  return !isUntouchedDefaultConfigObject(config);
 }
 
 export function detectLegacyDefaultLayout(

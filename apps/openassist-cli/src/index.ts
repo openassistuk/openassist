@@ -32,7 +32,8 @@ import {
 } from "./lib/install-state.js";
 import { buildLifecycleReport, renderLifecycleReport } from "./lib/lifecycle-readiness.js";
 import { detectLegacyDefaultLayout } from "./lib/operator-layout.js";
-import { detectDefaultDaemonBaseUrl } from "./lib/runtime-context.js";
+import { parseOAuthCompletionInput } from "./lib/oauth-completion.js";
+import { detectDefaultDaemonBaseUrl, extractApiErrorMessage } from "./lib/runtime-context.js";
 import { createServiceManager, detectServiceManagerKind } from "./lib/service-manager.js";
 import { validateSetupReadiness, type SetupValidationIssue } from "./lib/setup-validation.js";
 
@@ -460,7 +461,9 @@ authCommand
 
       const result = await requestJson("POST", `${baseUrl}/v1/oauth/${providerId}/start`, body);
       if (result.status >= 400) {
-        throw new Error(`Request failed with status ${result.status}`);
+        throw new Error(
+          extractApiErrorMessage(result.data, `Request failed with status ${result.status}`)
+        );
       }
 
       const response = result.data as {
@@ -484,7 +487,8 @@ authCommand
       ) {
         console.log(`After approval, the browser should redirect to: ${response.redirectUri}`);
         console.log("If that localhost page cannot load, copy the full callback URL from the browser address bar and use it to complete login.");
-        console.log(`Manual completion example: openassist auth complete --provider ${providerId} --state ${response.state} --code <code> --base-url ${baseUrl}`);
+        console.log(`Manual completion example: openassist auth complete --provider ${providerId} --callback-url "<full callback URL>" --base-url ${baseUrl}`);
+        console.log(`Scripted fallback: openassist auth complete --provider ${providerId} --state ${response.state} --code <code> --base-url ${baseUrl}`);
       }
 
       if (options.openBrowser) {
@@ -508,27 +512,59 @@ authCommand
 
 authCommand
   .command("complete")
-  .description("Complete OAuth login flow manually with code and state")
+  .description("Complete OAuth login flow manually with callback URL or code and state")
   .requiredOption("--provider <id>", "Provider ID")
-  .requiredOption("--state <state>", "OAuth state")
-  .requiredOption("--code <code>", "OAuth authorization code")
+  .option("--callback-url <url>", "Full callback URL returned by the browser")
+  .option("--state <state>", "OAuth state")
+  .option("--code <code>", "OAuth authorization code")
   .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
   .action(async (options) => {
     try {
       const providerId = String(options.provider);
       const baseUrl = String(options.baseUrl).replace(/\/+$/, "");
+      const callbackUrl =
+        typeof options.callbackUrl === "string" && options.callbackUrl.trim().length > 0
+          ? options.callbackUrl
+          : undefined;
+      const completion = callbackUrl
+        ? parseOAuthCompletionInput(callbackUrl, "")
+        : typeof options.state === "string" &&
+            options.state.trim().length > 0 &&
+            typeof options.code === "string" &&
+            options.code.trim().length > 0
+          ? {
+              state: String(options.state),
+              code: String(options.code).trim()
+            }
+          : null;
+
+      if (!completion) {
+        throw new Error(
+          "Provide either --callback-url \"<full callback URL>\" or both --state and --code."
+        );
+      }
+      if (completion.state.trim().length === 0) {
+        throw new Error(
+          "Callback URL did not include OAuth state. Start login again or use --state with --code."
+        );
+      }
+      if (completion.code.trim().length === 0) {
+        throw new Error("Callback URL did not include an authorization code.");
+      }
 
       const result = await requestJson(
         "POST",
         `${baseUrl}/v1/oauth/${providerId}/complete`,
         {
-          state: String(options.state),
-          code: String(options.code)
+          state: completion.state,
+          code: completion.code
         }
       );
 
       if (result.status >= 400) {
-        throw new Error(`Request failed with status ${result.status}`);
+        throw new Error(
+          extractApiErrorMessage(result.data, `Request failed with status ${result.status}`)
+        );
       }
 
       const response = result.data as { accountId: string; expiresAt?: string };
@@ -560,7 +596,9 @@ authCommand
 
       const result = await requestJson("GET", url);
       if (result.status >= 400) {
-        throw new Error(`Request failed with status ${result.status}`);
+        throw new Error(
+          extractApiErrorMessage(result.data, `Request failed with status ${result.status}`)
+        );
       }
 
       console.log("OAuth status request succeeded.");
@@ -590,7 +628,9 @@ authCommand
         `${baseUrl}/v1/oauth/${providerId}/account/${encodeURIComponent(accountId)}/disconnect`
       );
       if (result.status >= 400) {
-        throw new Error(`Request failed with status ${result.status}`);
+        throw new Error(
+          extractApiErrorMessage(result.data, `Request failed with status ${result.status}`)
+        );
       }
       console.log(`Disconnected account ${accountId} from provider ${providerId}`);
     } catch (error) {

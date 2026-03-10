@@ -169,7 +169,14 @@ Provider-route notes:
 - Codex does not ask for a custom base URL in the normal wizard provider editor.
 - Codex account linking is headless-friendly: OpenAssist can print the authorization URL, pause so you can copy or open it on another device, and accept either the full callback URL or a pasted code when you complete the login.
 - The default Codex browser redirect is `http://localhost:1455/auth/callback`; if that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into OpenAssist.
+- Manual host-side completion can now use:
+
+```bash
+openassist auth complete --provider codex-main --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344
+```
+
 - Automatic browser launch is best-effort only. If the local host cannot open a browser, OpenAssist still prints the URL and keeps the account-link flow usable.
+- If the completion step still fails, OpenAssist should report a sanitized account-linking problem, not a generic service failure or raw `500`.
 - OpenAssist does not present Codex as generic ChatGPT API auth for arbitrary OpenAI models.
 - Existing mixed `openai + oauth` configs still load for compatibility, but new account-login installs should use `codex`.
 

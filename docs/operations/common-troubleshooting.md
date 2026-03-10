@@ -171,7 +171,7 @@ http://localhost:1455/auth/callback
 On a VPS or other remote host, that localhost page may not load in the browser you used for approval. That is still fine: copy the full URL from the browser address bar and paste it back into quickstart, or complete the flow manually:
 
 ```bash
-openassist auth complete --provider codex-main --state <state> --code <code>
+openassist auth complete --provider codex-main --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344
 ```
 
 Important:
@@ -179,6 +179,14 @@ Important:
 - `codex` is the separate OpenAI account-login route
 - `openai` remains the API-key route
 - new account-login installs should use `codex`, not a new mixed `openai + oauth` provider
+
+If you are scripting the completion step and already have the values split out, the older path still works:
+
+```bash
+openassist auth complete --provider codex-main --state <state> --code <code> --base-url http://127.0.0.1:3344
+```
+
+If the daemon is already healthy but the login still does not finish, treat that as an auth-completion problem, not a service failure. OpenAssist should now surface a sanitized account-linking error with safe upstream detail when available.
 
 ## I cannot tell which provider reasoning setting is active
 

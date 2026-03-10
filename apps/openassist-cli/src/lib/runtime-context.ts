@@ -85,6 +85,20 @@ export async function requestJson(
   };
 }
 
+export function extractApiErrorMessage(data: unknown, fallback: string): string {
+  if (typeof data === "object" && data !== null) {
+    const maybeError = (data as { error?: unknown }).error;
+    if (typeof maybeError === "string" && maybeError.trim().length > 0) {
+      return maybeError.trim();
+    }
+    const maybeMessage = (data as { message?: unknown }).message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim().length > 0) {
+      return maybeMessage.trim();
+    }
+  }
+  return fallback;
+}
+
 export function openUrlInBrowser(url: string): void {
   if (process.platform === "win32") {
     spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref();

@@ -56,6 +56,131 @@ interface CodexTokenExchangeResponse {
   id_token?: string;
   access_token?: string;
   refresh_token?: string;
+  expires_in?: number;
+  token_type?: string;
+  error?: string;
+  error_description?: string;
+  request_id?: string;
+  requestId?: string;
+  message?: string;
+}
+
+class CodexOAuthError extends Error {
+  readonly statusCode: 400 | 502;
+  readonly operatorMessage: string;
+
+  constructor(operatorMessage: string, statusCode: 400 | 502) {
+    super(operatorMessage);
+    this.name = "CodexOAuthError";
+    this.operatorMessage = operatorMessage;
+    this.statusCode = statusCode;
+  }
+}
+
+function appendRequestId(message: string, requestId?: string): string {
+  if (!requestId) {
+    return message;
+  }
+  return `${message} Request ID: ${requestId}`;
+}
+
+function parseJsonBody(text: string): Record<string, unknown> | undefined {
+  if (text.trim().length === 0) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractRequestId(
+  headers: Headers,
+  body: Record<string, unknown> | undefined
+): string | undefined {
+  const headerRequestId = headers.get("x-request-id") ?? headers.get("request-id");
+  if (headerRequestId && headerRequestId.trim().length > 0) {
+    return headerRequestId.trim();
+  }
+  const bodyRequestId = body?.request_id ?? body?.requestId;
+  if (typeof bodyRequestId === "string" && bodyRequestId.trim().length > 0) {
+    return bodyRequestId.trim();
+  }
+  return undefined;
+}
+
+function classifyUpstreamOAuthFailure(
+  response: Response,
+  body: Record<string, unknown> | undefined
+): CodexOAuthError {
+  const requestId = extractRequestId(response.headers, body);
+  const errorCode =
+    typeof body?.error === "string" && body.error.trim().length > 0
+      ? body.error.trim().toLowerCase()
+      : "";
+  const errorDescription =
+    typeof body?.error_description === "string" && body.error_description.trim().length > 0
+      ? body.error_description.trim()
+      : typeof body?.message === "string" && body.message.trim().length > 0
+        ? body.message.trim()
+        : "";
+  const normalized = `${errorCode} ${errorDescription}`.toLowerCase();
+
+  if (
+    normalized.includes("redirect_uri") ||
+    normalized.includes("redirect uri") ||
+    normalized.includes("redirect mismatch")
+  ) {
+    return new CodexOAuthError(
+      appendRequestId(
+        "Codex account login redirect did not match the expected localhost callback.",
+        requestId
+      ),
+      400
+    );
+  }
+
+  if (
+    errorCode === "invalid_grant" ||
+    normalized.includes("expired") ||
+    normalized.includes("authorization code") ||
+    normalized.includes("code verifier") ||
+    normalized.includes("code_verifier") ||
+    normalized.includes("pkce")
+  ) {
+    return new CodexOAuthError(
+      appendRequestId(
+        "Codex account login code is invalid or expired. Start login again.",
+        requestId
+      ),
+      400
+    );
+  }
+
+  return new CodexOAuthError(
+    appendRequestId("Codex account login token exchange failed upstream.", requestId),
+    response.status >= 500 ? 502 : 400
+  );
+}
+
+function normalizeTokenValue(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resolveExpiresAt(
+  expiresInSeconds: number | undefined,
+  refreshToken: string | undefined
+): string | undefined {
+  if (typeof expiresInSeconds === "number" && Number.isFinite(expiresInSeconds) && expiresInSeconds > 0) {
+    return new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+  }
+  if (refreshToken) {
+    return syntheticExpiresAt();
+  }
+  return undefined;
 }
 
 function supportsCodexRouteModel(model: string): boolean {
@@ -77,13 +202,19 @@ async function postForm<T>(
   });
 
   const bodyText = await response.text();
+  const parsedBody = parseJsonBody(bodyText);
   if (!response.ok) {
-    throw new Error(
-      `Codex auth request failed (${response.status} ${response.statusText}): ${bodyText.slice(0, 500)}`
-    );
+    throw classifyUpstreamOAuthFailure(response, parsedBody);
   }
 
-  return JSON.parse(bodyText) as T;
+  if (parsedBody) {
+    return parsedBody as T;
+  }
+
+  throw new CodexOAuthError(
+    "Codex account login token exchange returned an invalid JSON response.",
+    502
+  );
 }
 
 async function exchangeCodeForTokens(
@@ -117,13 +248,54 @@ async function exchangeIdTokenForApiKey(idToken: string): Promise<string> {
   payload.set("subject_token_type", "urn:ietf:params:oauth:token-type:id_token");
   const response = await postForm<{ access_token?: string }>(CODEX_OAUTH_TOKEN_URL, payload);
   if (!response.access_token) {
-    throw new Error("Codex account login did not return an OpenAI API key");
+    throw new CodexOAuthError(
+      "Codex account login upstream response was missing the exchanged API key.",
+      502
+    );
   }
   return response.access_token;
 }
 
 function syntheticExpiresAt(): string {
   return new Date(Date.now() + CODEX_REFRESH_INTERVAL_MS).toISOString();
+}
+
+async function resolveCodexAccessToken(
+  tokens: CodexTokenExchangeResponse
+): Promise<Pick<ProviderAuthHandle, "accessToken" | "refreshToken" | "tokenType" | "expiresAt">> {
+  const idToken = normalizeTokenValue(tokens.id_token);
+  const accessToken = normalizeTokenValue(tokens.access_token);
+  const refreshToken = normalizeTokenValue(tokens.refresh_token);
+
+  if (idToken) {
+    try {
+      const apiKey = await exchangeIdTokenForApiKey(idToken);
+      return {
+        accessToken: apiKey,
+        refreshToken,
+        tokenType: "openai-api-key",
+        expiresAt: resolveExpiresAt(tokens.expires_in, refreshToken)
+      };
+    } catch (error) {
+      if (!accessToken) {
+        throw error;
+      }
+    }
+  }
+
+  if (accessToken) {
+    return {
+      accessToken,
+      refreshToken,
+      tokenType: normalizeTokenValue(tokens.token_type) ?? "oauth-access-token",
+      expiresAt: resolveExpiresAt(tokens.expires_in, refreshToken)
+    };
+  }
+
+  throw new CodexOAuthError(
+    "Codex account login did not return a usable access token.",
+    502
+  );
 }
 
 export class CodexProviderAdapter implements ProviderAdapter {
@@ -173,18 +345,15 @@ export class CodexProviderAdapter implements ProviderAdapter {
       ctx.redirectUri,
       ctx.codeVerifier ?? ""
     );
-    if (!tokens.id_token || !tokens.refresh_token) {
-      throw new Error("Codex login did not return the required id_token and refresh_token");
-    }
-    const apiKey = await exchangeIdTokenForApiKey(tokens.id_token);
+    const resolved = await resolveCodexAccessToken(tokens);
     return {
       providerId: this.config.id,
       accountId: ctx.accountId,
-      accessToken: apiKey,
-      refreshToken: tokens.refresh_token,
-      tokenType: "openai-api-key",
+      accessToken: resolved.accessToken,
+      refreshToken: resolved.refreshToken,
+      tokenType: resolved.tokenType,
       scopes: [...CODEX_SCOPES],
-      expiresAt: syntheticExpiresAt()
+      expiresAt: resolved.expiresAt
     };
   }
 
@@ -193,18 +362,19 @@ export class CodexProviderAdapter implements ProviderAdapter {
       throw new Error("Codex login cannot refresh because no refresh token is stored");
     }
     const tokens = await refreshTokens(auth.refreshToken);
-    if (!tokens.id_token) {
-      throw new Error("Codex token refresh did not return an id_token");
-    }
-    const apiKey = await exchangeIdTokenForApiKey(tokens.id_token);
+    const resolved = await resolveCodexAccessToken(tokens);
+    const effectiveRefreshToken = resolved.refreshToken ?? auth.refreshToken;
+    const effectiveExpiresAt =
+      resolved.expiresAt ??
+      (effectiveRefreshToken ? syntheticExpiresAt() : auth.expiresAt);
     return {
       providerId: this.config.id,
       accountId: auth.accountId,
-      accessToken: apiKey,
-      refreshToken: tokens.refresh_token ?? auth.refreshToken,
-      tokenType: "openai-api-key",
+      accessToken: resolved.accessToken,
+      refreshToken: effectiveRefreshToken,
+      tokenType: resolved.tokenType,
       scopes: [...CODEX_SCOPES],
-      expiresAt: syntheticExpiresAt()
+      expiresAt: effectiveExpiresAt
     };
   }
 

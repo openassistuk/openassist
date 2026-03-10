@@ -14,7 +14,8 @@ import {
   preferredLocalHealthBaseUrl,
   waitForHealthy
 } from "./health-check.js";
-import { requestJson } from "./runtime-context.js";
+import { parseOAuthCompletionInput } from "./oauth-completion.js";
+import { extractApiErrorMessage, requestJson } from "./runtime-context.js";
 import { createServiceManager, type ServiceManagerAdapter } from "./service-manager.js";
 import {
   applySetupAccessModePreset,
@@ -162,32 +163,6 @@ function providerSupportsCustomBaseUrl(type: ProviderType): boolean {
 
 function providerLabel(type: ProviderType): string {
   return providerRouteLabel(type);
-}
-
-function parseOAuthCompletionInput(
-  rawInput: string,
-  fallbackState: string
-): { code: string; state: string } | null {
-  const trimmed = rawInput.trim();
-  if (trimmed.length === 0) {
-    return null;
-  }
-
-  try {
-    const parsed = new URL(trimmed);
-    const code = parsed.searchParams.get("code")?.trim();
-    const state = parsed.searchParams.get("state")?.trim() || fallbackState;
-    if (code) {
-      return { code, state };
-    }
-  } catch {
-    // Not a callback URL; use raw code mode below.
-  }
-
-  return {
-    code: trimmed,
-    state: fallbackState
-  };
 }
 
 function validateCsvIds(
@@ -1081,8 +1056,12 @@ async function runServiceStep(
       );
 
       if (response.status >= 400) {
+        const detail = extractApiErrorMessage(
+          response.data,
+          `Account login start failed for ${provider.id} (status=${response.status}).`
+        );
         throw new OAuthAccountLinkError(
-          `Account login start failed for ${provider.id} (status=${response.status}).`,
+          detail,
           provider.id,
           provider.id === state.config.runtime.defaultProviderId && provider.type === "codex"
         );
@@ -1099,9 +1078,14 @@ async function runServiceStep(
         console.log("If the browser cannot load that localhost page, copy the full URL from the browser address bar and paste it here.");
       }
       console.log("After authorizing, paste either the full callback URL or just the code here.");
+      if (provider.type === "codex" && payload.redirectUri?.startsWith("http://localhost:")) {
+        console.log(
+          `Manual completion fallback: openassist auth complete --provider ${provider.id} --callback-url "<full callback URL>" --base-url ${healthyBaseUrl}`
+        );
+      }
       if (payload.state) {
         console.log(
-          `Manual completion fallback: openassist auth complete --provider ${provider.id} --state ${payload.state} --code <code> --base-url ${healthyBaseUrl}`
+          `Scripted fallback: openassist auth complete --provider ${provider.id} --state ${payload.state} --code <code> --base-url ${healthyBaseUrl}`
         );
       }
       console.log(
@@ -1123,7 +1107,9 @@ async function runServiceStep(
       }
 
       const completionRaw = await prompts.input(
-        `Callback URL or code for ${provider.id} (blank skips for now)`,
+        provider.type === "codex"
+          ? `Paste the full localhost callback URL or the auth code for ${provider.id} (blank skips for now)`
+          : `Callback URL or code for ${provider.id} (blank skips for now)`,
         ""
       );
       const completion = parseOAuthCompletionInput(completionRaw, payload.state ?? "");
@@ -1144,8 +1130,12 @@ async function runServiceStep(
         completion
       );
       if (completed.status >= 400) {
+        const detail = extractApiErrorMessage(
+          completed.data,
+          `Account login completion failed for ${provider.id} (status=${completed.status}).`
+        );
         throw new OAuthAccountLinkError(
-          `Account login completion failed for ${provider.id} (status=${completed.status}).`,
+          detail,
           provider.id,
           provider.id === state.config.runtime.defaultProviderId && provider.type === "codex"
         );

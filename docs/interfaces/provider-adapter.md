@@ -152,6 +152,8 @@ Codex adapter behavior:
 - The Codex route now exposes the same public `reasoningEffort` control shape as the OpenAI API-key route, but it still omits the field automatically when the model is outside the built-in supported set.
 - New Codex login flows default to `http://localhost:1455/auth/callback` instead of the daemon callback route because that matches the supported public account-login redirect shape.
 - CLI and setup guidance must make the pasted callback path explicit on remote hosts: if the localhost page cannot load after browser approval, operators copy the full URL from the browser address bar and paste it back into OpenAssist.
+- The additive host-side completion path is `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`; the older `--state` plus `--code` path remains for scripting and compatibility.
+- Provider and daemon OAuth failures must stay sanitized and operator-actionable. Codex completion failures should classify invalid or expired codes, redirect mismatches, upstream token-exchange failures, and missing usable token fields without leaking raw token bodies.
 - CLI and setup auth helpers must treat browser launch as best-effort only; missing local browser launchers on headless hosts must leave the printed authorization URL usable instead of crashing the account-link flow.
 
 Anthropic thinking replay behavior:

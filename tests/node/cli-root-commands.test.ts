@@ -625,7 +625,8 @@ describe("cli root command coverage", () => {
         assert.equal(result.code, 0, result.stderr || result.stdout);
         assert.match(result.stdout, /Authorization URL:/);
         assert.match(result.stdout, /After approval, the browser should redirect to: http:\/\/localhost:1455\/auth\/callback/);
-        assert.match(result.stdout, /Manual completion example: openassist auth complete --provider codex-main --state oauth-state-1 --code <code> --base-url http:\/\/127\.0\.0\.1:/);
+        assert.match(result.stdout, /Manual completion example: openassist auth complete --provider codex-main --callback-url "<full callback URL>" --base-url http:\/\/127\.0\.0\.1:/);
+        assert.match(result.stdout, /Scripted fallback: openassist auth complete --provider codex-main --state oauth-state-1 --code <code> --base-url http:\/\/127\.0\.0\.1:/);
         assert.match(result.stdout, /Could not open a browser automatically on this host\./);
         assert.match(result.stdout, /Open the authorization URL manually in a browser/);
         assert.doesNotMatch(result.stdout, /Opened authorization URL in browser\./);
@@ -646,6 +647,80 @@ describe("cli root command coverage", () => {
       }
     }
   );
+
+  it("surfaces sanitized OAuth completion errors and accepts callback-url completion input", async () => {
+    const server = http.createServer(async (req, res) => {
+      if (req.method === "POST" && req.url === "/v1/oauth/codex-main/complete") {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+        assert.deepEqual(body, {
+          state: "oauth-state-2",
+          code: "oauth-code-2"
+        });
+        res.writeHead(502, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: "Codex account login token exchange failed upstream. Request ID: req_codex_cli_1"
+          })
+        );
+        return;
+      }
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        server.removeListener("error", reject);
+        resolve();
+      });
+    });
+
+    try {
+      const address = server.address();
+      assert.notEqual(address, null);
+      assert.equal(typeof address, "object");
+      const port = (address as { port: number }).port;
+
+      const result = await runCommand(
+        process.execPath,
+        [
+          path.join(repoRoot(), "node_modules", "tsx", "dist", "cli.mjs"),
+          path.join(repoRoot(), "apps", "openassist-cli", "src", "index.ts"),
+          "auth",
+          "complete",
+          "--provider",
+          "codex-main",
+          "--callback-url",
+          "http://localhost:1455/auth/callback?state=oauth-state-2&code=oauth-code-2",
+          "--base-url",
+          `http://127.0.0.1:${port}`
+        ],
+        repoRoot()
+      );
+
+      assert.equal(result.code, 1, result.stderr || result.stdout);
+      assert.match(
+        result.stderr,
+        /OAuth complete failed: Codex account login token exchange failed upstream\. Request ID: req_codex_cli_1/
+      );
+      assert.doesNotMatch(result.stderr, /Request failed with status 502/);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
 
   it("exercises remote command failure paths", async () => {
     const badBaseUrl = "http://127.0.0.1:1";

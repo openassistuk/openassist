@@ -182,6 +182,7 @@ Quickstart provider guidance now follows the split-route model:
 - On headless hosts, OpenAssist pauses after printing the Codex authorization URL so you can copy it into another browser before continuing
 - Codex no longer prompts for a custom base URL in quickstart or wizard; the normal route uses the built-in Codex login endpoint
 - After browser approval, Codex now returns to `http://localhost:1455/auth/callback`; if that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into OpenAssist
+- The additive host-side completion path is now explicit too: `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - OpenAI and Codex quickstart both expose a beginner-facing reasoning effort choice:
   - `Default (recommended)`
   - `Low`
@@ -251,6 +252,7 @@ openassist channel status
 ```
 
 If `openassist auth start --open-browser` cannot launch a local browser on a VPS or other headless host, that is now a non-fatal convenience failure. OpenAssist still prints the authorization URL and you can open it manually on another device, then continue with the pasted callback URL or code.
+If the provider still rejects the completion step, OpenAssist now reports it as an account-linking problem with safe upstream detail when available instead of collapsing it into a generic `status=500`.
 
 Use the troubleshooting runbook when:
 
@@ -465,6 +467,7 @@ Auth and channels:
 
 ```bash
 openassist auth start --provider codex-main --account default --open-browser
+openassist auth complete --provider codex-main --callback-url "http://localhost:1455/auth/callback?state=<state>&code=<code>" --base-url http://127.0.0.1:3344
 openassist auth status
 openassist channel status
 openassist channel qr --id <channel-id>

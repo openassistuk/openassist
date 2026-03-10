@@ -86,6 +86,9 @@ The format follows Keep a Changelog conventions and this project currently track
   - Codex no longer asks for a custom base URL in quickstart or wizard
   - provider setup labels are now harmonized as `OpenAI (API Key)`, `Codex (OpenAI account login)`, `Anthropic (API Key)`, and `OpenAI-compatible`
   - new Codex login starts now use the supported localhost callback `http://localhost:1455/auth/callback`, which fixes the previous browser-side `unknown_error` path caused by the unsupported daemon callback redirect
+  - Codex account completion now accepts pasted localhost callback URLs through both quickstart and `openassist auth complete --callback-url ...`, including wrapped or multiline paste artifacts from remote browsers
+  - Codex token completion and refresh now accept the current live OpenAI response shapes when a usable access token is present, instead of failing early because `id_token` or exchanged API-key fields are missing
+  - daemon and CLI auth surfaces now report sanitized account-linking failures with safe upstream detail when available instead of collapsing Codex completion into a generic `status=500`
   - Codex and OpenAI reasoning controls now include `xhigh` alongside `low`, `medium`, and `high`
 
 - Provider-route docs and samples now describe four equal public routes consistently:

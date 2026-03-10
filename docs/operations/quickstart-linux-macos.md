@@ -166,6 +166,7 @@ Quickstart rules:
 - Linux service manager selection stays automatic: non-root uses `systemd --user`, root uses system-level `systemd`
 - quickstart asks for approved operator IDs only if you opt into full access
 - if you opt into full access before you know those IDs, quickstart offers a clear return path back to standard mode instead of failing
+- if you add approved operator IDs later in `openassist setup wizard` while the install is still in standard mode, wizard now offers the matching `Full access for approved operators` switch instead of leaving filesystem access workspace-only with no prompt
 - the assistant identity captured here is the same global main-agent identity that `/profile` edits later
 
 Review-before-save actions:

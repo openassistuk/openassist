@@ -69,6 +69,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Setup wizard operator-access follow-up:
+  - adding approved operator IDs in `openassist setup wizard` while the install is still in standard mode now prompts to enable `Full access for approved operators` immediately instead of leaving filesystem tools workspace-only with no normal-flow warning
+  - channel edits in wizard now preserve configured approved operator IDs while applying that prompt logic
+
 - Bootstrap branch-track follow-up:
   - fixed a shell-conditional regression in `scripts/install/bootstrap.sh` so non-interactive bootstrap works again for scheduled lifecycle smoke and real installs on `main`
   - added bootstrap shell-syntax coverage so invalid bash conditionals are caught before merge

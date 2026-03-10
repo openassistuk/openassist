@@ -108,6 +108,12 @@ The format follows Keep a Changelog conventions and this project currently track
   - blank-body Codex upstream `400` failures now surface as sanitized provider request errors with safe request ids when available instead of a useless bare `400 status code (no body)` message
   - docs and troubleshooting now make it explicit that linked Codex auth is stored encrypted in SQLite and refreshed automatically when possible, so a chat-ready auth handle plus a failing request should be diagnosed as a provider request issue rather than a missing-auth issue
 
+- Codex chat instructions-contract fix:
+  - the Codex provider now sends a required top-level `instructions` field on `/responses` requests instead of relying only on system-role messages inside the normal `input` array
+  - those Codex instructions combine an OpenAssist-vendored Codex baseline with the bounded runtime guidance already prepared for the current turn
+  - Codex system-role messages are now lifted into `instructions` and removed from the normal input payload so system intent is not duplicated across both surfaces
+  - Codex upstream JSON errors that use `detail` now surface as sanitized provider request failures with safe request ids instead of generic provider/runtime wording
+
 - Provider-route docs and samples now describe four equal public routes consistently:
   - OpenAI (API Key)
   - Codex (OpenAI account login)

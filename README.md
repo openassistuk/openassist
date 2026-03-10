@@ -186,7 +186,7 @@ Quickstart provider guidance now follows the split-route model:
 - The additive host-side completion path is now explicit too: `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - a fresh quickstart that selects Codex now saves only `codex-main`; it no longer keeps an unused seeded `openai-main` placeholder provider in the resulting config
 - Codex account login now counts as complete when OpenAssist has a chat-ready Codex/ChatGPT token auth handle; it no longer depends on exchanging into a separate OpenAI API key
-- Codex chat requests now preserve the upstream conversation contract by sending the runtime session id to the Codex backend; if `openassist auth status` says the account is chat-ready and chat still fails, treat that as a provider request problem rather than a missing-auth problem
+- Codex chat requests now preserve the upstream conversation contract by sending the runtime session id, account header, and a top-level instructions payload that combines an OpenAssist-vendored Codex baseline with bounded runtime guidance; if `openassist auth status` says the account is chat-ready and chat still fails, treat that as a provider request problem rather than a missing-auth problem
 - OpenAI and Codex quickstart both expose a beginner-facing reasoning effort choice:
   - `Default (recommended)`
   - `Low`
@@ -479,6 +479,8 @@ openassist channel qr --id <channel-id>
 ```
 
 `openassist auth status` stays redacted, but it now reports whether the linked account is present and whether the current auth handle is actually chat-ready for the selected provider route. Linked Codex auth is stored as encrypted OAuth state in SQLite, and OpenAssist automatically attempts refresh before expiry and again on auth-style provider failures when a refresh token is available.
+
+Codex request failures are a separate class of problem from login failures. If `openassist auth status --provider codex-main` shows chat-ready auth and `openassist service health` plus `openassist channel status` are healthy, remaining Codex failures should be diagnosed as upstream provider-request issues rather than as missing auth.
 
 Time and scheduler:
 

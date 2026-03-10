@@ -225,6 +225,13 @@ What to look for:
 
 If auth is chat-ready and the service is healthy, do not treat that as a missing-auth problem. It is a provider request issue, and relinking the account blindly is unlikely to help.
 
+Current Codex request truth:
+
+- linked-account auth is stored as encrypted OAuth state in SQLite
+- OpenAssist attempts refresh automatically before expiry and again on auth-style failures when possible
+- the Codex provider now sends the runtime session id, account header, and top-level instructions payload expected by the upstream backend
+- if the backend still rejects the request after auth is chat-ready, focus on the provider request failure detail and safe request id instead of restarting setup blindly
+
 ## I cannot tell which provider reasoning setting is active
 
 What it usually means:

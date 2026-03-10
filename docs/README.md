@@ -81,7 +81,7 @@ Codex setup/auth notes now follow the real supported flow:
 - the additive host-side completion path is `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - browser callback/manual paste remains supported as the fallback path
 - Codex login success now depends on a usable Codex/ChatGPT token auth handle, not on exchanging into a separate OpenAI API key
-- Codex chat requests now preserve the upstream conversation contract by sending the runtime session id plus account header to the Codex backend; a chat-ready auth handle plus a failing chat request should be diagnosed as a provider request issue, not as missing auth
+- Codex chat requests now preserve the upstream conversation contract by sending the runtime session id, account header, and a top-level instructions payload that combines the vendored Codex baseline with bounded OpenAssist runtime guidance; a chat-ready auth handle plus a failing chat request should be diagnosed as a provider request issue, not as missing auth
 - Codex completion failures should now surface as sanitized account-link errors with safe upstream detail when available, not a generic `status=500`
 - a fresh quickstart that chooses Codex now saves only the selected Codex provider instead of also leaving the default `openai-main` placeholder behind
 - `openassist auth status` remains redacted, but it now exposes linked-account presence, active auth kind or method, expiry when known, and chat-readiness signals for account-login routes so operators can tell whether Codex auth is actually usable
@@ -177,6 +177,7 @@ Supplemental smoke notes:
   - [`docs/execplans/access-mode-opt-in-and-beginner-copy.md`](execplans/access-mode-opt-in-and-beginner-copy.md)
   - [`docs/execplans/channel-first-class-integrations.md`](execplans/channel-first-class-integrations.md)
   - [`docs/execplans/codex-provider-route.md`](execplans/codex-provider-route.md)
+  - [`docs/execplans/codex-chat-instructions-contract.md`](execplans/codex-chat-instructions-contract.md)
   - [`docs/execplans/general-purpose-assistant-identity-and-growth.md`](execplans/general-purpose-assistant-identity-and-growth.md)
   - [`docs/execplans/repo-wide-docs-test-hardening.md`](execplans/repo-wide-docs-test-hardening.md)
   - [`docs/execplans/provider-reasoning-controls.md`](execplans/provider-reasoning-controls.md)

@@ -515,7 +515,7 @@ describe("runtime codex auth route", () => {
     const codexProvider = new MockCodexProvider({
       initialExpiryOffsetMs: 60 * 60 * 1000,
       chatErrorMessage:
-        "Codex upstream request failed before returning a response body. Request ID: req-codex-chat-1"
+        "Codex upstream request failed (HTTP 400): Instructions are required. Request ID: req-codex-chat-1"
     });
     const runtime = new OpenAssistRuntime(
       runtimeConfig(root),

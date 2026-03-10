@@ -119,6 +119,10 @@ The format follows Keep a Changelog conventions and this project currently track
   - Codex no longer sends generic OpenAI-style request extras such as `temperature`, `max_output_tokens`, or metadata fields that are not part of the current linked-account `/responses` contract
   - docs and troubleshooting now make it explicit that chat-ready Codex auth plus a failing chat request is a provider-request issue, not an auth lifecycle issue, while the auth state itself remains encrypted in SQLite and refreshable automatically when possible
 
+- Codex streaming transport completion fix:
+  - the Codex provider now keeps `stream=true` on the upstream `/responses` route and folds the returned event stream back into the normal bounded OpenAssist reply contract before channel delivery
+  - provider tests now pin both sides of the live contract: required request fields and SSE response parsing, so future Codex drift is caught before merge
+
 - Provider-route docs and samples now describe four equal public routes consistently:
   - OpenAI (API Key)
   - Codex (OpenAI account login)

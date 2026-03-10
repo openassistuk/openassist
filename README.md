@@ -480,7 +480,7 @@ openassist channel qr --id <channel-id>
 
 `openassist auth status` stays redacted, but it now reports whether the linked account is present and whether the current auth handle is actually chat-ready for the selected provider route. Linked Codex auth is stored as encrypted OAuth state in SQLite, and OpenAssist automatically attempts refresh before expiry and again on auth-style provider failures when a refresh token is available.
 
-Codex request failures are a separate class of problem from login failures. If `openassist auth status --provider codex-main` shows chat-ready auth and `openassist service health` plus `openassist channel status` are healthy, remaining Codex failures should be diagnosed as upstream provider-request issues rather than as missing auth. The current Codex transport sends the runtime session id, account header, top-level instructions, and the upstream-aligned `/responses` fields that Codex expects, including `store=false` and a prompt-cache key derived from the runtime session.
+Codex request failures are a separate class of problem from login failures. If `openassist auth status --provider codex-main` shows chat-ready auth and `openassist service health` plus `openassist channel status` are healthy, remaining Codex failures should be diagnosed as upstream provider-request issues rather than as missing auth. The current Codex transport sends the runtime session id, account header, top-level instructions, and the upstream-aligned `/responses` fields that Codex expects, including `store=false`, `stream=true`, and a prompt-cache key derived from the runtime session. OpenAssist folds that upstream event stream back into the normal non-streaming chat contract before replies reach channels.
 
 Time and scheduler:
 

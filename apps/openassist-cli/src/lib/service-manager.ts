@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { RuntimeSystemdFilesystemAccess } from "@openassist/core-types";
 import { CommandRunner, runOrThrow } from "./command-runner.js";
 import { enforceEnvFileSecurity } from "./env-file.js";
 import type { ServiceManagerKind } from "./install-state.js";
@@ -11,6 +12,7 @@ export interface ServiceInstallOptions {
   envFilePath: string;
   repoRoot: string;
   dryRun?: boolean;
+  systemdFilesystemAccess?: RuntimeSystemdFilesystemAccess;
 }
 
 export interface ServiceManagerAdapter {
@@ -42,16 +44,144 @@ function loadTemplate(templatePath: string, fallback: string): string {
   return fs.readFileSync(templatePath, "utf8");
 }
 
+function normalizeSystemdFilesystemAccess(
+  value?: RuntimeSystemdFilesystemAccess
+): RuntimeSystemdFilesystemAccess {
+  return value === "unrestricted" ? "unrestricted" : "hardened";
+}
+
+function systemdHardeningLines(
+  kind: Extract<ServiceManagerKind, "systemd-user" | "systemd-system">,
+  mode: RuntimeSystemdFilesystemAccess
+): string[] {
+  if (mode === "unrestricted") {
+    return [];
+  }
+
+  if (kind === "systemd-user") {
+    return [
+      "NoNewPrivileges=true",
+      "PrivateTmp=true",
+      "ProtectSystem=strict",
+      "ProtectHome=read-only",
+      "ReadWritePaths=__OPENASSIST_INSTALL_DIR__ __OPENASSIST_RW_CONFIG_DIR__ %h/.local/state/openassist",
+      "LockPersonality=true",
+      "RestrictSUIDSGID=true"
+    ];
+  }
+
+  return [
+    "NoNewPrivileges=true",
+    "PrivateTmp=true",
+    "ProtectSystem=strict",
+    "ProtectHome=false",
+    "ReadWritePaths=__OPENASSIST_INSTALL_DIR__ __OPENASSIST_RW_CONFIG_DIR__ /var/lib/openassist /var/log/openassist",
+    "LockPersonality=true",
+    "RestrictSUIDSGID=true"
+  ];
+}
+
 export function renderSystemdUnit(
   template: string,
-  values: { installDir: string; configPath: string; envFilePath: string; nodeBin: string }
+  values: {
+    installDir: string;
+    configPath: string;
+    envFilePath: string;
+    nodeBin: string;
+    serviceManagerKind: Extract<ServiceManagerKind, "systemd-user" | "systemd-system">;
+    systemdFilesystemAccess: RuntimeSystemdFilesystemAccess;
+  }
 ): string {
-  return template
+  const rwConfigDir = path.dirname(values.envFilePath);
+  const hardening = systemdHardeningLines(values.serviceManagerKind, values.systemdFilesystemAccess)
+    .map((line) =>
+      line
+        .replaceAll("__OPENASSIST_INSTALL_DIR__", values.installDir)
+        .replaceAll("__OPENASSIST_RW_CONFIG_DIR__", rwConfigDir)
+    )
+    .join("\n");
+  const rendered = template
     .replaceAll("__OPENASSIST_INSTALL_DIR__", values.installDir)
     .replaceAll("__OPENASSIST_CONFIG_PATH__", values.configPath)
     .replaceAll("__OPENASSIST_ENV_FILE__", values.envFilePath)
-    .replaceAll("__OPENASSIST_RW_CONFIG_DIR__", path.dirname(values.envFilePath))
-    .replaceAll("__OPENASSIST_NODE_BIN__", values.nodeBin);
+    .replaceAll("__OPENASSIST_RW_CONFIG_DIR__", rwConfigDir)
+    .replaceAll("__OPENASSIST_NODE_BIN__", values.nodeBin)
+    .replaceAll("__OPENASSIST_SERVICE_MANAGER_KIND__", values.serviceManagerKind)
+    .replaceAll("__OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS__", values.systemdFilesystemAccess)
+    .replaceAll("__OPENASSIST_SYSTEMD_HARDENING__", hardening);
+  return rendered.replace(/\n{3,}/g, "\n\n");
+}
+
+export function renderLinuxSystemdUnit(
+  kind: Extract<ServiceManagerKind, "systemd-user" | "systemd-system">,
+  options: {
+    installDir: string;
+    configPath: string;
+    envFilePath: string;
+    nodeBin: string;
+    systemdFilesystemAccess?: RuntimeSystemdFilesystemAccess;
+    template?: string;
+  }
+): string {
+  const fallbackTemplate =
+    kind === "systemd-user"
+      ? [
+          "[Unit]",
+          "Description=OpenAssist Daemon",
+          "After=network.target",
+          "Wants=network-online.target",
+          "",
+          "[Service]",
+          "Type=simple",
+          "WorkingDirectory=__OPENASSIST_INSTALL_DIR__",
+          "EnvironmentFile=__OPENASSIST_ENV_FILE__",
+          "Environment=OPENASSIST_ENV_FILE=__OPENASSIST_ENV_FILE__",
+          "Environment=OPENASSIST_SERVICE_MANAGER_KIND=__OPENASSIST_SERVICE_MANAGER_KIND__",
+          "Environment=OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS=__OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS__",
+          "ExecStart=__OPENASSIST_NODE_BIN__ __OPENASSIST_INSTALL_DIR__/apps/openassistd/dist/index.js run --config __OPENASSIST_CONFIG_PATH__",
+          "Restart=always",
+          "RestartSec=5",
+          "TimeoutStopSec=30",
+          "",
+          "__OPENASSIST_SYSTEMD_HARDENING__",
+          "",
+          "[Install]",
+          "WantedBy=default.target",
+          ""
+        ].join("\n")
+      : [
+          "[Unit]",
+          "Description=OpenAssist Daemon",
+          "After=network.target",
+          "Wants=network-online.target",
+          "",
+          "[Service]",
+          "Type=simple",
+          "WorkingDirectory=__OPENASSIST_INSTALL_DIR__",
+          "EnvironmentFile=__OPENASSIST_ENV_FILE__",
+          "Environment=OPENASSIST_ENV_FILE=__OPENASSIST_ENV_FILE__",
+          "Environment=OPENASSIST_SERVICE_MANAGER_KIND=__OPENASSIST_SERVICE_MANAGER_KIND__",
+          "Environment=OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS=__OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS__",
+          "ExecStart=__OPENASSIST_NODE_BIN__ __OPENASSIST_INSTALL_DIR__/apps/openassistd/dist/index.js run --config __OPENASSIST_CONFIG_PATH__",
+          "Restart=always",
+          "RestartSec=5",
+          "TimeoutStopSec=30",
+          "",
+          "__OPENASSIST_SYSTEMD_HARDENING__",
+          "",
+          "[Install]",
+          "WantedBy=multi-user.target",
+          ""
+        ].join("\n");
+
+  return renderSystemdUnit(options.template ?? fallbackTemplate, {
+    installDir: options.installDir,
+    configPath: options.configPath,
+    envFilePath: options.envFilePath,
+    nodeBin: options.nodeBin,
+    serviceManagerKind: kind,
+    systemdFilesystemAccess: normalizeSystemdFilesystemAccess(options.systemdFilesystemAccess)
+  });
 }
 
 export function renderLaunchdWrapper(values: {
@@ -76,6 +206,7 @@ export function renderLaunchdWrapper(values: {
     "  set +a",
     "fi",
     `export OPENASSIST_ENV_FILE=${shellQuote(values.envFilePath)}`,
+    "export OPENASSIST_SERVICE_MANAGER_KIND=launchd",
     `cd ${shellQuote(values.installDir)}`,
     `exec ${shellQuote(values.nodeBin)} ${shellQuote(daemonEntrypoint)} run --config ${shellQuote(values.configPath)}`,
     ""
@@ -117,41 +248,21 @@ class SystemdUserServiceManager implements ServiceManagerAdapter {
     const templatePath = path.join(options.repoRoot, "deploy", "systemd", "openassistd.service");
     const template = loadTemplate(
       templatePath,
-      [
-        "[Unit]",
-        "Description=OpenAssist Daemon",
-        "After=network.target",
-        "Wants=network-online.target",
-        "",
-        "[Service]",
-        "Type=simple",
-        "WorkingDirectory=__OPENASSIST_INSTALL_DIR__",
-        "EnvironmentFile=__OPENASSIST_ENV_FILE__",
-        "Environment=OPENASSIST_ENV_FILE=__OPENASSIST_ENV_FILE__",
-        "ExecStart=__OPENASSIST_NODE_BIN__ __OPENASSIST_INSTALL_DIR__/apps/openassistd/dist/index.js run --config __OPENASSIST_CONFIG_PATH__",
-        "Restart=always",
-        "RestartSec=5",
-        "TimeoutStopSec=30",
-        "",
-        "NoNewPrivileges=true",
-        "PrivateTmp=true",
-        "ProtectSystem=strict",
-        "ProtectHome=read-only",
-        "ReadWritePaths=__OPENASSIST_INSTALL_DIR__ __OPENASSIST_RW_CONFIG_DIR__ %h/.local/state/openassist",
-        "LockPersonality=true",
-        "RestrictSUIDSGID=true",
-        "",
-        "[Install]",
-        "WantedBy=default.target",
-        ""
-      ].join("\n")
+      renderLinuxSystemdUnit("systemd-user", {
+        installDir: "__OPENASSIST_INSTALL_DIR__",
+        configPath: "__OPENASSIST_CONFIG_PATH__",
+        envFilePath: "__OPENASSIST_ENV_FILE__",
+        nodeBin: "__OPENASSIST_NODE_BIN__"
+      })
     );
 
-    const rendered = renderSystemdUnit(template, {
+    const rendered = renderLinuxSystemdUnit("systemd-user", {
       installDir: options.installDir,
       configPath: options.configPath,
       envFilePath: options.envFilePath,
-      nodeBin: process.execPath
+      nodeBin: process.execPath,
+      systemdFilesystemAccess: options.systemdFilesystemAccess,
+      template
     });
 
     if (options.dryRun) {
@@ -238,40 +349,12 @@ class SystemdSystemServiceManager implements ServiceManagerAdapter {
       throw new Error("systemd system service is only available on Linux");
     }
 
-    const template = [
-      "[Unit]",
-      "Description=OpenAssist Daemon",
-      "After=network.target",
-      "Wants=network-online.target",
-      "",
-      "[Service]",
-      "Type=simple",
-      "WorkingDirectory=__OPENASSIST_INSTALL_DIR__",
-      "EnvironmentFile=__OPENASSIST_ENV_FILE__",
-      "Environment=OPENASSIST_ENV_FILE=__OPENASSIST_ENV_FILE__",
-      "ExecStart=__OPENASSIST_NODE_BIN__ __OPENASSIST_INSTALL_DIR__/apps/openassistd/dist/index.js run --config __OPENASSIST_CONFIG_PATH__",
-      "Restart=always",
-      "RestartSec=5",
-      "TimeoutStopSec=30",
-      "",
-      "NoNewPrivileges=true",
-      "PrivateTmp=true",
-      "ProtectSystem=strict",
-      "ProtectHome=false",
-      "ReadWritePaths=__OPENASSIST_INSTALL_DIR__ __OPENASSIST_RW_CONFIG_DIR__ /var/lib/openassist /var/log/openassist",
-      "LockPersonality=true",
-      "RestrictSUIDSGID=true",
-      "",
-      "[Install]",
-      "WantedBy=multi-user.target",
-      ""
-    ].join("\n");
-
-    const rendered = renderSystemdUnit(template, {
+    const rendered = renderLinuxSystemdUnit("systemd-system", {
       installDir: options.installDir,
       configPath: options.configPath,
       envFilePath: options.envFilePath,
-      nodeBin: process.execPath
+      nodeBin: process.execPath,
+      systemdFilesystemAccess: options.systemdFilesystemAccess
     });
 
     if (options.dryRun) {

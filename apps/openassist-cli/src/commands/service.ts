@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Command } from "commander";
 import { input as inqInput, select as inqSelect } from "@inquirer/prompts";
+import { loadConfig, resolveConfigOverlaysDir } from "@openassist/config";
 import { SpawnCommandRunner } from "../lib/command-runner.js";
 import { createServiceManager } from "../lib/service-manager.js";
 import { checkHealth } from "../lib/health-check.js";
@@ -55,6 +56,12 @@ export function registerServiceCommands(program: Command): void {
 
       try {
         writeEnvTemplateIfMissing(envFilePath);
+        const config = fs.existsSync(configPath)
+          ? loadConfig({
+              baseFile: configPath,
+              overlaysDir: resolveConfigOverlaysDir(configPath)
+            }).config
+          : undefined;
         const runner = new SpawnCommandRunner();
         const service = createServiceManager(runner);
         const existingState = installState;
@@ -64,7 +71,8 @@ export function registerServiceCommands(program: Command): void {
           configPath,
           envFilePath,
           repoRoot: installDir,
-          dryRun: Boolean(options.dryRun)
+          dryRun: Boolean(options.dryRun),
+          systemdFilesystemAccess: config?.service.systemdFilesystemAccess
         });
         if (!options.dryRun) {
           saveInstallState({

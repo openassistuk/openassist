@@ -17,6 +17,11 @@ import {
 } from "./health-check.js";
 import { parseOAuthCompletionInput } from "./oauth-completion.js";
 import { extractApiErrorMessage, requestJson } from "./runtime-context.js";
+import {
+  describeSystemdFilesystemAccess,
+  isLinuxSystemdFilesystemAccessConfigurable,
+  promptSystemdFilesystemAccess
+} from "./service-access.js";
 import { createServiceManager, type ServiceManagerAdapter } from "./service-manager.js";
 import {
   applySetupAccessModePreset,
@@ -743,6 +748,16 @@ async function configureAccessMode(state: SetupQuickstartState, prompts: PromptA
   }
   setOperatorUserIds(primaryChannel, operatorIds);
   applySetupAccessModePreset(state.config, "full-access");
+  if (isLinuxSystemdFilesystemAccessConfigurable()) {
+    state.config.service.systemdFilesystemAccess = await promptSystemdFilesystemAccess(
+      prompts,
+      state.config.service.systemdFilesystemAccess,
+      {
+        message: "Linux systemd filesystem access for full access sessions",
+        emitLine: (line) => console.log(line)
+      }
+    );
+  }
   console.log(`Approved operator IDs saved for ${primaryChannel.id}. Only those senders will receive automatic full access in this channel.`);
 }
 
@@ -804,6 +819,11 @@ async function runQuickstartReviewStep(
 
     console.log(`First reply destination: ${reviewReport.context.firstReplyDestination}`);
     console.log(`Access mode: ${reviewReport.context.accessMode}`);
+    if (isLinuxSystemdFilesystemAccessConfigurable()) {
+      console.log(
+        `Linux systemd filesystem access: ${describeSystemdFilesystemAccess(state.config.service.systemdFilesystemAccess)}`
+      );
+    }
     if (reviewReport.context.primaryProviderId) {
       console.log(
         `Primary provider: ${reviewReport.context.primaryProviderId} (${reviewReport.context.primaryProviderRoute})`
@@ -1323,7 +1343,8 @@ async function runServiceStep(
       installDir: state.installDir,
       configPath: state.configPath,
       envFilePath: state.envFilePath,
-      repoRoot: state.installDir
+      repoRoot: state.installDir,
+      systemdFilesystemAccess: state.config.service.systemdFilesystemAccess
     });
     console.log("Restarting daemon service...");
     await service.restart();

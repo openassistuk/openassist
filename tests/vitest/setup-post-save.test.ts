@@ -42,14 +42,16 @@ class FakeServiceManager implements ServiceManagerAdapter {
   installed: boolean;
   installCalls = 0;
   restartCalls = 0;
+  lastInstallOptions?: ServiceInstallOptions;
 
   constructor(installed: boolean) {
     this.installed = installed;
   }
 
-  async install(_options: ServiceInstallOptions): Promise<void> {
+  async install(options: ServiceInstallOptions): Promise<void> {
     this.installed = true;
     this.installCalls += 1;
+    this.lastInstallOptions = options;
   }
 
   async uninstall(): Promise<void> {}
@@ -100,7 +102,8 @@ describe("setup wizard post-save checks", () => {
         installDir: "/tmp/openassist",
         configPath: "/tmp/openassist/openassist.toml",
         envFilePath: "/tmp/openassistd.env",
-        baseUrl: "http://127.0.0.1:3344"
+        baseUrl: "http://127.0.0.1:3344",
+        systemdFilesystemAccess: "unrestricted"
       },
       prompts,
       {
@@ -128,6 +131,7 @@ describe("setup wizard post-save checks", () => {
     expect(result.serviceRestarted).toBe(true);
     expect(service.installCalls).toBe(1);
     expect(service.restartCalls).toBe(1);
+    expect(service.lastInstallOptions?.systemdFilesystemAccess).toBe("unrestricted");
     expect(requests).toContain("GET http://127.0.0.1:3344/v1/time/status");
     expect(requests).toContain("GET http://127.0.0.1:3344/v1/scheduler/status");
   });

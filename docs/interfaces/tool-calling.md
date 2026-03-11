@@ -48,6 +48,7 @@ Autonomous tool execution is enabled only when the effective sender access for t
 
 - `restricted` and `operator`: provider receives no tool schemas
 - `full-root`: provider receives runtime tool schema list and may issue tool calls
+- Linux systemd service hardening can still narrow the live host-write boundary even in `full-root`; `/status` and `openassist tools status` report that service boundary separately
 - if a provider still returns tool calls while schemas are absent, runtime ignores those calls and returns a safe non-executing assistant response
 - if provider/auth/runtime errors occur during chat, runtime emits a sanitized operational diagnostic message to channel instead of dropping the request
 
@@ -92,7 +93,7 @@ Current runtime-exposed tool names:
 - effective access for the current sender/chat turn is `full-root`
 - `tools.web.enabled=true`
 
-`GET /v1/tools/status` and `openassist tools status` now report both configured tool families and currently callable tools, plus native web backend mode and an awareness summary. Shared-chat lookups can include `senderId` so operator output matches the same actor-specific access boundary the runtime uses.
+`GET /v1/tools/status` and `openassist tools status` now report both configured tool families and currently callable tools, plus native web backend mode, service manager, configured and effective Linux systemd filesystem access, and an awareness summary. Shared-chat lookups can include `senderId` so operator output matches the same actor-specific access boundary the runtime uses.
 
 ## Runtime Awareness Contract
 
@@ -108,10 +109,10 @@ The awareness snapshot includes:
 - capability state for the current session (`canInspectLocalFiles`, `canRunLocalCommands`, `canEditConfig`, `canEditDocs`, `canEditCode`, `canControlService`, native web availability, blocked reasons)
 - capability domains derived from the live session boundary (system tasks, files/docs, supported attachments, web work, automation, lifecycle help, controlled growth)
 - curated local doc references (`README.md`, operations/security/interface docs, `openassist.toml`) with short purpose and when-to-use text
-- maintenance/install context (repo-backed install status, install dir, config path, env path, tracked ref, last known good commit when known, protected paths, protected surfaces, preferred lifecycle commands, safe-maintenance rules)
+- maintenance/install context (repo-backed install status, install dir, config path, env path, tracked ref, last known good commit when known, service manager, configured and effective Linux systemd filesystem access, protected paths, protected surfaces, preferred lifecycle commands, safe-maintenance rules)
 - growth context (`extensions-first` default mode, whether growth actions are available now, installed skill/helper counts, growth directories, update-safety note)
 
-Chat-visible `/status` keeps the same high-level awareness boundary for every sender, but full config/env/install paths are reserved for approved operators in chat. Unapproved senders should still receive the plain-language lifecycle summary plus guidance to use host-side commands such as `openassist doctor`.
+Chat-visible `/status` keeps the same high-level awareness boundary for every sender, including the current service boundary, but full config/env/install paths are reserved for approved operators in chat. Unapproved senders should still receive the plain-language lifecycle summary plus guidance to use host-side commands such as `openassist doctor`.
 
 Self-maintenance contract:
 

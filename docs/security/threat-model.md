@@ -161,12 +161,12 @@ Controls:
 
 - loopback bind default
 - no WebUI in V1
-- service hardening in systemd template
+- Linux systemd service hardening in the default template (`systemdFilesystemAccess = "hardened"`)
 
 ## Residual Risks
 
 - skill scripts and managed helper tools run as trusted local code
-- `full-root` profile intentionally permits unrestricted host impact
+- `full-root` intentionally permits OpenAssist's highest host-impacting tool profile, but Linux systemd hardening may still narrow the live host-write boundary unless operators explicitly choose unrestricted service mode
 - clock-check dependencies (OS utilities / HTTP date sources) may be constrained on hardened hosts
 - Windows filesystems do not enforce Unix mode semantics; runtime logs explicit permission-check skip diagnostics there
 
@@ -177,7 +177,7 @@ Controls:
 - use `openassist policy-set --session <channelId>:<conversationKey> --profile full-root` only for sessions that require autonomous host actions
 - use `openassist policy-set --session <channelId>:<conversationKey> --sender-id <sender-id> --profile full-root` when only one approved operator in a shared chat needs elevation
 - review `openassist tools invocations` during incident triage and after privileged automation runs
-- use `openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>` to confirm callable tools and native web mode before enabling sensitive sessions
+- use `openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>` to confirm callable tools, native web mode, and the current Linux service boundary before enabling sensitive sessions
 - use `openassist growth status` and `openassist skills list` to review managed extensions or helper tooling before and after privileged changes
 - use in-channel `/status` for quick local diagnostics; avoid pasting raw service logs containing secrets into public channels
 - when enabling Discord DMs, keep `allowedDmUserIds` narrow and explicit instead of opening DMs broadly

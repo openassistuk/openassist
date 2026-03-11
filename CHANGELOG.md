@@ -67,6 +67,13 @@ The format follows Keep a Changelog conventions and this project currently track
   - new CLI lifecycle report builder now drives bootstrap summaries, quickstart summaries, wizard recovery wording, `openassist doctor`, and `openassist upgrade --dry-run`
   - `openassist doctor --json` now exposes the same grouped readiness report shape as the human-readable doctor output for scripting and automation
 
+- Linux systemd filesystem access mode:
+  - added `[service].systemdFilesystemAccess = "hardened" | "unrestricted"` with a safe default of `hardened`
+  - Linux quickstart and wizard now expose the service mode separately from chat access mode and require an extra confirmation before saving unrestricted service access
+  - `openassist service install` now reads the configured Linux service mode and rewrites the systemd unit accordingly
+  - `/status`, `/access`, `/capabilities`, `GET /v1/tools/status`, `openassist tools status`, setup summaries, and `openassist doctor` now surface the configured and effective Linux service boundary separately from the `full-root` policy boundary
+  - shared lifecycle readiness JSON is now `version: 3` because the report context includes Linux service filesystem access
+
 ### Changed
 
 - Setup wizard operator-access follow-up:

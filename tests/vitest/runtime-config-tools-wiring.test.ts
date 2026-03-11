@@ -70,6 +70,9 @@ describe("runtime config tools wiring", () => {
       security: {
         auditLogEnabled: true,
         secretsBackend: "encrypted-file"
+      },
+      service: {
+        systemdFilesystemAccess: "unrestricted"
       }
     });
 
@@ -81,5 +84,6 @@ describe("runtime config tools wiring", () => {
     expect(runtimeConfig.tools?.web.searchMode).toBe("api-only");
     expect(runtimeConfig.tools?.web.maxPagesPerRun).toBe(3);
     expect(runtimeConfig.security?.auditLogEnabled).toBe(true);
+    expect(runtimeConfig.service?.systemdFilesystemAccess).toBe("unrestricted");
   });
 });

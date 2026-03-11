@@ -146,6 +146,18 @@ describe("config schema security validation", () => {
     const parsed = parseConfig(input);
 
     expect(parsed.runtime.operatorAccessProfile).toBe("operator");
+    expect(parsed.service.systemdFilesystemAccess).toBe("hardened");
+  });
+
+  it("accepts explicit Linux systemd filesystem access mode", () => {
+    const input = baseConfigInput();
+    (input as any).service = {
+      systemdFilesystemAccess: "unrestricted"
+    };
+
+    const parsed = parseConfig(input);
+
+    expect(parsed.service.systemdFilesystemAccess).toBe("unrestricted");
   });
 
   it("accepts provider-native reasoning controls for built-in providers", () => {

@@ -65,6 +65,9 @@ function defaultConfigObjectRaw(): Record<string, unknown> {
         logsDir: operatorPaths.logsDir
       }
     },
+    service: {
+      systemdFilesystemAccess: "hardened"
+    },
     tools: {
       fs: {
         workspaceOnly: true,

@@ -167,13 +167,14 @@ describe("lifecycle readiness", () => {
     const report = buildLifecycleReport(createInput());
     const lines = renderLifecycleReport(report);
 
-    expect(report.version).toBe(2);
+    expect(report.version).toBe(3);
     expect(report.summary.firstReplyReadiness).toBe("ready");
     expect(report.summary.upgradeReadiness).toBe("safe-to-continue");
     expect(report.context.primaryProviderId).toBe("openai-main");
     expect(report.context.primaryProviderRoute).toBe("OpenAI (API Key)");
     expect(report.context.primaryProviderModel).toBe("gpt-5.4");
     expect(report.context.primaryProviderTuning).toBe("Reasoning effort: medium");
+    expect(report.context.serviceFilesystemAccess).toBe("Hardened Linux systemd sandbox");
     expect(report.sections.readyNow.length).toBeGreaterThan(0);
     expect(report.sections.needsActionBeforeFirstReply).toEqual([]);
     expect(
@@ -189,7 +190,28 @@ describe("lifecycle readiness", () => {
     expect(lines.some((line) => line.includes("Install location"))).toBe(true);
     expect(lines.some((line) => line.includes("Primary provider"))).toBe(true);
     expect(lines.some((line) => line.includes("Provider tuning"))).toBe(true);
+    expect(lines.some((line) => line.includes("Linux systemd filesystem access"))).toBe(true);
     expect(lines.some((line) => line.includes("Managed growth assets"))).toBe(true);
     expect(lines.some((line) => line.includes("openassist upgrade --dry-run"))).toBe(true);
+  });
+
+  it("warns when full access is configured but Linux systemd stays hardened", () => {
+    const input = createInput();
+    input.config.runtime.operatorAccessProfile = "full-root";
+    input.config.runtime.channels[0] = {
+      ...input.config.runtime.channels[0]!,
+      settings: {
+        ...(input.config.runtime.channels[0]?.settings ?? {}),
+        operatorUserIds: ["123456789"]
+      }
+    };
+
+    const report = buildLifecycleReport(input);
+
+    expect(
+      report.sections.needsActionBeforeFullAccess.some(
+        (item) => item.id === "full-access.systemd-filesystem-mode"
+      )
+    ).toBe(true);
   });
 });

@@ -7,7 +7,7 @@ This runbook assumes you already completed quickstart or wizard setup and unders
 - `Standard mode (recommended)`
 - `Full access for approved operators`
 
-`full-root` in this document means OpenAssist's highest tool profile. It does not grant Unix root by itself.
+`full-root` in this document means OpenAssist's highest tool profile. It does not grant Unix root by itself, and on Linux it still does not remove the daemon's hardened systemd filesystem sandbox unless the service is explicitly configured for unrestricted filesystem access.
 
 ## Goal
 
@@ -31,6 +31,7 @@ Prove this complete path:
 Optional for `pkg.install` system-install test:
 
 - Unix host with passwordless `sudo -n` configured for daemon user
+- if OpenAssist runs under Linux systemd, `[service].systemdFilesystemAccess` must be set to `"unrestricted"` and the service must be reinstalled so the daemon is not still sandboxed
 
 ## Session Preparation
 

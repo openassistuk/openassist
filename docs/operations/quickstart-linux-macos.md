@@ -165,8 +165,9 @@ Quickstart rules:
 - wildcard bind addresses still probe health through loopback fallbacks
 - Linux service manager selection stays automatic: non-root uses `systemd --user`, root uses system-level `systemd`
 - quickstart asks for approved operator IDs only if you opt into full access
+- on Linux, quickstart also asks whether the daemon should keep the hardened systemd sandbox or use unrestricted systemd filesystem access when you opt into full access
 - if you opt into full access before you know those IDs, quickstart offers a clear return path back to standard mode instead of failing
-- if you add approved operator IDs later in `openassist setup wizard` while the install is still in standard mode, wizard now offers the matching `Full access for approved operators` switch instead of leaving filesystem access workspace-only with no prompt
+- if you add approved operator IDs later in `openassist setup wizard` while the install is still in standard mode, wizard now offers the matching `Full access for approved operators` switch and then the same Linux systemd filesystem choice instead of leaving the service boundary implicit
 - the assistant identity captured here is the same global main-agent identity that `/profile` edits later
 
 Review-before-save actions:
@@ -242,6 +243,7 @@ openassist time status
 - config and env paths
 - detected service manager
 - configured access mode
+- configured Linux systemd filesystem access when applicable
 - whether enabled channels already have approved operator IDs
 - whether in-chat `/access` switching is available yet
 - the primary provider route, default model, and current reasoning/thinking state
@@ -255,7 +257,7 @@ Text output is grouped as:
 - `Needs action`
 - `Next command`
 
-`openassist doctor --json` keeps the grouped lifecycle structure for automation and now uses `version: 2` with per-item `stage` metadata.
+`openassist doctor --json` keeps the grouped lifecycle structure for automation and now uses `version: 3` with per-item `stage` metadata plus the shared service-boundary context.
 
 ## 5. Send the first reply
 
@@ -293,7 +295,10 @@ Access mode notes:
 
 - standard mode keeps everyone at standard access until you deliberately elevate a listed operator
 - full access still does not grant Unix `root`; it enables OpenAssist's `full-root` tool profile for approved operators
+- on Linux, `Hardened systemd sandbox` is still the default service mode even when you choose full access, so package installs, `sudo`, and broader host writes may remain blocked until you explicitly choose `Unrestricted systemd filesystem access`
+- `Unrestricted systemd filesystem access` only removes OpenAssist-added Linux systemd sandboxing; it does not fix broken hosts, read-only mounts, or missing passwordless `sudo`
 - approved operators can use `/access full` or `/access standard` inside chat for their own current chat only
+- `/status`, `/access`, `/capabilities`, and `openassist tools status` show both the access mode and the current service boundary so you can verify what the daemon can really do
 
 If the bot does not reply:
 

@@ -270,6 +270,8 @@ What it usually means:
 - the install is still in standard mode
 - approved operator IDs were not configured for the current channel
 - you are testing from a sender ID that is not listed
+- on Linux, the daemon service is still using the hardened systemd sandbox
+- the live service boundary is unknown because you are testing from a manual or dev run instead of the installed service
 
 What to check:
 
@@ -282,6 +284,8 @@ openassist tools status --session <channelId>:<conversationKey> --sender-id <sen
 openassist doctor
 ```
 
+   Check the `service boundary` lines in `/status` or `openassist tools status`. If you need package installs, `sudo`, or broader host writes on Linux, `configured=hardened` or `effective=hardened` means the daemon is still running inside the default systemd sandbox even if the chat session is `full-root`.
+
 3. If needed, return to:
 
 ```bash
@@ -289,6 +293,19 @@ openassist setup wizard
 ```
 
 and update the channel's approved operator IDs or access mode. If you add approved operator IDs there while the install is still in standard mode, wizard now prompts to enable `Full access for approved operators` immediately instead of leaving filesystem access workspace-only silently.
+
+4. If Linux full access is correct but package installs or wider host writes are still blocked, switch the Linux daemon to `Unrestricted systemd filesystem access` in wizard or set `[service].systemdFilesystemAccess = "unrestricted"` and then reinstall the service:
+
+```bash
+openassist service install \
+  --install-dir "$HOME/openassist" \
+  --config "$HOME/.config/openassist/openassist.toml" \
+  --env-file "$HOME/.config/openassist/openassistd.env"
+openassist service restart
+openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>
+```
+
+5. If the host itself is unhealthy, OpenAssist access changes will not fix it. Read-only mounts, broken package state, or missing passwordless `sudo` still need host-level repair.
 
 ## Legacy repo-local layout migration stopped
 

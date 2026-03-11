@@ -214,7 +214,8 @@ If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `
 
 Quickstart blocks invalid or incomplete first-reply state by default. Use `--allow-incomplete` only when you explicitly want to save a degraded setup.
 If you opt into full access, quickstart asks for approved operator IDs for the chosen channel and falls back cleanly to standard mode if you are not ready to enter them yet.
-If you configure approved operator IDs later through `openassist setup wizard`, the channel flow now also prompts to switch the install to `Full access for approved operators` so filesystem access does not stay silently workspace-only.
+On Linux, quickstart also asks whether the daemon should keep the hardened systemd sandbox or switch to unrestricted systemd filesystem access when you choose full access.
+If you configure approved operator IDs later through `openassist setup wizard`, the channel flow now also prompts to switch the install to `Full access for approved operators`, and Linux wizard editing exposes the same systemd filesystem mode separately.
 Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`.
 
 ### 4. Check install and runtime readiness
@@ -239,7 +240,7 @@ Doctor also surfaces the current primary provider state directly in both text an
 - default model
 - reasoning effort or thinking budget state
 
-Use `openassist doctor --json` when you want the machine-readable grouped report. The JSON report is now `version: 2` and keeps the grouped sections while adding per-item `stage` metadata.
+Use `openassist doctor --json` when you want the machine-readable grouped report. The JSON report is now `version: 3` and keeps the grouped sections while adding per-item `stage` metadata plus shared service-boundary context.
 
 ## Troubleshooting
 
@@ -539,12 +540,15 @@ Default install path is `Standard mode (recommended)`.
 - full access for approved operators keeps the default chat access at `operator`, but lets explicitly approved sender IDs default to `full-root`
 - approved operator IDs are configured per channel in `channels[*].settings.operatorUserIds`
 - setup wizard now offers the matching `Full access for approved operators` switch when you add approved operator IDs while the install is still in standard mode
+- Linux systemd filesystem access is a separate service-level boundary with a safe default of `hardened`
+- `full-root` does not by itself remove Linux systemd sandboxing; package installs, `sudo`, and broader host writes may still be blocked until you choose `unrestricted` for the Linux service
+- `unrestricted` removes OpenAssist-added Linux systemd filesystem sandboxing for the daemon service, but it does not repair broken hosts, read-only mounts, or missing passwordless `sudo`
 - `/access` is available only to approved operators and only changes that sender's access for the current chat
 - `restricted` and `operator` do not expose autonomous tool execution
 - `full-root` enables autonomous host-impacting tools for that sender/chat resolution only
 - `full-root` can also support managed growth work, but the preferred durable path is runtime-owned skills and helper tools rather than tracked repo mutation
 - native web tooling remains runtime-owned, bounded, and profile-gated
-- `/status` shows the current sender ID, canonical session ID, effective access, and access source
+- `/status`, `/access`, `/capabilities`, `openassist tools status`, and lifecycle output now show the current service boundary as well as the effective access mode
 - `/status` and lifecycle CLI output are designed to stay useful even when provider auth is broken
 
 Local merge gate:

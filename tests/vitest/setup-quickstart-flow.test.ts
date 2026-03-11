@@ -67,6 +67,10 @@ class ScriptedPromptAdapter implements PromptAdapter {
   }
 }
 
+function linuxOnlyAnswers(answers: string[]): string[] {
+  return process.platform === "linux" ? answers : [];
+}
+
 function minimalTelegramAnswers(bindPort: number, extra: string[] = []): string[] {
   return [
     "false",
@@ -655,6 +659,7 @@ describe("setup quickstart flow", () => {
       "123,456",
       "true",
       "123456789",
+      ...linuxOnlyAnswers(["hardened"]),
       "Europe",
       "Europe/London",
       "true",
@@ -679,7 +684,75 @@ describe("setup quickstart flow", () => {
     expect(state.config.runtime.operatorAccessProfile).toBe("full-root");
     expect(state.config.tools.fs.workspaceOnly).toBe(false);
     expect(state.config.runtime.channels[0]?.settings.operatorUserIds).toEqual(["123456789"]);
+    expect(state.config.service.systemdFilesystemAccess).toBe("hardened");
     expect(result.summary.some((line) => line.includes("Access mode: Full access for approved operators"))).toBe(true);
+    if (process.platform === "linux") {
+      expect(
+        result.summary.some((line) => line.includes("Linux systemd filesystem access: Hardened systemd sandbox"))
+      ).toBe(true);
+    }
+  });
+
+  it("supports unrestricted Linux systemd filesystem access when full access is selected", async () => {
+    if (process.platform !== "linux") {
+      return;
+    }
+
+    const root = tempDir("openassist-quickstart-flow-full-access-unrestricted-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.bindPort = await getFreePort();
+    const prompts = new ScriptedPromptAdapter([
+      "true",
+      "OpenAssist",
+      "Pragmatic and concise",
+      "Keep answers practical",
+      "openai",
+      "openai-main",
+      "gpt-5.4",
+      "",
+      "default",
+      "openai-key",
+      "telegram",
+      "telegram-main",
+      "telegram-token",
+      "123,456",
+      "true",
+      "123456789",
+      "unrestricted",
+      "true",
+      "Europe",
+      "Europe/London",
+      "true",
+      "save"
+    ]);
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    expect(result.saved).toBe(true);
+    expect(state.config.service.systemdFilesystemAccess).toBe("unrestricted");
+    expect(
+      result.summary.some((line) =>
+        line.includes("Linux systemd filesystem access: Unrestricted systemd filesystem access")
+      )
+    ).toBe(true);
   });
 
   it("returns to standard mode when full access is selected before operator IDs are ready", async () => {

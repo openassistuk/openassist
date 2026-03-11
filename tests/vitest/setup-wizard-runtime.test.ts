@@ -43,6 +43,10 @@ class ScriptedPromptAdapter implements PromptAdapter {
   }
 }
 
+function linuxOnlyAnswers(answers: string[]): string[] {
+  return process.platform === "linux" ? answers : [];
+}
+
 describe("setup wizard runtime flow", () => {
   it("applies full multi-section edits and saves state", async () => {
     const root = tempDir("openassist-vitest-setup-wizard-");
@@ -55,6 +59,7 @@ describe("setup wizard runtime flow", () => {
       "127.0.0.1",
       "3344",
       "standard",
+      ...linuxOnlyAnswers(["hardened"]),
       path.join(root, "data"),
       path.join(root, "skills"),
       path.join(root, "logs"),
@@ -159,6 +164,7 @@ describe("setup wizard runtime flow", () => {
       "not-port",
       "3344",
       "standard",
+      ...linuxOnlyAnswers(["hardened"]),
       path.join(root, "data"),
       path.join(root, "skills"),
       path.join(root, "logs"),
@@ -223,6 +229,7 @@ describe("setup wizard runtime flow", () => {
       "123456789",
       "123456789",
       "true",
+      ...linuxOnlyAnswers(["hardened"]),
       "back",
       "save"
     ]);
@@ -363,6 +370,7 @@ describe("setup wizard runtime flow", () => {
       "restricted",
       "full-root",
       "false",
+      ...linuxOnlyAnswers(["hardened"]),
       path.join(root, "data"),
       path.join(root, "skills"),
       path.join(root, "logs"),

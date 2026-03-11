@@ -81,6 +81,8 @@ openassist scheduler status
 
 `openassist doctor` now uses the same grouped lifecycle report as bootstrap, quickstart, wizard post-save checks, and upgrade dry-run. Use `openassist doctor --json` when you want the same readiness assessment in a machine-readable form.
 
+The shared readiness output now also includes the Linux service boundary when applicable, so `openassist doctor` can warn when approved operators have full OpenAssist access but the daemon still runs inside the hardened systemd sandbox.
+
 Human-readable lifecycle output now always uses:
 
 - `Ready now`
@@ -90,7 +92,7 @@ Human-readable lifecycle output now always uses:
 Chat-side diagnostics:
 
 - send `/status` for local diagnostics without provider dependency
-- `/status` shows the current sender ID, canonical session ID, effective access, local docs/config/install pointers, and self-maintenance limits
+- `/status` shows the current sender ID, canonical session ID, effective access, current service boundary, local docs/config/install pointers, and self-maintenance limits
 - approved operators can use `/access full` or `/access standard` for their own current chat only
 - use `/profile` to inspect or update the same global assistant identity that quickstart now captures up front
 

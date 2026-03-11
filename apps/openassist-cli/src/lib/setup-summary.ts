@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import type { OpenAssistConfig } from "@openassist/config";
 import { buildLifecycleReport } from "./lifecycle-readiness.js";
+import {
+  describeSystemdFilesystemAccess,
+  isLinuxSystemdFilesystemAccessConfigurable
+} from "./service-access.js";
 
 export interface SetupSummaryInput {
   installDir: string;
@@ -14,9 +18,11 @@ export interface SetupSummaryInput {
   skippedService: boolean;
   healthOk: boolean;
   postSaveError?: string;
+  platform?: NodeJS.Platform;
 }
 
 export function buildSetupSummary(input: SetupSummaryInput): string[] {
+  const platform = input.platform ?? process.platform;
   const primaryChannel = input.config.runtime.channels.find((channel) => channel.enabled);
   const report = buildLifecycleReport({
     installDir: input.installDir,
@@ -43,13 +49,16 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
           ? `Run openassist channel qr --id ${primaryChannel.id} if QR login is still pending, then send a WhatsApp message.`
           : "Finish channel setup, then send a first test message and run /status if you need diagnostics.";
   const advancedSettingsHandoff = "Use openassist setup wizard after the first reply path is working.";
+  const serviceFilesystemAccess = isLinuxSystemdFilesystemAccessConfigurable(platform)
+    ? describeSystemdFilesystemAccess(input.config.service?.systemdFilesystemAccess ?? "hardened")
+    : report.context.serviceFilesystemAccess;
 
   const lines: string[] = [];
   lines.push("Quickstart saved");
   lines.push("Ready now");
   lines.push(`- First reply destination: ${report.context.firstReplyDestination}`);
   lines.push(`- Access mode: ${report.context.accessMode}`);
-  lines.push(`- Linux systemd filesystem access: ${report.context.serviceFilesystemAccess}`);
+  lines.push(`- Linux systemd filesystem access: ${serviceFilesystemAccess}`);
   lines.push(`- Service state: ${report.context.serviceState}`);
   lines.push(`- Assistant identity: ${input.config.runtime.assistant.name}`);
   lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);

@@ -20,6 +20,7 @@ After this change, OpenAssist operators can distinguish two separate questions t
 - [x] (2026-03-11 00:14+00:00) Updated the required operator-facing and contributor-facing docs so setup guidance, security wording, troubleshooting, lifecycle reporting, provider/tool interface docs, test inventory, and sample config all explain the new Linux-only systemd filesystem boundary accurately.
 - [x] (2026-03-11 00:19+00:00) Ran `pnpm verify:all`, fixed three follow-up regressions (docs test inventory, doctor JSON version/context expectation, and the systemd template contract test), and re-ran `pnpm verify:all` successfully.
 - [x] (2026-03-11 01:07+00:00) Recovered the stalled PR follow-up: fixed the uncommitted CI drift (quickstart saved-summary service boundary line and launchd-aware doctor expectation), addressed the four outstanding PR review comments, and re-ran `pnpm verify:all` successfully.
+- [x] (2026-03-11 01:18+00:00) Fixed the remaining Ubuntu-only PR regression by aligning the saved quickstart summary with the concise Linux service-mode label already used in the review step, added a platform-forced node summary test for Linux labels, and re-ran `pnpm verify:all` successfully.
 - [ ] Commit the branch, push it, open the PR, and monitor CI/review until all required checks and review gates are satisfied.
 
 ## Surprises & Discoveries
@@ -41,6 +42,9 @@ After this change, OpenAssist operators can distinguish two separate questions t
 
 - Observation: the two red CI jobs on PR #35 were not new product bugs. Ubuntu was missing the service-boundary line in the saved quickstart summary, while macOS still asserted a Linux systemd label in doctor JSON.
   Evidence: `apps/openassist-cli/src/lib/setup-summary.ts` needed the persisted `serviceFilesystemAccess` line, and `tests/node/cli-root-commands.test.ts` needed a platform-aware expectation for launchd.
+
+- Observation: a second Ubuntu-only regression remained after that first follow-up because the saved quickstart summary was reusing the lifecycle-report value, while the interactive review step already used the shorter Linux choice label.
+  Evidence: `apps/openassist-cli/src/lib/setup-summary.ts` needed to derive the Linux summary label from `describeSystemdFilesystemAccess(...)`, and `tests/node/cli-setup-validation-coverage.test.ts` now forces `platform: "linux"` to cover that branch on non-Linux development hosts.
 
 ## Decision Log
 
@@ -68,11 +72,15 @@ After this change, OpenAssist operators can distinguish two separate questions t
   Rationale: the PR review correctly identified that the live awareness builder and the stored bootstrap fallback had duplicated service-boundary note logic, which risked drifting operator/model messaging over time.
   Date/Author: 2026-03-11 / Codex
 
+- Decision: keep quickstart's saved summary on Linux aligned with the review-step choice labels (`Hardened systemd sandbox` / `Unrestricted systemd filesystem access`) instead of echoing the more verbose lifecycle-report value.
+  Rationale: the quickstart summary line already names the Linux boundary explicitly, so repeating `Linux` or a `service manager not confirmed` suffix in the value is noisier than the review step and broke the Linux-specific expectations for the saved transcript.
+  Date/Author: 2026-03-11 / Codex
+
 ## Outcomes & Retrospective
 
 The core behavior is implemented. OpenAssist now has an explicit Linux-only systemd filesystem mode in config and setup, the runtime reports both configured and effective service boundaries, and lifecycle output can finally explain why a full-access chat session may still be blocked from package installs or wider host writes.
 
-The first PR follow-up is also complete locally. The stalled CI fix has been recovered, the outstanding review comments have been addressed in code and docs, and `pnpm verify:all` is green again after the follow-up patch set. The remaining work is now the outbound release discipline only: commit, push, and clear the live PR threads/checks.
+The PR follow-up work is complete locally. The stalled CI fix has been recovered, the outstanding review comments have been addressed in code and docs, the Ubuntu-only quickstart-summary drift has been fixed with a platform-forced regression test, and `pnpm verify:all` is green again after the second follow-up patch set. The remaining work is now the outbound release discipline only: commit, push, and clear the live PR threads/checks.
 
 ## Context and Orientation
 

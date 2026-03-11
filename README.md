@@ -1,6 +1,7 @@
 # OpenAssist
 
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml)
 [![Service Smoke](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml)
 [![Lifecycle E2E Smoke](https://github.com/openassistuk/openassist/actions/workflows/lifecycle-e2e-smoke.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/lifecycle-e2e-smoke.yml)
 
@@ -40,11 +41,13 @@ Supported first-class provider routes in the current release:
 
 Codex is a separate provider route on purpose. It is not documented as a generic ChatGPT API replacement, and in this release it is intentionally limited to `gpt-5.4` and Codex-family models.
 
-Supplemental lifecycle workflows:
+GitHub automation:
 
+- `CI` runs on pushes to `main`, pull requests, manual dispatch, and a daily `04:30 UTC` schedule for workflow lint plus the `quality-and-coverage` matrix on `ubuntu-latest`, `macos-latest`, and `windows-latest`.
+- `CodeQL` runs on pushes to `main`, pull requests to `main`, manual dispatch, and a weekly `Mon` at `05:15 UTC` schedule. In this public repo it runs `CodeQL preflight` plus `analyze (javascript-typescript)`.
 - `Service Smoke` runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`) for dry-run service checks plus unconfigured-checkout upgrade routing assertions.
 - `Lifecycle E2E Smoke` runs on manual dispatch and schedule (`Tue`/`Sat` at `07:00 UTC`) for stronger bootstrap, home-state, doctor, and upgrade dry-run verification.
-- neither workflow is a required push or PR gate
+- the two smoke workflows are supplemental manual/scheduled signals, not normal per-push or per-PR gates
 
 ## Lifecycle
 
@@ -560,12 +563,12 @@ Local merge gate:
 pnpm verify:all
 ```
 
-That gate now includes a docs-truth validation pass, so stale command examples, broken root-doc links, or mismatched workflow/test-matrix claims fail alongside code regressions.
+That gate now includes a docs-truth validation pass, so stale command examples, broken local doc links, broken doc anchors, incomplete docs indexing, mismatched coverage-threshold references, or workflow/test-matrix drift fail alongside code regressions.
 
-Required PR CI:
+GitHub PR automation:
 
-- workflow lint
-- quality-and-coverage on `ubuntu-latest`, `macos-latest`, and `windows-latest`
+- `CI` runs workflow lint plus `quality-and-coverage` on `ubuntu-latest`, `macos-latest`, and `windows-latest`
+- `CodeQL` runs `CodeQL preflight` plus `analyze (javascript-typescript)` on pull requests to `main`
 
 Supplemental smoke:
 

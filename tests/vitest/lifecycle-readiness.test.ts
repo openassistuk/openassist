@@ -195,6 +195,54 @@ describe("lifecycle readiness", () => {
     expect(lines.some((line) => line.includes("openassist upgrade --dry-run"))).toBe(true);
   });
 
+  it("surfaces wrapper fallback plus skipped-service onboarding handoff in the grouped report", () => {
+    const report = buildLifecycleReport(
+      createInput({
+        localWrapperAvailable: false,
+        localWrapperCommand: "./scripts/openassist-local-wrapper",
+        serviceWasSkipped: true,
+        bootstrapMode: "non-interactive",
+        onboardingWasRun: false
+      })
+    );
+
+    expect(report.summary.firstReplyReadiness).toBe("needs-action");
+    expect(report.summary.serviceReadiness).toBe("needs-action");
+    expect(report.context.serviceState).toBe("Service checks skipped");
+    expect(report.sections.needsActionBeforeFirstReply.some((item) => item.id === "wrappers.path")).toBe(true);
+    expect(report.sections.needsActionBeforeFirstReply.some((item) => item.id === "service.skipped")).toBe(true);
+    expect(report.sections.needsActionBeforeFirstReply.some((item) => item.id === "bootstrap.non-interactive")).toBe(
+      true
+    );
+    expect(
+      report.sections.needsActionBeforeFirstReply.find((item) => item.id === "wrappers.path")?.nextStep
+    ).toBe("./scripts/openassist-local-wrapper");
+    expect(report.recommendedNextCommand.command).toBe("openassist doctor");
+  });
+
+  it("keeps launchd full-access readiness truthful without Linux sandbox warnings", () => {
+    const input = createInput({
+      serviceManagerKind: "launchd"
+    });
+    input.config.runtime.operatorAccessProfile = "full-root";
+    input.config.runtime.channels[0] = {
+      ...input.config.runtime.channels[0]!,
+      settings: {
+        ...(input.config.runtime.channels[0]?.settings ?? {}),
+        operatorUserIds: ["123456789"]
+      }
+    };
+
+    const report = buildLifecycleReport(input);
+
+    expect(report.context.serviceFilesystemAccess).toBe("Not applicable on launchd");
+    expect(report.summary.accessModeReadiness).toBe("ready");
+    expect(report.sections.readyNow.some((item) => item.id === "full-access.operators")).toBe(true);
+    expect(
+      report.sections.needsActionBeforeFullAccess.some((item) => item.id === "full-access.systemd-filesystem-mode")
+    ).toBe(false);
+  });
+
   it("warns when full access is configured but Linux systemd stays hardened", () => {
     const input = createInput();
     input.config.runtime.operatorAccessProfile = "full-root";
@@ -213,5 +261,23 @@ describe("lifecycle readiness", () => {
         (item) => item.id === "full-access.systemd-filesystem-mode"
       )
     ).toBe(true);
+  });
+
+  it("treats legacy repo-local layout and missing upgrade prerequisites as upgrade blockers", () => {
+    const report = buildLifecycleReport(
+      createInput({
+        legacyDefaultLayoutStatus: "ready",
+        hasGit: false,
+        hasPnpm: false,
+        hasNode: false
+      })
+    );
+
+    expect(report.summary.installReadiness).toBe("needs-action");
+    expect(report.summary.upgradeReadiness).toBe("fix-before-updating");
+    expect(report.sections.needsActionBeforeUpgrade.some((item) => item.id === "upgrade.legacy-layout")).toBe(true);
+    expect(report.sections.needsActionBeforeUpgrade.some((item) => item.id === "upgrade.prerequisites")).toBe(true);
+    expect(report.recommendedNextCommand.kind).toBe("repair-first-reply");
+    expect(report.recommendedNextCommand.command).toBe("openassist setup");
   });
 });

@@ -2,7 +2,7 @@
 
 This document defines local and CI validation expectations.
 
-The normal Node integration gate now includes docs-truth validation, so stale root-doc links, mismatched workflow statements, and stale test inventories are expected to fail before merge instead of waiting for release review.
+The normal Node integration gate now includes docs-truth validation, so stale live-doc links or anchors, incomplete docs indexing, mismatched workflow statements, stale threshold references, and stale test inventories are expected to fail before merge instead of waiting for release review.
 
 ## Primary Local Gate
 
@@ -153,12 +153,15 @@ Current suite files under `tests/node/`:
 
 `tests/node/cli-docs-truth.test.ts` now validates:
 
-- command examples in `README.md`, `docs/README.md`, and the main lifecycle docs resolve to real `openassist` commands
-- root-doc links resolve to real in-repo paths
-- workflow statements match `.github/workflows/ci.yml`, `.github/workflows/service-smoke.yml`, and `.github/workflows/lifecycle-e2e-smoke.yml`
+- command examples across all live docs except `docs/execplans/**` resolve to real `openassist` commands
+- relative links and in-repo anchors across all live docs resolve to real paths and headings
+- `docs/README.md` links every live non-ExecPlan doc under `docs/`
+- workflow statements match `.github/workflows/ci.yml`, `.github/workflows/codeql.yml`, `.github/workflows/service-smoke.yml`, and `.github/workflows/lifecycle-e2e-smoke.yml`
+- coverage-threshold wording matches `vitest.config.ts` plus root `package.json`
+- lifecycle E2E smoke keeps its inline `doctor --json` report-version expectation aligned with the current lifecycle-report version
 - this file matches the exact on-disk `tests/node/*.test.ts` and `tests/vitest/*.test.ts` inventories
 
-## Required CI Workflows
+## GitHub Workflow Inventory
 
 ### CI (`.github/workflows/ci.yml`)
 
@@ -173,6 +176,20 @@ Current suite files under `tests/node/`:
     - `ubuntu-latest`
     - `macos-latest`
     - `windows-latest`
+
+### CodeQL (`.github/workflows/codeql.yml`)
+
+- trigger model:
+  - `push` on `main`
+  - `pull_request` targeting `main`
+  - `workflow_dispatch`
+  - scheduled cadence (`Mon` at `05:15 UTC`)
+- jobs:
+  - `CodeQL preflight`
+  - `analyze (javascript-typescript)`
+- public-repo note:
+  - this repo is currently public, so the workflow runs normally on PRs and pushes to `main`
+  - the workflow still keeps its private-repo preflight guard for reuse in other repository contexts
 
 ### Service Smoke (`.github/workflows/service-smoke.yml`)
 
@@ -237,7 +254,7 @@ Current suite files under `tests/node/`:
 28. Native web tools remain bounded: `web.search`/`web.fetch` work only in `full-root`, stay within HTTP/redirect/byte/result caps, and return structured unavailable guidance when no backend is configured.
 29. Provider tool-call mapping contracts (OpenAI/Codex/Anthropic/OpenAI-compatible) remain interoperable.
 30. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
-31. Root `README.md`, root `AGENTS.md`, the lifecycle docs, and `docs/testing/test-matrix.md` all describe the same current command, path, workflow, and troubleshooting reality.
+31. Root `README.md`, root `AGENTS.md`, `docs/README.md`, all live non-ExecPlan docs, and `docs/testing/test-matrix.md` all describe the same current command, threshold, workflow, and troubleshooting reality.
 
 ## Remaining Gaps
 

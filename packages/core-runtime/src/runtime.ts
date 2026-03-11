@@ -2027,6 +2027,7 @@ export class OpenAssistRuntime {
         finalResponseMetadata = response.output.metadata;
 
         const toolCalls = response.toolCalls ?? [];
+        const advertisedToolNames = new Set(toolSchemas.map((schema) => schema.name));
         if (toolCalls.length > 0 && toolSchemas.length === 0) {
           this.logger.warn(
             {
@@ -2078,6 +2079,7 @@ export class OpenAssistRuntime {
             actorId,
             preparedInbound.envelope.channel,
             preparedInbound.envelope.transportMessageId,
+            advertisedToolNames,
             toolCall
           );
           const toolMessage: NormalizedMessage = {
@@ -2302,11 +2304,18 @@ export class OpenAssistRuntime {
     if (!currentChannel || !currentChannelConfig || !currentChannelConfig.enabled) {
       throw new Error(`Current channel ${currentChannelId} is not available for outbound delivery.`);
     }
+    const currentChannelCapabilities = currentChannel.capabilities();
+    const currentDelivery = this.buildDeliveryAwareness(
+      context.sessionId,
+      context.actorId,
+      resolution,
+      currentChannelCapabilities
+    );
 
     let targetChannelId = currentChannelId;
     let targetChannel = currentChannel;
     let targetChannelConfig = currentChannelConfig;
-    let targetChannelCapabilities = currentChannel.capabilities();
+    let targetChannelCapabilities = currentChannelCapabilities;
     let targetConversationKey = context.conversationKey;
     let directRecipientUserId: string | undefined;
 
@@ -2316,6 +2325,12 @@ export class OpenAssistRuntime {
       }
       if (request.channelId?.trim() && request.channelId.trim() !== currentChannelId) {
         throw new Error("reply mode cannot target a different channel; it always uses the current chat.");
+      }
+      if (!currentDelivery.outboundFileRepliesAvailable) {
+        throw new Error(
+          currentDelivery.notes[0] ??
+            "Outbound file replies are not available in the current session and channel."
+        );
       }
     } else {
       if (!approvedOperator) {
@@ -3404,6 +3419,7 @@ export class OpenAssistRuntime {
     actorId: string,
     activeChannelType: string,
     replyToTransportMessageId: string | undefined,
+    advertisedToolNames: ReadonlySet<string>,
     toolCall: ToolCall
   ): Promise<ToolExecutionRecord> {
     const request = (() => {
@@ -3437,6 +3453,58 @@ export class OpenAssistRuntime {
     );
 
     const startedAt = Date.now();
+    if (!advertisedToolNames.has(toolCall.name)) {
+      const errorText = `Provider returned tool '${toolCall.name}' that was not advertised for this session.`;
+      const durationMs = Date.now() - startedAt;
+      const blockedResult = {
+        error: errorText
+      };
+      this.db.finishToolInvocationFailure(
+        invocationId,
+        errorText,
+        durationMs,
+        blockedResult,
+        "blocked"
+      );
+      this.logger.warn(
+        {
+          type: "tool.call.unadvertised",
+          sessionId,
+          conversationKey,
+          actorId,
+          toolCallId: toolCall.id,
+          toolName: toolCall.name,
+          invocationId
+        },
+        "provider returned an unadvertised tool call"
+      );
+      this.logger.info(
+        {
+          type: "tool.call.blocked",
+          sessionId,
+          conversationKey,
+          actorId,
+          toolCallId: toolCall.id,
+          toolName: toolCall.name,
+          invocationId,
+          status: "blocked",
+          durationMs
+        },
+        "tool invocation completed"
+      );
+      return {
+        message: {
+          toolCallId: toolCall.id,
+          name: toolCall.name,
+          content: errorText,
+          isError: true
+        },
+        request,
+        result: blockedResult,
+        status: "blocked",
+        errorText
+      };
+    }
     const execution = await this.toolRouter.execute(toolCall, {
       sessionId,
       actorId,

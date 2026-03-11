@@ -93,7 +93,11 @@ export class RecoveryWorker {
             );
           }
         }
-        this.logger.warn({ jobId: job.id, error: errorText, delay }, "job retry scheduled");
+        if (permanentFailure) {
+          this.logger.warn({ jobId: job.id, error: errorText }, "job permanently failed");
+        } else {
+          this.logger.warn({ jobId: job.id, error: errorText, delay }, "job retry scheduled");
+        }
       }
     }
 

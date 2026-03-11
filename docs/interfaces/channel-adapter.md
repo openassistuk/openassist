@@ -95,6 +95,7 @@ Adapters must provide:
 - clear send failures for retry queue handling
 - truthful health status for operator diagnosis
 - reply rendering compatibility with runtime-owned command output, diagnostics, and normal assistant responses
+- explicit outbound degradation when staged files are missing and when caption-limited platforms need overflow text moved into a follow-up message
 
 ## Current Implementations
 

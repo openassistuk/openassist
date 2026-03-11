@@ -294,28 +294,53 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
       };
     };
 
-    if (!msg.attachments || msg.attachments.length === 0) {
-      const sent = await this.socket.sendMessage(jid, { text: msg.text }, buildSendOptions(true));
+    const missingAttachmentNotes: string[] = [];
+    const attachments = (msg.attachments ?? []).filter((attachment) => {
+      if (fs.existsSync(attachment.localPath)) {
+        return true;
+      }
+      missingAttachmentNotes.push(
+        `${attachment.name} could not be attached because the staged file is missing.`
+      );
+      return false;
+    });
+    const text = appendDeliveryNotes(msg.text, missingAttachmentNotes);
+
+    if (attachments.length === 0) {
+      const sent = await this.socket.sendMessage(
+        jid,
+        { text: text || "OpenAssist could not deliver the requested files." },
+        buildSendOptions(true)
+      );
       const sentId = sent?.key?.id ?? `wa-md:${Date.now()}:${jid}`;
       return {
         transportMessageId: String(sentId)
       };
     }
 
+    const caption = text.trim().length > 0 ? text : undefined;
+    const firstCaption =
+      caption && caption.length > WHATSAPP_CAPTION_LIMIT
+        ? caption.slice(0, WHATSAPP_CAPTION_LIMIT)
+        : caption;
+    const trailingText =
+      caption && caption.length > WHATSAPP_CAPTION_LIMIT
+        ? caption.slice(WHATSAPP_CAPTION_LIMIT).trimStart()
+        : undefined;
+
     let lastSentId = "";
-    for (const [index, attachment] of msg.attachments.entries()) {
-      const caption = index === 0 && msg.text.trim().length > 0 ? msg.text : undefined;
+    for (const [index, attachment] of attachments.entries()) {
       const payload =
         attachment.kind === "image"
           ? {
               image: { url: attachment.localPath },
-              caption
+              caption: index === 0 ? firstCaption : undefined
             }
           : {
               document: { url: attachment.localPath },
               mimetype: attachment.mimeType,
               fileName: attachment.name,
-              caption
+              caption: index === 0 ? firstCaption : undefined
             };
       const sent = await this.socket.sendMessage(
         jid,
@@ -323,6 +348,11 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
         buildSendOptions(index === 0)
       );
       lastSentId = String(sent?.key?.id ?? `wa-md:${Date.now()}:${jid}:${index + 1}`);
+    }
+
+    if (trailingText && trailingText.length > 0) {
+      const sent = await this.socket.sendMessage(jid, { text: trailingText }, buildSendOptions(false));
+      lastSentId = String(sent?.key?.id ?? lastSentId ?? `wa-md:${Date.now()}:${jid}:text`);
     }
 
     return {

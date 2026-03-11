@@ -284,12 +284,33 @@ export class DiscordChannelAdapter implements ChannelAdapter {
       );
     }
 
+    const missingAttachmentNotes: string[] = [];
+    const attachments = (msg.attachments ?? []).filter((attachment) => {
+      if (fs.existsSync(attachment.localPath)) {
+        return true;
+      }
+      missingAttachmentNotes.push(
+        `${attachment.name} could not be attached because the staged file is missing.`
+      );
+      return false;
+    });
+    const content = appendDeliveryNotes(msg.text, missingAttachmentNotes);
+    const fallbackContent =
+      content.trim().length > 0
+        ? content
+        : attachments.length === 0
+          ? "OpenAssist could not deliver the requested files."
+          : undefined;
+
     const sent = await (channel as any).send({
-      content: msg.text || undefined,
-      files: msg.attachments?.map((attachment) => ({
-        attachment: attachment.localPath,
-        name: attachment.name
-      })),
+      content: fallbackContent,
+      files:
+        attachments.length > 0
+          ? attachments.map((attachment) => ({
+              attachment: attachment.localPath,
+              name: attachment.name
+            }))
+          : undefined,
       reply:
         !msg.directRecipientUserId && msg.replyToTransportMessageId
           ? {

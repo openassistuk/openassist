@@ -199,7 +199,7 @@ function stripHeadingMarkdown(text: string): string {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/[*_~]/g, "")
-    .replace(/<[^>]+>/g, "")
+    .replace(/[<>]/g, "")
     .trim();
 }
 
@@ -241,7 +241,6 @@ function extractHeadingAnchors(filePath: string): Set<string> {
 }
 
 function extractDocIndexTargets(filePath: string): Set<string> {
-  const docsRoot = path.join(repoRoot(), "docs");
   const targets = new Set<string>();
   for (const link of extractMarkdownLinks(filePath)) {
     const normalizedPath = path.relative(repoRoot(), link.resolvedPath).replace(/\\/g, "/");
@@ -252,9 +251,6 @@ function extractDocIndexTargets(filePath: string): Set<string> {
       continue;
     }
     targets.add(normalizedPath);
-    if (!link.resolvedPath.startsWith(docsRoot)) {
-      continue;
-    }
   }
   return targets;
 }

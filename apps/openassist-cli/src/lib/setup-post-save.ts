@@ -107,17 +107,21 @@ export async function runSetupWizardPostSaveChecks(
   const troubleshootingLines = serviceHealthRecoveryLines(normalizedBaseUrl);
 
   let attempts = 0;
+  let installCompleted = false;
   while (true) {
     attempts += 1;
     try {
-      await service.install({
-        installDir: options.installDir,
-        configPath: options.configPath,
-        envFilePath: options.envFilePath,
-        repoRoot: options.installDir,
-        systemdFilesystemAccess: options.systemdFilesystemAccess
-      });
-      serviceInstalled = true;
+      if (!installCompleted) {
+        await service.install({
+          installDir: options.installDir,
+          configPath: options.configPath,
+          envFilePath: options.envFilePath,
+          repoRoot: options.installDir,
+          systemdFilesystemAccess: options.systemdFilesystemAccess
+        });
+        serviceInstalled = true;
+        installCompleted = true;
+      }
       await service.restart();
       serviceRestarted = true;
 

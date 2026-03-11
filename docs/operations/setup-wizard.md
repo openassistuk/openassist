@@ -131,7 +131,7 @@ Wizard access behavior:
 - approved operator IDs decide who may use `/access full` or receive automatic full access defaults on that channel
 - when you add approved operator IDs while the install is still in `Standard mode`, wizard now prompts to switch to `Full access for approved operators` immediately so filesystem tools do not stay workspace-only by accident
 - after that switch on Linux, wizard immediately asks whether the systemd service should stay hardened or become unrestricted, with a second warning before saving unrestricted mode
-- this Linux service mode is separate from chat access mode: `full-root` controls OpenAssist tool policy, while the systemd mode controls whether the daemon service itself keeps filesystem sandboxing
+- this Linux service mode is separate from chat access mode: `full-root` controls OpenAssist tool policy, while the systemd mode controls whether the daemon service keeps OpenAssist-added systemd hardening, including filesystem sandboxing
 - channel allowlists still decide who may message the bot at all
 
 Use wizard for:

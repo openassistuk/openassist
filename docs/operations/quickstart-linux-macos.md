@@ -296,7 +296,7 @@ Access mode notes:
 - standard mode keeps everyone at standard access until you deliberately elevate a listed operator
 - full access still does not grant Unix `root`; it enables OpenAssist's `full-root` tool profile for approved operators
 - on Linux, `Hardened systemd sandbox` is still the default service mode even when you choose full access, so package installs, `sudo`, and broader host writes may remain blocked until you explicitly choose `Unrestricted systemd filesystem access`
-- `Unrestricted systemd filesystem access` only removes OpenAssist-added Linux systemd sandboxing; it does not fix broken hosts, read-only mounts, or missing passwordless `sudo`
+- `Unrestricted systemd filesystem access` only removes OpenAssist-added Linux systemd hardening; it does not fix broken hosts, read-only mounts, or missing passwordless `sudo`
 - approved operators can use `/access full` or `/access standard` inside chat for their own current chat only
 - `/status`, `/access`, `/capabilities`, and `openassist tools status` show both the access mode and the current service boundary so you can verify what the daemon can really do
 

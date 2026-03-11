@@ -7,7 +7,7 @@ This runbook assumes you already completed quickstart or wizard setup and unders
 - `Standard mode (recommended)`
 - `Full access for approved operators`
 
-`full-root` in this document means OpenAssist's highest tool profile. It does not grant Unix root by itself, and on Linux it still does not remove the daemon's hardened systemd filesystem sandbox unless the service is explicitly configured for unrestricted filesystem access.
+`full-root` in this document means OpenAssist's highest tool profile. It does not grant Unix root by itself, and on Linux it still does not remove the daemon's OpenAssist-added systemd hardening unless the service is explicitly configured for unrestricted filesystem access.
 
 ## Goal
 

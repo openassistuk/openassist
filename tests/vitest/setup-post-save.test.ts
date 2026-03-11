@@ -201,6 +201,7 @@ describe("setup wizard post-save checks", () => {
 
     expect(result.completed).toBe(true);
     expect(result.postCheckAttempts).toBe(2);
+    expect(service.installCalls).toBe(1);
     expect(service.restartCalls).toBe(2);
   });
 

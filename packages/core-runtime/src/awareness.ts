@@ -93,7 +93,12 @@ function isSystemdManager(
   return manager === "systemd-user" || manager === "systemd-system";
 }
 
-function resolveServiceBoundary(input: RuntimeAwarenessBuildInput): {
+type RuntimeServiceBoundaryInput = Pick<
+  RuntimeAwarenessBuildInput,
+  "systemdFilesystemAccessConfigured" | "installContext"
+>;
+
+function resolveServiceBoundary(input: RuntimeServiceBoundaryInput): {
   manager: RuntimeServiceManagerKind;
   configured: RuntimeSystemdFilesystemAccess;
   effective: RuntimeSystemdFilesystemAccess | "unknown" | "not-applicable";
@@ -122,7 +127,7 @@ function buildServiceNotes(
     const notes =
       boundary.effective === "unrestricted"
         ? [
-            "The active Linux systemd service is running without OpenAssist-added filesystem sandboxing."
+            "The active Linux systemd service is running without OpenAssist-added systemd hardening."
           ]
         : boundary.effective === "hardened"
           ? [
@@ -156,6 +161,18 @@ function buildServiceNotes(
   return [
     "The active service manager is unknown in this process, so manual or dev runs may not reflect the installed service boundary."
   ];
+}
+
+export function buildRuntimeServiceAwareness(
+  input: RuntimeServiceBoundaryInput
+): RuntimeAwarenessSnapshot["service"] {
+  const boundary = resolveServiceBoundary(input);
+  return {
+    manager: boundary.manager,
+    systemdFilesystemAccessConfigured: boundary.configured,
+    systemdFilesystemAccessEffective: boundary.effective,
+    notes: buildServiceNotes(boundary)
+  };
 }
 
 function buildLimitations(input: RuntimeAwarenessBuildInput): string[] {
@@ -496,13 +513,7 @@ function buildGrowth(
 function buildService(
   input: RuntimeAwarenessBuildInput
 ): RuntimeAwarenessSnapshot["service"] {
-  const boundary = resolveServiceBoundary(input);
-  return {
-    manager: boundary.manager,
-    systemdFilesystemAccessConfigured: boundary.configured,
-    systemdFilesystemAccessEffective: boundary.effective,
-    notes: buildServiceNotes(boundary)
-  };
+  return buildRuntimeServiceAwareness(input);
 }
 
 export function buildRuntimeAwarenessSnapshot(

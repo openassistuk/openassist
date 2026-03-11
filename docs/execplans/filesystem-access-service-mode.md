@@ -19,6 +19,7 @@ After this change, OpenAssist operators can distinguish two separate questions t
 - [x] (2026-03-11 00:08+00:00) Resolved the remaining node regression in `tests/node/runtime.test.ts` by updating the `/status` fixture to include the explicit systemd install context expected by the new awareness assertions.
 - [x] (2026-03-11 00:14+00:00) Updated the required operator-facing and contributor-facing docs so setup guidance, security wording, troubleshooting, lifecycle reporting, provider/tool interface docs, test inventory, and sample config all explain the new Linux-only systemd filesystem boundary accurately.
 - [x] (2026-03-11 00:19+00:00) Ran `pnpm verify:all`, fixed three follow-up regressions (docs test inventory, doctor JSON version/context expectation, and the systemd template contract test), and re-ran `pnpm verify:all` successfully.
+- [x] (2026-03-11 01:07+00:00) Recovered the stalled PR follow-up: fixed the uncommitted CI drift (quickstart saved-summary service boundary line and launchd-aware doctor expectation), addressed the four outstanding PR review comments, and re-ran `pnpm verify:all` successfully.
 - [ ] Commit the branch, push it, open the PR, and monitor CI/review until all required checks and review gates are satisfied.
 
 ## Surprises & Discoveries
@@ -34,6 +35,12 @@ After this change, OpenAssist operators can distinguish two separate questions t
 
 - Observation: one runtime node test still expected a hand-crafted `/status` fixture without the new install-context fields, so the new awareness assertions surfaced a stale fixture rather than a runtime bug.
   Evidence: `tests/node/runtime.test.ts` failed until the `/status` test install context added `serviceManager: "systemd-user"` and `systemdFilesystemAccessEffective: "hardened"`.
+
+- Observation: the bundled GitHub helper scripts still choke on Windows console decoding when PR comments or CI logs contain non-CP1252 bytes, so direct `gh` API/log calls were more reliable for this recovery pass.
+  Evidence: `C:\Users\dange\.codex\skills\gh-address-comments\scripts\fetch_comments.py` and `C:\Users\dange\.codex\skills\gh-fix-ci\scripts\inspect_pr_checks.py` both failed under `cp1252` decoding until the PR state was inspected with raw `gh api` and `gh run view` commands.
+
+- Observation: the two red CI jobs on PR #35 were not new product bugs. Ubuntu was missing the service-boundary line in the saved quickstart summary, while macOS still asserted a Linux systemd label in doctor JSON.
+  Evidence: `apps/openassist-cli/src/lib/setup-summary.ts` needed the persisted `serviceFilesystemAccess` line, and `tests/node/cli-root-commands.test.ts` needed a platform-aware expectation for launchd.
 
 ## Decision Log
 
@@ -57,11 +64,15 @@ After this change, OpenAssist operators can distinguish two separate questions t
   Rationale: otherwise config and live service behavior can drift, and `/status` would continue to report the old effective boundary until the operator remembers to reinstall the service manually.
   Date/Author: 2026-03-10 / Codex
 
+- Decision: centralize the service-boundary fallback builder in `packages/core-runtime/src/awareness.ts` and reuse it from `packages/core-runtime/src/runtime.ts`.
+  Rationale: the PR review correctly identified that the live awareness builder and the stored bootstrap fallback had duplicated service-boundary note logic, which risked drifting operator/model messaging over time.
+  Date/Author: 2026-03-11 / Codex
+
 ## Outcomes & Retrospective
 
 The core behavior is implemented. OpenAssist now has an explicit Linux-only systemd filesystem mode in config and setup, the runtime reports both configured and effective service boundaries, and lifecycle output can finally explain why a full-access chat session may still be blocked from package installs or wider host writes.
 
-The docs and local verification trail are now complete as well. The remaining work is release discipline outside the code itself: commit the branch, open the PR, and carry the change through CI and review.
+The first PR follow-up is also complete locally. The stalled CI fix has been recovered, the outstanding review comments have been addressed in code and docs, and `pnpm verify:all` is green again after the follow-up patch set. The remaining work is now the outbound release discipline only: commit, push, and clear the live PR threads/checks.
 
 ## Context and Orientation
 
@@ -69,7 +80,7 @@ OpenAssist spans two closely related but distinct control planes. The first is p
 
 Before this change, `full-root` already meant "OpenAssist's highest tool profile" rather than "the daemon has unrestricted Unix root." That distinction was truthful in code but poorly surfaced in setup and diagnostics. Linux systemd services still ran with filesystem hardening by default, which could block `sudo`, APT state writes, or broader host writes even when the daemon user was root and the chat session had `full-root` access.
 
-The new work introduces one explicit config knob, `[service].systemdFilesystemAccess`, with the values `"hardened"` and `"unrestricted"`. `"hardened"` preserves the existing service sandbox. `"unrestricted"` means OpenAssist does not add systemd filesystem sandboxing to the Linux unit. This setting only matters when the daemon is actually running under Linux systemd. It is not applicable under launchd, and manual/dev runs may only know the configured value while reporting the effective value as unknown.
+The new work introduces one explicit config knob, `[service].systemdFilesystemAccess`, with the values `"hardened"` and `"unrestricted"`. `"hardened"` preserves the existing service hardening block. `"unrestricted"` means OpenAssist does not add that Linux systemd hardening block to the unit. This setting only matters when the daemon is actually running under Linux systemd. It is not applicable under launchd, and manual/dev runs may only know the configured value while reporting the effective value as unknown.
 
 The important implementation files are:
 

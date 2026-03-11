@@ -6,12 +6,16 @@ import {
 } from "../../apps/openassist-cli/src/lib/service-access.js";
 
 class PromptStub {
+  lastConfirmMessage?: string;
+  lastSelectMessage?: string;
+
   constructor(
     private readonly selections: string[],
     private readonly confirmations: boolean[] = []
   ) {}
 
-  async select<T extends string>(): Promise<T> {
+  async select<T extends string>(message?: string): Promise<T> {
+    this.lastSelectMessage = message;
     const next = this.selections.shift();
     if (!next) {
       throw new Error("No select answer queued");
@@ -19,7 +23,8 @@ class PromptStub {
     return next as T;
   }
 
-  async confirm(): Promise<boolean> {
+  async confirm(message?: string): Promise<boolean> {
+    this.lastConfirmMessage = message;
     const next = this.confirmations.shift();
     if (next === undefined) {
       throw new Error("No confirm answer queued");
@@ -49,14 +54,16 @@ describe("service access prompts", () => {
 
     expect(selected).toBe("hardened");
     expect(emitted.length).toBeGreaterThan(0);
+    expect(
+      emitted.some((line) => line.includes("removes OpenAssist-added Linux systemd hardening"))
+    ).toBe(true);
     expect(emitted.some((line) => line.includes("Keeping hardened Linux systemd filesystem access."))).toBe(true);
   });
 
   it("accepts unrestricted mode after the danger confirmation", async () => {
     const prompts = new PromptStub(["unrestricted"], [true]);
 
-    await expect(
-      promptSystemdFilesystemAccess(prompts, "hardened")
-    ).resolves.toBe("unrestricted");
+    await expect(promptSystemdFilesystemAccess(prompts, "hardened")).resolves.toBe("unrestricted");
+    expect(prompts.lastConfirmMessage).toContain("removes OpenAssist-added Linux systemd hardening");
   });
 });

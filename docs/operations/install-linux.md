@@ -90,8 +90,8 @@ Linux service manager selection is automatic:
 
 Linux service filesystem access is configured separately under `[service]` in `openassist.toml`:
 
-- `systemdFilesystemAccess = "hardened"` keeps the default systemd filesystem sandbox
-- `systemdFilesystemAccess = "unrestricted"` removes OpenAssist-added Linux systemd filesystem sandboxing for the daemon service
+- `systemdFilesystemAccess = "hardened"` keeps the default OpenAssist-added systemd hardening in place
+- `systemdFilesystemAccess = "unrestricted"` removes OpenAssist-added Linux systemd hardening for the daemon service
 - `openassist service install` reads that setting from config every time it renders the Linux unit
 
 Install or reinstall the service explicitly:

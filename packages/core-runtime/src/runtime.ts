@@ -39,6 +39,7 @@ import { WebTool } from "@openassist/tools-web";
 import { redactSensitiveData, type OpenAssistLogger } from "@openassist/observability";
 import {
   buildRuntimeAwarenessSnapshot,
+  buildRuntimeServiceAwareness,
   buildRuntimeAwarenessSystemMessage,
   summarizeRuntimeAwareness,
   type RuntimeInstallKnowledgeInput
@@ -344,44 +345,15 @@ function normalizeRuntimeConfig(config: RuntimeConfig): RuntimeConfig {
   };
 }
 
-function isSystemdServiceManager(
-  manager: RuntimeAwarenessSnapshot["service"]["manager"]
-): manager is Extract<RuntimeAwarenessSnapshot["service"]["manager"], "systemd-user" | "systemd-system"> {
-  return manager === "systemd-user" || manager === "systemd-system";
-}
-
 function defaultServiceAwareness(
   config: RuntimeConfig,
   installContext: RuntimeInstallContext
 ): RuntimeAwarenessSnapshot["service"] {
-  const manager = installContext.serviceManager ?? "unknown";
   const configured = config.service?.systemdFilesystemAccess ?? "hardened";
-  const effective =
-    installContext.systemdFilesystemAccessEffective ??
-    (manager === "launchd" ? "not-applicable" : "unknown");
-  const notes =
-    manager === "launchd"
-      ? ["Linux systemd filesystem access is not applicable when OpenAssist runs under launchd."]
-      : isSystemdServiceManager(manager)
-        ? effective === "unrestricted"
-          ? ["The active Linux systemd service is running without OpenAssist-added filesystem sandboxing."]
-          : effective === "hardened"
-            ? [
-                "Linux systemd service hardening is active, so package installs, sudo, and broader host writes may still be blocked even in full-root sessions."
-              ]
-            : [
-                "The active Linux systemd filesystem access mode is unknown in this process, so the live package-install and host-write boundary may still differ from config."
-              ]
-        : [
-            "The active service manager is unknown in this process, so manual or dev runs may not reflect the installed service boundary."
-          ];
-
-  return {
-    manager,
+  return buildRuntimeServiceAwareness({
     systemdFilesystemAccessConfigured: configured,
-    systemdFilesystemAccessEffective: effective,
-    notes
-  };
+    installContext
+  });
 }
 
 function formatServiceBoundaryLine(awareness: RuntimeAwarenessSnapshot): string {

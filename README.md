@@ -542,7 +542,7 @@ Default install path is `Standard mode (recommended)`.
 - setup wizard now offers the matching `Full access for approved operators` switch when you add approved operator IDs while the install is still in standard mode
 - Linux systemd filesystem access is a separate service-level boundary with a safe default of `hardened`
 - `full-root` does not by itself remove Linux systemd sandboxing; package installs, `sudo`, and broader host writes may still be blocked until you choose `unrestricted` for the Linux service
-- `unrestricted` removes OpenAssist-added Linux systemd filesystem sandboxing for the daemon service, but it does not repair broken hosts, read-only mounts, or missing passwordless `sudo`
+- `unrestricted` removes OpenAssist-added Linux systemd hardening for the daemon service, but it does not repair broken hosts, read-only mounts, or missing passwordless `sudo`
 - `/access` is available only to approved operators and only changes that sender's access for the current chat
 - `restricted` and `operator` do not expose autonomous tool execution
 - `full-root` enables autonomous host-impacting tools for that sender/chat resolution only

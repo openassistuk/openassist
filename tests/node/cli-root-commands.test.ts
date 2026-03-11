@@ -170,7 +170,10 @@ describe("cli root command coverage", () => {
     assert.equal(parsedDoctorJson.context.primaryProviderRoute, "OpenAI (API Key)");
     assert.equal(parsedDoctorJson.context.primaryProviderModel, "gpt-5.4");
     assert.equal(parsedDoctorJson.context.primaryProviderTuning, "Reasoning effort: high");
-    assert.equal(parsedDoctorJson.context.serviceFilesystemAccess, "Hardened Linux systemd sandbox");
+    assert.equal(
+      parsedDoctorJson.context.serviceFilesystemAccess,
+      process.platform === "darwin" ? "Not applicable on launchd" : "Hardened Linux systemd sandbox"
+    );
     assert.equal(typeof parsedDoctorJson.sections.readyNow, "object");
     assert.equal(typeof parsedDoctorJson.sections.needsActionBeforeUpgrade, "object");
     assert.equal(typeof parsedDoctorJson.recommendedNextCommand.command, "string");

@@ -31,7 +31,7 @@ export function describeSystemdFilesystemAccess(
 export function systemdFilesystemAccessGuidance(): string[] {
   return [
     "Hardened systemd sandbox keeps the Linux service protection enabled and may still block package installs or wider host writes.",
-    "Unrestricted systemd filesystem access removes OpenAssist-added Linux systemd filesystem sandboxing for the daemon service.",
+    "Unrestricted systemd filesystem access removes OpenAssist-added Linux systemd hardening for the daemon service.",
     "This only affects Linux systemd services. It does not fix broken hosts, read-only mounts, or missing passwordless sudo."
   ];
 }
@@ -63,7 +63,7 @@ export async function promptSystemdFilesystemAccess(
   }
 
   const confirmed = await prompts.confirm(
-    "Unrestricted Linux systemd filesystem access removes OpenAssist's service-level filesystem sandbox and can allow real host-wide writes and package installs from full access sessions. Continue?",
+    "Unrestricted Linux systemd filesystem access removes OpenAssist-added Linux systemd hardening for the daemon service and can allow real host-wide writes and package installs from full access sessions. Continue?",
     false
   );
   if (!confirmed) {

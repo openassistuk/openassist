@@ -49,6 +49,7 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   lines.push("Ready now");
   lines.push(`- First reply destination: ${report.context.firstReplyDestination}`);
   lines.push(`- Access mode: ${report.context.accessMode}`);
+  lines.push(`- Linux systemd filesystem access: ${report.context.serviceFilesystemAccess}`);
   lines.push(`- Service state: ${report.context.serviceState}`);
   lines.push(`- Assistant identity: ${input.config.runtime.assistant.name}`);
   lines.push(`- Timezone: ${input.config.runtime.time.defaultTimezone ?? "(auto-detect)"}`);

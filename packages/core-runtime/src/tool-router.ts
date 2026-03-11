@@ -8,6 +8,9 @@ import type { WebTool } from "@openassist/tools-web";
 export interface ToolExecutionContext {
   sessionId: string;
   actorId: string;
+  conversationKey: string;
+  activeChannelType: string;
+  replyToTransportMessageId?: string;
 }
 
 export interface ToolExecutionRecord {
@@ -16,6 +19,25 @@ export interface ToolExecutionRecord {
   result: Record<string, unknown>;
   status: "succeeded" | "failed" | "blocked";
   errorText?: string;
+}
+
+export interface ChannelSendToolRequest {
+  mode: "reply" | "notify";
+  text?: string;
+  attachmentPaths?: string[];
+  channelId?: string;
+  recipientUserId?: string;
+  reason: string;
+}
+
+export interface ChannelSendToolResult {
+  ok: boolean;
+  mode: "reply" | "notify";
+  channelId: string;
+  conversationKey: string;
+  directRecipientUserId?: string;
+  deliveredAttachmentCount: number;
+  notes: string[];
 }
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -103,6 +125,10 @@ export class RuntimeToolRouter {
   private readonly fsTool: FsTool;
   private readonly pkgTool: PackageInstallTool;
   private readonly webTool: WebTool;
+  private readonly channelSendTool: (
+    request: ChannelSendToolRequest,
+    context: ToolExecutionContext
+  ) => Promise<ChannelSendToolResult>;
   private readonly logger: OpenAssistLogger;
 
   constructor(options: {
@@ -110,12 +136,17 @@ export class RuntimeToolRouter {
     fsTool: FsTool;
     pkgTool: PackageInstallTool;
     webTool: WebTool;
+    channelSendTool: (
+      request: ChannelSendToolRequest,
+      context: ToolExecutionContext
+    ) => Promise<ChannelSendToolResult>;
     logger: OpenAssistLogger;
   }) {
     this.execTool = options.execTool;
     this.fsTool = options.fsTool;
     this.pkgTool = options.pkgTool;
     this.webTool = options.webTool;
+    this.channelSendTool = options.channelSendTool;
     this.logger = options.logger;
   }
 
@@ -153,6 +184,44 @@ export class RuntimeToolRouter {
             ...result
           },
           status
+        };
+      }
+
+      if (toolCall.name === "channel.send") {
+        const mode = asString(argsValue.mode, "mode");
+        if (mode !== "reply" && mode !== "notify") {
+          throw new Error("mode must be 'reply' or 'notify'");
+        }
+        const reason = asString(argsValue.reason, "reason");
+        const text =
+          argsValue.text === undefined ? undefined : asString(argsValue.text, "text");
+        const result = await this.channelSendTool(
+          {
+            mode,
+            reason,
+            text,
+            attachmentPaths: asOptionalStringArray(argsValue.attachmentPaths),
+            channelId:
+              argsValue.channelId === undefined ? undefined : asString(argsValue.channelId, "channelId"),
+            recipientUserId:
+              argsValue.recipientUserId === undefined
+                ? undefined
+                : asString(argsValue.recipientUserId, "recipientUserId")
+          },
+          context
+        );
+        return {
+          message: {
+            toolCallId: toolCall.id,
+            name: toolCall.name,
+            content: JSON.stringify(result, null, 2),
+            isError: false
+          },
+          request: argsValue,
+          result: {
+            ...result
+          },
+          status: "succeeded"
         };
       }
 

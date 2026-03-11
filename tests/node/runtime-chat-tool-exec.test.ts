@@ -67,6 +67,24 @@ class ToolProvider implements ProviderAdapter {
       };
     }
 
+    if (this.calls.length === 2) {
+      return {
+        output: { role: "assistant", content: "" },
+        usage: { inputTokens: 2, outputTokens: 1, totalTokens: 3 },
+        toolCalls: [
+          {
+            id: "call-2",
+            name: "channel.send",
+            argumentsJson: JSON.stringify({
+              mode: "reply",
+              attachmentPaths: [this.writePath],
+              reason: "return the requested artifact to the current chat"
+            })
+          }
+        ]
+      };
+    }
+
     return {
       output: { role: "assistant", content: "Tool execution complete." },
       usage: { inputTokens: 4, outputTokens: 2, totalTokens: 6 }
@@ -89,7 +107,10 @@ class MockChannel implements ChannelAdapter {
       supportsReadReceipts: false,
       supportsFormattedText: true,
       supportsImageAttachments: true,
-      supportsDocumentAttachments: true
+      supportsDocumentAttachments: true,
+      supportsOutboundImageAttachments: true,
+      supportsOutboundDocumentAttachments: true,
+      supportsDirectRecipientDelivery: true
     };
   }
 
@@ -132,7 +153,16 @@ function baseConfig(root: string): RuntimeConfig {
     bindPort: 3344,
     defaultProviderId: "mock-provider",
     providers: [{ id: "mock-provider", type: "openai-compatible", defaultModel: "x" }],
-    channels: [{ id: "telegram-mock", type: "telegram", enabled: true, settings: {} }],
+    channels: [
+      {
+        id: "telegram-mock",
+        type: "telegram",
+        enabled: true,
+        settings: {
+          operatorUserIds: ["u1"]
+        }
+      }
+    ],
     defaultPolicyProfile: "full-root",
     paths: {
       dataDir: root,
@@ -179,7 +209,7 @@ afterEach(() => {
 });
 
 describe("runtime chat tool exec", () => {
-  it("runs tool calls and sends final channel response", async () => {
+  it("runs channel.send to return a generated artifact through the current chat", async () => {
     const root = tempDir("openassist-runtime-tool-exec-");
     roots.push(root);
     const writePath = path.join(root, "tool-output.txt");
@@ -208,14 +238,24 @@ describe("runtime chat tool exec", () => {
       idempotencyKey: "in-1"
     });
 
-    assert.equal(provider.calls.length, 2);
+    assert.equal(provider.calls.length, 3);
+    assert.ok(provider.calls[0]?.tools.some((tool) => tool.name === "channel.send"));
     assert.equal(fs.readFileSync(writePath, "utf8"), "from-tool");
-    assert.equal(channel.sent.length, 1);
-    assert.equal(channel.sent[0]?.text, "Tool execution complete.");
+    assert.equal(channel.sent.length, 2);
+    assert.equal(channel.sent[0]?.attachments?.length, 1);
+    assert.equal(channel.sent[0]?.attachments?.[0]?.name, "tool-output.txt");
+    assert.ok(channel.sent[0]?.attachments?.[0]?.localPath);
+    assert.notEqual(channel.sent[0]?.attachments?.[0]?.localPath, writePath);
+    assert.equal(channel.sent[0]?.text, "OpenAssist reply: requested file output attached.");
+    assert.equal(channel.sent[1]?.text, "Tool execution complete.");
+    assert.equal(fs.existsSync(channel.sent[0]!.attachments![0]!.localPath), false);
 
     const invocations = runtime.listToolInvocations("telegram-mock:conv-1", 10);
-    assert.equal(invocations.length, 1);
+    assert.equal(invocations.length, 2);
+    assert.equal(invocations[0]?.toolName, "channel.send");
     assert.equal(invocations[0]?.status, "succeeded");
+    assert.equal(invocations[1]?.toolName, "fs.write");
+    assert.equal(invocations[1]?.status, "succeeded");
 
     await runtime.stop();
     db.close();

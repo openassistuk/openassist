@@ -68,15 +68,25 @@ function createRouter() {
     }))
   };
 
+  const channelSendTool = vi.fn(async () => ({
+    ok: true,
+    mode: "reply" as const,
+    channelId: "telegram-main",
+    conversationKey: "c1",
+    deliveredAttachmentCount: 0,
+    notes: []
+  }));
+
   const router = new RuntimeToolRouter({
     execTool: execTool as any,
     fsTool: fsTool as any,
     pkgTool: pkgTool as any,
     webTool: webTool as any,
+    channelSendTool,
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any
   });
 
-  return { router, execTool, fsTool, pkgTool, webTool, writes };
+  return { router, execTool, fsTool, pkgTool, webTool, channelSendTool, writes };
 }
 
 async function runLoop(
@@ -91,7 +101,9 @@ async function runLoop(
     }
     await router.execute(calls[i]!, {
       sessionId: "telegram:c1",
-      actorId: "telegram:u1"
+      actorId: "telegram:u1",
+      conversationKey: "c1",
+      activeChannelType: "telegram"
     });
     executed += 1;
   }
@@ -111,7 +123,12 @@ describe("tool loop runtime helpers", () => {
           content: "hello"
         })
       },
-      { sessionId: "telegram:c1", actorId: "telegram:u1" }
+      {
+        sessionId: "telegram:c1",
+        actorId: "telegram:u1",
+        conversationKey: "c1",
+        activeChannelType: "telegram"
+      }
     );
     const readResult = await router.execute(
       {
@@ -121,7 +138,12 @@ describe("tool loop runtime helpers", () => {
           path: "/tmp/demo.txt"
         })
       },
-      { sessionId: "telegram:c1", actorId: "telegram:u1" }
+      {
+        sessionId: "telegram:c1",
+        actorId: "telegram:u1",
+        conversationKey: "c1",
+        activeChannelType: "telegram"
+      }
     );
 
     expect(writeResult.status).toBe("succeeded");
@@ -152,7 +174,12 @@ describe("tool loop runtime helpers", () => {
         name: "exec.run",
         argumentsJson: "{bad"
       },
-      { sessionId: "telegram:c1", actorId: "telegram:u1" }
+      {
+        sessionId: "telegram:c1",
+        actorId: "telegram:u1",
+        conversationKey: "c1",
+        activeChannelType: "telegram"
+      }
     );
 
     expect(result.status).toBe("failed");
@@ -170,11 +197,61 @@ describe("tool loop runtime helpers", () => {
           query: "openassist runtime"
         })
       },
-      { sessionId: "telegram:c1", actorId: "telegram:u1" }
+      {
+        sessionId: "telegram:c1",
+        actorId: "telegram:u1",
+        conversationKey: "c1",
+        activeChannelType: "telegram"
+      }
     );
 
     expect(result.status).toBe("succeeded");
     expect(webTool.search).toHaveBeenCalledTimes(1);
     expect(result.message.content).toContain("duckduckgo-html");
+  });
+
+  it("routes channel.send through the runtime-owned delivery callback", async () => {
+    const { router, channelSendTool } = createRouter();
+
+    const result = await router.execute(
+      {
+        id: "channel-1",
+        name: "channel.send",
+        argumentsJson: JSON.stringify({
+          mode: "reply",
+          text: "artifact ready",
+          attachmentPaths: ["/tmp/report.txt"],
+          reason: "return the requested artifact"
+        })
+      },
+      {
+        sessionId: "telegram:c1",
+        actorId: "telegram:u1",
+        conversationKey: "c1",
+        activeChannelType: "telegram",
+        replyToTransportMessageId: "msg-9"
+      }
+    );
+
+    expect(result.status).toBe("succeeded");
+    expect(channelSendTool).toHaveBeenCalledTimes(1);
+    expect(channelSendTool).toHaveBeenCalledWith(
+      {
+        mode: "reply",
+        text: "artifact ready",
+        attachmentPaths: ["/tmp/report.txt"],
+        reason: "return the requested artifact",
+        channelId: undefined,
+        recipientUserId: undefined
+      },
+      {
+        sessionId: "telegram:c1",
+        actorId: "telegram:u1",
+        conversationKey: "c1",
+        activeChannelType: "telegram",
+        replyToTransportMessageId: "msg-9"
+      }
+    );
+    expect(result.message.content).toContain("\"ok\": true");
   });
 });

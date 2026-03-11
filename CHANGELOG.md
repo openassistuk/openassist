@@ -8,6 +8,12 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Outbound channel delivery for generated files plus bounded operator notifications:
+  - runtime-owned `channel.send` can now return staged files back through the active Telegram, Discord, or WhatsApp chat instead of only describing a local filesystem path
+  - targeted notify delivery now stays bounded to `channels[*].settings.operatorUserIds`, and Discord additionally requires the same recipient in `allowedDmUserIds`
+  - outbound delivery reuses the bounded runtime attachment limits, stages files under `runtime.paths.dataDir`, retries through the durable recovery queue, and cleans up staged files after success or terminal retry failure
+  - `/status`, `/capabilities`, `GET /v1/tools/status`, and `openassist tools status` now surface outbound file-reply availability, targeted notify availability, and the delivery notes that explain any blocked path
+
 - Advanced branch/PR install tracks for developer testing:
   - `install.sh`, `scripts/install/bootstrap.sh`, and `openassist upgrade` now accept `--pr <number>` alongside the existing `--ref <git-ref>`
   - `install.sh` now fetches the matching branch or PR bootstrap script so installer changes can be tested end to end before merge

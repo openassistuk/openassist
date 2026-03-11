@@ -70,7 +70,7 @@ export class FsTool {
     }
   }
 
-  async read(request: FsReadRequest): Promise<string> {
+  async authorizeReadPath(request: FsReadRequest): Promise<string> {
     const absolutePath = this.resolvePath(request.filePath);
     this.ensurePathAllowed(absolutePath, "read");
 
@@ -83,6 +83,12 @@ export class FsTool {
     if (!decision.allowed) {
       throw new Error(decision.reason ?? "fs.read blocked by policy");
     }
+
+    return absolutePath;
+  }
+
+  async read(request: FsReadRequest): Promise<string> {
+    const absolutePath = await this.authorizeReadPath(request);
 
     const content = fs.readFileSync(absolutePath, "utf8");
     this.logger.info(

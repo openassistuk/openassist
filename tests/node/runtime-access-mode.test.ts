@@ -67,7 +67,10 @@ class MockChannel implements ChannelAdapter {
       supportsReadReceipts: false,
       supportsFormattedText: true,
       supportsImageAttachments: true,
-      supportsDocumentAttachments: true
+      supportsDocumentAttachments: true,
+      supportsOutboundImageAttachments: true,
+      supportsOutboundDocumentAttachments: true,
+      supportsDirectRecipientDelivery: true
     };
   }
 
@@ -258,6 +261,8 @@ describe("runtime access mode", () => {
     assert.match(approvedStatusText, /protected surfaces:/i);
     assert.match(approvedStatusText, /service boundary: service manager=systemd-system/i);
     assert.match(approvedStatusText, /service boundary notes: .*package installs, sudo, and broader host writes may still be blocked/i);
+    assert.match(approvedStatusText, /delivery boundary: outbound file replies=available, operator notify=available/i);
+    assert.match(approvedStatusText, /delivery notes: .*specific approved operator IDs/i);
 
     assert.match(standardStatusText, /sender id: 222222222/i);
     assert.match(standardStatusText, /current access: Standard access/i);
@@ -298,6 +303,7 @@ describe("runtime access mode", () => {
     assert.match(channel.sent[1]?.text ?? "", /current access: Standard access/i);
     assert.match(channel.sent[1]?.text ?? "", /access source: runtime default/i);
     assert.match(channel.sent[1]?.text ?? "", /service boundary:/i);
+    assert.match(channel.sent[1]?.text ?? "", /delivery boundary:/i);
 
     await channel.emit(inbound("123456789", "/access full", "access-full"));
     assert.match(channel.sent[2]?.text ?? "", /Access updated for this sender in this chat: Full access/i);

@@ -6,6 +6,7 @@ import type {
   AttachmentRef,
   ApiKeyAuth,
   ChannelAdapter,
+  ChannelCapabilities,
   ChatRequest,
   ChatResponse,
   EffectivePolicySource,
@@ -14,6 +15,7 @@ import type {
   MisfirePolicy,
   NormalizedMessage,
   OAuthStartResult,
+  OutboundAttachmentRef,
   OAuthDeviceCodeStartResult,
   OutboundEnvelope,
   PolicyProfile,
@@ -44,7 +46,11 @@ import {
   summarizeRuntimeAwareness,
   type RuntimeInstallKnowledgeInput
 } from "./awareness.js";
-import { ingestInboundAttachments } from "./attachments.js";
+import {
+  cleanupStagedAttachments,
+  ingestInboundAttachments,
+  stageOutboundAttachments
+} from "./attachments.js";
 import { renderOutboundEnvelope } from "./channel-rendering.js";
 import { ContextPlanner, sanitizeUserOutput } from "./context.js";
 import {
@@ -60,7 +66,12 @@ import {
 } from "./self-knowledge.js";
 import { SchedulerWorker } from "./scheduler.js";
 import { runtimeToolSchemas } from "./tool-registry.js";
-import { RuntimeToolRouter, type ToolExecutionRecord } from "./tool-router.js";
+import {
+  RuntimeToolRouter,
+  type ChannelSendToolRequest,
+  type ChannelSendToolResult,
+  type ToolExecutionRecord
+} from "./tool-router.js";
 
 export interface RuntimeDependencies {
   db: OpenAssistDatabase;
@@ -86,6 +97,7 @@ function defaultSystemPrompt(): string {
     "OpenAssist can help with local system tasks, files and supported attachments, web work, recurring automations, lifecycle actions, and controlled capability growth when the current session truly allows it.",
     "Prefer extensions-first growth for durable capability expansion: managed skills and helper tools are safer than editing tracked repo files.",
     "Be cautiously creative when permissions allow local action: prefer the smallest reversible fix, validate after changes, and stop when access or protected lifecycle boundaries block a safe edit.",
+    "When a user explicitly asks for a generated file or document and channel.send is callable, use channel.send to return the artifact through chat instead of only naming the local path.",
     "When tools, permissions, or local docs are unavailable, say so explicitly instead of pretending they exist.",
     "Never expose internal reasoning metadata to messaging channels.",
     "Use concise, actionable responses and report errors clearly.",
@@ -173,6 +185,16 @@ function toDisplayText(value: unknown): string {
     return "";
   }
   return JSON.stringify(value, null, 2);
+}
+
+function readStringArraySetting(
+  settings: Record<string, string | number | boolean | string[]>,
+  key: string
+): string[] {
+  const configured = settings[key];
+  return Array.isArray(configured)
+    ? configured.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    : [];
 }
 
 function renderScheduledOutput(
@@ -364,6 +386,28 @@ function formatServiceBoundaryNotes(awareness: RuntimeAwarenessSnapshot): string
   return awareness.service.notes.join(" | ") || "none";
 }
 
+function formatDeliveryBoundaryLine(awareness: RuntimeAwarenessSnapshot): string {
+  return `outbound file replies=${awareness.delivery.outboundFileRepliesAvailable ? "available" : "blocked"}, operator notify=${awareness.delivery.operatorNotifyAvailable ? "available" : "blocked"}, channel supports files=${awareness.delivery.channelSupportsOutboundFiles ? "yes" : "no"}, channel supports direct notify=${awareness.delivery.channelSupportsDirectRecipientDelivery ? "yes" : "no"}`;
+}
+
+function formatDeliveryBoundaryNotes(awareness: RuntimeAwarenessSnapshot): string {
+  return awareness.delivery.notes.join(" | ") || "none";
+}
+
+function defaultChannelCapabilities(): ChannelCapabilities {
+  return {
+    supportsEdits: false,
+    supportsDeletes: false,
+    supportsReadReceipts: false,
+    supportsFormattedText: false,
+    supportsImageAttachments: false,
+    supportsDocumentAttachments: false,
+    supportsOutboundImageAttachments: false,
+    supportsOutboundDocumentAttachments: false,
+    supportsDirectRecipientDelivery: false
+  };
+}
+
 interface GlobalAssistantProfile {
   name: string;
   persona: string;
@@ -510,22 +554,33 @@ export class OpenAssistRuntime {
       db: this.db,
       logger: this.logger,
       handlers: {
-        send_outbound: async (payload) => {
-          const channelId = String(payload.channelId ?? "");
-          const sessionId = String(payload.sessionId ?? "");
-          const envelope = payload.envelope as OutboundEnvelope | undefined;
-          if (!envelope) {
-            throw new Error("Missing outbound envelope in job payload");
+        send_outbound: {
+          run: async (payload) => {
+            const channelId = String(payload.channelId ?? "");
+            const sessionId = String(payload.sessionId ?? "");
+            const envelope = payload.envelope as OutboundEnvelope | undefined;
+            if (!envelope) {
+              throw new Error("Missing outbound envelope in job payload");
+            }
+            const channel = this.channels.get(channelId);
+            if (!channel) {
+              throw new Error(`Channel adapter ${channelId} not found`);
+            }
+            const sent = await channel.send(envelope);
+            this.db.recordOutbound(sessionId, envelope, sent.transportMessageId);
+            await this.cleanupOutboundEnvelopeAttachments(envelope);
+          },
+          onPermanentFailure: async (payload) => {
+            const envelope = payload.envelope as OutboundEnvelope | undefined;
+            if (envelope) {
+              await this.cleanupOutboundEnvelopeAttachments(envelope);
+            }
           }
-          const channel = this.channels.get(channelId);
-          if (!channel) {
-            throw new Error(`Channel adapter ${channelId} not found`);
-          }
-          const sent = await channel.send(envelope);
-          this.db.recordOutbound(sessionId, envelope, sent.transportMessageId);
         },
-        scheduled_task_execute: async (payload) => {
-          await this.executeScheduledTaskJob(payload);
+        scheduled_task_execute: {
+          run: async (payload) => {
+            await this.executeScheduledTaskJob(payload);
+          }
         }
       }
     });
@@ -1189,6 +1244,173 @@ export class OpenAssistRuntime {
     };
   }
 
+  private channelConfig(channelId: string): RuntimeConfig["channels"][number] | undefined {
+    return this.config.channels.find((channel) => channel.id === channelId);
+  }
+
+  private channelOperatorIds(channelId: string): string[] {
+    const channelConfig = this.channelConfig(channelId);
+    return channelConfig ? readStringArraySetting(channelConfig.settings, "operatorUserIds") : [];
+  }
+
+  private eligibleDirectRecipientUserIds(channelId: string): string[] {
+    const channelConfig = this.channelConfig(channelId);
+    if (!channelConfig) {
+      return [];
+    }
+
+    const operatorIds = this.channelOperatorIds(channelId);
+    if (channelConfig.type !== "discord") {
+      return operatorIds;
+    }
+
+    const allowedDmUserIds = readStringArraySetting(channelConfig.settings, "allowedDmUserIds");
+    if (allowedDmUserIds.length === 0) {
+      return [];
+    }
+    return operatorIds.filter((value) => allowedDmUserIds.includes(value));
+  }
+
+  private channelSendCallable(
+    sessionId: string,
+    actorId: string | undefined,
+    resolution: PolicyResolution
+  ): boolean {
+    if (resolution.profile !== "full-root") {
+      return false;
+    }
+
+    const activeChannel = this.channels.get(channelIdFromSessionId(sessionId));
+    const channelCapabilities = activeChannel?.capabilities() ?? defaultChannelCapabilities();
+    const delivery = this.buildDeliveryAwareness(
+      sessionId,
+      actorId,
+      resolution,
+      channelCapabilities
+    );
+    return delivery.outboundFileRepliesAvailable || delivery.operatorNotifyAvailable;
+  }
+
+  private callableToolSchemas(
+    sessionId: string,
+    actorId: string | undefined,
+    resolution: PolicyResolution
+  ): ToolSchema[] {
+    if (resolution.profile !== "full-root") {
+      return [];
+    }
+
+    const schemas = this.enabledToolSchemas();
+    if (this.channelSendCallable(sessionId, actorId, resolution)) {
+      return schemas;
+    }
+    return schemas.filter((schema) => schema.name !== "channel.send");
+  }
+
+  private buildDeliveryAwareness(
+    sessionId: string,
+    actorId: string | undefined,
+    resolution: PolicyResolution,
+    channelCapabilities: ChannelCapabilities
+  ): RuntimeAwarenessSnapshot["delivery"] {
+    const channelId = channelIdFromSessionId(sessionId);
+    const channelConfig = this.channelConfig(channelId);
+    const operatorIds = this.channelOperatorIds(channelId);
+    const eligibleNotifyRecipients = this.eligibleDirectRecipientUserIds(channelId);
+    const channelSupportsOutboundFiles =
+      channelCapabilities.supportsOutboundImageAttachments ||
+      channelCapabilities.supportsOutboundDocumentAttachments;
+    const channelSupportsDirectRecipientDelivery =
+      channelCapabilities.supportsDirectRecipientDelivery;
+    const approvedSender = actorId
+      ? this.policyEngine.isApprovedOperator(sessionId, actorId)
+      : false;
+
+    let fileReplyNote: string;
+    if (!channelConfig) {
+      fileReplyNote = "The current channel config is not available, so outbound file delivery cannot be verified.";
+    } else if (!channelSupportsOutboundFiles) {
+      fileReplyNote = "The current channel adapter cannot return generated files through chat.";
+    } else if (operatorIds.length === 0) {
+      fileReplyNote =
+        "Outbound file replies through channel.send are disabled until this channel has specific approved operator IDs configured.";
+    } else if (resolution.profile !== "full-root") {
+      fileReplyNote = "Outbound file replies require a full-root session.";
+    } else if (!actorId) {
+      fileReplyNote =
+        "Outbound file replies require a specific sender context so OpenAssist can verify the active operator.";
+    } else if (!approvedSender) {
+      fileReplyNote =
+        "Outbound file replies through channel.send are callable only for approved operator IDs in this channel.";
+    } else {
+      fileReplyNote =
+        "Generated files can be returned through this chat when the model uses channel.send.";
+    }
+
+    let notifyNote: string;
+    if (!channelConfig) {
+      notifyNote =
+        "The current channel config is not available, so targeted operator notifications cannot be verified.";
+    } else if (!channelSupportsDirectRecipientDelivery) {
+      notifyNote =
+        "The current channel adapter cannot open targeted direct-recipient deliveries.";
+    } else if (operatorIds.length === 0) {
+      notifyNote =
+        "Targeted operator notifications are disabled until this channel has specific approved operator IDs configured.";
+    } else if (resolution.profile !== "full-root") {
+      notifyNote = "Targeted operator notifications require a full-root session.";
+    } else if (!actorId) {
+      notifyNote =
+        "Targeted operator notifications require a specific sender context so OpenAssist can verify the active operator.";
+    } else if (!approvedSender) {
+      notifyNote =
+        "Targeted operator notifications are callable only for approved operator IDs in this channel.";
+    } else if (eligibleNotifyRecipients.length === 0 && channelConfig.type === "discord") {
+      notifyNote =
+        "Discord targeted notifications require at least one operatorUserIds entry that is also listed in allowedDmUserIds.";
+    } else {
+      notifyNote =
+        "Targeted operator notifications may be sent only to specific approved operator IDs.";
+    }
+
+    return {
+      outboundFileRepliesAvailable:
+        resolution.profile === "full-root" &&
+        approvedSender &&
+        channelSupportsOutboundFiles &&
+        operatorIds.length > 0,
+      operatorNotifyAvailable:
+        resolution.profile === "full-root" &&
+        approvedSender &&
+        channelSupportsDirectRecipientDelivery &&
+        eligibleNotifyRecipients.length > 0,
+      channelSupportsOutboundFiles,
+      channelSupportsDirectRecipientDelivery,
+      notes: [fileReplyNote, notifyNote]
+    };
+  }
+
+  private outboundAttachmentStorageDir(
+    channelId: string,
+    conversationKey: string,
+    token: string
+  ): string {
+    return path.join(
+      this.config.paths.dataDir,
+      "outbound-attachments",
+      channelId,
+      encodePathSegment(conversationKey),
+      token
+    );
+  }
+
+  private async cleanupOutboundEnvelopeAttachments(envelope: OutboundEnvelope): Promise<void> {
+    if (!envelope.attachments || envelope.attachments.length === 0) {
+      return;
+    }
+    await cleanupStagedAttachments(envelope.attachments);
+  }
+
   private rebuildRuntimeTools(): void {
     const fsToolsConfig = this.config.tools?.fs ?? DEFAULT_FS_TOOLS;
     const execToolsConfig = this.config.tools?.exec ?? DEFAULT_EXEC_TOOLS;
@@ -1235,6 +1457,7 @@ export class OpenAssistRuntime {
       fsTool: this.fsTool,
       pkgTool: this.pkgTool,
       webTool: this.webTool,
+      channelSendTool: async (request, context) => this.executeChannelSendTool(request, context),
       logger: this.logger
     });
   }
@@ -1300,6 +1523,11 @@ export class OpenAssistRuntime {
     systemdFilesystemAccessConfigured: RuntimeAwarenessSnapshot["service"]["systemdFilesystemAccessConfigured"];
     systemdFilesystemAccessEffective: RuntimeAwarenessSnapshot["service"]["systemdFilesystemAccessEffective"];
     serviceNotes: string[];
+    outboundFileRepliesAvailable: boolean;
+    operatorNotifyAvailable: boolean;
+    channelSupportsOutboundFiles: boolean;
+    channelSupportsDirectRecipientDelivery: boolean;
+    deliveryNotes: string[];
     packageTool: ReturnType<PackageInstallTool["getStatus"]>;
     webTool: ReturnType<WebTool["getStatus"]>;
     awareness: string;
@@ -1309,10 +1537,18 @@ export class OpenAssistRuntime {
       actorId
     }).then((resolution) => {
       const enabled = this.enabledToolSchemas();
-      const callableTools =
-        resolution.profile === "full-root" ? enabled.map((item) => item.name) : [];
+      const callableTools = this.callableToolSchemas(
+        sessionId ?? "__default__",
+        actorId,
+        resolution
+      ).map((item) => item.name);
       const conversationKey = sessionId ? conversationKeyFromSessionId(sessionId) : "__status__";
-      const snapshot = this.buildAwarenessSnapshot(sessionId ?? "__default__", conversationKey, resolution);
+      const snapshot = this.buildAwarenessSnapshot(
+        sessionId ?? "__default__",
+        conversationKey,
+        resolution,
+        actorId
+      );
       return {
         enabledTools: callableTools,
         configuredTools: enabled.map((item) => item.name),
@@ -1324,6 +1560,12 @@ export class OpenAssistRuntime {
         systemdFilesystemAccessConfigured: snapshot.service.systemdFilesystemAccessConfigured,
         systemdFilesystemAccessEffective: snapshot.service.systemdFilesystemAccessEffective,
         serviceNotes: [...snapshot.service.notes],
+        outboundFileRepliesAvailable: snapshot.delivery.outboundFileRepliesAvailable,
+        operatorNotifyAvailable: snapshot.delivery.operatorNotifyAvailable,
+        channelSupportsOutboundFiles: snapshot.delivery.channelSupportsOutboundFiles,
+        channelSupportsDirectRecipientDelivery:
+          snapshot.delivery.channelSupportsDirectRecipientDelivery,
+        deliveryNotes: [...snapshot.delivery.notes],
         packageTool: this.pkgTool.getStatus(),
         webTool: this.webTool.getStatus(),
         awareness: summarizeRuntimeAwareness(snapshot)
@@ -1682,10 +1924,12 @@ export class OpenAssistRuntime {
         sessionId,
         actorId: preparedInbound.envelope.senderId
       });
+      const actorId = preparedInbound.envelope.senderId;
       const sessionBootstrap = this.ensureSessionBootstrap(
         sessionId,
         preparedInbound.envelope.conversationKey,
-        profileResolution
+        profileResolution,
+        actorId
       );
       if (this.shouldSendFirstContactPrompt(commandText, sessionBootstrap)) {
         const prompt = sanitizeUserOutput(this.buildFirstContactPrompt(sessionBootstrap));
@@ -1723,7 +1967,6 @@ export class OpenAssistRuntime {
       const model =
         this.config.providers.find((candidate) => candidate.id === provider.id())?.defaultModel ??
         "unknown";
-      const actorId = preparedInbound.envelope.senderId;
       const toolSchemas = await this.resolveToolSchemasForSession(sessionId, actorId);
       const recentMessages = this.db.getRecentMessages(sessionId, 50);
       const planned = this.contextPlanner.plan(defaultSystemPrompt(), recentMessages);
@@ -1833,6 +2076,8 @@ export class OpenAssistRuntime {
             sessionId,
             preparedInbound.envelope.conversationKey,
             actorId,
+            preparedInbound.envelope.channel,
+            preparedInbound.envelope.transportMessageId,
             toolCall
           );
           const toolMessage: NormalizedMessage = {
@@ -1949,6 +2194,7 @@ export class OpenAssistRuntime {
       try {
         const sent = await channel.send(rendered);
         this.db.recordOutbound(sessionId, rendered, sent.transportMessageId);
+        await this.cleanupOutboundEnvelopeAttachments(rendered);
       } catch (error) {
         const errText = error instanceof Error ? error.message : String(error);
         this.logger.warn(
@@ -1969,6 +2215,220 @@ export class OpenAssistRuntime {
           }
         );
       }
+    }
+  }
+
+  private resolveNotifyTarget(
+    channelId: string,
+    recipientUserId: string
+  ): {
+    channel: ChannelAdapter;
+    channelConfig: RuntimeConfig["channels"][number];
+    channelCapabilities: ChannelCapabilities;
+    conversationKey: string;
+    directRecipientUserId: string;
+  } {
+    const channelConfig = this.channelConfig(channelId);
+    if (!channelConfig || !channelConfig.enabled) {
+      throw new Error(`Target channel ${channelId} is not enabled for outbound notify delivery.`);
+    }
+
+    const channel = this.channels.get(channelId);
+    if (!channel) {
+      throw new Error(`Target channel adapter ${channelId} is not available.`);
+    }
+
+    const channelCapabilities = channel.capabilities();
+    if (!channelCapabilities.supportsDirectRecipientDelivery) {
+      throw new Error(`Target channel ${channelId} does not support direct-recipient delivery.`);
+    }
+
+    const operatorIds = this.channelOperatorIds(channelId);
+    if (!operatorIds.includes(recipientUserId)) {
+      throw new Error(
+        `Recipient ${recipientUserId} is not listed in ${channelId} operatorUserIds for targeted notify delivery.`
+      );
+    }
+
+    if (channelConfig.type === "discord") {
+      const allowedDmUserIds = readStringArraySetting(channelConfig.settings, "allowedDmUserIds");
+      if (!allowedDmUserIds.includes(recipientUserId)) {
+        throw new Error(
+          `Discord direct notify for ${recipientUserId} requires the recipient to be listed in allowedDmUserIds.`
+        );
+      }
+    }
+
+    return {
+      channel,
+      channelConfig,
+      channelCapabilities,
+      conversationKey: recipientUserId,
+      directRecipientUserId: recipientUserId
+    };
+  }
+
+  private async executeChannelSendTool(
+    request: ChannelSendToolRequest,
+    context: {
+      sessionId: string;
+      actorId: string;
+      conversationKey: string;
+      activeChannelType: string;
+      replyToTransportMessageId?: string;
+    }
+  ): Promise<ChannelSendToolResult> {
+    const resolution = await this.policyEngine.resolveProfile({
+      sessionId: context.sessionId,
+      actorId: context.actorId
+    });
+    if (resolution.profile !== "full-root") {
+      throw new Error("channel.send requires a full-root session.");
+    }
+    const approvedOperator = this.policyEngine.isApprovedOperator(
+      context.sessionId,
+      context.actorId
+    );
+
+    const trimmedText = request.text?.trim();
+    const attachmentPaths = request.attachmentPaths ?? [];
+    if ((!trimmedText || trimmedText.length === 0) && attachmentPaths.length === 0) {
+      throw new Error("channel.send requires text or at least one attachment path.");
+    }
+
+    const currentChannelId = channelIdFromSessionId(context.sessionId);
+    const currentChannel = this.channels.get(currentChannelId);
+    const currentChannelConfig = this.channelConfig(currentChannelId);
+    if (!currentChannel || !currentChannelConfig || !currentChannelConfig.enabled) {
+      throw new Error(`Current channel ${currentChannelId} is not available for outbound delivery.`);
+    }
+
+    let targetChannelId = currentChannelId;
+    let targetChannel = currentChannel;
+    let targetChannelConfig = currentChannelConfig;
+    let targetChannelCapabilities = currentChannel.capabilities();
+    let targetConversationKey = context.conversationKey;
+    let directRecipientUserId: string | undefined;
+
+    if (request.mode === "reply") {
+      if (request.recipientUserId) {
+        throw new Error("reply mode cannot set recipientUserId; it always targets the current chat.");
+      }
+      if (request.channelId?.trim() && request.channelId.trim() !== currentChannelId) {
+        throw new Error("reply mode cannot target a different channel; it always uses the current chat.");
+      }
+    } else {
+      if (!approvedOperator) {
+        throw new Error(
+          "notify mode is callable only for approved operator IDs in the current channel."
+        );
+      }
+      if (!request.recipientUserId?.trim()) {
+        throw new Error("notify mode requires recipientUserId.");
+      }
+      targetChannelId = request.channelId?.trim() || currentChannelId;
+      const resolvedTarget = this.resolveNotifyTarget(
+        targetChannelId,
+        request.recipientUserId.trim()
+      );
+      targetChannel = resolvedTarget.channel;
+      targetChannelConfig = resolvedTarget.channelConfig;
+      targetChannelCapabilities = resolvedTarget.channelCapabilities;
+      targetConversationKey = resolvedTarget.conversationKey;
+      directRecipientUserId = resolvedTarget.directRecipientUserId;
+    }
+
+    const notes: string[] = [];
+    let preparedAttachments: OutboundAttachmentRef[] = [];
+    let handedOffToDelivery = false;
+
+    try {
+      if (attachmentPaths.length > 0) {
+        const authorizedPaths: string[] = [];
+        for (const sourcePath of attachmentPaths) {
+          authorizedPaths.push(
+            await this.fsTool.authorizeReadPath({
+              sessionId: context.sessionId,
+              actorId: context.actorId,
+              filePath: sourcePath
+            })
+          );
+        }
+
+        const staged = await stageOutboundAttachments({
+          attachmentsConfig: this.config.attachments,
+          attachmentsDir: this.outboundAttachmentStorageDir(
+            targetChannelId,
+            targetConversationKey,
+            randomToken(10)
+          ),
+          sourcePaths: authorizedPaths,
+          logger: this.logger
+        });
+        preparedAttachments = staged.attachments;
+        notes.push(...staged.notes);
+
+        const unsupportedAttachments = preparedAttachments.filter((attachment) => {
+          return attachment.kind === "image"
+            ? !targetChannelCapabilities.supportsOutboundImageAttachments
+            : !targetChannelCapabilities.supportsOutboundDocumentAttachments;
+        });
+        if (unsupportedAttachments.length > 0) {
+          for (const attachment of unsupportedAttachments) {
+            notes.push(
+              `${attachment.name} was staged but ${targetChannelId} cannot deliver ${attachment.kind} attachments.`
+            );
+          }
+          await cleanupStagedAttachments(unsupportedAttachments);
+          const unsupportedPaths = new Set(unsupportedAttachments.map((attachment) => attachment.localPath));
+          preparedAttachments = preparedAttachments.filter(
+            (attachment) => !unsupportedPaths.has(attachment.localPath)
+          );
+        }
+      }
+
+      const baseText =
+        trimmedText && trimmedText.length > 0
+          ? trimmedText
+          : preparedAttachments.length > 0
+            ? `OpenAssist ${request.mode === "reply" ? "reply" : "notification"}: requested file output attached.`
+            : "OpenAssist could not deliver the requested files.";
+      const outboundText = sanitizeUserOutput(this.appendOutboundNotes(baseText, notes));
+      if (outboundText.trim().length === 0 && preparedAttachments.length === 0) {
+        throw new Error("channel.send had no deliverable text or attachments after staging.");
+      }
+
+      const targetSessionId = `${targetChannelId}:${targetConversationKey}`;
+      await this.sendOutboundWithRetry(targetChannel, targetSessionId, {
+        channel: targetChannelConfig.type,
+        conversationKey: targetConversationKey,
+        text: outboundText,
+        attachments: preparedAttachments,
+        directRecipientUserId,
+        replyToTransportMessageId:
+          request.mode === "reply" ? context.replyToTransportMessageId : undefined,
+        metadata: {
+          source: "tool-channel-send",
+          mode: request.mode,
+          reason: request.reason.trim().slice(0, 200)
+        }
+      });
+      handedOffToDelivery = true;
+
+      return {
+        ok: true,
+        mode: request.mode,
+        channelId: targetChannelId,
+        conversationKey: targetConversationKey,
+        directRecipientUserId,
+        deliveredAttachmentCount: preparedAttachments.length,
+        notes
+      };
+    } catch (error) {
+      if (!handedOffToDelivery && preparedAttachments.length > 0) {
+        await cleanupStagedAttachments(preparedAttachments);
+      }
+      throw error;
     }
   }
 
@@ -2118,7 +2578,7 @@ export class OpenAssistRuntime {
     }
 
     const capabilities = adapter.capabilities();
-    return `${activeChannelId}/${channelType} (formatted=${capabilities.supportsFormattedText ? "yes" : "no"}, images=${capabilities.supportsImageAttachments ? "yes" : "no"}, documents=${capabilities.supportsDocumentAttachments ? "yes" : "no"})`;
+    return `${activeChannelId}/${channelType} (formatted=${capabilities.supportsFormattedText ? "yes" : "no"}, inboundImages=${capabilities.supportsImageAttachments ? "yes" : "no"}, inboundDocuments=${capabilities.supportsDocumentAttachments ? "yes" : "no"}, outboundFiles=${capabilities.supportsOutboundImageAttachments || capabilities.supportsOutboundDocumentAttachments ? "yes" : "no"}, directNotify=${capabilities.supportsDirectRecipientDelivery ? "yes" : "no"})`;
   }
 
   private async ensureSessionAwareness(
@@ -2133,12 +2593,12 @@ export class OpenAssistRuntime {
       sessionId,
       actorId: senderId
     });
-    const bootstrap = this.ensureSessionBootstrap(sessionId, conversationKey, resolution);
+    const bootstrap = this.ensureSessionBootstrap(sessionId, conversationKey, resolution, senderId);
     return {
       resolution,
       awareness:
         this.awarenessFromSystemProfile(bootstrap.systemProfile) ??
-        this.buildAwarenessSnapshot(sessionId, conversationKey, resolution)
+        this.buildAwarenessSnapshot(sessionId, conversationKey, resolution, senderId)
     };
   }
 
@@ -2194,6 +2654,8 @@ export class OpenAssistRuntime {
       `- access source: ${describeAccessSource(toolsStatus.profileSource)}`,
       `- service boundary: ${formatServiceBoundaryLine(awareness)}`,
       `- service boundary notes: ${formatServiceBoundaryNotes(awareness)}`,
+      `- delivery boundary: ${formatDeliveryBoundaryLine(awareness)}`,
+      `- delivery notes: ${formatDeliveryBoundaryNotes(awareness)}`,
       `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
       "Capability domains",
       ...awareness.capabilityDomains.flatMap((domain) => [
@@ -2334,11 +2796,13 @@ export class OpenAssistRuntime {
   private buildAwarenessSnapshot(
     sessionId: string,
     conversationKey: string,
-    resolution: PolicyResolution
+    resolution: PolicyResolution,
+    actorId?: string
   ): RuntimeAwarenessSnapshot {
     const activeChannelId = channelIdFromSessionId(sessionId);
     const activeChannelType = this.channelTypes.get(activeChannelId) ?? "unknown";
     const activeChannel = this.channels.get(activeChannelId);
+    const channelCapabilities = activeChannel?.capabilities() ?? defaultChannelCapabilities();
     const provider = this.providers.get(this.config.defaultProviderId);
     const runtimeStatus = this.getStatus();
     const schedulerStatus = this.getSchedulerStatus();
@@ -2346,7 +2810,9 @@ export class OpenAssistRuntime {
       ([moduleId, status]) => `${moduleId}=${status}`
     );
     const configuredToolNames = this.enabledToolSchemas().map((item) => item.name);
-    const callableToolNames = resolution.profile === "full-root" ? configuredToolNames : [];
+    const callableToolNames = this.callableToolSchemas(sessionId, actorId, resolution).map(
+      (item) => item.name
+    );
     const liveSkills = this.listInstalledSkillsSync();
     const managedHelpers = this.db.listManagedCapabilities("helper-tool");
     return buildRuntimeAwarenessSnapshot({
@@ -2385,15 +2851,9 @@ export class OpenAssistRuntime {
         supportsApiKeys: false,
         supportsImageInputs: false
       },
-      channelCapabilities: activeChannel?.capabilities() ?? {
-        supportsEdits: false,
-        supportsDeletes: false,
-        supportsReadReceipts: false,
-        supportsFormattedText: false,
-        supportsImageAttachments: false,
-        supportsDocumentAttachments: false
-      },
+      channelCapabilities,
       systemdFilesystemAccessConfigured: this.config.service?.systemdFilesystemAccess ?? "hardened",
+      delivery: this.buildDeliveryAwareness(sessionId, actorId, resolution, channelCapabilities),
       scheduler: {
         enabled: schedulerStatus.enabled,
         running: schedulerStatus.running,
@@ -2416,14 +2876,24 @@ export class OpenAssistRuntime {
       return null;
     }
     const candidate = awareness as Partial<RuntimeAwarenessSnapshot>;
-    if (!candidate.service || typeof candidate.service !== "object" || Array.isArray(candidate.service)) {
-      return {
-        ...(candidate as RuntimeAwarenessSnapshot),
-        version: 4,
-        service: defaultServiceAwareness(this.config, this.installContext)
-      };
-    }
-    return candidate as RuntimeAwarenessSnapshot;
+    return {
+      ...(candidate as RuntimeAwarenessSnapshot),
+      version: 5,
+      service:
+        !candidate.service || typeof candidate.service !== "object" || Array.isArray(candidate.service)
+          ? defaultServiceAwareness(this.config, this.installContext)
+          : candidate.service,
+      delivery:
+        !candidate.delivery || typeof candidate.delivery !== "object" || Array.isArray(candidate.delivery)
+          ? {
+              outboundFileRepliesAvailable: false,
+              operatorNotifyAvailable: false,
+              channelSupportsOutboundFiles: false,
+              channelSupportsDirectRecipientDelivery: false,
+              notes: ["Delivery availability was not recorded in this older session bootstrap."]
+            }
+          : candidate.delivery
+    };
   }
 
   private summarizeStoredSystemProfile(systemProfile: Record<string, unknown>): string {
@@ -2441,7 +2911,8 @@ export class OpenAssistRuntime {
   private ensureSessionBootstrap(
     sessionId: string,
     conversationKey: string,
-    resolution: PolicyResolution
+    resolution: PolicyResolution,
+    actorId?: string
   ): {
     sessionId: string;
     assistantName: string;
@@ -2453,7 +2924,7 @@ export class OpenAssistRuntime {
   } {
     const assistant = this.getGlobalAssistantProfile();
     const existing = this.db.getSessionBootstrap(sessionId);
-    const awareness = this.buildAwarenessSnapshot(sessionId, conversationKey, resolution);
+    const awareness = this.buildAwarenessSnapshot(sessionId, conversationKey, resolution, actorId);
     const initializedAt = existing?.createdAt ?? new Date().toISOString();
     const systemProfile = {
       ...this.hostSystemProfile,
@@ -2576,7 +3047,8 @@ export class OpenAssistRuntime {
     const bootstrap = this.ensureSessionBootstrap(
       sessionId,
       envelope.conversationKey,
-      resolution
+      resolution,
+      envelope.senderId
     );
     const global = this.getGlobalAssistantProfile();
     const profileCommand = parseProfileCommand(envelope.text ?? "");
@@ -2683,6 +3155,8 @@ export class OpenAssistRuntime {
         : "- note: only explicitly approved operator IDs may change access in chat",
       `- service boundary: ${formatServiceBoundaryLine(awareness)}`,
       `- service boundary notes: ${formatServiceBoundaryNotes(awareness)}`,
+      `- delivery boundary: ${formatDeliveryBoundaryLine(awareness)}`,
+      `- delivery notes: ${formatDeliveryBoundaryNotes(awareness)}`,
       "- full access enables OpenAssist full-root tools. It does not grant Unix root or bypass host or service sandboxing."
     ].join("\n");
   }
@@ -2812,6 +3286,8 @@ export class OpenAssistRuntime {
       `- awareness: ${summarizeRuntimeAwareness(awareness)}`,
       `- service boundary: ${formatServiceBoundaryLine(awareness)}`,
       `- service boundary notes: ${formatServiceBoundaryNotes(awareness)}`,
+      `- delivery boundary: ${formatDeliveryBoundaryLine(awareness)}`,
+      `- delivery notes: ${formatDeliveryBoundaryNotes(awareness)}`,
       `- host: platform=${awareness.host.platform}, release=${awareness.host.release}, arch=${awareness.host.arch}, hostname=${awareness.host.hostname}, node=${awareness.host.nodeVersion}`,
       `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
       `- configured tool families: ${toolsStatus.configuredTools.join(", ") || "none"}`,
@@ -2847,10 +3323,7 @@ export class OpenAssistRuntime {
 
   private async resolveToolSchemasForSession(sessionId: string, actorId: string): Promise<ToolSchema[]> {
     const resolution = await this.policyEngine.resolveProfile({ sessionId, actorId });
-    if (resolution.profile !== "full-root") {
-      return [];
-    }
-    return this.enabledToolSchemas();
+    return this.callableToolSchemas(sessionId, actorId, resolution);
   }
 
   private enabledToolSchemas(): ToolSchema[] {
@@ -2929,6 +3402,8 @@ export class OpenAssistRuntime {
     sessionId: string,
     conversationKey: string,
     actorId: string,
+    activeChannelType: string,
+    replyToTransportMessageId: string | undefined,
     toolCall: ToolCall
   ): Promise<ToolExecutionRecord> {
     const request = (() => {
@@ -2962,7 +3437,13 @@ export class OpenAssistRuntime {
     );
 
     const startedAt = Date.now();
-    const execution = await this.toolRouter.execute(toolCall, { sessionId, actorId });
+    const execution = await this.toolRouter.execute(toolCall, {
+      sessionId,
+      actorId,
+      conversationKey,
+      activeChannelType,
+      replyToTransportMessageId
+    });
     const durationMs = Date.now() - startedAt;
     const auditResult = redactSensitiveData(execution.result) as Record<string, unknown>;
 

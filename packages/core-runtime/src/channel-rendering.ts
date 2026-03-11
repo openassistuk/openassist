@@ -311,6 +311,8 @@ export function renderOutboundEnvelope(outbound: OutboundEnvelope): Array<Outbou
   return chunks.map((chunk, index) => ({
     ...outbound,
     text: chunk.text,
+    attachments: index === 0 ? outbound.attachments : undefined,
+    directRecipientUserId: outbound.directRecipientUserId,
     replyToTransportMessageId: index === 0 ? outbound.replyToTransportMessageId : undefined,
     metadata: chunk.metadata
   }));

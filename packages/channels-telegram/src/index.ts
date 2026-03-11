@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { Bot } from "grammy";
+import { Bot, InputFile } from "grammy";
 import { z } from "zod";
 import type {
   AttachmentRef,
@@ -24,6 +24,7 @@ const configSchema = z.object({
 export interface TelegramChannelConfig extends z.infer<typeof configSchema> {}
 
 const MAX_TELEGRAM_ATTACHMENT_DOWNLOAD_BYTES = 20_000_000;
+const TELEGRAM_CAPTION_LIMIT = 1024;
 
 function sanitizeFileName(value: string | undefined, fallback: string): string {
   const normalized = (value ?? "").trim();
@@ -192,6 +193,17 @@ function parseConversationKey(conversationKey: string): { chatId: string; thread
   };
 }
 
+function appendDeliveryNotes(text: string | undefined, notes: string[]): string {
+  const filtered = notes.filter((note) => note.trim().length > 0);
+  if (filtered.length === 0) {
+    return text?.trim() ?? "";
+  }
+
+  const noteBlock = `OpenAssist notes:\n${filtered.map((note) => `- ${note}`).join("\n")}`;
+  const trimmed = text?.trim() ?? "";
+  return trimmed.length > 0 ? `${trimmed}\n\n${noteBlock}` : noteBlock;
+}
+
 export class TelegramChannelAdapter implements ChannelAdapter {
   private readonly config: TelegramChannelConfig;
   private bot: Bot | null = null;
@@ -212,7 +224,10 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       supportsReadReceipts: false,
       supportsFormattedText: true,
       supportsImageAttachments: true,
-      supportsDocumentAttachments: true
+      supportsDocumentAttachments: true,
+      supportsOutboundImageAttachments: true,
+      supportsOutboundDocumentAttachments: true,
+      supportsDirectRecipientDelivery: true
     };
   }
 
@@ -299,19 +314,84 @@ export class TelegramChannelAdapter implements ChannelAdapter {
     if (!this.bot) {
       throw new Error("Telegram adapter is not running");
     }
-    const target = parseConversationKey(msg.conversationKey);
 
-    const response = await this.bot.api.sendMessage(target.chatId, msg.text, {
-      message_thread_id: target.threadId,
-      parse_mode: msg.metadata.renderFormat === "telegram-html" ? "HTML" : undefined,
-      reply_parameters:
-        this.config.responseMode === "reply-threaded" && msg.replyToTransportMessageId
-          ? { message_id: Number(msg.replyToTransportMessageId) }
-          : undefined
+    const target = parseConversationKey(msg.directRecipientUserId ?? msg.conversationKey);
+    const parseMode = msg.metadata.renderFormat === "telegram-html" ? ("HTML" as const) : undefined;
+    const replyParameters =
+      !msg.directRecipientUserId &&
+      this.config.responseMode === "reply-threaded" &&
+      msg.replyToTransportMessageId
+        ? { message_id: Number(msg.replyToTransportMessageId) }
+        : undefined;
+    const threadId = !msg.directRecipientUserId ? target.threadId : undefined;
+    const missingAttachmentNotes: string[] = [];
+    const attachments = (msg.attachments ?? []).filter((attachment) => {
+      if (fs.existsSync(attachment.localPath)) {
+        return true;
+      }
+      missingAttachmentNotes.push(
+        `${attachment.name} could not be attached because the staged file is missing.`
+      );
+      return false;
     });
+    const text = appendDeliveryNotes(msg.text, missingAttachmentNotes);
+
+    if (attachments.length === 0) {
+      const response = await this.bot.api.sendMessage(
+        target.chatId,
+        text || "OpenAssist could not deliver the requested files.",
+        {
+          message_thread_id: threadId,
+          parse_mode: parseMode,
+          reply_parameters: replyParameters
+        }
+      );
+
+      return {
+        transportMessageId: String(response.message_id)
+      };
+    }
+
+    const captionText = text.length > 0 && text.length <= TELEGRAM_CAPTION_LIMIT ? text : undefined;
+    const trailingText = text.length > 0 && !captionText ? text : undefined;
+    let firstMessageId = "";
+    for (const [index, attachment] of attachments.entries()) {
+      const sendOptions = {
+        message_thread_id: threadId,
+        parse_mode: index === 0 && captionText ? parseMode : undefined,
+        reply_parameters: index === 0 ? replyParameters : undefined
+      };
+      const response =
+        attachment.kind === "image"
+          ? await this.bot.api.sendPhoto(
+              target.chatId,
+              new InputFile(attachment.localPath, attachment.name),
+              {
+                ...sendOptions,
+                caption: index === 0 ? captionText : undefined
+              }
+            )
+          : await this.bot.api.sendDocument(
+              target.chatId,
+              new InputFile(attachment.localPath, attachment.name),
+              {
+                ...sendOptions,
+                caption: index === 0 ? captionText : undefined
+              }
+            );
+      firstMessageId ||= String(response.message_id);
+    }
+
+    if (trailingText) {
+      const response = await this.bot.api.sendMessage(target.chatId, trailingText, {
+        message_thread_id: threadId,
+        parse_mode: parseMode
+      });
+      firstMessageId ||= String(response.message_id);
+    }
 
     return {
-      transportMessageId: String(response.message_id)
+      transportMessageId: firstMessageId || `telegram:${Date.now()}`
     };
   }
 

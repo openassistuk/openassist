@@ -689,6 +689,7 @@ export class OpenAssistDatabase {
   }
 
   recordOutbound(sessionId: string, envelope: OutboundEnvelope, transportMessageId: string): void {
+    this.ensureSession(sessionId, envelope.conversationKey);
     this.db
       .prepare(
         `

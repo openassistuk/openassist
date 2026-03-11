@@ -6,6 +6,7 @@ export type EffectivePolicySource =
   | "actor-override";
 
 export type ToolAction =
+  | "channel.send"
   | "exec.run"
   | "fs.read"
   | "fs.write"

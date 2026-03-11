@@ -217,6 +217,8 @@ If you opt into full access, quickstart asks for approved operator IDs for the c
 On Linux, quickstart also asks whether the daemon should keep the hardened systemd sandbox or switch to unrestricted systemd filesystem access when you choose full access.
 If you configure approved operator IDs later through `openassist setup wizard`, the channel flow now also prompts to switch the install to `Full access for approved operators`, and Linux wizard editing exposes the same systemd filesystem mode separately.
 Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`.
+Generated files can now be returned through the active Telegram, Discord, or WhatsApp chat when the current session can call `channel.send`; OpenAssist no longer has to stop at a local filesystem path.
+Targeted operator notifications stay bounded to `channels[*].settings.operatorUserIds`, and Discord still requires the same recipient in `allowedDmUserIds` before a direct DM send is allowed.
 
 ### 4. Check install and runtime readiness
 

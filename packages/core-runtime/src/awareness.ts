@@ -72,6 +72,7 @@ export interface RuntimeAwarenessBuildInput {
   providerCapabilities: ProviderCapabilities;
   channelCapabilities: ChannelCapabilities;
   systemdFilesystemAccessConfigured: RuntimeSystemdFilesystemAccess;
+  delivery: RuntimeAwarenessSnapshot["delivery"];
   scheduler: {
     enabled: boolean;
     running: boolean;
@@ -197,6 +198,12 @@ function buildLimitations(input: RuntimeAwarenessBuildInput): string[] {
   if (input.callableToolNames.length === 0) {
     limitations.push("No autonomous tools are callable in the current session.");
   }
+  if (!input.delivery.outboundFileRepliesAvailable) {
+    limitations.push("Outbound file replies are not currently available in this session.");
+  }
+  if (!input.delivery.operatorNotifyAvailable) {
+    limitations.push("Targeted operator notifications are not currently callable in this session.");
+  }
   if (input.profile === "full-root" && isSystemdManager(serviceBoundary.manager)) {
     if (serviceBoundary.effective === "hardened") {
       limitations.push(
@@ -289,6 +296,12 @@ function buildBlockedReasons(
         "The active Linux systemd filesystem mode is unknown in this process, so package installs and broader host writes are not guaranteed until the managed service reports its live boundary."
       );
     }
+  }
+  if (!input.delivery.outboundFileRepliesAvailable && input.delivery.notes.length > 0) {
+    reasons.push(input.delivery.notes[0]);
+  }
+  if (!input.delivery.operatorNotifyAvailable && input.delivery.notes.length > 1) {
+    reasons.push(input.delivery.notes[1]);
   }
 
   return reasons;
@@ -516,13 +529,22 @@ function buildService(
   return buildRuntimeServiceAwareness(input);
 }
 
+function buildDelivery(
+  input: RuntimeAwarenessBuildInput
+): RuntimeAwarenessSnapshot["delivery"] {
+  return {
+    ...input.delivery,
+    notes: [...input.delivery.notes]
+  };
+}
+
 export function buildRuntimeAwarenessSnapshot(
   input: RuntimeAwarenessBuildInput
 ): RuntimeAwarenessSnapshot {
   const callableWebTools = input.callableToolNames.filter((item) => item.startsWith("web."));
   const capabilities = buildCapabilities(input);
   return {
-    version: 4,
+    version: 5,
     software: {
       product: "OpenAssist",
       role: "local-first machine assistant with bounded host, chat, tool, and lifecycle awareness",
@@ -566,6 +588,7 @@ export function buildRuntimeAwarenessSnapshot(
               : ["Native web search is unavailable until OPENASSIST_TOOLS_WEB_BRAVE_API_KEY is configured or fallback mode is enabled."]
     },
     service: buildService(input),
+    delivery: buildDelivery(input),
     capabilities,
     capabilityDomains: buildCapabilityDomains(input, capabilities),
     documentation: {
@@ -604,6 +627,7 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
     `- subsystems: ${joinOrNone(snapshot.runtime.modules)}`,
     `- access: profile=${snapshot.policy.profile}, source=${snapshot.policy.source}, callableTools=${joinOrNone(snapshot.policy.callableToolNames)}`,
     `- service: manager=${snapshot.service.manager}, systemdConfigured=${snapshot.service.systemdFilesystemAccessConfigured}, systemdEffective=${snapshot.service.systemdFilesystemAccessEffective}, notes=${joinOrNone(snapshot.service.notes)}`,
+    `- delivery: fileReplies=${yesNo(snapshot.delivery.outboundFileRepliesAvailable)}, notify=${yesNo(snapshot.delivery.operatorNotifyAvailable)}, channelSupportsFiles=${yesNo(snapshot.delivery.channelSupportsOutboundFiles)}, channelSupportsDirectNotify=${yesNo(snapshot.delivery.channelSupportsDirectRecipientDelivery)}, notes=${joinOrNone(snapshot.delivery.notes)}`,
     `- capabilities now: inspectFiles=${yesNo(snapshot.capabilities.canInspectLocalFiles)}, runCommands=${yesNo(snapshot.capabilities.canRunLocalCommands)}, editConfig=${yesNo(snapshot.capabilities.canEditConfig)}, editDocs=${yesNo(snapshot.capabilities.canEditDocs)}, editCode=${yesNo(snapshot.capabilities.canEditCode)}, serviceControl=${yesNo(snapshot.capabilities.canControlService)}, nativeWeb=${yesNo(snapshot.capabilities.nativeWebAvailable)}`,
     "- capability domains:",
     ...capabilityDomainLines,
@@ -626,6 +650,7 @@ export function summarizeRuntimeAwareness(snapshot: RuntimeAwarenessSnapshot): s
     `profile=${snapshot.policy.profile}`,
     `source=${snapshot.policy.source}`,
     `service=${snapshot.service.manager}:${snapshot.service.systemdFilesystemAccessConfigured}->${snapshot.service.systemdFilesystemAccessEffective}`,
+    `delivery=${snapshot.delivery.outboundFileRepliesAvailable ? "reply" : "blocked"}/${snapshot.delivery.operatorNotifyAvailable ? "notify" : "no-notify"}`,
     `fileEdits=${snapshot.capabilities.canEditConfig || snapshot.capabilities.canEditDocs || snapshot.capabilities.canEditCode ? "available" : "blocked"}`,
     `serviceControl=${snapshot.capabilities.canControlService ? "available" : "blocked"}`,
     `web=${snapshot.capabilities.nativeWebAvailable ? "available" : snapshot.web.searchStatus}`,

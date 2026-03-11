@@ -6,6 +6,30 @@ export function runtimeToolSchemas(options?: {
 }): ToolSchema[] {
   const schemas: ToolSchema[] = [
     {
+      name: "channel.send",
+      description:
+        "Return a user-requested local artifact through the current chat, or send a targeted notification to a specifically listed approved operator when that is genuinely required.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["mode", "reason"],
+        properties: {
+          mode: {
+            type: "string",
+            enum: ["reply", "notify"]
+          },
+          text: { type: "string" },
+          attachmentPaths: {
+            type: "array",
+            items: { type: "string" }
+          },
+          channelId: { type: "string" },
+          recipientUserId: { type: "string" },
+          reason: { type: "string" }
+        }
+      }
+    },
+    {
       name: "exec.run",
       description: "Run a shell command on the local machine.",
       inputSchema: {

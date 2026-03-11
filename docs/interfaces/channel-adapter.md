@@ -24,11 +24,16 @@ Required booleans:
 - `supportsFormattedText`
 - `supportsImageAttachments`
 - `supportsDocumentAttachments`
+- `supportsOutboundImageAttachments`
+- `supportsOutboundDocumentAttachments`
+- `supportsDirectRecipientDelivery`
 
 Rules:
 
 - report `supportsFormattedText=true` only when the adapter can safely preserve structured headings, lists, code fences, and links through the shared rendering path
-- report attachment booleans based on actual inbound support, not aspirational platform support
+- report inbound attachment booleans based on actual inbound support, not aspirational platform support
+- report outbound attachment booleans based on real send support for staged runtime-owned files, not on platform marketing claims
+- report `supportsDirectRecipientDelivery=true` only when the adapter can address a specific recipient outside the current chat route without broadcasting
 - do not overclaim image or document support when the adapter only handles text captions or metadata
 
 ## Inbound Envelope Contract
@@ -62,6 +67,8 @@ Attachment rules:
 - channel type
 - conversation key
 - text body
+- optional staged outbound attachments owned by the runtime
+- optional direct-recipient user ID for bounded targeted delivery
 - optional reply target transport message ID
 - metadata map
 
@@ -97,6 +104,6 @@ Adapters must provide:
 
 Supported first-class scope:
 
-- Telegram: private chats, groups, forum topics; inbound photos and supported documents; outbound HTML rendering
-- Discord: guild text channels, threads, DMs; inbound image and supported document attachments; outbound text-based channel sends with reply references
-- WhatsApp MD: private chats and groups; inbound image and supported document messages; outbound quoted replies where supported
+- Telegram: private chats, groups, forum topics; inbound photos and supported documents; outbound HTML rendering plus staged photo/document delivery; direct-recipient private-chat sends for bounded operator notify
+- Discord: guild text channels, threads, DMs; inbound image and supported document attachments; outbound text-plus-file sends with reply references; direct-recipient DM delivery when `allowedDmUserIds` permits it
+- WhatsApp MD: private chats and groups; inbound image and supported document messages; outbound quoted replies, staged document/image delivery, and exact-JID direct-recipient sends where configured

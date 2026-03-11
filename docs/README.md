@@ -115,6 +115,7 @@ First-class channel scope:
 - WhatsApp MD: private chats, groups
 
 Inbound images and supported text-like documents now flow through the runtime as durable attachment metadata. OpenAI, Codex, and Anthropic can inspect inbound images; OpenAI-compatible providers stay text-only and surface an explicit note when image understanding is unavailable.
+Generated files can also be returned back through the active Telegram, Discord, or WhatsApp chat when the current session can call `channel.send`. Targeted operator notifications stay bounded to `channels[*].settings.operatorUserIds`, with Discord additionally requiring `allowedDmUserIds` overlap for DM delivery.
 
 Primary runbooks:
 

@@ -68,6 +68,54 @@ class BlockingAuditProvider implements ProviderAdapter {
   }
 }
 
+class SuccessfulChannelSendAuditProvider implements ProviderAdapter {
+  private call = 0;
+
+  id(): string {
+    return "mock-provider";
+  }
+
+  capabilities(): ProviderCapabilities {
+    return {
+      supportsStreaming: false,
+      supportsTools: true,
+      supportsOAuth: false,
+      supportsApiKeys: true,
+      supportsImageInputs: false
+    };
+  }
+
+  async validateConfig(): Promise<ValidationResult> {
+    return { valid: true, errors: [] };
+  }
+
+  async chat(_req: ChatRequest, _auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
+    this.call += 1;
+    if (this.call === 1) {
+      return {
+        output: { role: "assistant", content: "" },
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        toolCalls: [
+          {
+            id: "deliver-1",
+            name: "channel.send",
+            argumentsJson: JSON.stringify({
+              mode: "reply",
+              text: "audit-visible reply",
+              reason: "return a bounded audit-visible runtime message"
+            })
+          }
+        ]
+      };
+    }
+
+    return {
+      output: { role: "assistant", content: "delivery handled" },
+      usage: { inputTokens: 2, outputTokens: 2, totalTokens: 4 }
+    };
+  }
+}
+
 class MockChannel implements ChannelAdapter {
   public sent: OutboundEnvelope[] = [];
   private handler: ((msg: InboundEnvelope) => Promise<void>) | null = null;
@@ -83,7 +131,10 @@ class MockChannel implements ChannelAdapter {
       supportsReadReceipts: false,
       supportsFormattedText: true,
       supportsImageAttachments: true,
-      supportsDocumentAttachments: true
+      supportsDocumentAttachments: true,
+      supportsOutboundImageAttachments: true,
+      supportsOutboundDocumentAttachments: true,
+      supportsDirectRecipientDelivery: true
     };
   }
 
@@ -206,6 +257,46 @@ describe("runtime tool audit", () => {
     assert.equal(rows[0]?.request.command, "rm -rf /");
     assert.ok(typeof rows[0]?.durationMs === "number");
     assert.ok(rows[0]?.finishedAt);
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("persists successful channel.send tool results in the audit trail", async () => {
+    const root = tempDir("openassist-tool-audit-channel-send-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const channel = new MockChannel();
+    const runtime = new OpenAssistRuntime(
+      baseConfig(root),
+      { db, logger },
+      { providers: [new SuccessfulChannelSendAuditProvider()], channels: [channel] }
+    );
+
+    runtime.setProviderApiKey("mock-provider", "key");
+    await runtime.start();
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-mock",
+      transportMessageId: "m1",
+      conversationKey: "conv-audit-channel-send",
+      senderId: "u1",
+      text: "send a runtime note",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "audit-2"
+    });
+
+    const rows = runtime.listToolInvocations("telegram-mock:conv-audit-channel-send", 10);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.status, "succeeded");
+    assert.equal(rows[0]?.toolName, "channel.send");
+    assert.equal(rows[0]?.request.mode, "reply");
+    assert.equal(rows[0]?.request.reason, "return a bounded audit-visible runtime message");
+    assert.equal(rows[0]?.result.mode, "reply");
+    assert.equal(rows[0]?.result.deliveredAttachmentCount, 0);
+    assert.ok(channel.sent.some((message) => message.text === "audit-visible reply"));
 
     await runtime.stop();
     db.close();

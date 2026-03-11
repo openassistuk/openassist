@@ -1,4 +1,9 @@
-import type { AttachmentRef, HealthStatus, ValidationResult } from "./common.js";
+import type {
+  AttachmentRef,
+  HealthStatus,
+  OutboundAttachmentRef,
+  ValidationResult
+} from "./common.js";
 
 export interface InboundEnvelope {
   channel: "telegram" | "discord" | "whatsapp-md";
@@ -16,6 +21,8 @@ export interface OutboundEnvelope {
   channel: string;
   conversationKey: string;
   text: string;
+  attachments?: OutboundAttachmentRef[];
+  directRecipientUserId?: string;
   replyToTransportMessageId?: string;
   metadata: Record<string, string>;
 }
@@ -27,6 +34,9 @@ export interface ChannelCapabilities {
   supportsFormattedText: boolean;
   supportsImageAttachments: boolean;
   supportsDocumentAttachments: boolean;
+  supportsOutboundImageAttachments: boolean;
+  supportsOutboundDocumentAttachments: boolean;
+  supportsDirectRecipientDelivery: boolean;
 }
 
 export interface ChannelAdapter {

@@ -67,12 +67,14 @@ describe("cli setup wizard", () => {
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const state = loadSetupWizardState(configPath, envPath);
+    const linuxSystemdAnswers = process.platform === "linux" ? ["hardened"] : [];
     const prompts = new ScriptedPromptAdapter([
       // Runtime
       "runtime",
       "127.0.0.1",
       "4455",
       "standard",
+      ...linuxSystemdAnswers,
       path.join(root, "data"),
       path.join(root, "skills"),
       path.join(root, "logs"),

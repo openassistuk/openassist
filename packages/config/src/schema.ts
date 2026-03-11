@@ -395,8 +395,13 @@ const securitySchema = z.object({
   secretsBackend: z.enum(["encrypted-file"]).default("encrypted-file")
 });
 
+const serviceSchema = z.object({
+  systemdFilesystemAccess: z.enum(["hardened", "unrestricted"]).default("hardened")
+});
+
 export const openAssistConfigSchema = z.object({
   runtime: runtimeSchema,
+  service: serviceSchema.default({}),
   tools: z
     .object({
       fs: toolPoliciesSchema.default({}),
@@ -426,6 +431,7 @@ export function toRuntimeConfig(config: OpenAssistConfig): RuntimeConfig {
     workspaceRoot: config.runtime.workspaceRoot,
     assistant: config.runtime.assistant,
     attachments: config.runtime.attachments,
+    service: config.service,
     paths: config.runtime.paths,
     time: config.runtime.time,
     scheduler: config.runtime.scheduler,

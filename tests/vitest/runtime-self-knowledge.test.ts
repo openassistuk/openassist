@@ -75,6 +75,7 @@ describe("runtime self-knowledge", () => {
         supportsImageAttachments: true,
         supportsDocumentAttachments: true
       },
+      systemdFilesystemAccessConfigured: "hardened",
       scheduler: {
         enabled: true,
         running: true,
@@ -95,11 +96,18 @@ describe("runtime self-knowledge", () => {
         configPath: "/srv/openassist/openassist.toml",
         envFilePath: "/home/test/.config/openassist/openassistd.env",
         trackedRef: "main",
-        lastKnownGoodCommit: "abc123"
+        lastKnownGoodCommit: "abc123",
+        serviceManager: "systemd-system",
+        systemdFilesystemAccessEffective: "hardened"
       }
     });
 
-    expect(snapshot.version).toBe(3);
+    expect(snapshot.version).toBe(4);
+    expect(snapshot.service).toMatchObject({
+      manager: "systemd-system",
+      systemdFilesystemAccessConfigured: "hardened",
+      systemdFilesystemAccessEffective: "hardened"
+    });
     expect(snapshot.capabilities.canInspectLocalFiles).toBe(true);
     expect(snapshot.capabilities.canRunLocalCommands).toBe(true);
     expect(snapshot.capabilities.canEditConfig).toBe(true);
@@ -132,6 +140,7 @@ describe("runtime self-knowledge", () => {
     expect(rendered).toMatch(/docs\/interfaces\/skills-manifest\.md/i);
     expect(rendered).toMatch(/config=\/srv\/openassist\/openassist\.toml/i);
     expect(rendered).toMatch(/activeChannel=telegram-main\/telegram/i);
+    expect(rendered).toMatch(/systemdConfigured=hardened/i);
     expect(rendered).toMatch(/capability domains:/i);
     expect(rendered).toMatch(/growth: mode=extensions-first/i);
     expect(rendered).toMatch(/protected surfaces:/i);
@@ -176,6 +185,7 @@ describe("runtime self-knowledge", () => {
         supportsImageAttachments: true,
         supportsDocumentAttachments: true
       },
+      systemdFilesystemAccessConfigured: "hardened",
       scheduler: {
         enabled: true,
         running: false,
@@ -194,7 +204,9 @@ describe("runtime self-knowledge", () => {
       installContext: {
         repoBackedInstall: true,
         installDir: "/srv/openassist",
-        configPath: "/srv/openassist/openassist.toml"
+        configPath: "/srv/openassist/openassist.toml",
+        serviceManager: "systemd-user",
+        systemdFilesystemAccessEffective: "hardened"
       }
     });
 
@@ -206,6 +218,7 @@ describe("runtime self-knowledge", () => {
     expect(snapshot.capabilities.canControlService).toBe(false);
     expect(snapshot.capabilities.nativeWebAvailable).toBe(false);
     expect(snapshot.capabilities.blockedReasons.join(" ")).toMatch(/advisory-only/i);
+    expect(snapshot.service.notes.join(" ")).toMatch(/package installs, sudo, and broader host writes may still be blocked/i);
     expect(snapshot.maintenance.safeEditRules[0]).toMatch(/diagnose and advise/i);
     expect(snapshot.capabilityDomains.find((domain) => domain.id === "capability-growth")?.available).toBe(false);
   });

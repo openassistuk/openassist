@@ -72,6 +72,8 @@ describe("loadRuntimeInstallContext", () => {
     expect(context.configPath).toBe(configPath);
     expect(context.trackedRef).toBeUndefined();
     expect(context.lastKnownGoodCommit).toBeUndefined();
+    expect(context.serviceManager).toBe("unknown");
+    expect(context.systemdFilesystemAccessEffective).toBe("unknown");
     expect(warnings).toHaveLength(1);
     expect(warnings[0]?.message).toBe("runtime install context git probe failed");
     expect(warnings[0]?.payload).toMatchObject({
@@ -79,5 +81,26 @@ describe("loadRuntimeInstallContext", () => {
       gitArgs: ["rev-parse", "--abbrev-ref", "HEAD"],
       error: expect.stringMatching(/ETIMEDOUT/i)
     });
+  });
+
+  it("reads live service manager and systemd filesystem mode from env when present", async () => {
+    const root = tempDir("openassist-install-context-service-env-");
+    const homeDir = path.join(root, "home");
+    const configPath = path.join(root, "openassist.toml");
+
+    fs.mkdirSync(path.join(homeDir, ".config", "openassist"), { recursive: true });
+    fs.writeFileSync(configPath, "bindAddress = \"127.0.0.1\"\n", "utf8");
+
+    vi.stubEnv("HOME", homeDir);
+    vi.stubEnv("USERPROFILE", homeDir);
+    vi.stubEnv("OPENASSIST_ENV_FILE", "");
+    vi.stubEnv("OPENASSIST_SERVICE_MANAGER_KIND", "systemd-system");
+    vi.stubEnv("OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS", "unrestricted");
+
+    const { loadRuntimeInstallContext } = await import("../../apps/openassistd/src/install-context.js");
+    const context = loadRuntimeInstallContext(configPath);
+
+    expect(context.serviceManager).toBe("systemd-system");
+    expect(context.systemdFilesystemAccessEffective).toBe("unrestricted");
   });
 });

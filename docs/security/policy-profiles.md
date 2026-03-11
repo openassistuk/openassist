@@ -16,6 +16,7 @@ Beginner-facing setup language now uses `access mode`:
 - `Standard mode (recommended)` keeps the default chat access at `operator`
 - `Full access for approved operators` keeps the default chat access at `operator`, but lets explicitly approved sender IDs default to `full-root`
 - approved operator IDs are configured per channel in `channels[*].settings.operatorUserIds`
+- Linux systemd filesystem access is a separate service-level setting under `[service].systemdFilesystemAccess`; the default is `hardened`
 
 ## Action Model
 
@@ -24,6 +25,7 @@ Current policy behavior:
 - `restricted`: OAuth flows only
 - `operator`: adds controlled `exec.run`, `fs.read`, `fs.write`
 - `full-root`: adds `fs.delete`, `pkg.install`, `web.search`, `web.fetch`, and `web.run` with autonomous chat tool execution eligibility
+- Linux systemd service hardening can still narrow the live host-write boundary even when the effective profile is `full-root`; choose `unrestricted` service mode only when that broader host impact is intentional
 
 Autonomous chat tool loop gate:
 
@@ -66,7 +68,7 @@ If scheduled shell or direct FS actions are introduced later, policy action cont
 - sender-specific access overrides live in `actor_policy_profiles`
 - tool actions are auditable in `tool_invocations` (request/result payloads are redacted before persistence/retrieval)
 - scheduler and clock events are auditable (`scheduler.*`, `clock.check`)
-- `/status` and `openassist tools status` expose the same capability boundary the model sees, which helps operators confirm whether `web.*` tools are callable before granting `full-root`
+- `/status` and `openassist tools status` expose the same capability boundary the model sees, including the Linux service boundary, which helps operators confirm whether `web.*` tools are callable and whether the daemon is still sandboxed before granting `full-root`
 - `/grow` and `openassist growth status` expose the same managed-growth boundary the model sees, which helps operators confirm whether durable growth actions are available before asking for extension work
 
 ## Shared-Chat Resolution

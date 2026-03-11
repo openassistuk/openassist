@@ -160,6 +160,9 @@ export function writeDefaultConfig(filePath: string): void {
         logsDir: operatorPaths.logsDir
       }
     },
+    service: {
+      systemdFilesystemAccess: "hardened"
+    },
     tools: {
       fs: {
         workspaceOnly: true,

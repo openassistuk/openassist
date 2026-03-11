@@ -39,6 +39,7 @@ import { WebTool } from "@openassist/tools-web";
 import { redactSensitiveData, type OpenAssistLogger } from "@openassist/observability";
 import {
   buildRuntimeAwarenessSnapshot,
+  buildRuntimeServiceAwareness,
   buildRuntimeAwarenessSystemMessage,
   summarizeRuntimeAwareness,
   type RuntimeInstallKnowledgeInput
@@ -335,6 +336,34 @@ const DEFAULT_ASSISTANT_CONFIG = {
   promptOnFirstContact: true
 } as const;
 
+function normalizeRuntimeConfig(config: RuntimeConfig): RuntimeConfig {
+  return {
+    ...config,
+    service: {
+      systemdFilesystemAccess: config.service?.systemdFilesystemAccess ?? "hardened"
+    }
+  };
+}
+
+function defaultServiceAwareness(
+  config: RuntimeConfig,
+  installContext: RuntimeInstallContext
+): RuntimeAwarenessSnapshot["service"] {
+  const configured = config.service?.systemdFilesystemAccess ?? "hardened";
+  return buildRuntimeServiceAwareness({
+    systemdFilesystemAccessConfigured: configured,
+    installContext
+  });
+}
+
+function formatServiceBoundaryLine(awareness: RuntimeAwarenessSnapshot): string {
+  return `service manager=${awareness.service.manager}, linux systemd filesystem access configured=${awareness.service.systemdFilesystemAccessConfigured}, effective=${awareness.service.systemdFilesystemAccessEffective}`;
+}
+
+function formatServiceBoundaryNotes(awareness: RuntimeAwarenessSnapshot): string {
+  return awareness.service.notes.join(" | ") || "none";
+}
+
 interface GlobalAssistantProfile {
   name: string;
   persona: string;
@@ -426,7 +455,7 @@ export class OpenAssistRuntime {
       );
     }
 
-    this.config = config;
+    this.config = normalizeRuntimeConfig(config);
     this.db = deps.db;
     this.logger = deps.logger;
 
@@ -1267,6 +1296,10 @@ export class OpenAssistRuntime {
     guardrailsMode: "minimal" | "off" | "strict";
     profile: PolicyProfile;
     profileSource: EffectivePolicySource;
+    serviceManager: RuntimeAwarenessSnapshot["service"]["manager"];
+    systemdFilesystemAccessConfigured: RuntimeAwarenessSnapshot["service"]["systemdFilesystemAccessConfigured"];
+    systemdFilesystemAccessEffective: RuntimeAwarenessSnapshot["service"]["systemdFilesystemAccessEffective"];
+    serviceNotes: string[];
     packageTool: ReturnType<PackageInstallTool["getStatus"]>;
     webTool: ReturnType<WebTool["getStatus"]>;
     awareness: string;
@@ -1279,9 +1312,7 @@ export class OpenAssistRuntime {
       const callableTools =
         resolution.profile === "full-root" ? enabled.map((item) => item.name) : [];
       const conversationKey = sessionId ? conversationKeyFromSessionId(sessionId) : "__status__";
-      const awareness = summarizeRuntimeAwareness(
-        this.buildAwarenessSnapshot(sessionId ?? "__default__", conversationKey, resolution)
-      );
+      const snapshot = this.buildAwarenessSnapshot(sessionId ?? "__default__", conversationKey, resolution);
       return {
         enabledTools: callableTools,
         configuredTools: enabled.map((item) => item.name),
@@ -1289,9 +1320,13 @@ export class OpenAssistRuntime {
         guardrailsMode: this.config.tools?.exec.guardrails.mode ?? "minimal",
         profile: resolution.profile,
         profileSource: resolution.source,
+        serviceManager: snapshot.service.manager,
+        systemdFilesystemAccessConfigured: snapshot.service.systemdFilesystemAccessConfigured,
+        systemdFilesystemAccessEffective: snapshot.service.systemdFilesystemAccessEffective,
+        serviceNotes: [...snapshot.service.notes],
         packageTool: this.pkgTool.getStatus(),
         webTool: this.webTool.getStatus(),
-        awareness
+        awareness: summarizeRuntimeAwareness(snapshot)
       };
     });
   }
@@ -1523,13 +1558,14 @@ export class OpenAssistRuntime {
   }
 
   async applyConfigCandidate(nextConfig: RuntimeConfig): Promise<void> {
-    const generation = this.db.createConfigGeneration(nextConfig as unknown as Record<string, unknown>);
+    const normalizedNextConfig = normalizeRuntimeConfig(nextConfig);
+    const generation = this.db.createConfigGeneration(normalizedNextConfig as unknown as Record<string, unknown>);
 
     try {
       for (const provider of this.providers.values()) {
         const result = await provider.validateConfig({
           id: provider.id(),
-          defaultModel: nextConfig.providers.find((item) => item.id === provider.id())?.defaultModel
+          defaultModel: normalizedNextConfig.providers.find((item) => item.id === provider.id())?.defaultModel
         });
         if (!result.valid) {
           throw new Error(`Provider ${provider.id()} validation failed: ${result.errors.join("; ")}`);
@@ -1543,25 +1579,25 @@ export class OpenAssistRuntime {
         }
       }
 
-      this.config = nextConfig;
+      this.config = normalizedNextConfig;
       this.refreshEffectiveTimezone();
-      this.hostSystemProfile.workspaceRoot = nextConfig.workspaceRoot;
+      this.hostSystemProfile.workspaceRoot = normalizedNextConfig.workspaceRoot;
       this.policyEngine.updateConfig({
-        defaultProfile: nextConfig.defaultPolicyProfile,
-        operatorAccessProfile: nextConfig.operatorAccessProfile ?? "operator",
-        channels: nextConfig.channels
+        defaultProfile: normalizedNextConfig.defaultPolicyProfile,
+        operatorAccessProfile: normalizedNextConfig.operatorAccessProfile ?? "operator",
+        channels: normalizedNextConfig.channels
       });
       this.channelTypes.clear();
-      for (const channelConfig of nextConfig.channels) {
+      for (const channelConfig of normalizedNextConfig.channels) {
         this.channelTypes.set(channelConfig.id, channelConfig.type);
       }
       this.rebuildRuntimeTools();
 
-      if (!nextConfig.scheduler.enabled) {
+      if (!normalizedNextConfig.scheduler.enabled) {
         this.schedulerWorker.stop();
       } else if (
         this.startedAt &&
-        (!nextConfig.time.requireTimezoneConfirmation || this.isTimezoneConfirmed())
+        (!normalizedNextConfig.time.requireTimezoneConfirmation || this.isTimezoneConfirmed())
       ) {
         this.schedulerWorker.start();
       }
@@ -2156,6 +2192,8 @@ export class OpenAssistRuntime {
       `- chat surface: ${this.formatChannelSurfaceSummary(sessionId)}`,
       `- access: ${describeAccessMode(toolsStatus.profile)}`,
       `- access source: ${describeAccessSource(toolsStatus.profileSource)}`,
+      `- service boundary: ${formatServiceBoundaryLine(awareness)}`,
+      `- service boundary notes: ${formatServiceBoundaryNotes(awareness)}`,
       `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
       "Capability domains",
       ...awareness.capabilityDomains.flatMap((domain) => [
@@ -2355,6 +2393,7 @@ export class OpenAssistRuntime {
         supportsImageAttachments: false,
         supportsDocumentAttachments: false
       },
+      systemdFilesystemAccessConfigured: this.config.service?.systemdFilesystemAccess ?? "hardened",
       scheduler: {
         enabled: schedulerStatus.enabled,
         running: schedulerStatus.running,
@@ -2376,7 +2415,15 @@ export class OpenAssistRuntime {
     if (!awareness || typeof awareness !== "object" || Array.isArray(awareness)) {
       return null;
     }
-    return awareness as RuntimeAwarenessSnapshot;
+    const candidate = awareness as Partial<RuntimeAwarenessSnapshot>;
+    if (!candidate.service || typeof candidate.service !== "object" || Array.isArray(candidate.service)) {
+      return {
+        ...(candidate as RuntimeAwarenessSnapshot),
+        version: 4,
+        service: defaultServiceAwareness(this.config, this.installContext)
+      };
+    }
+    return candidate as RuntimeAwarenessSnapshot;
   }
 
   private summarizeStoredSystemProfile(systemProfile: Record<string, unknown>): string {
@@ -2615,10 +2662,7 @@ export class OpenAssistRuntime {
   }
 
   private async buildAccessStatusMessage(sessionId: string, senderId: string): Promise<string> {
-    const resolution = await this.policyEngine.resolveProfile({
-      sessionId,
-      actorId: senderId
-    });
+    const { awareness, resolution } = await this.ensureSessionAwareness(sessionId, senderId);
     const canManage = this.policyEngine.isApprovedOperator(sessionId, senderId);
     const operatorsConfigured = this.policyEngine.hasApprovedOperators(sessionId);
     return [
@@ -2637,7 +2681,9 @@ export class OpenAssistRuntime {
       canManage
         ? "- commands: /access full for full access, /access standard for standard access"
         : "- note: only explicitly approved operator IDs may change access in chat",
-      "- full access uses OpenAssist full-root tools and open filesystem scope. It does not grant Unix root."
+      `- service boundary: ${formatServiceBoundaryLine(awareness)}`,
+      `- service boundary notes: ${formatServiceBoundaryNotes(awareness)}`,
+      "- full access enables OpenAssist full-root tools. It does not grant Unix root or bypass host or service sandboxing."
     ].join("\n");
   }
 
@@ -2764,6 +2810,8 @@ export class OpenAssistRuntime {
       `- current access: ${describeAccessMode(toolsStatus.profile)}`,
       `- access source: ${describeAccessSource(toolsStatus.profileSource)}`,
       `- awareness: ${summarizeRuntimeAwareness(awareness)}`,
+      `- service boundary: ${formatServiceBoundaryLine(awareness)}`,
+      `- service boundary notes: ${formatServiceBoundaryNotes(awareness)}`,
       `- host: platform=${awareness.host.platform}, release=${awareness.host.release}, arch=${awareness.host.arch}, hostname=${awareness.host.hostname}, node=${awareness.host.nodeVersion}`,
       `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
       `- configured tool families: ${toolsStatus.configuredTools.join(", ") || "none"}`,

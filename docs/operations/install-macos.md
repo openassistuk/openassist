@@ -178,6 +178,8 @@ openassist doctor
 openassist upgrade --dry-run --install-dir "$HOME/openassist"
 ```
 
+macOS note: `[service].systemdFilesystemAccess` is Linux-only metadata. launchd ignores it, and status surfaces report Linux systemd filesystem access as not applicable on macOS.
+
 If you installed from a PR track and want to keep testing it:
 
 ```bash

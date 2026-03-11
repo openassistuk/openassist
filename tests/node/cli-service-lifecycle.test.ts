@@ -15,16 +15,21 @@ describe("cli service lifecycle helpers", () => {
 
   it("renders systemd and launchd templates for lifecycle operations", () => {
     const systemd = renderSystemdUnit(
-      "WorkingDirectory=__OPENASSIST_INSTALL_DIR__\nEnvironmentFile=__OPENASSIST_ENV_FILE__\nExecStart=--config __OPENASSIST_CONFIG_PATH__\nReadWritePaths=__OPENASSIST_RW_CONFIG_DIR__",
+      "WorkingDirectory=__OPENASSIST_INSTALL_DIR__\nEnvironmentFile=__OPENASSIST_ENV_FILE__\nEnvironment=OPENASSIST_SERVICE_MANAGER_KIND=__OPENASSIST_SERVICE_MANAGER_KIND__\nEnvironment=OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS=__OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS__\nExecStart=--config __OPENASSIST_CONFIG_PATH__\n__OPENASSIST_SYSTEMD_HARDENING__",
       {
         installDir: "/tmp/openassist",
         configPath: "/tmp/openassist/openassist.toml",
         envFilePath: "/tmp/openassistd.env",
-        nodeBin: "/usr/bin/node"
+        nodeBin: "/usr/bin/node",
+        serviceManagerKind: "systemd-user",
+        systemdFilesystemAccess: "hardened"
       }
     );
     assert.ok(systemd.includes("WorkingDirectory=/tmp/openassist"));
     assert.ok(systemd.includes("EnvironmentFile=/tmp/openassistd.env"));
+    assert.ok(systemd.includes("OPENASSIST_SERVICE_MANAGER_KIND=systemd-user"));
+    assert.ok(systemd.includes("OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS=hardened"));
+    assert.ok(systemd.includes("ProtectSystem=strict"));
 
     const wrapper = renderLaunchdWrapper({
       installDir: "/tmp/openassist",

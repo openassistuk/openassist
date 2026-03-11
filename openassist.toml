@@ -44,6 +44,13 @@ dataDir = ".openassist/data"
 skillsDir = ".openassist/skills"
 logsDir = ".openassist/logs"
 
+[service]
+# Linux systemd-only:
+# - "hardened" keeps the default OpenAssist-added service sandbox
+# - "unrestricted" removes that sandbox for broader host writes/package installs
+# launchd ignores this setting.
+systemdFilesystemAccess = "hardened"
+
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"

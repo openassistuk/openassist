@@ -208,6 +208,36 @@ describe("cli setup validation and summary coverage", () => {
       true
     );
     assert.equal(failedServiceSummary.some((line) => line === "- None."), false);
+    assert.equal(
+      buildSetupSummary({
+        installDir: root,
+        configPath: "/tmp/openassist.toml",
+        envFilePath: "/tmp/openassistd.env",
+        config,
+        changedEnvKeys: [],
+        warningCount: 0,
+        skippedService: true,
+        healthOk: false,
+        platform: "linux"
+      }).some((line) => line.includes("Linux systemd filesystem access: Hardened systemd sandbox")),
+      true
+    );
+
+    config.service.systemdFilesystemAccess = "unrestricted";
+    assert.equal(
+      buildSetupSummary({
+        installDir: root,
+        configPath: "/tmp/openassist.toml",
+        envFilePath: "/tmp/openassistd.env",
+        config,
+        changedEnvKeys: [],
+        warningCount: 0,
+        skippedService: true,
+        healthOk: false,
+        platform: "linux"
+      }).some((line) => line.includes("Linux systemd filesystem access: Unrestricted systemd filesystem access")),
+      true
+    );
 
     const skippedServiceSummary = buildSetupSummary({
       installDir: root,

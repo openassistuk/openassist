@@ -136,6 +136,9 @@ function buildConfig(
     ],
     defaultPolicyProfile: "operator",
     operatorAccessProfile: options.operatorAccessProfile,
+    service: {
+      systemdFilesystemAccess: "hardened"
+    },
     paths: {
       dataDir: root,
       skillsDir: path.join(root, "skills"),
@@ -212,12 +215,14 @@ describe("runtime access mode", () => {
         logger,
         installContext: {
           repoBackedInstall: true,
-          installDir: root,
-          configPath: path.join(root, "openassist.toml"),
-          envFilePath: path.join(root, "openassistd.env"),
-          trackedRef: "main",
-          lastKnownGoodCommit: "abc123"
-        }
+        installDir: root,
+        configPath: path.join(root, "openassist.toml"),
+        envFilePath: path.join(root, "openassistd.env"),
+        trackedRef: "main",
+        lastKnownGoodCommit: "abc123",
+        serviceManager: "systemd-system",
+        systemdFilesystemAccessEffective: "hardened"
+      }
       },
       { providers: [provider], channels: [channel] }
     );
@@ -235,24 +240,32 @@ describe("runtime access mode", () => {
     assert.deepEqual(standardTools.enabledTools, []);
 
     await channel.emit(inbound("123456789", "/status", "status-approved"));
+    const approvedStatusText = channel.sent.map((item) => item.text ?? "").join("\n");
+    const approvedStatusMessages = channel.sent.length;
     await channel.emit(inbound("222222222", "/status", "status-standard"));
+    const standardStatusText = channel.sent
+      .slice(approvedStatusMessages)
+      .map((item) => item.text ?? "")
+      .join("\n");
 
     assert.equal(provider.chatCalls, 0);
-    assert.match(channel.sent[0]?.text ?? "", /sender id: 123456789/i);
-    assert.match(channel.sent[0]?.text ?? "", /session id: telegram-main:ops-room/i);
-    assert.match(channel.sent[0]?.text ?? "", /current access: Full access/i);
-    assert.match(channel.sent[0]?.text ?? "", /access source: approved operator default for this channel/i);
-    assert.match(channel.sent[0]?.text ?? "", /config path: .*openassist\.toml/i);
-    assert.match(channel.sent[0]?.text ?? "", /trackedRef=main/i);
-    assert.match(channel.sent[0]?.text ?? "", /protected surfaces:/i);
+    assert.match(approvedStatusText, /sender id: 123456789/i);
+    assert.match(approvedStatusText, /session id: telegram-main:ops-room/i);
+    assert.match(approvedStatusText, /current access: Full access/i);
+    assert.match(approvedStatusText, /access source: approved operator default for this channel/i);
+    assert.match(approvedStatusText, /config path: .*openassist\.toml/i);
+    assert.match(approvedStatusText, /trackedRef=main/i);
+    assert.match(approvedStatusText, /protected surfaces:/i);
+    assert.match(approvedStatusText, /service boundary: service manager=systemd-system/i);
+    assert.match(approvedStatusText, /service boundary notes: .*package installs, sudo, and broader host writes may still be blocked/i);
 
-    assert.match(channel.sent[1]?.text ?? "", /sender id: 222222222/i);
-    assert.match(channel.sent[1]?.text ?? "", /current access: Standard access/i);
-    assert.match(channel.sent[1]?.text ?? "", /access source: runtime default/i);
-    assert.match(channel.sent[1]?.text ?? "", /config\/env\/install detail: hidden in chat for this sender/i);
-    assert.doesNotMatch(channel.sent[1]?.text ?? "", /config path:/i);
-    assert.doesNotMatch(channel.sent[1]?.text ?? "", /trackedRef=main/i);
-    assert.doesNotMatch(channel.sent[1]?.text ?? "", /protected paths:/i);
+    assert.match(standardStatusText, /sender id: 222222222/i);
+    assert.match(standardStatusText, /current access: Standard access/i);
+    assert.match(standardStatusText, /access source: runtime default/i);
+    assert.match(standardStatusText, /config\/env\/install detail: hidden in chat for this sender/i);
+    assert.doesNotMatch(standardStatusText, /config path:/i);
+    assert.doesNotMatch(standardStatusText, /trackedRef=main/i);
+    assert.doesNotMatch(standardStatusText, /protected paths:/i);
 
     await runtime.stop();
     db.close();
@@ -284,6 +297,7 @@ describe("runtime access mode", () => {
     await channel.emit(inbound("123456789", "/access", "access-status"));
     assert.match(channel.sent[1]?.text ?? "", /current access: Standard access/i);
     assert.match(channel.sent[1]?.text ?? "", /access source: runtime default/i);
+    assert.match(channel.sent[1]?.text ?? "", /service boundary:/i);
 
     await channel.emit(inbound("123456789", "/access full", "access-full"));
     assert.match(channel.sent[2]?.text ?? "", /Access updated for this sender in this chat: Full access/i);

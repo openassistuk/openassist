@@ -1,5 +1,6 @@
 import type { CommandRunner } from "./command-runner.js";
 import { SpawnCommandRunner } from "./command-runner.js";
+import type { RuntimeSystemdFilesystemAccess } from "@openassist/core-types";
 import {
   deriveHealthProbeBaseUrls,
   type HealthResult,
@@ -16,6 +17,7 @@ export interface SetupWizardPostSaveOptions {
   configPath: string;
   envFilePath: string;
   baseUrl: string;
+  systemdFilesystemAccess?: RuntimeSystemdFilesystemAccess;
 }
 
 export interface SetupWizardPostSaveOutcome {
@@ -100,22 +102,26 @@ export async function runSetupWizardPostSaveChecks(
         }
       };
     }
-
-    await service.install({
-      installDir: options.installDir,
-      configPath: options.configPath,
-      envFilePath: options.envFilePath,
-      repoRoot: options.installDir
-    });
-    serviceInstalled = true;
   }
 
   const troubleshootingLines = serviceHealthRecoveryLines(normalizedBaseUrl);
 
   let attempts = 0;
+  let installCompleted = false;
   while (true) {
     attempts += 1;
     try {
+      if (!installCompleted) {
+        await service.install({
+          installDir: options.installDir,
+          configPath: options.configPath,
+          envFilePath: options.envFilePath,
+          repoRoot: options.installDir,
+          systemdFilesystemAccess: options.systemdFilesystemAccess
+        });
+        serviceInstalled = true;
+        installCompleted = true;
+      }
       await service.restart();
       serviceRestarted = true;
 

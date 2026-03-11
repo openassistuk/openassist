@@ -105,6 +105,9 @@ describe("service-manager adapters", () => {
     expect(fs.existsSync(unitPath)).toBe(true);
     expect(fs.existsSync(statePath)).toBe(true);
     expect(unitText).not.toContain("MemoryDenyWriteExecute=true");
+    expect(unitText).toContain("Environment=OPENASSIST_SERVICE_MANAGER_KIND=systemd-user");
+    expect(unitText).toContain("Environment=OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS=hardened");
+    expect(unitText).toContain("ProtectSystem=strict");
     expect(await manager.isInstalled()).toBe(true);
 
     await manager.start();

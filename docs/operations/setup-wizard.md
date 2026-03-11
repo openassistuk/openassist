@@ -125,10 +125,13 @@ These labels now intentionally match the lifecycle language used by quickstart s
 Wizard access behavior:
 
 - `Basic runtime and access mode` lets you choose `Standard mode`, `Full access for approved operators`, or `Custom advanced access settings`
+- on Linux, the same section now also lets you choose `Hardened systemd sandbox` or `Unrestricted systemd filesystem access` for the daemon service
 - `Channels, allowlists, and operator access` keeps chat allowlists separate from approved operator accounts
 - Discord DM allow-lists stay separate from guild or thread allow-lists so beginners can tell “where the bot may reply” from “which direct-message users may use it”
 - approved operator IDs decide who may use `/access full` or receive automatic full access defaults on that channel
 - when you add approved operator IDs while the install is still in `Standard mode`, wizard now prompts to switch to `Full access for approved operators` immediately so filesystem tools do not stay workspace-only by accident
+- after that switch on Linux, wizard immediately asks whether the systemd service should stay hardened or become unrestricted, with a second warning before saving unrestricted mode
+- this Linux service mode is separate from chat access mode: `full-root` controls OpenAssist tool policy, while the systemd mode controls whether the daemon service keeps OpenAssist-added systemd hardening, including filesystem sandboxing
 - channel allowlists still decide who may message the bot at all
 
 Use wizard for:

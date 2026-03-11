@@ -88,6 +88,12 @@ Linux service manager selection is automatic:
 - non-root shell: `systemd --user`
 - root shell: system-level `systemd`
 
+Linux service filesystem access is configured separately under `[service]` in `openassist.toml`:
+
+- `systemdFilesystemAccess = "hardened"` keeps the default OpenAssist-added systemd hardening in place
+- `systemdFilesystemAccess = "unrestricted"` removes OpenAssist-added Linux systemd hardening for the daemon service
+- `openassist service install` reads that setting from config every time it renders the Linux unit
+
 Install or reinstall the service explicitly:
 
 ```bash
@@ -184,6 +190,8 @@ openassist service install \
 openassist service restart
 openassist service status
 ```
+
+If you changed `[service].systemdFilesystemAccess` in config or through setup wizard, use the same reinstall path to apply the new Linux service mode outside the setup flow. `openassist doctor`, `/status`, and `openassist tools status` should then report the updated configured and effective service boundary.
 
 If you are unsure whether the install is ready for update:
 

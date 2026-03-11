@@ -192,6 +192,9 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
         logsDir: ".openassist/logs"
       }
     },
+    service: {
+      systemdFilesystemAccess: "hardened"
+    },
     tools: {
       fs: {
         workspaceOnly: true,

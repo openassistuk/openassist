@@ -84,13 +84,14 @@ The dry-run classification is now explicit:
 - `Needs action`
 - `Next command`
 
-`openassist doctor --json` keeps the grouped machine-readable lifecycle structure for automation and uses report `version: 2` with per-item `stage` metadata.
+`openassist doctor --json` keeps the grouped machine-readable lifecycle structure for automation and uses report `version: 3` with per-item `stage` metadata plus shared service-boundary context.
 
 Managed growth note:
 
 - managed skills and registered helper tools are designed to survive normal upgrades
 - `openassist upgrade --dry-run` makes that explicit so operators can distinguish update-safe extensions from dirty repo code changes
 - direct edits to tracked repo files still make the working tree dirty and are not treated as managed growth in this release
+- on Linux, the same readiness output also shows whether the daemon service is still using the hardened systemd sandbox before you rely on package-install or broader host-write behavior after upgrade
 
 Detached checkout note:
 

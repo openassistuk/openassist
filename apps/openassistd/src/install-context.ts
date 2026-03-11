@@ -6,6 +6,10 @@ import {
   defaultInstallStatePath as defaultOperatorInstallStatePath
 } from "@openassist/config";
 import type { RuntimeInstallContext } from "@openassist/core-runtime";
+import type {
+  RuntimeServiceManagerKind,
+  RuntimeSystemdFilesystemAccess
+} from "@openassist/core-types";
 import type { OpenAssistLogger } from "@openassist/observability";
 
 interface StoredInstallState {
@@ -30,6 +34,36 @@ function resolveEnvFilePath(): string {
     return path.resolve(envFile);
   }
   return defaultOperatorEnvFilePath();
+}
+
+function resolveServiceManagerFromEnv(): RuntimeServiceManagerKind {
+  const raw = process.env.OPENASSIST_SERVICE_MANAGER_KIND?.trim();
+  if (
+    raw === "systemd-user" ||
+    raw === "systemd-system" ||
+    raw === "launchd" ||
+    raw === "manual"
+  ) {
+    return raw;
+  }
+  return "unknown";
+}
+
+function resolveSystemdFilesystemAccessEffective(
+  manager: RuntimeServiceManagerKind
+): RuntimeSystemdFilesystemAccess | "unknown" | "not-applicable" {
+  if (manager === "launchd") {
+    return "not-applicable";
+  }
+  if (manager !== "systemd-user" && manager !== "systemd-system") {
+    return "unknown";
+  }
+
+  const raw = process.env.OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS?.trim();
+  if (raw === "hardened" || raw === "unrestricted") {
+    return raw;
+  }
+  return "unknown";
 }
 
 function loadStoredInstallState(): StoredInstallState | undefined {
@@ -137,6 +171,7 @@ export function loadRuntimeInstallContext(
     trackedRefRaw && trackedRefRaw !== "HEAD"
       ? trackedRefRaw
       : matchedStored?.trackedRef?.trim() || undefined;
+  const serviceManager = resolveServiceManagerFromEnv();
 
   return {
     repoBackedInstall: Boolean(repoRoot),
@@ -148,6 +183,8 @@ export function loadRuntimeInstallContext(
       ? path.resolve(matchedStored.envFilePath)
       : resolveEnvFilePath(),
     trackedRef,
-    lastKnownGoodCommit: readGitValue(["rev-parse", "HEAD"]) ?? matchedStored?.lastKnownGoodCommit?.trim() ?? undefined
+    lastKnownGoodCommit: readGitValue(["rev-parse", "HEAD"]) ?? matchedStored?.lastKnownGoodCommit?.trim() ?? undefined,
+    serviceManager,
+    systemdFilesystemAccessEffective: resolveSystemdFilesystemAccessEffective(serviceManager)
   };
 }

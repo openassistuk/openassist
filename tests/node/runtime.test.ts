@@ -994,7 +994,9 @@ describe("OpenAssistRuntime", () => {
           configPath: path.join(root, "openassist.toml"),
           envFilePath: path.join(root, "openassistd.env"),
           trackedRef: "main",
-          lastKnownGoodCommit: "abc123"
+          lastKnownGoodCommit: "abc123",
+          serviceManager: "systemd-user",
+          systemdFilesystemAccessEffective: "hardened"
         }
       },
       { providers: [provider], channels: [channel] }
@@ -1096,7 +1098,9 @@ describe("OpenAssistRuntime", () => {
           configPath: path.join(root, "openassist.toml"),
           envFilePath: path.join(root, "openassistd.env"),
           trackedRef: "main",
-          lastKnownGoodCommit: "abc123"
+          lastKnownGoodCommit: "abc123",
+          serviceManager: "systemd-user",
+          systemdFilesystemAccessEffective: "hardened"
         }
       },
       { providers: [provider], channels: [channel] }
@@ -1192,7 +1196,9 @@ describe("OpenAssistRuntime", () => {
           configPath: path.join(root, "openassist.toml"),
           envFilePath: path.join(root, "openassistd.env"),
           trackedRef: "main",
-          lastKnownGoodCommit: "abc123"
+          lastKnownGoodCommit: "abc123",
+          serviceManager: "systemd-user",
+          systemdFilesystemAccessEffective: "hardened"
         }
       },
       { providers: [provider], channels: [channel] }
@@ -1409,7 +1415,9 @@ describe("OpenAssistRuntime", () => {
           configPath: path.join(root, "openassist.toml"),
           envFilePath: path.join(root, "openassistd.env"),
           trackedRef: "main",
-          lastKnownGoodCommit: "abc123"
+          lastKnownGoodCommit: "abc123",
+          serviceManager: "systemd-user",
+          systemdFilesystemAccessEffective: "hardened"
         }
       },
       { providers: [provider], channels: [channel] }
@@ -1437,6 +1445,8 @@ describe("OpenAssistRuntime", () => {
     assert.match(channel.sent[0]?.text ?? "", /managed growth:/i);
     assert.match(channel.sent[0]?.text ?? "", /growth directories: hidden in chat for this sender/i);
     assert.match(channel.sent[0]?.text ?? "", /config\/env\/install detail: hidden in chat for this sender/i);
+    assert.match(channel.sent[0]?.text ?? "", /service boundary: service manager=systemd-user/i);
+    assert.match(channel.sent[0]?.text ?? "", /service boundary notes: .*package installs, sudo, and broader host writes may still be blocked/i);
     assert.doesNotMatch(channel.sent[0]?.text ?? "", /config path:/i);
     assert.doesNotMatch(channel.sent[0]?.text ?? "", /trackedRef=main/i);
     assert.match(channel.sent[0]?.text ?? "", /native web:/i);
@@ -1632,7 +1642,9 @@ describe("OpenAssistRuntime", () => {
           configPath: path.join(root, "openassist.toml"),
           envFilePath: path.join(root, "openassistd.env"),
           trackedRef: "main",
-          lastKnownGoodCommit: "abc123"
+          lastKnownGoodCommit: "abc123",
+          serviceManager: "systemd-user",
+          systemdFilesystemAccessEffective: "hardened"
         }
       },
       { providers: [provider], channels: [channel] }
@@ -1657,6 +1669,7 @@ describe("OpenAssistRuntime", () => {
     assert.match(provider.requests[0]?.messages[1]?.content ?? "", /profile=operator/i);
     assert.match(provider.requests[0]?.messages[1]?.content ?? "", /docs\/security\/policy-profiles\.md/i);
     assert.match(provider.requests[0]?.messages[1]?.content ?? "", /installDir=/i);
+    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /systemdConfigured=hardened/i);
 
     const bootstrap = db.getSessionBootstrap("telegram-mock:c-awareness");
     assert.ok(bootstrap);
@@ -1666,7 +1679,7 @@ describe("OpenAssistRuntime", () => {
     );
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.version ?? 0),
-      3
+      4
     );
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.maintenance?.trackedRef ?? ""),

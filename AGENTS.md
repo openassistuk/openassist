@@ -111,6 +111,9 @@ When changing installer/setup/service behavior:
    - quickstart and wizard use beginner-facing `access mode` wording on operator paths
    - standard mode remains the default recommendation
    - full access remains explicit opt-in only
+   - Linux setup paths must explain that systemd filesystem access is a separate service-level boundary from OpenAssist access mode
+   - default Linux service behavior stays `service.systemdFilesystemAccess = "hardened"`
+   - `/status`, `/access`, `/capabilities`, `openassist tools status`, bootstrap summaries, wizard post-save checks, `openassist doctor`, and `openassist upgrade --dry-run` must surface the configured and effective service boundary truthfully
 14. preserve full-access setup safety:
    - quickstart must not require operator IDs unless the operator opts into full access
    - quickstart must offer a clear recovery path back to standard mode when full access is selected before operator IDs are ready

@@ -163,13 +163,17 @@ describe("cli root command coverage", () => {
       sections: Record<string, unknown>;
       recommendedNextCommand: { command: string };
     };
-    assert.equal(parsedDoctorJson.version, 2);
+    assert.equal(parsedDoctorJson.version, 3);
     assert.equal(parsedDoctorJson.context.updateTrackKind, "pull-request");
     assert.equal(parsedDoctorJson.context.updateTrackLabel, "PR #23 (refs/pull/23/head)");
     assert.equal(parsedDoctorJson.context.primaryProviderId, "openai-main");
     assert.equal(parsedDoctorJson.context.primaryProviderRoute, "OpenAI (API Key)");
     assert.equal(parsedDoctorJson.context.primaryProviderModel, "gpt-5.4");
     assert.equal(parsedDoctorJson.context.primaryProviderTuning, "Reasoning effort: high");
+    assert.equal(
+      parsedDoctorJson.context.serviceFilesystemAccess,
+      process.platform === "darwin" ? "Not applicable on launchd" : "Hardened Linux systemd sandbox"
+    );
     assert.equal(typeof parsedDoctorJson.sections.readyNow, "object");
     assert.equal(typeof parsedDoctorJson.sections.needsActionBeforeUpgrade, "object");
     assert.equal(typeof parsedDoctorJson.recommendedNextCommand.command, "string");

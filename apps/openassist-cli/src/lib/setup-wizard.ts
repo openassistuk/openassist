@@ -18,6 +18,11 @@ import {
   type SetupAccessMode
 } from "./setup-access.js";
 import {
+  describeSystemdFilesystemAccess,
+  isLinuxSystemdFilesystemAccessConfigurable,
+  promptSystemdFilesystemAccess
+} from "./service-access.js";
+import {
   formatProviderMenuLabel,
   providerRouteLabel,
   providerTuningLabel
@@ -283,6 +288,19 @@ async function editRuntimeBasics(state: SetupWizardState, prompts: PromptAdapter
     max: 65535
   });
   await editAccessMode(state, prompts);
+  if (isLinuxSystemdFilesystemAccessConfigurable()) {
+    state.config.service.systemdFilesystemAccess = await promptSystemdFilesystemAccess(
+      prompts,
+      state.config.service.systemdFilesystemAccess,
+      {
+        message: "Linux systemd filesystem access",
+        emitLine: (line) => console.log(line)
+      }
+    );
+    console.log(
+      `Linux systemd filesystem access: ${describeSystemdFilesystemAccess(state.config.service.systemdFilesystemAccess)}.`
+    );
+  }
   runtime.paths.dataDir = await promptRequiredText(prompts, "Data directory", runtime.paths.dataDir);
   runtime.paths.skillsDir = await promptRequiredText(prompts, "Skills directory", runtime.paths.skillsDir);
   runtime.paths.logsDir = await promptRequiredText(prompts, "Logs directory", runtime.paths.logsDir);
@@ -380,6 +398,16 @@ async function maybePromptToEnableFullAccessForApprovedOperators(
 
   if (enableFullAccess) {
     applySetupAccessModePreset(state.config, "full-access");
+    if (isLinuxSystemdFilesystemAccessConfigurable()) {
+      state.config.service.systemdFilesystemAccess = await promptSystemdFilesystemAccess(
+        prompts,
+        state.config.service.systemdFilesystemAccess,
+        {
+          message: `Linux systemd filesystem access for approved operators on ${channel.id}`,
+          emitLine: (line) => console.log(line)
+        }
+      );
+    }
     console.log(
       "Approved operators will now default to full-root and filesystem tools will no longer stay workspace-only."
     );

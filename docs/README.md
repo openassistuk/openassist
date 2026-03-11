@@ -35,7 +35,7 @@ Lifecycle surfaces now share one readiness model instead of each inventing their
 - `Needs action`
 - `Next command`
 
-`openassist doctor --json` keeps the grouped lifecycle report for automation and is now `version: 2` with per-item `stage` metadata.
+`openassist doctor --json` keeps the grouped lifecycle report for automation and is now `version: 3` with per-item `stage` metadata plus shared service-boundary context.
 
 Recognized older installs that still use repo-local operator state (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) are migrated into the home-state layout automatically when a setup flow runs and the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/` before it changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and route the operator back to setup instead of migrating it in place.
 
@@ -43,8 +43,10 @@ Quickstart now also owns the beginner-facing access choice:
 
 - `Standard mode (recommended)` keeps the first install safe and workspace-scoped
 - `Full access for approved operators` is explicit opt-in and requires per-channel approved operator IDs
-- if you add approved operator IDs later in `openassist setup wizard` while the install is still in standard mode, the wizard now prompts to enable the matching full-access/filesystem preset
+- on Linux, quickstart and wizard also expose a separate `systemd filesystem access` choice for the daemon service: `Hardened systemd sandbox` by default, or `Unrestricted systemd filesystem access` after an extra warning
+- if you add approved operator IDs later in `openassist setup wizard` while the install is still in standard mode, the wizard now prompts to enable the matching full-access preset and then asks for the Linux systemd service mode when applicable
 - `/status` shows the exact sender ID and canonical session ID you need for actor-specific access inspection later
+- `/status`, `/access`, `/capabilities`, `openassist tools status`, and `openassist doctor` now expose the Linux service boundary separately from the chat access mode
 
 Quickstart also restores the main assistant identity prompts:
 

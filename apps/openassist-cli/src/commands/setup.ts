@@ -135,7 +135,8 @@ export function registerSetupCommands(program: Command): void {
               installDir,
               configPath,
               envFilePath,
-              baseUrl
+              baseUrl,
+              systemdFilesystemAccess: state.config.service.systemdFilesystemAccess
             },
             prompts
           );

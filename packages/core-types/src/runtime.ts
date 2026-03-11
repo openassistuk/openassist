@@ -64,6 +64,18 @@ export interface RuntimeToolsConfig {
   web?: RuntimeWebToolsConfig;
 }
 
+export type RuntimeSystemdFilesystemAccess = "hardened" | "unrestricted";
+export type RuntimeServiceManagerKind =
+  | "systemd-user"
+  | "systemd-system"
+  | "launchd"
+  | "manual"
+  | "unknown";
+
+export interface RuntimeServiceConfig {
+  systemdFilesystemAccess: RuntimeSystemdFilesystemAccess;
+}
+
 export interface RuntimeDocRef {
   path: string;
   purpose: string;
@@ -140,7 +152,7 @@ export interface ManagedCapabilityRecord {
 }
 
 export interface RuntimeAwarenessSnapshot {
-  version: 3;
+  version: 4;
   software: {
     product: string;
     role: string;
@@ -181,6 +193,12 @@ export interface RuntimeAwarenessSnapshot {
     callableToolNames: string[];
     notes: string[];
   };
+  service: {
+    manager: RuntimeServiceManagerKind;
+    systemdFilesystemAccessConfigured: RuntimeSystemdFilesystemAccess;
+    systemdFilesystemAccessEffective: RuntimeSystemdFilesystemAccess | "unknown" | "not-applicable";
+    notes: string[];
+  };
   capabilities: RuntimeAwarenessCapabilities;
   capabilityDomains: RuntimeCapabilityDomain[];
   documentation: RuntimeAwarenessDocumentation;
@@ -204,6 +222,7 @@ export interface RuntimeConfig {
   workspaceRoot?: string;
   assistant?: RuntimeAssistantConfig;
   attachments?: RuntimeAttachmentConfig;
+  service?: RuntimeServiceConfig;
   paths: RuntimePaths;
   time: TimeConfig;
   scheduler: SchedulerConfig;

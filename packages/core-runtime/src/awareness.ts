@@ -6,6 +6,8 @@ import type {
   ProviderCapabilities,
   RuntimeCapabilityDomain,
   RuntimeAwarenessSnapshot,
+  RuntimeServiceManagerKind,
+  RuntimeSystemdFilesystemAccess,
   RuntimeWebToolsConfig
 } from "@openassist/core-types";
 import type { WebToolStatus } from "@openassist/tools-web";
@@ -34,6 +36,11 @@ export interface RuntimeInstallKnowledgeInput {
   envFilePath?: string;
   trackedRef?: string;
   lastKnownGoodCommit?: string;
+  serviceManager?: RuntimeServiceManagerKind;
+  systemdFilesystemAccessEffective?:
+    | RuntimeSystemdFilesystemAccess
+    | "unknown"
+    | "not-applicable";
 }
 
 export interface RuntimeAwarenessBuildInput {
@@ -64,6 +71,7 @@ export interface RuntimeAwarenessBuildInput {
   allowedWritePaths: string[];
   providerCapabilities: ProviderCapabilities;
   channelCapabilities: ChannelCapabilities;
+  systemdFilesystemAccessConfigured: RuntimeSystemdFilesystemAccess;
   scheduler: {
     enabled: boolean;
     running: boolean;
@@ -79,8 +87,97 @@ export interface RuntimeAwarenessBuildInput {
   installContext?: RuntimeInstallKnowledgeInput;
 }
 
+function isSystemdManager(
+  manager: RuntimeServiceManagerKind
+): manager is Extract<RuntimeServiceManagerKind, "systemd-user" | "systemd-system"> {
+  return manager === "systemd-user" || manager === "systemd-system";
+}
+
+type RuntimeServiceBoundaryInput = Pick<
+  RuntimeAwarenessBuildInput,
+  "systemdFilesystemAccessConfigured" | "installContext"
+>;
+
+function resolveServiceBoundary(input: RuntimeServiceBoundaryInput): {
+  manager: RuntimeServiceManagerKind;
+  configured: RuntimeSystemdFilesystemAccess;
+  effective: RuntimeSystemdFilesystemAccess | "unknown" | "not-applicable";
+} {
+  const manager = input.installContext?.serviceManager ?? "unknown";
+  const configured = input.systemdFilesystemAccessConfigured;
+  const effective =
+    input.installContext?.systemdFilesystemAccessEffective ??
+    (manager === "launchd" ? "not-applicable" : "unknown");
+
+  return {
+    manager,
+    configured,
+    effective
+  };
+}
+
+function buildServiceNotes(
+  boundary: ReturnType<typeof resolveServiceBoundary>
+): string[] {
+  if (boundary.manager === "launchd") {
+    return ["Linux systemd filesystem access is not applicable when OpenAssist runs under launchd."];
+  }
+
+  if (isSystemdManager(boundary.manager)) {
+    const notes =
+      boundary.effective === "unrestricted"
+        ? [
+            "The active Linux systemd service is running without OpenAssist-added systemd hardening."
+          ]
+        : boundary.effective === "hardened"
+          ? [
+              "Linux systemd service hardening is active, so package installs, sudo, and broader host writes may still be blocked even in full-root sessions."
+            ]
+          : [
+              "The active Linux systemd filesystem access mode is unknown in this process, so the live package-install and host-write boundary may still differ from config."
+            ];
+
+    if (
+      boundary.effective !== "unknown" &&
+      boundary.configured !== boundary.effective
+    ) {
+      notes.push(
+        boundary.configured === "unrestricted"
+          ? "Config requests unrestricted Linux systemd filesystem access, but the running service still reports hardened. Reinstall or restart the service to apply the change."
+          : "Config requests hardened Linux systemd filesystem access, but the running service still reports unrestricted. Reinstall or restart the service to restore the sandbox."
+      );
+    } else if (
+      boundary.configured === "unrestricted" &&
+      boundary.effective === "unknown"
+    ) {
+      notes.push(
+        "Config requests unrestricted Linux systemd filesystem access, but the active service mode is unknown until the managed service reports it."
+      );
+    }
+
+    return notes;
+  }
+
+  return [
+    "The active service manager is unknown in this process, so manual or dev runs may not reflect the installed service boundary."
+  ];
+}
+
+export function buildRuntimeServiceAwareness(
+  input: RuntimeServiceBoundaryInput
+): RuntimeAwarenessSnapshot["service"] {
+  const boundary = resolveServiceBoundary(input);
+  return {
+    manager: boundary.manager,
+    systemdFilesystemAccessConfigured: boundary.configured,
+    systemdFilesystemAccessEffective: boundary.effective,
+    notes: buildServiceNotes(boundary)
+  };
+}
+
 function buildLimitations(input: RuntimeAwarenessBuildInput): string[] {
   const limitations: string[] = [];
+  const serviceBoundary = resolveServiceBoundary(input);
   if (input.profile !== "full-root") {
     limitations.push(
       "Autonomous local-machine actions are disabled in this session until the policy profile is elevated to full-root."
@@ -99,6 +196,17 @@ function buildLimitations(input: RuntimeAwarenessBuildInput): string[] {
   }
   if (input.callableToolNames.length === 0) {
     limitations.push("No autonomous tools are callable in the current session.");
+  }
+  if (input.profile === "full-root" && isSystemdManager(serviceBoundary.manager)) {
+    if (serviceBoundary.effective === "hardened") {
+      limitations.push(
+        "Linux systemd filesystem hardening is still active for the daemon service, so package installs, sudo, and broader host writes may still be blocked in this full-root session."
+      );
+    } else if (serviceBoundary.effective === "unknown") {
+      limitations.push(
+        "The active Linux systemd filesystem mode is unknown in this process, so package installs and broader host writes may still be blocked until the managed service is restarted and reports its live boundary."
+      );
+    }
   }
   return limitations;
 }
@@ -129,6 +237,7 @@ function buildBlockedReasons(
   capabilities: RuntimeAwarenessSnapshot["capabilities"]
 ): string[] {
   const reasons: string[] = [];
+  const serviceBoundary = resolveServiceBoundary(input);
 
   if (input.profile !== "full-root") {
     reasons.push(
@@ -169,6 +278,17 @@ function buildBlockedReasons(
     reasons.push("Native web tooling is disabled in runtime config.");
   } else if (input.profile === "full-root" && input.webStatus.searchStatus === "unavailable") {
     reasons.push("Native web search has no configured backend right now.");
+  }
+  if (input.profile === "full-root" && isSystemdManager(serviceBoundary.manager)) {
+    if (serviceBoundary.effective === "hardened") {
+      reasons.push(
+        "Linux systemd service hardening is active, so package installs, sudo, and broader host writes may still be blocked even though OpenAssist tool policy is full-root."
+      );
+    } else if (serviceBoundary.effective === "unknown") {
+      reasons.push(
+        "The active Linux systemd filesystem mode is unknown in this process, so package installs and broader host writes are not guaranteed until the managed service reports its live boundary."
+      );
+    }
   }
 
   return reasons;
@@ -390,13 +510,19 @@ function buildGrowth(
   };
 }
 
+function buildService(
+  input: RuntimeAwarenessBuildInput
+): RuntimeAwarenessSnapshot["service"] {
+  return buildRuntimeServiceAwareness(input);
+}
+
 export function buildRuntimeAwarenessSnapshot(
   input: RuntimeAwarenessBuildInput
 ): RuntimeAwarenessSnapshot {
   const callableWebTools = input.callableToolNames.filter((item) => item.startsWith("web."));
   const capabilities = buildCapabilities(input);
   return {
-    version: 3,
+    version: 4,
     software: {
       product: "OpenAssist",
       role: "local-first machine assistant with bounded host, chat, tool, and lifecycle awareness",
@@ -439,6 +565,7 @@ export function buildRuntimeAwarenessSnapshot(
               ? ["Native web tools are disabled in config."]
               : ["Native web search is unavailable until OPENASSIST_TOOLS_WEB_BRAVE_API_KEY is configured or fallback mode is enabled."]
     },
+    service: buildService(input),
     capabilities,
     capabilityDomains: buildCapabilityDomains(input, capabilities),
     documentation: {
@@ -476,6 +603,7 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
     `- runtime: session=${snapshot.runtime.sessionId}, defaultProvider=${snapshot.runtime.defaultProviderId}, activeChannel=${snapshot.runtime.activeChannelId}/${snapshot.runtime.activeChannelType}, providers=${joinOrNone(snapshot.runtime.providerIds)}, channels=${joinOrNone(snapshot.runtime.channelIds)}, timezone=${snapshot.runtime.timezone}`,
     `- subsystems: ${joinOrNone(snapshot.runtime.modules)}`,
     `- access: profile=${snapshot.policy.profile}, source=${snapshot.policy.source}, callableTools=${joinOrNone(snapshot.policy.callableToolNames)}`,
+    `- service: manager=${snapshot.service.manager}, systemdConfigured=${snapshot.service.systemdFilesystemAccessConfigured}, systemdEffective=${snapshot.service.systemdFilesystemAccessEffective}, notes=${joinOrNone(snapshot.service.notes)}`,
     `- capabilities now: inspectFiles=${yesNo(snapshot.capabilities.canInspectLocalFiles)}, runCommands=${yesNo(snapshot.capabilities.canRunLocalCommands)}, editConfig=${yesNo(snapshot.capabilities.canEditConfig)}, editDocs=${yesNo(snapshot.capabilities.canEditDocs)}, editCode=${yesNo(snapshot.capabilities.canEditCode)}, serviceControl=${yesNo(snapshot.capabilities.canControlService)}, nativeWeb=${yesNo(snapshot.capabilities.nativeWebAvailable)}`,
     "- capability domains:",
     ...capabilityDomainLines,
@@ -497,6 +625,7 @@ export function summarizeRuntimeAwareness(snapshot: RuntimeAwarenessSnapshot): s
   return [
     `profile=${snapshot.policy.profile}`,
     `source=${snapshot.policy.source}`,
+    `service=${snapshot.service.manager}:${snapshot.service.systemdFilesystemAccessConfigured}->${snapshot.service.systemdFilesystemAccessEffective}`,
     `fileEdits=${snapshot.capabilities.canEditConfig || snapshot.capabilities.canEditDocs || snapshot.capabilities.canEditCode ? "available" : "blocked"}`,
     `serviceControl=${snapshot.capabilities.canControlService ? "available" : "blocked"}`,
     `web=${snapshot.capabilities.nativeWebAvailable ? "available" : snapshot.web.searchStatus}`,

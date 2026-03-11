@@ -302,6 +302,7 @@ program
     const runtimeConfig: RuntimeConfig = {
       ...config.runtime,
       tools: config.tools,
+      service: config.service,
       security: config.security
     };
 

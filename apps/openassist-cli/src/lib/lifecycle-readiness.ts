@@ -49,7 +49,7 @@ export interface LifecycleRecommendedAction {
 }
 
 export interface LifecycleReport {
-  version: 2;
+  version: 3;
   summary: LifecycleReportSummary;
   context: {
     installDir: string;
@@ -58,6 +58,7 @@ export interface LifecycleReport {
     firstReplyDestination: string;
     accessMode: string;
     serviceState: string;
+    serviceFilesystemAccess: string;
     updateTrack: string;
     updateTrackKind: "branch" | "pull-request" | "raw-ref" | "detached";
     updateTrackLabel: string;
@@ -172,6 +173,25 @@ function describeServiceState(
     return "Service needs attention";
   }
   return "Service state not confirmed yet";
+}
+
+function describeServiceFilesystemAccess(input: LifecycleReportInput): string {
+  if (!input.config) {
+    return "Not configured yet";
+  }
+
+  const configured = input.config.service?.systemdFilesystemAccess ?? "hardened";
+  if (input.serviceManagerKind === "launchd") {
+    return "Not applicable on launchd";
+  }
+  if (input.serviceManagerKind === "systemd-user" || input.serviceManagerKind === "systemd-system") {
+    return configured === "unrestricted"
+      ? "Unrestricted Linux systemd filesystem access"
+      : "Hardened Linux systemd sandbox";
+  }
+  return configured === "unrestricted"
+    ? "Unrestricted Linux systemd filesystem access (service manager not confirmed)"
+    : "Hardened Linux systemd sandbox (service manager not confirmed)";
 }
 
 function createItem(
@@ -534,6 +554,15 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       readyNow,
       createItem("access.mode", "full-access", "Access mode", describeAccessMode(input.config))
     );
+    uniquePush(
+      readyNow,
+      createItem(
+        "service.filesystem-access",
+        "full-access",
+        "Linux systemd filesystem access",
+        describeServiceFilesystemAccess(input)
+      )
+    );
   }
 
   if (!input.envExists && input.configExists) {
@@ -564,6 +593,24 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
         "full-access",
         "Approved operators",
         operatorReadyChannels.map((channel) => `${channel.id}=${getOperatorUserIds(channel).length}`).join(", ")
+      )
+    );
+  }
+  if (
+    input.config &&
+    input.config.runtime.operatorAccessProfile === "full-root" &&
+    (input.serviceManagerKind === "systemd-user" || input.serviceManagerKind === "systemd-system") &&
+    (input.config.service?.systemdFilesystemAccess ?? "hardened") === "hardened"
+  ) {
+    uniquePush(
+      needsActionBeforeFullAccess,
+      createItem(
+        "full-access.systemd-filesystem-mode",
+        "full-access",
+        "Linux systemd filesystem mode",
+        "Approved operators can reach OpenAssist full-root, but the Linux service still runs with the hardened systemd sandbox, so package installs, sudo, and broader host writes may still be blocked.",
+        "OpenAssist access mode and Linux systemd filesystem access are separate boundaries.",
+        "openassist setup wizard"
       )
     );
   }
@@ -709,7 +756,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
             };
 
   return {
-    version: 2,
+    version: 3,
     summary: {
       installReadiness:
         input.repoBacked && input.configExists && input.hasNode !== false ? "ready" : "needs-action",
@@ -726,6 +773,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       firstReplyDestination: describeFirstReplyDestination(input.config),
       accessMode: describeAccessMode(input.config),
       serviceState: describeServiceState(input.serviceWasSkipped, input.serviceHealthOk, input.serviceInstalled),
+      serviceFilesystemAccess: describeServiceFilesystemAccess(input),
       updateTrack: input.trackedRef?.trim() || "main",
       updateTrackKind: trackedRef.kind,
       updateTrackLabel: trackedRef.label,

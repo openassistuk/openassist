@@ -18,7 +18,7 @@ The visible proof should be that `pnpm verify:all` still passes locally, the wid
 - [x] (2026-03-11 21:23Z) Expanded `tests/node/cli-docs-truth.test.ts` to cover all live non-ExecPlan docs, relative links plus anchors, docs-index completeness, coverage-threshold truth, CodeQL workflow truth, and the lifecycle-smoke report-version guard.
 - [x] (2026-03-11 21:23Z) Added focused lifecycle/operator-layout coverage in `tests/vitest/lifecycle-readiness.test.ts` and `tests/vitest/operator-layout.test.ts` for wrapper fallback, skipped-service onboarding, launchd/full-access truth, legacy-layout upgrade blockers, existing home-state config handling, and install-state-driven legacy detection.
 - [x] (2026-03-11 21:23Z) Ran focused suites successfully, then reran the full local gate with `pnpm verify:all` and recorded the results below.
-- [ ] Push the branch, open the PR, dispatch supplemental smoke workflows if touched, and monitor Actions/CodeQL/review until only human merge remains.
+- [x] (2026-03-11 21:45Z) Pushed branch `hardening/repo-wide-docs-tests-ci-followup`, opened PR `#38`, manually dispatched both supplemental smoke workflows on the PR head, and monitored Actions/CodeQL/review until only normal human approval remained.
 
 ## Surprises & Discoveries
 
@@ -36,6 +36,12 @@ The visible proof should be that `pnpm verify:all` still passes locally, the wid
 
 - Observation: the focused local suites and the full merge gate are green after the docs/test/workflow hardening edits.
   Evidence: `pnpm exec tsx --test tests/node/cli-docs-truth.test.ts tests/node/cli-root-commands.test.ts tests/node/cli-command-branches.test.ts tests/node/cli-setup-hub-coverage.test.ts tests/node/cli-operator-layout-coverage.test.ts`, `pnpm exec vitest run tests/vitest/lifecycle-readiness.test.ts tests/vitest/operator-layout.test.ts tests/vitest/operator-layout-cleanup.test.ts tests/vitest/setup-hub.test.ts tests/vitest/setup-hub-actions.test.ts`, and `pnpm verify:all` all exited `0` on 2026-03-11.
+
+- Observation: the first PR attempt surfaced a CodeQL PR-head alert inside the new docs-truth helper rather than a workflow execution failure.
+  Evidence: PR `#38` initially showed top-level check run `CodeQL` failure with code-scanning alert `#26` (`js/incomplete-multi-character-sanitization`) on `tests/node/cli-docs-truth.test.ts`, while the underlying workflow run `22975210783` still had `CodeQL preflight` and `analyze (javascript-typescript)` both green.
+
+- Observation: after replacing the multi-character HTML-strip regex with a character-level angle-bracket strip and removing the dead docs-index no-op, PR `#38` became fully green and the PR-head CodeQL alert list became empty.
+  Evidence: local `pnpm verify:all` passed again after commit `9706f21`; GitHub checks on PR `#38` are green (`workflow-lint`, `quality-and-coverage` on ubuntu/macos/windows, `CodeQL preflight`, `analyze (javascript-typescript)`, and top-level `CodeQL`); manual reruns `22975579507` (Service Smoke) and `22975579450` (Lifecycle E2E Smoke) both succeeded; `gh api /repos/openassistuk/openassist/code-scanning/alerts?state=open&pr=38` now returns `[]`.
 
 ## Decision Log
 
@@ -57,7 +63,9 @@ The visible proof should be that `pnpm verify:all` still passes locally, the wid
 
 ## Outcomes & Retrospective
 
-The local implementation phase is complete and green. Live docs now describe CI, CodeQL, and the supplemental smoke workflows using tracked workflow truth; `docs/README.md` now indexes every live non-ExecPlan doc; the lifecycle E2E smoke workflow now checks the current `doctor --json` report `version: 3`; and the docs-truth suite now validates the full live-doc set plus link, anchor, index, threshold, workflow, and report-version drift. The main implementation lesson was that "truth hardening" needed both broader assertions and a faster source-of-truth strategy: parsing the CLI registry files directly made the command-surface validation practical enough to keep in the normal test gate.
+This branch finished fully green on GitHub as PR `#38` (`test: harden repo-wide docs truth and lifecycle coverage`). Live docs now describe CI, CodeQL, and the supplemental smoke workflows using tracked workflow truth; `docs/README.md` now indexes every live non-ExecPlan doc; the lifecycle E2E smoke workflow now checks the current `doctor --json` report `version: 3`; and the docs-truth suite now validates the full live-doc set plus link, anchor, index, threshold, workflow, and report-version drift. The focused lifecycle/operator-layout tests also now cover the wrapper-fallback, skipped-service, launchd/full-access, and legacy-layout branches that were previously lower-confidence.
+
+The main implementation lesson was that "truth hardening" needed both broader assertions and a faster source-of-truth strategy: parsing the CLI registry files directly made the command-surface validation practical enough to keep in the normal test gate. The GitHub follow-through also exposed one real CodeQL issue in the new helper logic; fixing that on-branch and rerunning both the normal PR checks and the supplemental smoke workflows is what closed the branch in a merge-ready state rather than stopping at local green.
 
 ## Context and Orientation
 

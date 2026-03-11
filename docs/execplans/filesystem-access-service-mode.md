@@ -21,6 +21,7 @@ After this change, OpenAssist operators can distinguish two separate questions t
 - [x] (2026-03-11 00:19+00:00) Ran `pnpm verify:all`, fixed three follow-up regressions (docs test inventory, doctor JSON version/context expectation, and the systemd template contract test), and re-ran `pnpm verify:all` successfully.
 - [x] (2026-03-11 01:07+00:00) Recovered the stalled PR follow-up: fixed the uncommitted CI drift (quickstart saved-summary service boundary line and launchd-aware doctor expectation), addressed the four outstanding PR review comments, and re-ran `pnpm verify:all` successfully.
 - [x] (2026-03-11 01:18+00:00) Fixed the remaining Ubuntu-only PR regression by aligning the saved quickstart summary with the concise Linux service-mode label already used in the review step, added a platform-forced node summary test for Linux labels, and re-ran `pnpm verify:all` successfully.
+- [x] (2026-03-11 02:01+00:00) Fixed the last Ubuntu-only node test regression on PR #35 by inserting the Linux-only wizard service-mode answer into the scripted CLI setup-wizard transcript, then re-ran `pnpm verify:all` successfully before pushing the follow-up.
 - [ ] Commit the branch, push it, open the PR, and monitor CI/review until all required checks and review gates are satisfied.
 
 ## Surprises & Discoveries
@@ -45,6 +46,9 @@ After this change, OpenAssist operators can distinguish two separate questions t
 
 - Observation: a second Ubuntu-only regression remained after that first follow-up because the saved quickstart summary was reusing the lifecycle-report value, while the interactive review step already used the shorter Linux choice label.
   Evidence: `apps/openassist-cli/src/lib/setup-summary.ts` needed to derive the Linux summary label from `describeSystemdFilesystemAccess(...)`, and `tests/node/cli-setup-validation-coverage.test.ts` now forces `platform: "linux"` to cover that branch on non-Linux development hosts.
+
+- Observation: one more Ubuntu-only failure remained after the summary fix because the CLI setup-wizard node test still assumed the pre-Linux-prompt runtime answer order, so the scripted data-directory path was being consumed as `service.systemdFilesystemAccess`.
+  Evidence: `tests/node/cli-setup-wizard.test.ts` now inserts a Linux-only `"hardened"` answer before the runtime path prompts, matching the real wizard flow when `process.platform === "linux"`.
 
 ## Decision Log
 
@@ -80,7 +84,7 @@ After this change, OpenAssist operators can distinguish two separate questions t
 
 The core behavior is implemented. OpenAssist now has an explicit Linux-only systemd filesystem mode in config and setup, the runtime reports both configured and effective service boundaries, and lifecycle output can finally explain why a full-access chat session may still be blocked from package installs or wider host writes.
 
-The PR follow-up work is complete locally. The stalled CI fix has been recovered, the outstanding review comments have been addressed in code and docs, the Ubuntu-only quickstart-summary drift has been fixed with a platform-forced regression test, and `pnpm verify:all` is green again after the second follow-up patch set. The remaining work is now the outbound release discipline only: commit, push, and clear the live PR threads/checks.
+The PR follow-up work is complete locally. The stalled CI fix has been recovered, the outstanding review comments have been addressed in code and docs, the Ubuntu-only quickstart-summary drift has been fixed with a platform-forced regression test, the final Ubuntu node-test transcript drift has been corrected, and `pnpm verify:all` is green again after the latest follow-up patch set. The remaining work is now the outbound release discipline only: commit, push, and clear the live PR threads/checks.
 
 ## Context and Orientation
 

@@ -1,53 +1,37 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
 import { describe, it } from "node:test";
 
 function repoRoot(): string {
   return path.resolve(".");
 }
 
-async function runCommand(
-  command: string,
-  args: string[],
-  cwd: string
-): Promise<{ code: number; stdout: string; stderr: string }> {
-  return await new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      shell: false
-    });
-    const stdoutChunks: Buffer[] = [];
-    const stderrChunks: Buffer[] = [];
-    child.stdout.on("data", (chunk) => {
-      stdoutChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    });
-    child.stderr.on("data", (chunk) => {
-      stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      resolve({
-        code: code ?? 1,
-        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
-        stderr: Buffer.concat(stderrChunks).toString("utf8")
-      });
-    });
-  });
-}
-
-async function runCliHelp(args: string[]): Promise<string> {
-  const tsxCli = path.join(repoRoot(), "apps", "openassist-cli", "src", "index.ts");
-  const tsxEntrypoint = path.join(repoRoot(), "node_modules", "tsx", "dist", "cli.mjs");
-  const result = await runCommand(process.execPath, [tsxEntrypoint, tsxCli, ...args, "--help"], repoRoot());
-  assert.equal(result.code, 0, result.stderr || result.stdout);
-  return result.stdout;
-}
-
 function readText(filePath: string): string {
   return fs.readFileSync(path.join(repoRoot(), filePath), "utf8");
+}
+
+function listMarkdownFiles(rootDir: string): string[] {
+  const entries = fs.readdirSync(rootDir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const absolute = path.join(rootDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listMarkdownFiles(absolute));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(path.relative(repoRoot(), absolute));
+    }
+  }
+  return files;
+}
+
+function liveDocFiles(): string[] {
+  const docsFiles = listMarkdownFiles(path.join(repoRoot(), "docs"))
+    .map((filePath) => filePath.replace(/\\/g, "/"))
+    .filter((filePath) => !filePath.startsWith("docs/execplans/"));
+  return ["README.md", "AGENTS.md", "CHANGELOG.md", ...docsFiles].sort();
 }
 
 function normalizeDocCommand(line: string): string | undefined {
@@ -93,45 +77,186 @@ function extractCommandsFromDoc(filePath: string): string[] {
   return [...commands].sort();
 }
 
-function extractCommandsFromHelp(helpText: string): string[] {
-  const commands = new Set<string>();
-  let inCommands = false;
-  for (const line of helpText.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (trimmed === "Commands:") {
-      inCommands = true;
-      continue;
-    }
-    if (!inCommands) {
-      continue;
-    }
-    if (trimmed.length === 0 || trimmed === "Options:" || trimmed === "Arguments:") {
-      if (trimmed.length === 0) {
-        continue;
-      }
-      break;
-    }
-    const raw = trimmed.split(/\s{2,}/)[0] ?? "";
-    if (raw.startsWith("-")) {
-      continue;
-    }
-    const normalized = raw.split(/\s+\[/)[0]?.trim();
-    if (normalized) {
-      commands.add(normalized);
-    }
+function normalizeCommandSegment(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "help") {
+    return undefined;
   }
-  return [...commands].sort();
+  const [firstToken] = trimmed.split(/\s+/);
+  const normalized = firstToken?.trim();
+  if (!normalized || normalized === "help") {
+    return undefined;
+  }
+  return normalized;
 }
 
-function extractMarkdownLinks(filePath: string): string[] {
-  const markdown = readText(filePath);
-  const fileDir = path.dirname(path.join(repoRoot(), filePath));
-  const links = [...markdown.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)]
-    .map((match) => match[1]?.trim() ?? "")
-    .filter((target) => target.length > 0)
-    .filter((target) => !target.startsWith("http://") && !target.startsWith("https://") && !target.startsWith("#"));
+function extractRegisteredCommands(filePath: string): string[] {
+  const supported = new Set<string>(["openassist", "openassistd"]);
+  const varPaths = new Map<string, string[]>([["program", []]]);
+  const source = readText(filePath);
+  const assignmentPattern = /const\s+(\w+)\s*=\s*(\w+)\s*\.\s*command\("([^"]+)"\)/g;
+  const callPattern = /(\w+)\s*\.\s*command\("([^"]+)"\)/g;
+  const chainedCommandPattern = /(\w+)\s*\.\s*command\("([^"]+)"\)([\s\S]*?)\.\s*command\("([^"]+)"\)/g;
 
-  return links.map((target) => path.resolve(fileDir, target.split("#")[0] ?? target));
+  for (const match of source.matchAll(assignmentPattern)) {
+    const [, childVar, parentVar, commandLiteral] = match;
+    const parentPath = parentVar ? varPaths.get(parentVar) : undefined;
+    const commandSegment = commandLiteral ? normalizeCommandSegment(commandLiteral) : undefined;
+    if (!childVar || !parentPath || !commandSegment) {
+      continue;
+    }
+    varPaths.set(childVar, [...parentPath, commandSegment]);
+  }
+
+  for (const match of source.matchAll(callPattern)) {
+    const [, parentVar, commandLiteral] = match;
+    const parentPath = parentVar ? varPaths.get(parentVar) : undefined;
+    const commandSegment = commandLiteral ? normalizeCommandSegment(commandLiteral) : undefined;
+    if (!parentPath || !commandSegment) {
+      continue;
+    }
+    const fullPath = [...parentPath, commandSegment];
+    supported.add(`openassist ${fullPath.join(" ")}`);
+  }
+
+  for (const match of source.matchAll(chainedCommandPattern)) {
+    const [, parentVar, firstLiteral, , secondLiteral] = match;
+    const parentPath = parentVar ? varPaths.get(parentVar) : undefined;
+    const firstCommand = firstLiteral ? normalizeCommandSegment(firstLiteral) : undefined;
+    const secondCommand = secondLiteral ? normalizeCommandSegment(secondLiteral) : undefined;
+    if (!parentPath || !firstCommand || !secondCommand) {
+      continue;
+    }
+    supported.add(`openassist ${[...parentPath, firstCommand].join(" ")}`);
+    supported.add(`openassist ${[...parentPath, firstCommand, secondCommand].join(" ")}`);
+  }
+
+  return [...supported].sort();
+}
+
+function collectSupportedCommands(): Set<string> {
+  const supported = new Set<string>(["openassist", "openassistd"]);
+  for (const filePath of [
+    "apps/openassist-cli/src/index.ts",
+    "apps/openassist-cli/src/commands/setup.ts",
+    "apps/openassist-cli/src/commands/service.ts",
+    "apps/openassist-cli/src/commands/upgrade.ts"
+  ]) {
+    for (const command of extractRegisteredCommands(filePath)) {
+      if (command === "openassist" || command === "openassistd") {
+        continue;
+      }
+      supported.add(command);
+    }
+  }
+  return supported;
+}
+
+interface MarkdownLink {
+  sourceFile: string;
+  rawTarget: string;
+  resolvedPath: string;
+  fragment?: string;
+}
+
+function extractMarkdownLinks(filePath: string): MarkdownLink[] {
+  const markdown = readText(filePath);
+  const sourceAbs = path.join(repoRoot(), filePath);
+  const sourceDir = path.dirname(sourceAbs);
+  const links: MarkdownLink[] = [];
+  for (const match of markdown.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
+    const target = match[1]?.trim() ?? "";
+    if (
+      target.length === 0 ||
+      target.startsWith("http://") ||
+      target.startsWith("https://") ||
+      target.startsWith("mailto:")
+    ) {
+      continue;
+    }
+    if (target.startsWith("#")) {
+      links.push({
+        sourceFile: filePath,
+        rawTarget: target,
+        resolvedPath: sourceAbs,
+        fragment: target.slice(1)
+      });
+      continue;
+    }
+    const [pathPart, fragment] = target.split("#");
+    links.push({
+      sourceFile: filePath,
+      rawTarget: target,
+      resolvedPath: path.resolve(sourceDir, pathPart ?? target),
+      ...(fragment ? { fragment } : {})
+    });
+  }
+  return links;
+}
+
+function stripHeadingMarkdown(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/[*_~]/g, "")
+    .replace(/<[^>]+>/g, "")
+    .trim();
+}
+
+function slugifyHeading(text: string): string {
+  return stripHeadingMarkdown(text)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\- ]+/gu, "")
+    .trim()
+    .replace(/\s+/g, "-");
+}
+
+function extractHeadingAnchors(filePath: string): Set<string> {
+  const markdown = readText(filePath);
+  const anchors = new Set<string>();
+  const seen = new Map<string, number>();
+  let inFence = false;
+  for (const rawLine of markdown.split(/\r?\n/)) {
+    const trimmed = rawLine.trim();
+    if (trimmed.startsWith("```")) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) {
+      continue;
+    }
+    const heading = rawLine.match(/^#{1,6}\s+(.+)$/);
+    if (!heading?.[1]) {
+      continue;
+    }
+    const base = slugifyHeading(heading[1]);
+    if (!base) {
+      continue;
+    }
+    const count = seen.get(base) ?? 0;
+    seen.set(base, count + 1);
+    anchors.add(count === 0 ? base : `${base}-${count}`);
+  }
+  return anchors;
+}
+
+function extractDocIndexTargets(filePath: string): Set<string> {
+  const docsRoot = path.join(repoRoot(), "docs");
+  const targets = new Set<string>();
+  for (const link of extractMarkdownLinks(filePath)) {
+    const normalizedPath = path.relative(repoRoot(), link.resolvedPath).replace(/\\/g, "/");
+    if (!normalizedPath.startsWith("docs/") || !normalizedPath.endsWith(".md")) {
+      continue;
+    }
+    if (normalizedPath.startsWith("docs/execplans/")) {
+      continue;
+    }
+    targets.add(normalizedPath);
+    if (!link.resolvedPath.startsWith(docsRoot)) {
+      continue;
+    }
+  }
+  return targets;
 }
 
 function parseWorkflowMatrixOs(workflowPath: string): string[] {
@@ -149,18 +274,28 @@ function extractWorkflowScheduleCron(workflowPath: string): string {
   return match[1];
 }
 
-function formatWorkflowSchedule(cron: string): string {
-  const match = cron.match(/^(\d+)\s+(\d+)\s+\*\s+\*\s+([0-7](?:,[0-7])*)$/);
-  assert.ok(match, `Unsupported workflow cron format: ${cron}`);
-  const [, minute, hour, weekdays] = match;
+function formatWorkflowSchedule(cron: string): { cadence: "daily" | "weekly"; detail: string } {
+  const daily = cron.match(/^(\d+)\s+(\d+)\s+\*\s+\*\s+\*$/);
+  if (daily) {
+    const [, minute, hour] = daily;
+    return {
+      cadence: "daily",
+      detail: `\`${hour.padStart(2, "0")}:${minute.padStart(2, "0")} UTC\``
+    };
+  }
+  const weekdays = cron.match(/^(\d+)\s+(\d+)\s+\*\s+\*\s+([0-7](?:,[0-7])*)$/);
+  assert.ok(weekdays, `Unsupported workflow cron format: ${cron}`);
+  const [, minute, hour, weekdayList] = weekdays;
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const renderedDays = weekdays
+  const renderedDays = weekdayList
     .split(",")
     .map((value) => Number(value) % 7)
     .map((value) => `\`${dayNames[value]}\``)
     .join("/");
-  const renderedTime = `\`${hour.padStart(2, "0")}:${minute.padStart(2, "0")} UTC\``;
-  return `${renderedDays} at ${renderedTime}`;
+  return {
+    cadence: "weekly",
+    detail: `${renderedDays} at \`${hour.padStart(2, "0")}:${minute.padStart(2, "0")} UTC\``
+  };
 }
 
 function escapeRegExp(value: string): string {
@@ -178,56 +313,129 @@ function extractSectionBullets(markdown: string, heading: string): string[] {
     .map((line) => line.replace(/^- `/, "").replace(/`$/, ""));
 }
 
+function extractVitestThresholds(): { lines: number; functions: number; branches: number; statements: number } {
+  const config = readText("vitest.config.ts");
+  const match = config.match(
+    /thresholds:\s*{[\s\S]*?lines:\s*(\d+)[\s\S]*?functions:\s*(\d+)[\s\S]*?branches:\s*(\d+)[\s\S]*?statements:\s*(\d+)/m
+  );
+  assert.ok(match, "Could not parse Vitest thresholds from vitest.config.ts");
+  return {
+    lines: Number(match[1]),
+    functions: Number(match[2]),
+    branches: Number(match[3]),
+    statements: Number(match[4])
+  };
+}
+
+function extractNodeCoverageThresholds(): { lines: number; functions: number; branches: number; statements: number } {
+  const packageJson = JSON.parse(readText("package.json")) as {
+    scripts?: Record<string, string>;
+  };
+  const script = packageJson.scripts?.["test:coverage:node"] ?? "";
+  const match = script.match(/--lines (\d+) --functions (\d+) --branches (\d+) --statements (\d+)/);
+  assert.ok(match, "Could not parse node coverage thresholds from package.json");
+  return {
+    lines: Number(match[1]),
+    functions: Number(match[2]),
+    branches: Number(match[3]),
+    statements: Number(match[4])
+  };
+}
+
+function extractLifecycleSmokeDoctorJsonVersion(workflowPath: string): number {
+  const workflow = readText(workflowPath);
+  const match = workflow.match(/report\.version !== (\d+)/);
+  assert.ok(match?.[1], `Could not parse doctor --json report version guard from ${workflowPath}`);
+  return Number(match[1]);
+}
+
+async function currentLifecycleReportVersion(): Promise<number> {
+  const { buildLifecycleReport } = await import("../../apps/openassist-cli/src/lib/lifecycle-readiness.js");
+  return buildLifecycleReport({
+    installDir: "/tmp/openassist",
+    configPath: "/tmp/openassist/openassist.toml",
+    envFilePath: "/tmp/openassist/openassistd.env",
+    installStatePresent: false,
+    repoBacked: false,
+    configExists: false,
+    envExists: false,
+    daemonBuildExists: false
+  }).version;
+}
+
 describe("docs truth", () => {
-  it("keeps documented lifecycle command examples aligned with the real CLI surface", async () => {
-    const topLevelHelp = await runCliHelp([]);
-    const supported = new Set<string>();
-    supported.add("openassist");
-    supported.add("openassistd");
-    for (const command of extractCommandsFromHelp(topLevelHelp)) {
-      supported.add(`openassist ${command}`);
-    }
-
-    for (const parent of ["setup", "service", "auth", "channel", "time", "scheduler", "tools", "skills", "growth", "config", "migrate"]) {
-      const help = await runCliHelp([parent]);
-      for (const child of extractCommandsFromHelp(help)) {
-        supported.add(`openassist ${parent} ${child}`);
-      }
-    }
-    supported.add("openassist growth helper add");
-
-    const docFiles = [
-      "README.md",
-      "docs/README.md",
-      "docs/operations/quickstart-linux-macos.md",
-      "docs/operations/install-linux.md",
-      "docs/operations/install-macos.md",
-      "docs/operations/setup-wizard.md",
-      "docs/operations/upgrade-and-rollback.md",
-      "docs/operations/restart-recovery.md",
-      "docs/operations/config-rollout-and-rollback.md",
-      "docs/operations/common-troubleshooting.md"
-    ];
-
-    for (const filePath of docFiles) {
+  it("keeps documented command examples across live docs aligned with the real CLI surface", () => {
+    const supported = collectSupportedCommands();
+    for (const filePath of liveDocFiles()) {
       for (const command of extractCommandsFromDoc(filePath)) {
         assert.ok(supported.has(command), `${filePath} documents a CLI command that is not registered: ${command}`);
       }
     }
   });
 
-  it("keeps root doc links valid", () => {
-    for (const filePath of ["README.md", "docs/README.md"]) {
-      for (const target of extractMarkdownLinks(filePath)) {
-        assert.equal(fs.existsSync(target), true, `${filePath} links to missing path ${target}`);
+  it("keeps local markdown links and in-repo anchors valid across live docs", () => {
+    for (const filePath of liveDocFiles()) {
+      for (const link of extractMarkdownLinks(filePath)) {
+        assert.equal(fs.existsSync(link.resolvedPath), true, `${filePath} links to missing path ${link.rawTarget}`);
+        if (!link.fragment) {
+          continue;
+        }
+        const targetFile = path.relative(repoRoot(), link.resolvedPath).replace(/\\/g, "/");
+        const anchors = extractHeadingAnchors(targetFile);
+        assert.ok(
+          anchors.has(link.fragment),
+          `${filePath} links to missing anchor ${link.rawTarget} (resolved file ${targetFile})`
+        );
       }
     }
   });
 
-  it("keeps workflow statements aligned with the actual workflow files", () => {
+  it("keeps docs/README.md as a complete index for live non-ExecPlan docs", () => {
+    const indexedDocs = extractDocIndexTargets("docs/README.md");
+    const actualDocs = listMarkdownFiles(path.join(repoRoot(), "docs"))
+      .map((filePath) => filePath.replace(/\\/g, "/"))
+      .filter((filePath) => filePath !== "docs/README.md")
+      .filter((filePath) => !filePath.startsWith("docs/execplans/"))
+      .sort();
+
+    for (const filePath of actualDocs) {
+      assert.ok(indexedDocs.has(filePath), `docs/README.md is missing live doc link ${filePath}`);
+    }
+  });
+
+  it("keeps coverage-threshold wording aligned with config truth", () => {
+    const agents = readText("AGENTS.md");
+    const testMatrix = readText("docs/testing/test-matrix.md");
+    const vitest = extractVitestThresholds();
+    const node = extractNodeCoverageThresholds();
+
+    assert.match(
+      agents,
+      new RegExp(`Vitest: lines/statements/functions >= ${vitest.lines}, branches >= ${vitest.branches}`)
+    );
+    assert.match(
+      agents,
+      new RegExp(
+        `Node integration: lines/statements >= ${node.lines}, functions >= ${node.functions}, branches >= ${node.branches}`
+      )
+    );
+    assert.match(agents, /`vitest\.config\.ts`/);
+    assert.match(agents, /`package\.json`/);
+
+    assert.match(testMatrix, new RegExp(`lines/statements/functions >= ${vitest.lines}`));
+    assert.match(testMatrix, new RegExp(`branches >= ${vitest.branches}`));
+    assert.match(testMatrix, new RegExp(`lines/statements >= ${node.lines}`));
+    assert.match(testMatrix, new RegExp(`functions >= ${node.functions}`));
+    assert.match(testMatrix, new RegExp(`branches >= ${node.branches}`));
+  });
+
+  it("keeps workflow statements aligned with workflow truth", () => {
     const readme = readText("README.md");
     const docsIndex = readText("docs/README.md");
     const testMatrix = readText("docs/testing/test-matrix.md");
+    const agents = readText("AGENTS.md");
+    const ciSchedule = formatWorkflowSchedule(extractWorkflowScheduleCron(".github/workflows/ci.yml"));
+    const codeqlSchedule = formatWorkflowSchedule(extractWorkflowScheduleCron(".github/workflows/codeql.yml"));
     const serviceSmokeSchedule = formatWorkflowSchedule(extractWorkflowScheduleCron(".github/workflows/service-smoke.yml"));
     const lifecycleSmokeSchedule = formatWorkflowSchedule(
       extractWorkflowScheduleCron(".github/workflows/lifecycle-e2e-smoke.yml")
@@ -238,12 +446,33 @@ describe("docs truth", () => {
       "ubuntu-latest",
       "windows-latest"
     ]);
-    assert.match(readme, /workflow lint/);
-    assert.match(readme, /quality-and-coverage on `ubuntu-latest`, `macos-latest`, and `windows-latest`/);
-    assert.match(testMatrix, /quality and coverage matrix .*`pnpm ci:strict`.*on:/);
-    assert.match(testMatrix, /`ubuntu-latest`/);
-    assert.match(testMatrix, /`macos-latest`/);
-    assert.match(testMatrix, /`windows-latest`/);
+    assert.match(
+      readme,
+      new RegExp(
+        `CI\` runs on pushes to \`main\`, pull requests, manual dispatch, and a ${ciSchedule.cadence} ${escapeRegExp(ciSchedule.detail)} schedule`
+      )
+    );
+    assert.match(readme, /quality-and-coverage` matrix on `ubuntu-latest`, `macos-latest`, and `windows-latest`/);
+    assert.match(testMatrix, /### CI \(`\.github\/workflows\/ci\.yml`\)/);
+    assert.match(testMatrix, /quality and coverage matrix \(`pnpm ci:strict`\) on:/);
+
+    assert.match(
+      readme,
+      new RegExp(
+        `CodeQL\` runs on pushes to \`main\`, pull requests to \`main\`, manual dispatch, and a ${codeqlSchedule.cadence} ${escapeRegExp(codeqlSchedule.detail)} schedule`
+      )
+    );
+    assert.match(readme, /CodeQL preflight` plus `analyze \(javascript-typescript\)`/);
+    assert.match(
+      docsIndex,
+      new RegExp(
+        `CodeQL\` runs on pushes to \`main\`, pull requests to \`main\`, manual dispatch, and a ${codeqlSchedule.cadence} ${escapeRegExp(codeqlSchedule.detail)} schedule`
+      )
+    );
+    assert.match(testMatrix, /### CodeQL \(`\.github\/workflows\/codeql\.yml`\)/);
+    assert.match(testMatrix, /`CodeQL preflight`/);
+    assert.match(testMatrix, /`analyze \(javascript-typescript\)`/);
+    assert.match(agents, /`\.github\/workflows\/codeql\.yml`/);
 
     assert.deepEqual(parseWorkflowMatrixOs(".github/workflows/service-smoke.yml").sort(), [
       "macos-latest",
@@ -251,12 +480,12 @@ describe("docs truth", () => {
     ]);
     assert.match(
       readme,
-      new RegExp(`Service Smoke\` runs on manual dispatch and schedule \\(${escapeRegExp(serviceSmokeSchedule)}\\)`)
+      new RegExp(`Service Smoke\` runs on manual dispatch and schedule \\(${escapeRegExp(serviceSmokeSchedule.detail)}\\)`)
     );
     assert.match(
       docsIndex,
       new RegExp(
-        `service-smoke\\.yml\` runs on \`workflow_dispatch\` and schedule \\(${escapeRegExp(serviceSmokeSchedule)}\\)`
+        `service-smoke\\.yml\` runs on \`workflow_dispatch\` and schedule \\(${escapeRegExp(serviceSmokeSchedule.detail)}\\)`
       )
     );
     assert.match(testMatrix, /### Service Smoke \(`\.github\/workflows\/service-smoke\.yml`\)/);
@@ -268,16 +497,22 @@ describe("docs truth", () => {
     assert.match(
       readme,
       new RegExp(
-        `Lifecycle E2E Smoke\` runs on manual dispatch and schedule \\(${escapeRegExp(lifecycleSmokeSchedule)}\\)`
+        `Lifecycle E2E Smoke\` runs on manual dispatch and schedule \\(${escapeRegExp(lifecycleSmokeSchedule.detail)}\\)`
       )
     );
     assert.match(
       docsIndex,
       new RegExp(
-        `lifecycle-e2e-smoke\\.yml\` runs on \`workflow_dispatch\` and schedule \\(${escapeRegExp(lifecycleSmokeSchedule)}\\)`
+        `lifecycle-e2e-smoke\\.yml\` runs on \`workflow_dispatch\` and schedule \\(${escapeRegExp(lifecycleSmokeSchedule.detail)}\\)`
       )
     );
     assert.match(testMatrix, /### Lifecycle E2E Smoke \(`\.github\/workflows\/lifecycle-e2e-smoke\.yml`\)/);
+  });
+
+  it("keeps the lifecycle E2E smoke doctor-report version guard aligned with the lifecycle report", async () => {
+    const expectedVersion = await currentLifecycleReportVersion();
+    const workflowVersion = extractLifecycleSmokeDoctorJsonVersion(".github/workflows/lifecycle-e2e-smoke.yml");
+    assert.equal(workflowVersion, expectedVersion);
   });
 
   it("keeps the documented test inventory in sync with the real suite files", () => {

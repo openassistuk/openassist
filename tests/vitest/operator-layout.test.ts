@@ -81,6 +81,39 @@ describe("legacy operator layout migration", () => {
       expect(detection.status).toBe("ready");
     }));
 
+  it("does not auto-detect legacy state when canonical home-state config already exists", async () =>
+    await withHomeDir(tempDir("openassist-operator-layout-home-existing-config-"), () => {
+      const homeDir = process.env.HOME!;
+      const installDir = tempDir("openassist-operator-layout-install-existing-config-");
+      const operatorPaths = resolveOperatorPaths({ homeDir, installDir });
+      writeLegacyDefaultConfig(installDir);
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
+      saveConfigObject(operatorPaths.configPath, createDefaultConfigObject());
+
+      const detection = detectLegacyDefaultLayout(installDir, operatorPaths);
+
+      expect(detection.status).toBe("none");
+    }));
+
+  it("detects the legacy layout when install state still points at repo-local config", async () =>
+    await withHomeDir(tempDir("openassist-operator-layout-home-install-state-"), () => {
+      const homeDir = process.env.HOME!;
+      const installDir = tempDir("openassist-operator-layout-install-install-state-");
+      const operatorPaths = resolveOperatorPaths({ homeDir, installDir });
+      const legacyConfigPath = writeLegacyDefaultConfig(installDir);
+      fs.mkdirSync(path.dirname(operatorPaths.envFilePath), { recursive: true });
+      fs.writeFileSync(operatorPaths.envFilePath, "# env\n", "utf8");
+      saveInstallState({
+        installDir,
+        configPath: legacyConfigPath,
+        envFilePath: operatorPaths.envFilePath
+      });
+
+      const detection = detectLegacyDefaultLayout(installDir, operatorPaths);
+
+      expect(detection.status).toBe("ready");
+    }));
+
   it("migrates the recognized legacy default layout into the canonical home-state directories", async () =>
     await withHomeDir(tempDir("openassist-operator-layout-home-migrate-"), async () => {
       const homeDir = process.env.HOME!;

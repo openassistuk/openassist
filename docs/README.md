@@ -124,6 +124,7 @@ Primary runbooks:
 - Common troubleshooting: [`docs/operations/common-troubleshooting.md`](operations/common-troubleshooting.md)
 - Linux platform details: [`docs/operations/install-linux.md`](operations/install-linux.md)
 - macOS platform details: [`docs/operations/install-macos.md`](operations/install-macos.md)
+- Config rollout and rollback: [`docs/operations/config-rollout-and-rollback.md`](operations/config-rollout-and-rollback.md)
 - Quickstart versus wizard responsibilities: [`docs/operations/setup-wizard.md`](operations/setup-wizard.md)
 - Upgrade, rollback, and rerun-bootstrap guidance: [`docs/operations/upgrade-and-rollback.md`](operations/upgrade-and-rollback.md)
 - Restart and recovery guarantees: [`docs/operations/restart-recovery.md`](operations/restart-recovery.md)
@@ -148,12 +149,17 @@ Use `install.sh` or `scripts/install/bootstrap.sh` again when the checkout is no
 ## Architecture and Interfaces
 
 - System overview: [`docs/architecture/overview.md`](architecture/overview.md)
+- Context engine: [`docs/architecture/context-engine.md`](architecture/context-engine.md)
 - Runtime modules: [`docs/architecture/runtime-and-modules.md`](architecture/runtime-and-modules.md)
 - Provider contract: [`docs/interfaces/provider-adapter.md`](interfaces/provider-adapter.md)
 - Channel contract: [`docs/interfaces/channel-adapter.md`](interfaces/channel-adapter.md)
 - Skills manifest and managed growth contract: [`docs/interfaces/skills-manifest.md`](interfaces/skills-manifest.md)
 - Tool-calling contract: [`docs/interfaces/tool-calling.md`](interfaces/tool-calling.md)
 - Scheduler and time contract: [`docs/interfaces/scheduler-and-time.md`](interfaces/scheduler-and-time.md)
+
+## Migration and Import
+
+- OpenClaw import guide: [`docs/migration/openclaw-import.md`](migration/openclaw-import.md)
 
 ## Security and Policy
 
@@ -167,7 +173,12 @@ Use `install.sh` or `scripts/install/bootstrap.sh` again when the checkout is no
 - Chaos and soak scenarios: [`docs/testing/chaos-and-soak.md`](testing/chaos-and-soak.md)
 - Changelog: [`CHANGELOG.md`](../CHANGELOG.md)
 
-The test matrix is now expected to match the on-disk suite inventory exactly, and the normal Node test gate validates that README, docs index, workflow statements, and command examples stay in sync with the real repo.
+The test matrix is now expected to match the on-disk suite inventory exactly, and the normal Node test gate validates all live docs except archived ExecPlans: local links and anchors, docs-index completeness, workflow statements, coverage-threshold references, and documented command examples must stay in sync with the real repo.
+
+GitHub automation:
+
+- `CI` runs on pushes to `main`, pull requests, manual dispatch, and a daily `04:30 UTC` schedule for workflow lint plus the `quality-and-coverage` matrix.
+- `CodeQL` runs on pushes to `main`, pull requests to `main`, manual dispatch, and a weekly `Mon` at `05:15 UTC` schedule. In this public repo it runs `CodeQL preflight` plus `analyze (javascript-typescript)`.
 
 Supplemental smoke notes:
 
@@ -184,6 +195,7 @@ Supplemental smoke notes:
   - [`docs/execplans/codex-provider-route.md`](execplans/codex-provider-route.md)
   - [`docs/execplans/codex-chat-instructions-contract.md`](execplans/codex-chat-instructions-contract.md)
   - [`docs/execplans/general-purpose-assistant-identity-and-growth.md`](execplans/general-purpose-assistant-identity-and-growth.md)
+  - [`docs/execplans/repo-wide-docs-tests-ci-hardening-followup.md`](execplans/repo-wide-docs-tests-ci-hardening-followup.md)
   - [`docs/execplans/repo-wide-docs-test-hardening.md`](execplans/repo-wide-docs-test-hardening.md)
   - [`docs/execplans/provider-reasoning-controls.md`](execplans/provider-reasoning-controls.md)
   - [`docs/execplans/branch-pr-install-tracks.md`](execplans/branch-pr-install-tracks.md)

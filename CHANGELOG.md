@@ -82,6 +82,12 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Repo-wide docs/test/CI hardening follow-up:
+  - `docs/README.md` now indexes every live non-ExecPlan doc, including the context-engine, config-rollout, and OpenClaw import pages
+  - repo-tracked docs now describe GitHub automation using tracked workflow truth, including the separate `CodeQL` workflow and the distinction between normal PR automation versus supplemental manual/scheduled smoke
+  - docs-truth enforcement is now broader: it validates all live docs except archived ExecPlans, checks local links plus anchors, verifies docs-index completeness, verifies coverage-threshold wording against `vitest.config.ts` and `package.json`, and verifies workflow wording against `ci.yml`, `codeql.yml`, `service-smoke.yml`, and `lifecycle-e2e-smoke.yml`
+  - the lifecycle E2E smoke workflow now checks the current `openassist doctor --json` report `version: 3` instead of the stale `version: 2` expectation that local tests no longer exercised
+
 - Outbound channel delivery follow-up hardening:
   - runtime now blocks and audits provider tool calls that were not actually advertised for the active session, which closes the gap where a provider could force hidden delivery tools in `full-root`
   - `channel.send mode="reply"` now enforces the same outbound-file availability boundary surfaced in runtime awareness instead of relying only on schema exposure

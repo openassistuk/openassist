@@ -219,6 +219,7 @@ If you configure approved operator IDs later through `openassist setup wizard`, 
 Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`.
 Generated files can now be returned through the active Telegram, Discord, or WhatsApp chat when the current session can call `channel.send`; OpenAssist no longer has to stop at a local filesystem path.
 Targeted operator notifications stay bounded to `channels[*].settings.operatorUserIds`, and Discord still requires the same recipient in `allowedDmUserIds` before a direct DM send is allowed.
+Provider tool calls that were not advertised for the active session are now blocked and audited instead of being executed opportunistically, and missing staged outbound files degrade to explicit delivery notes instead of silent drops.
 
 ### 4. Check install and runtime readiness
 

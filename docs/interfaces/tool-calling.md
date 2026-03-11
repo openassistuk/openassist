@@ -53,6 +53,7 @@ Autonomous tool execution is enabled only when the effective sender access for t
 - `channel.send mode="notify"` additionally requires an approved operator sender and a recipient listed in `channels[*].settings.operatorUserIds`; Discord also requires the same recipient in `allowedDmUserIds`
 - Linux systemd service hardening can still narrow the live host-write boundary even in `full-root`; `/status` and `openassist tools status` report that service boundary separately
 - if a provider still returns tool calls while schemas are absent, runtime ignores those calls and returns a safe non-executing assistant response
+- if a provider returns a tool call that was not advertised for the current session, runtime blocks and audits that call instead of executing it
 - if provider/auth/runtime errors occur during chat, runtime emits a sanitized operational diagnostic message to channel instead of dropping the request
 
 Canonical session ID format:

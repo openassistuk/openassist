@@ -178,9 +178,65 @@ class NotifyProvider implements ProviderAdapter {
   }
 }
 
+class ChannelSendProvider implements ProviderAdapter {
+  public requests: ChatRequest[] = [];
+  private readonly toolRequest: Record<string, unknown>;
+  private readonly finalText: string;
+
+  constructor(toolRequest: Record<string, unknown>, finalText: string) {
+    this.toolRequest = toolRequest;
+    this.finalText = finalText;
+  }
+
+  id(): string {
+    return "mock-provider";
+  }
+
+  capabilities(): ProviderCapabilities {
+    return {
+      supportsStreaming: false,
+      supportsTools: true,
+      supportsOAuth: false,
+      supportsApiKeys: true,
+      supportsImageInputs: false
+    };
+  }
+
+  async validateConfig(): Promise<ValidationResult> {
+    return { valid: true, errors: [] };
+  }
+
+  async chat(req: ChatRequest, _auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
+    this.requests.push(req);
+    if (req.messages.some((message) => message.role === "tool")) {
+      return {
+        output: { role: "assistant", content: this.finalText },
+        usage: { inputTokens: 2, outputTokens: 2, totalTokens: 4 }
+      };
+    }
+
+    return {
+      output: { role: "assistant", content: "" },
+      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      toolCalls: [
+        {
+          id: "channel-send-tool-1",
+          name: "channel.send",
+          argumentsJson: JSON.stringify(this.toolRequest)
+        }
+      ]
+    };
+  }
+}
+
 class MockChannel implements ChannelAdapter {
   public sent: OutboundEnvelope[] = [];
   private handler: ((msg: InboundEnvelope) => Promise<void>) | null = null;
+  private readonly capabilityOverrides: Partial<ChannelCapabilities>;
+
+  constructor(capabilityOverrides: Partial<ChannelCapabilities> = {}) {
+    this.capabilityOverrides = capabilityOverrides;
+  }
 
   id(): string {
     return "telegram-mock";
@@ -196,7 +252,8 @@ class MockChannel implements ChannelAdapter {
       supportsDocumentAttachments: true,
       supportsOutboundImageAttachments: true,
       supportsOutboundDocumentAttachments: true,
-      supportsDirectRecipientDelivery: true
+      supportsDirectRecipientDelivery: true,
+      ...this.capabilityOverrides
     };
   }
 
@@ -401,14 +458,19 @@ describe("runtime chat policy gating", () => {
 
     await channel.emit(inbound("u1", "notify someone", "notify-blocked"));
 
+    assert.equal(provider.requests.length, 2);
+    assert.equal(
+      provider.requests[0]?.tools.some((tool) => tool.name === "channel.send"),
+      false
+    );
     assert.equal(channel.sent.length, 1);
     assert.equal(channel.sent[0]?.directRecipientUserId, undefined);
     assert.equal(channel.sent[0]?.text, "notify attempt complete");
     const invocations = runtime.listToolInvocations("telegram-mock:conv-1", 10);
     assert.equal(invocations.length, 1);
     assert.equal(invocations[0]?.toolName, "channel.send");
-    assert.equal(invocations[0]?.status, "failed");
-    assert.match(String(invocations[0]?.errorText ?? ""), /approved operator/i);
+    assert.equal(invocations[0]?.status, "blocked");
+    assert.match(String(invocations[0]?.errorText ?? ""), /not advertised/i);
 
     await runtime.stop();
     db.close();
@@ -446,6 +508,105 @@ describe("runtime chat policy gating", () => {
     assert.equal(invocations.length, 1);
     assert.equal(invocations[0]?.toolName, "channel.send");
     assert.equal(invocations[0]?.status, "succeeded");
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("blocks unadvertised channel.send tool calls even in full-root sessions", async () => {
+    const root = tempDir("openassist-policy-gate-channel-send-unadvertised-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const provider = new ChannelSendProvider(
+      {
+        mode: "reply",
+        text: "forced reply",
+        reason: "provider attempted to force a hidden tool"
+      },
+      "forced delivery blocked"
+    );
+    const channel = new MockChannel();
+    const runtime = new OpenAssistRuntime(
+      buildConfig(root, {
+        defaultPolicyProfile: "full-root",
+        operatorAccessProfile: "full-root",
+        channelSettings: {}
+      }),
+      { db, logger },
+      { providers: [provider], channels: [channel] }
+    );
+
+    runtime.setProviderApiKey("mock-provider", "key");
+    await runtime.start();
+
+    await channel.emit(inbound("u1", "force a hidden delivery", "channel-send-unadvertised"));
+
+    assert.equal(provider.requests.length, 2);
+    assert.equal(
+      provider.requests[0]?.tools.some((tool) => tool.name === "channel.send"),
+      false
+    );
+    assert.equal(channel.sent.length, 1);
+    assert.equal(channel.sent[0]?.text, "forced delivery blocked");
+    const invocations = runtime.listToolInvocations("telegram-mock:conv-1", 10);
+    assert.equal(invocations.length, 1);
+    assert.equal(invocations[0]?.toolName, "channel.send");
+    assert.equal(invocations[0]?.status, "blocked");
+    assert.match(String(invocations[0]?.errorText ?? ""), /not advertised/i);
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("blocks reply mode when channel.send is only callable for notify delivery", async () => {
+    const root = tempDir("openassist-policy-gate-channel-send-reply-blocked-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const provider = new ChannelSendProvider(
+      {
+        mode: "reply",
+        text: "forced reply",
+        reason: "provider attempted to send a file reply without outbound file support"
+      },
+      "reply delivery blocked"
+    );
+    const channel = new MockChannel({
+      supportsOutboundImageAttachments: false,
+      supportsOutboundDocumentAttachments: false,
+      supportsDirectRecipientDelivery: true
+    });
+    const runtime = new OpenAssistRuntime(
+      buildConfig(root, {
+        defaultPolicyProfile: "full-root",
+        operatorAccessProfile: "full-root",
+        channelSettings: { operatorUserIds: ["u1"] }
+      }),
+      { db, logger },
+      { providers: [provider], channels: [channel] }
+    );
+
+    runtime.setProviderApiKey("mock-provider", "key");
+    await runtime.start();
+
+    await channel.emit(inbound("u1", "force a reply delivery", "channel-send-reply-blocked"));
+
+    assert.equal(provider.requests.length, 2);
+    assert.equal(
+      provider.requests[0]?.tools.some((tool) => tool.name === "channel.send"),
+      true
+    );
+    assert.equal(channel.sent.length, 1);
+    assert.equal(channel.sent[0]?.text, "reply delivery blocked");
+    const invocations = runtime.listToolInvocations("telegram-mock:conv-1", 10);
+    assert.equal(invocations.length, 1);
+    assert.equal(invocations[0]?.toolName, "channel.send");
+    assert.equal(invocations[0]?.status, "failed");
+    assert.match(
+      String(invocations[0]?.errorText ?? ""),
+      /cannot return generated files through chat/i
+    );
 
     await runtime.stop();
     db.close();

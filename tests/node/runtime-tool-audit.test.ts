@@ -177,7 +177,14 @@ function baseConfig(root: string): RuntimeConfig {
     bindPort: 3344,
     defaultProviderId: "mock-provider",
     providers: [{ id: "mock-provider", type: "openai-compatible", defaultModel: "x" }],
-    channels: [{ id: "telegram-mock", type: "telegram", enabled: true, settings: {} }],
+    channels: [
+      {
+        id: "telegram-mock",
+        type: "telegram",
+        enabled: true,
+        settings: { operatorUserIds: ["u1"] }
+      }
+    ],
     defaultPolicyProfile: "full-root",
     paths: {
       dataDir: root,

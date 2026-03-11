@@ -247,6 +247,59 @@ describe("channel adapter send behavior", () => {
     ).rejects.toThrow(/allowedDmUserIds/i);
   });
 
+  it("falls back to an explicit Discord text note when staged attachments are missing", async () => {
+    const adapter = new DiscordChannelAdapter({
+      id: "discord-main",
+      botToken: "token",
+      allowedChannelIds: [],
+      allowedDmUserIds: ["operator-1"]
+    });
+
+    let capturedPayload: Record<string, unknown> | undefined;
+    (adapter as any).client = {
+      users: {
+        fetch: async () => ({
+          createDM: async () => ({
+            isTextBased: () => true,
+            send: async (payload: Record<string, unknown>) => {
+              capturedPayload = payload;
+              return { id: "discord-dm-missing" };
+            }
+          })
+        })
+      },
+      channels: {
+        fetch: async () => {
+          throw new Error("channel fetch should not be used for direct recipient delivery");
+        }
+      }
+    };
+
+    const missingPath = path.join(os.tmpdir(), `openassist-missing-${Date.now()}.txt`);
+    const result = await adapter.send({
+      channel: "discord",
+      conversationKey: "channel-123",
+      directRecipientUserId: "operator-1",
+      attachments: [
+        {
+          id: "doc-missing",
+          kind: "document",
+          name: "report.txt",
+          localPath: missingPath,
+          mimeType: "text/plain"
+        }
+      ],
+      metadata: {}
+    });
+
+    expect(result.transportMessageId).toBe("discord-dm-missing");
+    expect(capturedPayload).toEqual({
+      content: "OpenAssist notes:\n- report.txt could not be attached because the staged file is missing.",
+      files: undefined,
+      reply: undefined
+    });
+  });
+
   it("sends WhatsApp replies with a quoted attachment message in the current chat", async () => {
     const root = tempDir("openassist-whatsapp-send-");
     roots.push(root);
@@ -312,5 +365,109 @@ describe("channel adapter send behavior", () => {
         }
       }
     });
+  });
+
+  it("sends WhatsApp caption overflow as a follow-up text message", async () => {
+    const root = tempDir("openassist-whatsapp-send-overflow-");
+    roots.push(root);
+
+    const adapter = new WhatsAppMdChannelAdapter({
+      id: "whatsapp-main",
+      mode: "production",
+      sessionDir: ".openassist/data/whatsapp-md",
+      printQrInTerminal: false,
+      syncFullHistory: false,
+      maxReconnectAttempts: 1,
+      reconnectDelayMs: 1000,
+      browserName: "OpenAssist",
+      browserVersion: "0.1.0",
+      browserPlatform: "Linux"
+    });
+
+    const calls: Array<{ jid: string; payload: Record<string, unknown>; options: Record<string, unknown> }> = [];
+    (adapter as any).socket = {
+      sendMessage: async (jid: string, payload: Record<string, unknown>, options: Record<string, unknown>) => {
+        calls.push({ jid, payload, options });
+        return { key: { id: `wa-sent-${calls.length}` } };
+      }
+    };
+
+    const longText = "a".repeat(1100);
+    const result = await adapter.send({
+      channel: "whatsapp-md",
+      conversationKey: "447700900000@s.whatsapp.net",
+      text: longText,
+      attachments: [
+        {
+          id: "doc-1",
+          kind: "document",
+          name: "report.txt",
+          localPath: writeTempFile(root, "report.txt"),
+          mimeType: "text/plain"
+        }
+      ],
+      metadata: {}
+    });
+
+    expect(result.transportMessageId).toBe("wa-sent-2");
+    expect(calls).toHaveLength(2);
+    expect((calls[0]?.payload.caption as string).length).toBe(1024);
+    expect(calls[1]).toEqual({
+      jid: "447700900000@s.whatsapp.net",
+      payload: {
+        text: "a".repeat(76)
+      },
+      options: {}
+    });
+  });
+
+  it("falls back to an explicit WhatsApp text note when staged attachments are missing", async () => {
+    const adapter = new WhatsAppMdChannelAdapter({
+      id: "whatsapp-main",
+      mode: "production",
+      sessionDir: ".openassist/data/whatsapp-md",
+      printQrInTerminal: false,
+      syncFullHistory: false,
+      maxReconnectAttempts: 1,
+      reconnectDelayMs: 1000,
+      browserName: "OpenAssist",
+      browserVersion: "0.1.0",
+      browserPlatform: "Linux"
+    });
+
+    const calls: Array<{ jid: string; payload: Record<string, unknown>; options: Record<string, unknown> }> = [];
+    (adapter as any).socket = {
+      sendMessage: async (jid: string, payload: Record<string, unknown>, options: Record<string, unknown>) => {
+        calls.push({ jid, payload, options });
+        return { key: { id: "wa-missing-1" } };
+      }
+    };
+
+    const missingPath = path.join(os.tmpdir(), `openassist-missing-${Date.now()}.txt`);
+    const result = await adapter.send({
+      channel: "whatsapp-md",
+      conversationKey: "447700900000@s.whatsapp.net",
+      attachments: [
+        {
+          id: "doc-missing",
+          kind: "document",
+          name: "report.txt",
+          localPath: missingPath,
+          mimeType: "text/plain"
+        }
+      ],
+      metadata: {}
+    });
+
+    expect(result.transportMessageId).toBe("wa-missing-1");
+    expect(calls).toEqual([
+      {
+        jid: "447700900000@s.whatsapp.net",
+        payload: {
+          text: "OpenAssist notes:\n- report.txt could not be attached because the staged file is missing."
+        },
+        options: {}
+      }
+    ]);
   });
 });

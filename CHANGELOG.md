@@ -82,6 +82,11 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Outbound channel delivery follow-up hardening:
+  - runtime now blocks and audits provider tool calls that were not actually advertised for the active session, which closes the gap where a provider could force hidden delivery tools in `full-root`
+  - `channel.send mode="reply"` now enforces the same outbound-file availability boundary surfaced in runtime awareness instead of relying only on schema exposure
+  - Discord and WhatsApp outbound sends now turn missing staged attachments into explicit delivery notes, and WhatsApp now spills caption overflow into a follow-up text message instead of risking delivery failure
+
 - Setup wizard operator-access follow-up:
   - adding approved operator IDs in `openassist setup wizard` while the install is still in standard mode now prompts to enable `Full access for approved operators` immediately instead of leaving filesystem tools workspace-only with no normal-flow warning
   - channel edits in wizard now preserve configured approved operator IDs while applying that prompt logic

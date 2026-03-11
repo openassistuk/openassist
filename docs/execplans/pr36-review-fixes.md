@@ -14,7 +14,8 @@ Bring the merged outbound-delivery change back into line with the repo's review 
 - [x] Patched recovery-worker terminal-failure logging so final-attempt failures no longer emit the misleading `job retry scheduled` message.
 - [x] Added regression coverage for the review findings in runtime policy-gate, tool-audit, and channel-adapter tests.
 - [x] 2026-03-11 19:14+00:00 Ran the full local repository gate on the follow-up branch: `pnpm verify:all` passed after the review-fix patches and doc updates landed.
-- [ ] Open the follow-up PR and clear CI plus review.
+- [x] 2026-03-11 19:26+00:00 Addressed the follow-up Copilot cleanup on PR `#37` (simplified the WhatsApp trailing-message fallback) and reran `pnpm verify:all` successfully.
+- [ ] Clear the follow-up PR CI plus review and merge it.
 
 ## Surprises & Discoveries
 

@@ -352,7 +352,7 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
 
     if (trailingText && trailingText.length > 0) {
       const sent = await this.socket.sendMessage(jid, { text: trailingText }, buildSendOptions(false));
-      lastSentId = String(sent?.key?.id ?? lastSentId ?? `wa-md:${Date.now()}:${jid}:text`);
+      lastSentId = String(sent?.key?.id ?? lastSentId);
     }
 
     return {

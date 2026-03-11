@@ -3,7 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createLogger } from "../../packages/observability/src/index.js";
-import { ingestInboundAttachments } from "../../packages/core-runtime/src/attachments.js";
+import {
+  cleanupStagedAttachments,
+  ingestInboundAttachments,
+  stageOutboundAttachments
+} from "../../packages/core-runtime/src/attachments.js";
 import { renderOutboundEnvelope } from "../../packages/core-runtime/src/channel-rendering.js";
 
 function tempDir(prefix: string): string {
@@ -89,8 +93,71 @@ describe("runtime attachment ingest", () => {
     });
 
     expect(result.attachments).toHaveLength(0);
-    expect(result.notes[0]).toMatch(/only plain-text, markdown, CSV, JSON, and YAML-style documents are supported/i);
+    expect(result.notes[0]).toMatch(
+      /only plain-text, markdown, CSV, JSON, and YAML-style documents are supported/i
+    );
     expect(result.content).toContain("Attachment processing notes:");
+  });
+});
+
+describe("runtime outbound attachment staging", () => {
+  it("copies bounded outbound attachments into a private staging area and cleans them up", async () => {
+    const root = tempDir("openassist-outbound-stage-");
+    roots.push(root);
+    const sourceA = path.join(root, "report.txt");
+    const sourceB = path.join(root, "chart.png");
+    fs.writeFileSync(sourceA, "report", "utf8");
+    fs.writeFileSync(sourceB, "png", "utf8");
+
+    const staged = await stageOutboundAttachments({
+      attachmentsDir: path.join(root, "outbound"),
+      sourcePaths: [sourceA, sourceB],
+      attachmentsConfig: {
+        maxFilesPerMessage: 2,
+        maxImageBytes: 1024,
+        maxDocumentBytes: 1024,
+        maxExtractedChars: 2000
+      },
+      logger: createLogger({ service: "test" })
+    });
+
+    expect(staged.notes).toEqual([]);
+    expect(staged.attachments).toHaveLength(2);
+    expect(staged.attachments[0]?.localPath).not.toBe(sourceA);
+    expect(fs.existsSync(staged.attachments[0]!.localPath)).toBe(true);
+    expect(fs.existsSync(staged.attachments[1]!.localPath)).toBe(true);
+
+    await cleanupStagedAttachments(staged.attachments);
+    expect(fs.existsSync(staged.attachments[0]!.localPath)).toBe(false);
+    expect(fs.existsSync(staged.attachments[1]!.localPath)).toBe(false);
+  });
+
+  it("keeps limits explicit when outbound attachments exceed the configured count or size", async () => {
+    const root = tempDir("openassist-outbound-stage-limits-");
+    roots.push(root);
+    const small = path.join(root, "small.txt");
+    const large = path.join(root, "large.txt");
+    const extra = path.join(root, "extra.txt");
+    fs.writeFileSync(small, "ok", "utf8");
+    fs.writeFileSync(large, "0123456789", "utf8");
+    fs.writeFileSync(extra, "extra", "utf8");
+
+    const staged = await stageOutboundAttachments({
+      attachmentsDir: path.join(root, "outbound"),
+      sourcePaths: [small, large, extra],
+      attachmentsConfig: {
+        maxFilesPerMessage: 2,
+        maxImageBytes: 1024,
+        maxDocumentBytes: 4,
+        maxExtractedChars: 2000
+      },
+      logger: createLogger({ service: "test" })
+    });
+
+    expect(staged.attachments).toHaveLength(1);
+    expect(staged.attachments[0]?.name).toBe("small.txt");
+    expect(staged.notes.join(" ")).toMatch(/Only the first 2 outbound attachments were kept/i);
+    expect(staged.notes.join(" ")).toMatch(/large\.txt was skipped because it is larger/i);
   });
 });
 
@@ -128,7 +195,8 @@ describe("channel reply rendering", () => {
   it("splits long Discord replies on semantic boundaries", () => {
     const longText = Array.from(
       { length: 120 },
-      (_, index) => `## Section ${index + 1}\nA short paragraph that is long enough to trigger chunking when repeated many times.`
+      (_, index) =>
+        `## Section ${index + 1}\nA short paragraph that is long enough to trigger chunking when repeated many times.`
     ).join("\n\n");
     const chunks = renderOutboundEnvelope({
       channel: "discord",
@@ -140,5 +208,33 @@ describe("channel reply rendering", () => {
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks[0]?.text).toContain("**Section 1**");
     expect(chunks.every((chunk) => chunk.text.length <= 1800)).toBe(true);
+  });
+
+  it("keeps attachments and replies on the first chunk while preserving direct-recipient routing", () => {
+    const chunks = renderOutboundEnvelope({
+      channel: "discord",
+      conversationKey: "channel-1",
+      directRecipientUserId: "operator-1",
+      replyToTransportMessageId: "msg-9",
+      text: Array.from({ length: 500 }, (_, index) => `Paragraph ${index + 1}.`).join(" "),
+      attachments: [
+        {
+          id: "doc-1",
+          kind: "document",
+          name: "report.txt",
+          localPath: "/tmp/report.txt",
+          mimeType: "text/plain"
+        }
+      ],
+      metadata: {}
+    });
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks[0]?.attachments).toHaveLength(1);
+    expect(chunks[0]?.replyToTransportMessageId).toBe("msg-9");
+    expect(chunks[0]?.directRecipientUserId).toBe("operator-1");
+    expect(chunks.slice(1).every((chunk) => chunk.attachments === undefined)).toBe(true);
+    expect(chunks.slice(1).every((chunk) => chunk.replyToTransportMessageId === undefined)).toBe(true);
+    expect(chunks.slice(1).every((chunk) => chunk.directRecipientUserId === "operator-1")).toBe(true);
   });
 });

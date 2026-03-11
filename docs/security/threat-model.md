@@ -89,6 +89,16 @@ Controls:
 - text-only providers get an explicit runtime note when image understanding is unavailable
 - unsupported or oversized attachments produce operator-visible notes instead of silent drops
 
+### Outbound delivery misuse or unsolicited operator messaging
+
+Controls:
+
+- staged outbound files are copied into runtime-owned storage before delivery and cleaned up after success or terminal retry failure
+- same-chat artifact replies and targeted operator notify share the runtime-owned `channel.send` audit trail instead of adapter-specific hidden sends
+- targeted notify requires a specific listed recipient in `channels[*].settings.operatorUserIds`; Discord additionally requires `allowedDmUserIds` overlap before DM delivery is allowed
+- runtime awareness, `/status`, `/capabilities`, and `openassist tools status` report when outbound files or targeted notify are unavailable so the model and operator do not overclaim channel reach
+- unsupported files, missing staged files, or invalid direct-recipient routes degrade to explicit notes instead of silent drops
+
 ### Managed growth misuse or misleading durability claims
 
 Controls:

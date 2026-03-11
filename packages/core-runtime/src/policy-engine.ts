@@ -10,6 +10,7 @@ import type {
 import type { OpenAssistDatabase } from "@openassist/storage-sqlite";
 
 const FULL_ROOT_ALLOWED_ACTIONS: ToolAction[] = [
+  "channel.send",
   "exec.run",
   "fs.read",
   "fs.write",

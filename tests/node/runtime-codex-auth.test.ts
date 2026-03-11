@@ -173,7 +173,10 @@ class MockChannel implements ChannelAdapter {
       supportsReadReceipts: false,
       supportsFormattedText: true,
       supportsImageAttachments: true,
-      supportsDocumentAttachments: true
+      supportsDocumentAttachments: true,
+      supportsOutboundImageAttachments: true,
+      supportsOutboundDocumentAttachments: true,
+      supportsDirectRecipientDelivery: true
     };
   }
 

@@ -259,3 +259,15 @@ Validate lifecycle readiness after setup:
 openassist doctor
 openassist service health
 ```
+
+
+## Outbound Delivery Notes
+
+Same-chat artifact replies do not need a separate recipient list; when the active session can call `channel.send`, OpenAssist can return the requested file back into the current Telegram, Discord, or WhatsApp chat.
+
+Wizard channel settings already contain the only proactive recipient allow-list used in this release:
+
+- `channels[*].settings.operatorUserIds` controls which specific operator IDs may receive targeted notify delivery
+- Telegram and WhatsApp direct-recipient sends use those IDs directly
+- Discord direct-recipient sends also require the same recipient in `allowedDmUserIds`
+- there is no separate `notificationUserIds` setting

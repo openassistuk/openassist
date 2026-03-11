@@ -20,6 +20,16 @@ export interface AttachmentRef {
   extractedText?: string;
 }
 
+export interface OutboundAttachmentRef {
+  id: string;
+  kind: AttachmentKind;
+  name: string;
+  localPath: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  captionText?: string;
+}
+
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 
 export interface NormalizedMessage {

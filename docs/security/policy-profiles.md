@@ -24,13 +24,15 @@ Current policy behavior:
 
 - `restricted`: OAuth flows only
 - `operator`: adds controlled `exec.run`, `fs.read`, `fs.write`
-- `full-root`: adds `fs.delete`, `pkg.install`, `web.search`, `web.fetch`, and `web.run` with autonomous chat tool execution eligibility
+- `full-root`: adds `fs.delete`, `pkg.install`, `web.search`, `web.fetch`, `web.run`, and runtime-owned `channel.send` with autonomous chat tool execution eligibility
 - Linux systemd service hardening can still narrow the live host-write boundary even when the effective profile is `full-root`; choose `unrestricted` service mode only when that broader host impact is intentional
 
 Autonomous chat tool loop gate:
 
 - `restricted` and `operator`: provider tool schemas are not exposed
 - `full-root`: provider tool schemas are exposed and tool calls are executed automatically
+- same-chat file replies through `channel.send` still require truthful outbound-file support on the active channel
+- targeted operator notify through `channel.send` additionally requires an approved operator sender plus a listed recipient in `channels[*].settings.operatorUserIds`, and Discord also requires `allowedDmUserIds` overlap
 - if provider responses include unsolicited tool calls while schemas are not exposed, runtime ignores those calls and does not execute tools
 - provider-independent runtime commands `/start`, `/help`, `/capabilities`, `/grow`, `/status`, and `/profile` remain available regardless of profile, but they only describe the truthful capability boundary for the current session
 - chat diagnostic command `/status` stays operational and provider-independent (no autonomous tool execution) and now reports awareness summary, callable tools, configured tool families, native web backend state, and managed growth context

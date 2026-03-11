@@ -3,11 +3,20 @@ import type { OpenAssistLogger } from "@openassist/observability";
 import type { OpenAssistDatabase } from "@openassist/storage-sqlite";
 
 export type RecoveryJobHandler = (payload: Record<string, unknown>) => Promise<void>;
+export type RecoveryJobPermanentFailureHandler = (
+  payload: Record<string, unknown>,
+  errorText: string
+) => Promise<void> | void;
+
+export interface RecoveryJobHandlerSet {
+  run: RecoveryJobHandler;
+  onPermanentFailure?: RecoveryJobPermanentFailureHandler;
+}
 
 export interface RecoveryWorkerOptions {
   db: OpenAssistDatabase;
   logger: OpenAssistLogger;
-  handlers: Record<string, RecoveryJobHandler>;
+  handlers: Record<string, RecoveryJobHandlerSet>;
   pollIntervalMs?: number;
   claimBatchSize?: number;
 }
@@ -21,7 +30,7 @@ function backoffDelay(attempt: number): number {
 export class RecoveryWorker {
   private readonly db: OpenAssistDatabase;
   private readonly logger: OpenAssistLogger;
-  private readonly handlers: Record<string, RecoveryJobHandler>;
+  private readonly handlers: Record<string, RecoveryJobHandlerSet>;
   private readonly pollIntervalMs: number;
   private readonly claimBatchSize: number;
   private timer: NodeJS.Timeout | null = null;
@@ -60,19 +69,30 @@ export class RecoveryWorker {
 
     const jobs = this.db.claimDueJobs(this.claimBatchSize);
     for (const job of jobs) {
-      const handler = this.handlers[job.type];
-      if (!handler) {
+      const handlerSet = this.handlers[job.type];
+      if (!handlerSet) {
         this.db.markJobFailed(job.id, `No handler registered for job type ${job.type}`, 1_000);
         continue;
       }
 
       try {
-        await handler(job.payload);
+        await handlerSet.run(job.payload);
         this.db.markJobSucceeded(job.id);
       } catch (error: unknown) {
         const errorText = error instanceof Error ? error.message : String(error);
         const delay = backoffDelay(job.attempts + 1);
+        const permanentFailure = job.attempts + 1 >= job.maxAttempts;
         this.db.markJobFailed(job.id, errorText, delay);
+        if (permanentFailure && handlerSet.onPermanentFailure) {
+          try {
+            await handlerSet.onPermanentFailure(job.payload, errorText);
+          } catch (cleanupError) {
+            this.logger.warn(
+              { jobId: job.id, error: cleanupError },
+              "job permanent-failure cleanup failed"
+            );
+          }
+        }
         this.logger.warn({ jobId: job.id, error: errorText, delay }, "job retry scheduled");
       }
     }

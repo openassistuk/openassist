@@ -280,7 +280,10 @@ class MockChannel implements ChannelAdapter {
       supportsReadReceipts: false,
       supportsFormattedText: true,
       supportsImageAttachments: true,
-      supportsDocumentAttachments: true
+      supportsDocumentAttachments: true,
+      supportsOutboundImageAttachments: true,
+      supportsOutboundDocumentAttachments: true,
+      supportsDirectRecipientDelivery: true
     };
   }
 
@@ -344,6 +347,13 @@ class BlockingStartChannel extends MockChannel {
 
 function tempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function combinedText(messages: OutboundEnvelope[], startIndex = 0): string {
+  return messages
+    .slice(startIndex)
+    .map((message) => message.text)
+    .join("\n\n");
 }
 
 function writeSkillSource(root: string): string {
@@ -1437,19 +1447,25 @@ describe("OpenAssistRuntime", () => {
     });
 
     assert.equal(provider.chatCalls, 0);
-    assert.equal(channel.sent.length, 1);
-    assert.match(channel.sent[0]?.text ?? "", /openassist local status/i);
-    assert.match(channel.sent[0]?.text ?? "", /what this is:/i);
-    assert.match(channel.sent[0]?.text ?? "", /default provider: mock-provider/i);
-    assert.match(channel.sent[0]?.text ?? "", /local docs\/config map:/i);
-    assert.match(channel.sent[0]?.text ?? "", /managed growth:/i);
-    assert.match(channel.sent[0]?.text ?? "", /growth directories: hidden in chat for this sender/i);
-    assert.match(channel.sent[0]?.text ?? "", /config\/env\/install detail: hidden in chat for this sender/i);
-    assert.match(channel.sent[0]?.text ?? "", /service boundary: service manager=systemd-user/i);
-    assert.match(channel.sent[0]?.text ?? "", /service boundary notes: .*package installs, sudo, and broader host writes may still be blocked/i);
-    assert.doesNotMatch(channel.sent[0]?.text ?? "", /config path:/i);
-    assert.doesNotMatch(channel.sent[0]?.text ?? "", /trackedRef=main/i);
-    assert.match(channel.sent[0]?.text ?? "", /native web:/i);
+    assert.ok(channel.sent.length >= 1);
+    const statusText = combinedText(channel.sent);
+    assert.match(statusText, /openassist local status/i);
+    assert.match(statusText, /what this is:/i);
+    assert.match(statusText, /default provider: mock-provider/i);
+    assert.match(statusText, /local docs\/config map:/i);
+    assert.match(statusText, /managed growth:/i);
+    assert.match(statusText, /growth directories: hidden in chat for this sender/i);
+    assert.match(statusText, /config\/env\/install detail: hidden in chat for this sender/i);
+    assert.match(statusText, /service boundary: service manager=systemd-user/i);
+    assert.match(statusText, /service boundary notes: .*package installs, sudo, and broader host writes may still be blocked/i);
+    assert.match(statusText, /delivery boundary: outbound file replies=blocked, operator notify=blocked/i);
+    assert.match(
+      statusText,
+      /delivery notes: .*disabled until this channel has specific approved operator IDs configured/i
+    );
+    assert.doesNotMatch(statusText, /config path:/i);
+    assert.doesNotMatch(statusText, /trackedRef=main/i);
+    assert.match(statusText, /native web:/i);
 
     await runtime.stop();
     db.close();
@@ -1679,7 +1695,7 @@ describe("OpenAssistRuntime", () => {
     );
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.version ?? 0),
-      4
+      5
     );
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.maintenance?.trackedRef ?? ""),

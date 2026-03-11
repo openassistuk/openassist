@@ -48,6 +48,9 @@ Autonomous tool execution is enabled only when the effective sender access for t
 
 - `restricted` and `operator`: provider receives no tool schemas
 - `full-root`: provider receives runtime tool schema list and may issue tool calls
+- `channel.send` is the runtime-owned delivery tool for same-chat artifact replies and bounded targeted operator notifications
+- same-chat file replies require a `full-root` session plus truthful outbound-file support on the active channel
+- `channel.send mode="notify"` additionally requires an approved operator sender and a recipient listed in `channels[*].settings.operatorUserIds`; Discord also requires the same recipient in `allowedDmUserIds`
 - Linux systemd service hardening can still narrow the live host-write boundary even in `full-root`; `/status` and `openassist tools status` report that service boundary separately
 - if a provider still returns tool calls while schemas are absent, runtime ignores those calls and returns a safe non-executing assistant response
 - if provider/auth/runtime errors occur during chat, runtime emits a sanitized operational diagnostic message to channel instead of dropping the request

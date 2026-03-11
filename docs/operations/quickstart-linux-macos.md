@@ -222,6 +222,8 @@ openassist auth complete --provider codex-main --callback-url "<full callback UR
 - after provider OAuth is configured or when you want to re-link Codex later, use `openassist auth start --provider <provider-id> --device-code` on headless hosts or `--open-browser` as the fallback browser path
 - Telegram defaults remain inline chat memory and inline responses unless you change them later
 - Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`
+- generated files can now be returned through the same Telegram, Discord, or WhatsApp chat when the active session can call `channel.send`
+- targeted operator notifications stay bounded to `channels[*].settings.operatorUserIds`, and Discord also requires the same recipient in `allowedDmUserIds`
 - OpenAI, Codex, and Anthropic can inspect inbound images; OpenAI-compatible providers will answer from text/captions only and tell you when image understanding is unavailable
 
 ## 4. Validate lifecycle readiness

@@ -24,6 +24,17 @@ export interface DiscordChannelConfig extends z.infer<typeof configSchema> {}
 
 const MAX_DISCORD_ATTACHMENT_DOWNLOAD_BYTES = 20_000_000;
 
+function appendDeliveryNotes(text: string | undefined, notes: string[]): string {
+  const filtered = notes.filter((note) => note.trim().length > 0);
+  if (filtered.length === 0) {
+    return text?.trim() ?? "";
+  }
+
+  const noteBlock = `OpenAssist notes:\n${filtered.map((note) => `- ${note}`).join("\n")}`;
+  const trimmed = text?.trim() ?? "";
+  return trimmed.length > 0 ? `${trimmed}\n\n${noteBlock}` : noteBlock;
+}
+
 function sanitizeFileName(value: string | undefined, fallback: string): string {
   const normalized = (value ?? "").trim();
   if (normalized.length === 0) {
@@ -162,7 +173,10 @@ export class DiscordChannelAdapter implements ChannelAdapter {
       supportsReadReceipts: false,
       supportsFormattedText: true,
       supportsImageAttachments: true,
-      supportsDocumentAttachments: true
+      supportsDocumentAttachments: true,
+      supportsOutboundImageAttachments: true,
+      supportsOutboundDocumentAttachments: true,
+      supportsDirectRecipientDelivery: true
     };
   }
 
@@ -253,19 +267,36 @@ export class DiscordChannelAdapter implements ChannelAdapter {
       throw new Error("Discord adapter is not running");
     }
 
-    const channel = await this.client.channels.fetch(msg.conversationKey);
+    const channel = msg.directRecipientUserId
+      ? await (async () => {
+          if (!this.config.allowedDmUserIds.includes(msg.directRecipientUserId!)) {
+            throw new Error(
+              `Discord direct delivery for ${msg.directRecipientUserId} requires the recipient to be listed in allowedDmUserIds.`
+            );
+          }
+          const user = await this.client!.users.fetch(msg.directRecipientUserId!);
+          return user.createDM();
+        })()
+      : await this.client.channels.fetch(msg.conversationKey);
     if (!channel || typeof (channel as any).isTextBased !== "function" || !(channel as any).isTextBased()) {
-      throw new Error(`Discord channel ${msg.conversationKey} is not text-capable`);
+      throw new Error(
+        `Discord target ${msg.directRecipientUserId ?? msg.conversationKey} is not text-capable`
+      );
     }
 
     const sent = await (channel as any).send({
-      content: msg.text,
-      reply: msg.replyToTransportMessageId
-        ? {
-            messageReference: msg.replyToTransportMessageId,
-            failIfNotExists: false
-          }
-        : undefined
+      content: msg.text || undefined,
+      files: msg.attachments?.map((attachment) => ({
+        attachment: attachment.localPath,
+        name: attachment.name
+      })),
+      reply:
+        !msg.directRecipientUserId && msg.replyToTransportMessageId
+          ? {
+              messageReference: msg.replyToTransportMessageId,
+              failIfNotExists: false
+            }
+          : undefined
     });
     return { transportMessageId: sent.id };
   }

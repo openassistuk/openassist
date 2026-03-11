@@ -36,6 +36,7 @@ const configSchema = z.object({
 export type WhatsAppMdChannelConfig = z.infer<typeof configSchema>;
 
 const MAX_WHATSAPP_ATTACHMENT_DOWNLOAD_BYTES = 20_000_000;
+const WHATSAPP_CAPTION_LIMIT = 1024;
 
 function sanitizeFileName(value: string | undefined, fallback: string): string {
   const normalized = (value ?? "").trim();
@@ -189,6 +190,17 @@ function normalizeJid(value: string): string {
   return `${value}@s.whatsapp.net`;
 }
 
+function appendDeliveryNotes(text: string | undefined, notes: string[]): string {
+  const filtered = notes.filter((note) => note.trim().length > 0);
+  if (filtered.length === 0) {
+    return text?.trim() ?? "";
+  }
+
+  const noteBlock = `OpenAssist notes:\n${filtered.map((note) => `- ${note}`).join("\n")}`;
+  const trimmed = text?.trim() ?? "";
+  return trimmed.length > 0 ? `${trimmed}\n\n${noteBlock}` : noteBlock;
+}
+
 export class WhatsAppMdChannelAdapter implements ChannelAdapter {
   private readonly config: WhatsAppMdChannelConfig;
   private readonly logger = pino({ name: "openassist-whatsapp-md", level: "info" });
@@ -216,7 +228,10 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
       supportsReadReceipts: true,
       supportsFormattedText: true,
       supportsImageAttachments: true,
-      supportsDocumentAttachments: true
+      supportsDocumentAttachments: true,
+      supportsOutboundImageAttachments: true,
+      supportsOutboundDocumentAttachments: true,
+      supportsDirectRecipientDelivery: true
     };
   }
 
@@ -260,25 +275,58 @@ export class WhatsAppMdChannelAdapter implements ChannelAdapter {
       throw new Error("WhatsApp MD adapter is not connected");
     }
 
-    const jid = normalizeJid(msg.conversationKey);
-    const sendOptions: Record<string, unknown> = {};
-    if (msg.replyToTransportMessageId) {
-      sendOptions.quoted = {
-        key: {
-          remoteJid: jid,
-          fromMe: false,
-          id: msg.replyToTransportMessageId
-        },
-        message: {
-          conversation: ""
+    const jid = normalizeJid(msg.directRecipientUserId ?? msg.conversationKey);
+    const buildSendOptions = (includeQuoted: boolean): Record<string, unknown> => {
+      if (!includeQuoted || !msg.replyToTransportMessageId || msg.directRecipientUserId) {
+        return {};
+      }
+      return {
+        quoted: {
+          key: {
+            remoteJid: jid,
+            fromMe: false,
+            id: msg.replyToTransportMessageId
+          },
+          message: {
+            conversation: ""
+          }
         }
       };
+    };
+
+    if (!msg.attachments || msg.attachments.length === 0) {
+      const sent = await this.socket.sendMessage(jid, { text: msg.text }, buildSendOptions(true));
+      const sentId = sent?.key?.id ?? `wa-md:${Date.now()}:${jid}`;
+      return {
+        transportMessageId: String(sentId)
+      };
     }
-    const sent = await this.socket.sendMessage(jid, { text: msg.text }, sendOptions);
-    const sentId = sent?.key?.id ?? `wa-md:${Date.now()}:${jid}`;
+
+    let lastSentId = "";
+    for (const [index, attachment] of msg.attachments.entries()) {
+      const caption = index === 0 && msg.text.trim().length > 0 ? msg.text : undefined;
+      const payload =
+        attachment.kind === "image"
+          ? {
+              image: { url: attachment.localPath },
+              caption
+            }
+          : {
+              document: { url: attachment.localPath },
+              mimetype: attachment.mimeType,
+              fileName: attachment.name,
+              caption
+            };
+      const sent = await this.socket.sendMessage(
+        jid,
+        payload,
+        buildSendOptions(index === 0)
+      );
+      lastSentId = String(sent?.key?.id ?? `wa-md:${Date.now()}:${jid}:${index + 1}`);
+    }
 
     return {
-      transportMessageId: String(sentId)
+      transportMessageId: lastSentId || `wa-md:${Date.now()}:${jid}`
     };
   }
 

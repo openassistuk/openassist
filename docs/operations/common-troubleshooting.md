@@ -424,3 +424,29 @@ Fresh installs now use the home-state layout by default:
 - managed helper tools: `~/.local/share/openassist/data/helper-tools`
 
 The repo-root `openassist.toml` file is a source-development sample, not the default installed config path.
+
+
+## OpenAssist created a file but only mentioned a path instead of sending it back
+
+What it usually means:
+
+- the current chat session was not allowed to call `channel.send`
+- the current channel adapter could not return outbound files
+- the file path failed the current session file-read boundary before runtime could stage it
+
+What to check:
+
+```bash
+openassist tools status --session <channelId:conversationKey> --sender-id <sender-id>
+```
+
+Look for:
+
+- `outboundFileRepliesAvailable`
+- `operatorNotifyAvailable`
+- delivery notes explaining whether the active chat can return files or only normal text replies
+
+If the issue is proactive notify instead of same-chat file reply, also verify:
+
+- `channels[*].settings.operatorUserIds` contains the exact recipient ID
+- on Discord, `allowedDmUserIds` also contains that same recipient ID

@@ -1,6 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { AttachmentKind, AttachmentRef, InboundEnvelope, RuntimeAttachmentConfig } from "@openassist/core-types";
+import type {
+  AttachmentKind,
+  AttachmentRef,
+  InboundEnvelope,
+  OutboundAttachmentRef,
+  RuntimeAttachmentConfig
+} from "@openassist/core-types";
 import type { OpenAssistLogger } from "@openassist/observability";
 
 const DEFAULT_ATTACHMENT_CONFIG: RuntimeAttachmentConfig = {
@@ -34,6 +40,16 @@ const TEXT_DOCUMENT_EXTENSIONS = new Set([
   ".yml"
 ]);
 
+const IMAGE_EXTENSIONS = new Set([
+  ".apng",
+  ".gif",
+  ".jpeg",
+  ".jpg",
+  ".png",
+  ".svg",
+  ".webp"
+]);
+
 export interface IngestInboundAttachmentsOptions {
   attachmentsConfig?: RuntimeAttachmentConfig;
   attachmentsDir: string;
@@ -44,6 +60,18 @@ export interface IngestInboundAttachmentsOptions {
 export interface IngestInboundAttachmentsResult {
   content: string;
   attachments: AttachmentRef[];
+  notes: string[];
+}
+
+export interface StageOutboundAttachmentsOptions {
+  attachmentsConfig?: RuntimeAttachmentConfig;
+  attachmentsDir: string;
+  sourcePaths: string[];
+  logger: OpenAssistLogger;
+}
+
+export interface StageOutboundAttachmentsResult {
+  attachments: OutboundAttachmentRef[];
   notes: string[];
 }
 
@@ -110,6 +138,53 @@ function inferAttachmentKind(attachment: AttachmentRef): AttachmentKind {
     return "image";
   }
   return "document";
+}
+
+function inferOutboundAttachmentKind(sourcePath: string): AttachmentKind {
+  const ext = path.extname(sourcePath).toLowerCase();
+  return IMAGE_EXTENSIONS.has(ext) ? "image" : "document";
+}
+
+function inferOutboundMimeType(sourcePath: string, kind: AttachmentKind): string | undefined {
+  const ext = path.extname(sourcePath).toLowerCase();
+  if (kind === "image") {
+    if (ext === ".png" || ext === ".apng") {
+      return "image/png";
+    }
+    if (ext === ".gif") {
+      return "image/gif";
+    }
+    if (ext === ".svg") {
+      return "image/svg+xml";
+    }
+    if (ext === ".webp") {
+      return "image/webp";
+    }
+    return "image/jpeg";
+  }
+
+  if (ext === ".md" || ext === ".markdown") {
+    return "text/markdown";
+  }
+  if (ext === ".txt" || ext === ".log") {
+    return "text/plain";
+  }
+  if (ext === ".csv") {
+    return "text/csv";
+  }
+  if (ext === ".json") {
+    return "application/json";
+  }
+  if (ext === ".yaml" || ext === ".yml") {
+    return "application/yaml";
+  }
+  if (ext === ".pdf") {
+    return "application/pdf";
+  }
+  if (ext === ".docx") {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  return undefined;
 }
 
 function isTextLikeDocument(attachment: AttachmentRef): boolean {
@@ -269,4 +344,95 @@ export async function ingestInboundAttachments(
     attachments,
     notes
   };
+}
+
+export async function stageOutboundAttachments(
+  options: StageOutboundAttachmentsOptions
+): Promise<StageOutboundAttachmentsResult> {
+  const config = resolveAttachmentConfig(options.attachmentsConfig);
+  const notes: string[] = [];
+  const attachments: OutboundAttachmentRef[] = [];
+  const limitedPaths = options.sourcePaths.slice(0, config.maxFilesPerMessage);
+
+  if (options.sourcePaths.length > config.maxFilesPerMessage) {
+    notes.push(
+      `Only the first ${config.maxFilesPerMessage} outbound attachment${config.maxFilesPerMessage === 1 ? "" : "s"} were kept.`
+    );
+  }
+
+  if (limitedPaths.length > 0) {
+    await ensurePrivateDirectory(options.attachmentsDir);
+  }
+
+  for (const sourcePath of limitedPaths) {
+    try {
+      const absolutePath = path.resolve(sourcePath);
+      const stat = await fs.promises.stat(absolutePath);
+      if (!stat.isFile()) {
+        notes.push(`${path.basename(absolutePath)} was skipped because it is not a regular file.`);
+        continue;
+      }
+
+      const kind = inferOutboundAttachmentKind(absolutePath);
+      const sizeLimit = kind === "image" ? config.maxImageBytes : config.maxDocumentBytes;
+      if (stat.size > sizeLimit) {
+        notes.push(
+          `${path.basename(absolutePath)} was skipped because it is larger than the ${kind} limit (${sizeLimit} bytes).`
+        );
+        continue;
+      }
+
+      const fileName = sanitizeName(
+        path.basename(absolutePath),
+        `${Date.now()}-${sanitizeName(path.basename(absolutePath), kind)}${path.extname(absolutePath)}`
+      );
+      const stagedPath = path.join(
+        options.attachmentsDir,
+        `${Date.now()}-${attachments.length + 1}-${fileName}`
+      );
+      await fs.promises.copyFile(absolutePath, stagedPath);
+      await ensurePrivateFile(stagedPath);
+
+      attachments.push({
+        id: `${Date.now()}-${attachments.length + 1}`,
+        kind,
+        name: fileName,
+        localPath: stagedPath,
+        mimeType: inferOutboundMimeType(absolutePath, kind),
+        sizeBytes: stat.size
+      });
+    } catch (error) {
+      const errText = error instanceof Error ? error.message : String(error);
+      notes.push(`${path.basename(sourcePath)} could not be staged for outbound delivery: ${errText}`);
+      options.logger.warn(
+        {
+          type: "outbound.attachment.stage.failure",
+          sourcePath,
+          error: errText
+        },
+        "outbound attachment staging failed"
+      );
+    }
+  }
+
+  return {
+    attachments,
+    notes
+  };
+}
+
+export async function cleanupStagedAttachments(
+  attachments: Array<Pick<AttachmentRef, "localPath"> | Pick<OutboundAttachmentRef, "localPath">>
+): Promise<void> {
+  for (const attachment of attachments) {
+    if (!attachment.localPath) {
+      continue;
+    }
+
+    try {
+      await fs.promises.rm(attachment.localPath, { force: true });
+    } catch {
+      // Best-effort cleanup only.
+    }
+  }
 }

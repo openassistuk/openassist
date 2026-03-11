@@ -236,7 +236,12 @@ When touching channel/runtime/provider attachment behavior:
 7. preserve channel-safe outbound presentation:
    - replies, `/status`, and diagnostics must pass through the shared channel rendering/chunking path
    - do not send wall-of-text output when the renderer can preserve headings, lists, code fences, and links safely for that channel
-8. preserve secure file handling:
+8. preserve outbound delivery boundaries:
+   - same-chat artifact replies may return requested files through the active chat when the session can truthfully call the runtime delivery tool
+   - proactive or redirected sends must stay bounded to specific approved operator IDs, never broad channel lists or broadcasts
+   - Discord proactive direct delivery still requires `allowedDmUserIds` overlap in addition to `operatorUserIds`
+   - `/status`, `/capabilities`, and `openassist tools status` must explain when outbound files or targeted notify are unavailable
+9. preserve secure file handling:
    - runtime-owned persisted attachments live under `runtime.paths.dataDir`
    - Unix owner-only permissions remain required where the host supports them
 

@@ -73,9 +73,19 @@ describe("runtime self-knowledge", () => {
         supportsReadReceipts: false,
         supportsFormattedText: true,
         supportsImageAttachments: true,
-        supportsDocumentAttachments: true
+        supportsDocumentAttachments: true,
+        supportsOutboundImageAttachments: true,
+        supportsOutboundDocumentAttachments: true,
+        supportsDirectRecipientDelivery: true
       },
       systemdFilesystemAccessConfigured: "hardened",
+      delivery: {
+        outboundFileRepliesAvailable: true,
+        operatorNotifyAvailable: true,
+        channelSupportsOutboundFiles: true,
+        channelSupportsDirectRecipientDelivery: true,
+        notes: ["Generated files can be returned through this chat.", "Targeted operator notifications are limited to approved operators."]
+      },
       scheduler: {
         enabled: true,
         running: true,
@@ -102,12 +112,14 @@ describe("runtime self-knowledge", () => {
       }
     });
 
-    expect(snapshot.version).toBe(4);
+    expect(snapshot.version).toBe(5);
     expect(snapshot.service).toMatchObject({
       manager: "systemd-system",
       systemdFilesystemAccessConfigured: "hardened",
       systemdFilesystemAccessEffective: "hardened"
     });
+    expect(snapshot.delivery.outboundFileRepliesAvailable).toBe(true);
+    expect(snapshot.delivery.operatorNotifyAvailable).toBe(true);
     expect(snapshot.capabilities.canInspectLocalFiles).toBe(true);
     expect(snapshot.capabilities.canRunLocalCommands).toBe(true);
     expect(snapshot.capabilities.canEditConfig).toBe(true);
@@ -183,9 +195,19 @@ describe("runtime self-knowledge", () => {
         supportsReadReceipts: false,
         supportsFormattedText: true,
         supportsImageAttachments: true,
-        supportsDocumentAttachments: true
+        supportsDocumentAttachments: true,
+        supportsOutboundImageAttachments: true,
+        supportsOutboundDocumentAttachments: true,
+        supportsDirectRecipientDelivery: true
       },
       systemdFilesystemAccessConfigured: "hardened",
+      delivery: {
+        outboundFileRepliesAvailable: false,
+        operatorNotifyAvailable: false,
+        channelSupportsOutboundFiles: true,
+        channelSupportsDirectRecipientDelivery: true,
+        notes: ["Outbound file replies require a full-root session.", "Targeted operator notifications require a full-root session."]
+      },
       scheduler: {
         enabled: true,
         running: false,

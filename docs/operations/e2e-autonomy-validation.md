@@ -69,6 +69,7 @@ Expected:
 - policy output shows whether the source is a sender override or session override
 - tools status lists enabled tools (`exec.run`, `fs.*`, optional `pkg.install`, and `web.*` when `tools.web.enabled=true`)
 - tools status includes awareness summary and native web backend mode/status
+- tools status also reports outbound file reply availability, targeted operator-notify availability, and the delivery notes that explain any disabled path
 
 Optional host-side growth check before chat-led growth tests:
 
@@ -105,8 +106,8 @@ Expected:
 ## Scenario 1: File Action Through Chat
 
 1. send chat message asking assistant to create a file and confirm content
-2. wait for assistant final reply in channel
-3. verify filesystem result on host
+2. wait for the outbound file reply or attachment delivery in channel
+3. verify the filesystem result on host
 4. inspect invocation audit
 
 Commands:
@@ -118,9 +119,10 @@ openassist tools invocations --session telegram-main:ops-room --limit 20
 Expected:
 
 - at least one `fs.write` invocation
+- when the active channel supports outbound files, a `channel.send` invocation succeeds and the generated file is returned through the same chat instead of only naming the local path
 - status `succeeded`
 - request/result payloads are redacted for secret-like fields
-- assistant final message confirms completion
+- assistant final message still confirms completion after the delivery tool round
 
 ## Scenario 2: Policy Gate Verification
 
@@ -208,3 +210,18 @@ curl -fsS "http://127.0.0.1:3344/v1/tools/invocations?sessionId=telegram-main%3A
 - `tools invocations` output confirms web backend and citation/final-URL metadata when `web.*` tools are used
 - host-side evidence for file/package operations
 - service logs across restart scenario
+
+
+## Artifact Return Check
+
+After the normal autonomy flow is working, validate the outbound delivery path in the same elevated chat:
+
+1. Ask OpenAssist to create a small text file or document locally and send it back through the current channel.
+2. Confirm the first outbound chunk includes the attachment instead of only a filesystem path.
+3. Run `/status` or `openassist tools status --session <id> --sender-id <id>` and confirm the delivery boundary reports same-chat file replies truthfully.
+
+Optional targeted notify check for approved operators only:
+
+1. Ensure the recipient is listed in `channels[*].settings.operatorUserIds`.
+2. On Discord, also ensure the recipient is in `allowedDmUserIds`.
+3. Ask OpenAssist to send a relevant targeted operator notification and confirm it does not fan out beyond that one listed recipient.

@@ -110,6 +110,14 @@ export interface RuntimeAwarenessCapabilities {
   blockedReasons: string[];
 }
 
+export interface RuntimeAwarenessDelivery {
+  outboundFileRepliesAvailable: boolean;
+  operatorNotifyAvailable: boolean;
+  channelSupportsOutboundFiles: boolean;
+  channelSupportsDirectRecipientDelivery: boolean;
+  notes: string[];
+}
+
 export interface RuntimeAwarenessDocumentation {
   refs: RuntimeDocRef[];
   note: string;
@@ -152,7 +160,7 @@ export interface ManagedCapabilityRecord {
 }
 
 export interface RuntimeAwarenessSnapshot {
-  version: 4;
+  version: 5;
   software: {
     product: string;
     role: string;
@@ -199,6 +207,7 @@ export interface RuntimeAwarenessSnapshot {
     systemdFilesystemAccessEffective: RuntimeSystemdFilesystemAccess | "unknown" | "not-applicable";
     notes: string[];
   };
+  delivery: RuntimeAwarenessDelivery;
   capabilities: RuntimeAwarenessCapabilities;
   capabilityDomains: RuntimeCapabilityDomain[];
   documentation: RuntimeAwarenessDocumentation;

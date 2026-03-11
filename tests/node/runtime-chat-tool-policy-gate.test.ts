@@ -124,6 +124,60 @@ class RogueToolProvider implements ProviderAdapter {
   }
 }
 
+class NotifyProvider implements ProviderAdapter {
+  public requests: ChatRequest[] = [];
+  private readonly recipientUserId: string;
+
+  constructor(recipientUserId: string) {
+    this.recipientUserId = recipientUserId;
+  }
+
+  id(): string {
+    return "mock-provider";
+  }
+
+  capabilities(): ProviderCapabilities {
+    return {
+      supportsStreaming: false,
+      supportsTools: true,
+      supportsOAuth: false,
+      supportsApiKeys: true,
+      supportsImageInputs: false
+    };
+  }
+
+  async validateConfig(): Promise<ValidationResult> {
+    return { valid: true, errors: [] };
+  }
+
+  async chat(req: ChatRequest, _auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
+    this.requests.push(req);
+    if (req.messages.some((message) => message.role === "tool")) {
+      return {
+        output: { role: "assistant", content: "notify attempt complete" },
+        usage: { inputTokens: 2, outputTokens: 2, totalTokens: 4 }
+      };
+    }
+
+    return {
+      output: { role: "assistant", content: "" },
+      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      toolCalls: [
+        {
+          id: "notify-tool-1",
+          name: "channel.send",
+          argumentsJson: JSON.stringify({
+            mode: "notify",
+            recipientUserId: this.recipientUserId,
+            text: "Relevant operator notice",
+            reason: "the operator asked for targeted notifications"
+          })
+        }
+      ]
+    };
+  }
+}
+
 class MockChannel implements ChannelAdapter {
   public sent: OutboundEnvelope[] = [];
   private handler: ((msg: InboundEnvelope) => Promise<void>) | null = null;
@@ -139,7 +193,10 @@ class MockChannel implements ChannelAdapter {
       supportsReadReceipts: false,
       supportsFormattedText: true,
       supportsImageAttachments: true,
-      supportsDocumentAttachments: true
+      supportsDocumentAttachments: true,
+      supportsOutboundImageAttachments: true,
+      supportsOutboundDocumentAttachments: true,
+      supportsDirectRecipientDelivery: true
     };
   }
 
@@ -176,14 +233,29 @@ function tempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-function baseConfig(root: string): RuntimeConfig {
+function buildConfig(
+  root: string,
+  overrides: Partial<{
+    defaultPolicyProfile: RuntimeConfig["defaultPolicyProfile"];
+    operatorAccessProfile: RuntimeConfig["operatorAccessProfile"];
+    channelSettings: RuntimeConfig["channels"][number]["settings"];
+  }> = {}
+): RuntimeConfig {
   return {
     bindAddress: "127.0.0.1",
     bindPort: 3344,
     defaultProviderId: "mock-provider",
     providers: [{ id: "mock-provider", type: "openai-compatible", defaultModel: "x" }],
-    channels: [{ id: "telegram-mock", type: "telegram", enabled: true, settings: {} }],
-    defaultPolicyProfile: "operator",
+    channels: [
+      {
+        id: "telegram-mock",
+        type: "telegram",
+        enabled: true,
+        settings: overrides.channelSettings ?? {}
+      }
+    ],
+    defaultPolicyProfile: overrides.defaultPolicyProfile ?? "operator",
+    operatorAccessProfile: overrides.operatorAccessProfile ?? "operator",
     paths: {
       dataDir: root,
       skillsDir: path.join(root, "skills"),
@@ -220,6 +292,20 @@ function baseConfig(root: string): RuntimeConfig {
   };
 }
 
+function inbound(senderId: string, text: string, idempotencyKey: string): InboundEnvelope {
+  return {
+    channel: "telegram",
+    channelId: "telegram-mock",
+    transportMessageId: `msg-${idempotencyKey}`,
+    conversationKey: "conv-1",
+    senderId,
+    text,
+    attachments: [],
+    receivedAt: new Date().toISOString(),
+    idempotencyKey
+  };
+}
+
 const roots: string[] = [];
 
 afterEach(() => {
@@ -238,7 +324,7 @@ describe("runtime chat policy gating", () => {
     const provider = new PolicyAwareProvider(writePath);
     const channel = new MockChannel();
     const runtime = new OpenAssistRuntime(
-      baseConfig(root),
+      buildConfig(root),
       { db, logger },
       { providers: [provider], channels: [channel] }
     );
@@ -246,33 +332,13 @@ describe("runtime chat policy gating", () => {
     runtime.setProviderApiKey("mock-provider", "key");
     await runtime.start();
 
-    await channel.emit({
-      channel: "telegram",
-      channelId: "telegram-mock",
-      transportMessageId: "m1",
-      conversationKey: "conv-1",
-      senderId: "u1",
-      text: "do work",
-      attachments: [],
-      receivedAt: new Date().toISOString(),
-      idempotencyKey: "op-1"
-    });
+    await channel.emit(inbound("u1", "do work", "op-1"));
     assert.equal(channel.sent[0]?.text, "no autonomous tools");
     assert.equal(runtime.listToolInvocations("telegram-mock:conv-1", 10).length, 0);
     assert.equal(fs.existsSync(writePath), false);
 
     await runtime.setPolicyProfile("telegram-mock:conv-1", "full-root");
-    await channel.emit({
-      channel: "telegram",
-      channelId: "telegram-mock",
-      transportMessageId: "m2",
-      conversationKey: "conv-1",
-      senderId: "u1",
-      text: "do work now",
-      attachments: [],
-      receivedAt: new Date().toISOString(),
-      idempotencyKey: "fr-1"
-    });
+    await channel.emit(inbound("u1", "do work now", "fr-1"));
 
     assert.equal(channel.sent[1]?.text, "tools executed");
     assert.equal(fs.readFileSync(writePath, "utf8"), "enabled");
@@ -291,7 +357,7 @@ describe("runtime chat policy gating", () => {
     const provider = new RogueToolProvider(writePath);
     const channel = new MockChannel();
     const runtime = new OpenAssistRuntime(
-      baseConfig(root),
+      buildConfig(root),
       { db, logger },
       { providers: [provider], channels: [channel] }
     );
@@ -299,25 +365,87 @@ describe("runtime chat policy gating", () => {
     runtime.setProviderApiKey("mock-provider", "key");
     await runtime.start();
 
-    await channel.emit({
-      channel: "telegram",
-      channelId: "telegram-mock",
-      transportMessageId: "m-rogue",
-      conversationKey: "conv-rogue",
-      senderId: "u1",
-      text: "do work",
-      attachments: [],
-      receivedAt: new Date().toISOString(),
-      idempotencyKey: "rogue-1"
-    });
+    await channel.emit(inbound("u1", "do work", "rogue-1"));
 
     assert.equal(channel.sent.length, 1);
     assert.equal(
       channel.sent[0]?.text,
       "Autonomous tool execution is disabled for this session profile."
     );
-    assert.equal(runtime.listToolInvocations("telegram-mock:conv-rogue", 10).length, 0);
+    assert.equal(runtime.listToolInvocations("telegram-mock:conv-1", 10).length, 0);
     assert.equal(fs.existsSync(writePath), false);
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("rejects targeted notify mode for non-approved senders even in full-root sessions", async () => {
+    const root = tempDir("openassist-policy-gate-notify-blocked-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const provider = new NotifyProvider("approved-user");
+    const channel = new MockChannel();
+    const runtime = new OpenAssistRuntime(
+      buildConfig(root, {
+        defaultPolicyProfile: "full-root",
+        operatorAccessProfile: "full-root",
+        channelSettings: { operatorUserIds: ["approved-user"] }
+      }),
+      { db, logger },
+      { providers: [provider], channels: [channel] }
+    );
+
+    runtime.setProviderApiKey("mock-provider", "key");
+    await runtime.start();
+
+    await channel.emit(inbound("u1", "notify someone", "notify-blocked"));
+
+    assert.equal(channel.sent.length, 1);
+    assert.equal(channel.sent[0]?.directRecipientUserId, undefined);
+    assert.equal(channel.sent[0]?.text, "notify attempt complete");
+    const invocations = runtime.listToolInvocations("telegram-mock:conv-1", 10);
+    assert.equal(invocations.length, 1);
+    assert.equal(invocations[0]?.toolName, "channel.send");
+    assert.equal(invocations[0]?.status, "failed");
+    assert.match(String(invocations[0]?.errorText ?? ""), /approved operator/i);
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("allows targeted notify mode only to specifically configured operator recipients", async () => {
+    const root = tempDir("openassist-policy-gate-notify-allowed-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const provider = new NotifyProvider("recipient-user");
+    const channel = new MockChannel();
+    const runtime = new OpenAssistRuntime(
+      buildConfig(root, {
+        defaultPolicyProfile: "full-root",
+        operatorAccessProfile: "full-root",
+        channelSettings: { operatorUserIds: ["approved-user", "recipient-user"] }
+      }),
+      { db, logger },
+      { providers: [provider], channels: [channel] }
+    );
+
+    runtime.setProviderApiKey("mock-provider", "key");
+    await runtime.start();
+
+    await channel.emit(inbound("approved-user", "notify someone", "notify-allowed"));
+
+    assert.equal(channel.sent.length, 2);
+    assert.equal(channel.sent[0]?.directRecipientUserId, "recipient-user");
+    assert.equal(channel.sent[0]?.conversationKey, "recipient-user");
+    assert.equal(channel.sent[0]?.text, "Relevant operator notice");
+    assert.equal(channel.sent[1]?.directRecipientUserId, undefined);
+    assert.equal(channel.sent[1]?.text, "notify attempt complete");
+    const invocations = runtime.listToolInvocations("telegram-mock:conv-1", 10);
+    assert.equal(invocations.length, 1);
+    assert.equal(invocations[0]?.toolName, "channel.send");
+    assert.equal(invocations[0]?.status, "succeeded");
 
     await runtime.stop();
     db.close();

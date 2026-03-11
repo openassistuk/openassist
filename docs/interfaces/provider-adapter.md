@@ -72,6 +72,7 @@ Scheduler prompt actions use the same `chat()` path with metadata that identifie
 Tool-calling request requirements:
 
 - when runtime autonomy is enabled for the session (`full-root`), `req.tools` contains the authoritative tool schema list for host tools and enabled native web tools
+- the runtime-owned `channel.send` schema may appear in `req.tools` when same-chat artifact replies or bounded targeted operator notify are truthfully available for that session
 - adapters must preserve assistant tool-call turns and tool-result turns in provider-native formats
 - tool-result messages are represented as normalized `role="tool"` messages with `toolCallId`
 - when `req.tools` is empty, adapters should not emit tool calls; runtime treats unsolicited tool calls as non-executable

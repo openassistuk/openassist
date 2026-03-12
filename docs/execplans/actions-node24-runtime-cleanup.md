@@ -2,7 +2,7 @@
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-This document must be maintained in accordance with [.agents/PLANS.md](/c:/Users/dange/Coding/openassist/.agents/PLANS.md).
+This document must be maintained in accordance with `.agents/PLANS.md`.
 
 ## Purpose / Big Picture
 
@@ -17,7 +17,8 @@ After this change, OpenAssist's GitHub workflow runs should stop emitting the Gi
 - [x] (2026-03-12 19:18Z) Ran `pnpm verify:all` successfully from the repository root.
 - [x] (2026-03-12 19:18Z) Confirmed there are no separate tests, docs-truth assertions, or contributor docs that require updates for this workflow-only bootstrap change.
 - [x] (2026-03-12 19:19Z) Pushed branch `chore/actions-node24-runtime` and opened PR `#41`.
-- [ ] PR validation and review completion (completed: initial PR run exposed `setup-node` + `cache: pnpm` failure; remaining: remove the cache hook, rerun CI, and carry the PR to full green review status).
+- [x] (2026-03-12 19:31Z) PR `#41` is green across `workflow-lint`, Linux/macOS/Windows `quality-and-coverage`, `CodeQL preflight`, `analyze (javascript-typescript)`, and top-level `CodeQL`, with the earlier `pnpm` bootstrap failures removed.
+- [ ] Review completion and merge handoff (completed: CI is green and automated comments are identified; remaining: apply the final ExecPlan portability cleanup, resolve review threads, and wait for user merge).
 
 ## Surprises & Discoveries
 
@@ -56,7 +57,7 @@ After this change, OpenAssist's GitHub workflow runs should stop emitting the Gi
 
 ## Outcomes & Retrospective
 
-Local implementation is complete and validated, but the remote PR runs exposed two CI-specific `setup-node@v5` interactions: explicit `cache: pnpm` and implicit package-manager caching both look for `pnpm` before `corepack` runs. The branch now needs the explicit `package-manager-cache: false` follow-up and another rerun before normal PR/CI/review discipline can complete.
+The workflow fix is now working end to end. The PR is green after disabling both explicit and implicit `setup-node@v5` package-manager caching, which removed the early `pnpm` lookup while keeping `corepack`-managed pnpm bootstrap stable on Linux, macOS, and Windows. The remaining work is review hygiene and waiting for the user to merge.
 
 ## Context and Orientation
 
@@ -72,7 +73,7 @@ After the workflow edits, run the repository validation command from the repo ro
 
 ## Concrete Steps
 
-From `c:\Users\dange\Coding\openassist`:
+From the repository root:
 
     git switch -c chore/actions-node24-runtime
     pnpm verify:all
@@ -113,7 +114,7 @@ Primary upstream evidence gathered before implementation:
 The changed interfaces are the YAML workflow steps under `.github/workflows/`. No application runtime package interface changes are expected. The workflow bootstrap after this change must still provide:
 
     - Git checkout via `actions/checkout@v5`
-    - Node 22 with pnpm cache via `actions/setup-node@v5`
+    - Node 22 via `actions/setup-node@v5` with `package-manager-cache: false`
     - pnpm 10.31.0 activated through `corepack`
     - coverage artifact uploads in `ci.yml` via `actions/upload-artifact@v6`
 
@@ -124,3 +125,5 @@ Revision note (2026-03-12 19:18Z): Updated progress, discoveries, and outcomes a
 Revision note (2026-03-12 19:20Z): Recorded the first PR-run failure caused by `actions/setup-node@v5` plus `cache: pnpm`, and documented the decision to remove the built-in cache hook to keep the workflow bootstrap green.
 
 Revision note (2026-03-12 19:25Z): Recorded the second PR-run failure caused by `setup-node@v5` automatic package-manager caching and added the explicit `package-manager-cache: false` fix across all workflow files.
+
+Revision note (2026-03-12 19:31Z): Updated the plan after the corrected PR run finished fully green, replaced machine-specific ExecPlan paths with portable wording, and aligned the interface summary with the final no-built-in-cache workflow shape.

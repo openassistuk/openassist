@@ -128,6 +128,9 @@ export function writeDefaultConfig(filePath: string): void {
         maxDocumentBytes: 1_000_000,
         maxExtractedChars: 12_000
       },
+      memory: {
+        enabled: true
+      },
       time: {
         ntpPolicy: "warn-degrade",
         ntpCheckIntervalSec: 300,

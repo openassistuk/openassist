@@ -23,6 +23,10 @@ export interface RuntimeAttachmentConfig {
   maxExtractedChars: number;
 }
 
+export interface RuntimeMemoryConfig {
+  enabled: boolean;
+}
+
 export interface RuntimeFsToolsConfig {
   workspaceOnly: boolean;
   allowedReadPaths: string[];
@@ -220,6 +224,41 @@ export interface RuntimeSecurityConfig {
   secretsBackend: "encrypted-file";
 }
 
+export type RuntimeMemoryCategory = "preference" | "fact" | "goal";
+
+export interface RuntimeSessionMemoryRecord {
+  sessionId: string;
+  summary: string;
+  lastCompactedMessageId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RuntimePermanentMemoryRecord {
+  id: number;
+  actorScope: string;
+  category: RuntimeMemoryCategory;
+  summary: string;
+  keywords: string[];
+  sourceSessionId: string;
+  sourceMessageId: number;
+  salience: number;
+  state: "active" | "forgotten";
+  createdAt: string;
+  updatedAt: string;
+  lastRecalledAt?: string;
+  recallCount: number;
+}
+
+export interface RuntimeMemoryStatus {
+  enabled: boolean;
+  sessionId?: string;
+  actorScope?: string;
+  sessionSummary: RuntimeSessionMemoryRecord | null;
+  permanentMemories: RuntimePermanentMemoryRecord[];
+  notes: string[];
+}
+
 export interface RuntimeConfig {
   bindAddress: string;
   bindPort: number;
@@ -231,6 +270,7 @@ export interface RuntimeConfig {
   workspaceRoot?: string;
   assistant?: RuntimeAssistantConfig;
   attachments?: RuntimeAttachmentConfig;
+  memory?: RuntimeMemoryConfig;
   service?: RuntimeServiceConfig;
   paths: RuntimePaths;
   time: TimeConfig;

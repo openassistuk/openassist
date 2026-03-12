@@ -9,6 +9,9 @@ import type {
   NormalizedMessage,
   OutboundEnvelope,
   PolicyProfile,
+  RuntimeMemoryCategory,
+  RuntimePermanentMemoryRecord,
+  RuntimeSessionMemoryRecord,
   RetryPolicy
 } from "@openassist/core-types";
 import { redactSensitiveData, type OpenAssistLogger } from "@openassist/observability";
@@ -105,6 +108,21 @@ export interface SessionBootstrapRecord {
   updatedAt: string;
 }
 
+export interface MessageHistoryRecord extends NormalizedMessage {
+  messageId: number;
+}
+
+export interface PermanentMemoryUpsertInput {
+  actorScope: string;
+  category: RuntimeMemoryCategory;
+  summary: string;
+  keywords: string[];
+  sourceSessionId: string;
+  sourceMessageId: number;
+  salience?: number;
+  state?: "active" | "forgotten";
+}
+
 export interface MessageAttachmentRecord extends AttachmentRef {
   messageId: number;
 }
@@ -132,6 +150,16 @@ function parseJson<T>(value: string | null): T {
     return {} as T;
   }
   return JSON.parse(value) as T;
+}
+
+function normalizeMemoryKey(category: RuntimeMemoryCategory, summary: string): string {
+  const normalizedSummary = summary
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `${category}:${normalizedSummary}`;
 }
 
 function toModeText(mode: number): string {
@@ -377,6 +405,33 @@ export class OpenAssistDatabase {
         updated_at TEXT NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS session_memory (
+        session_id TEXT PRIMARY KEY,
+        summary_text TEXT NOT NULL,
+        last_compacted_message_id INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY(session_id) REFERENCES sessions(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS permanent_memories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        actor_scope TEXT NOT NULL,
+        category TEXT NOT NULL,
+        summary_text TEXT NOT NULL,
+        normalized_key TEXT NOT NULL,
+        keywords_json TEXT NOT NULL,
+        source_session_id TEXT NOT NULL,
+        source_message_id INTEGER NOT NULL,
+        salience REAL NOT NULL DEFAULT 1,
+        state TEXT NOT NULL DEFAULT 'active',
+        recall_count INTEGER NOT NULL DEFAULT 0,
+        last_recalled_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(actor_scope, normalized_key)
+      );
+
       CREATE TABLE IF NOT EXISTS dead_letters (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
@@ -443,6 +498,9 @@ export class OpenAssistDatabase {
 
       CREATE INDEX IF NOT EXISTS idx_managed_capabilities_kind_id
       ON managed_capabilities(kind, id);
+
+      CREATE INDEX IF NOT EXISTS idx_permanent_memories_actor_state
+      ON permanent_memories(actor_scope, state, updated_at DESC);
 
       CREATE INDEX IF NOT EXISTS idx_message_attachments_message_id
       ON message_attachments(message_id, id ASC);
@@ -733,6 +791,7 @@ export class OpenAssistDatabase {
       .map((row) => {
         const metadata = parseJson<Record<string, string>>(row.metadata_json);
         return {
+          id: String(row.id),
           role: row.role as NormalizedMessage["role"],
           content: row.content,
           attachments: attachmentsByMessageId.get(row.id) ?? undefined,
@@ -743,6 +802,21 @@ export class OpenAssistDatabase {
           toolName: metadata.toolName
         };
       });
+  }
+
+  getLatestMessageId(sessionId: string): number | null {
+    const row = this.db
+      .prepare(
+        `
+        SELECT id
+        FROM messages
+        WHERE session_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+      `
+      )
+      .get(sessionId) as { id: number } | undefined;
+    return row ? Number(row.id) : null;
   }
 
   enqueueJob(type: string, payload: Record<string, unknown>, policy: RetryPolicy): number {
@@ -1052,6 +1126,333 @@ export class OpenAssistDatabase {
       `
       )
       .run(nowIso(), sessionId);
+  }
+
+  getSessionMemory(sessionId: string): RuntimeSessionMemoryRecord | null {
+    const row = this.db
+      .prepare(
+        `
+        SELECT session_id, summary_text, last_compacted_message_id, created_at, updated_at
+        FROM session_memory
+        WHERE session_id = ?
+      `
+      )
+      .get(sessionId) as
+      | {
+          session_id: string;
+          summary_text: string;
+          last_compacted_message_id: number;
+          created_at: string;
+          updated_at: string;
+        }
+      | undefined;
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      sessionId: row.session_id,
+      summary: row.summary_text,
+      lastCompactedMessageId: Number(row.last_compacted_message_id),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+
+  upsertSessionMemory(input: {
+    sessionId: string;
+    summary: string;
+    lastCompactedMessageId: number;
+  }): RuntimeSessionMemoryRecord {
+    const existing = this.getSessionMemory(input.sessionId);
+    const timestamp = nowIso();
+    this.db
+      .prepare(
+        `
+        INSERT INTO session_memory (
+          session_id,
+          summary_text,
+          last_compacted_message_id,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(session_id) DO UPDATE SET
+          summary_text = excluded.summary_text,
+          last_compacted_message_id = excluded.last_compacted_message_id,
+          updated_at = excluded.updated_at
+      `
+      )
+      .run(
+        input.sessionId,
+        input.summary,
+        input.lastCompactedMessageId,
+        existing?.createdAt ?? timestamp,
+        timestamp
+      );
+
+    return this.getSessionMemory(input.sessionId)!;
+  }
+
+  getCompactionBatch(
+    sessionId: string,
+    afterMessageId: number,
+    preserveTailCount: number,
+    batchSize: number
+  ): MessageHistoryRecord[] {
+    const tailRows = this.db
+      .prepare(
+        `
+        SELECT id
+        FROM messages
+        WHERE session_id = ?
+        ORDER BY id DESC
+        LIMIT ?
+      `
+      )
+      .all(sessionId, preserveTailCount) as Array<{ id: number }>;
+
+    if (tailRows.length < preserveTailCount) {
+      return [];
+    }
+
+    const oldestTailMessageId = Math.min(...tailRows.map((row) => Number(row.id)));
+    const rows = this.db
+      .prepare(
+        `
+        SELECT id, role, content, metadata_json, internal_trace, created_at
+        FROM messages
+        WHERE session_id = ? AND id > ? AND id < ?
+        ORDER BY id ASC
+        LIMIT ?
+      `
+      )
+      .all(sessionId, afterMessageId, oldestTailMessageId, batchSize) as Array<{
+      id: number;
+      role: string;
+      content: string;
+      metadata_json: string | null;
+      internal_trace: string | null;
+      created_at: string;
+    }>;
+
+    if (rows.length < batchSize) {
+      return [];
+    }
+
+    const attachmentsByMessageId = this.getMessageAttachments(rows.map((row) => row.id));
+    return rows.map((row) => {
+      const metadata = parseJson<Record<string, string>>(row.metadata_json);
+      return {
+        messageId: Number(row.id),
+        id: String(row.id),
+        role: row.role as NormalizedMessage["role"],
+        content: row.content,
+        attachments: attachmentsByMessageId.get(row.id) ?? undefined,
+        createdAt: row.created_at,
+        metadata,
+        internalTrace: row.internal_trace ?? undefined,
+        toolCallId: metadata.toolCallId,
+        toolName: metadata.toolName
+      };
+    });
+  }
+
+  listPermanentMemories(
+    actorScope: string,
+    options: {
+      state?: "active" | "forgotten";
+      limit?: number;
+    } = {}
+  ): RuntimePermanentMemoryRecord[] {
+    const state = options.state ?? "active";
+    const limit = options.limit ?? 50;
+    const rows = this.db
+      .prepare(
+        `
+        SELECT
+          id,
+          actor_scope,
+          category,
+          summary_text,
+          keywords_json,
+          source_session_id,
+          source_message_id,
+          salience,
+          state,
+          recall_count,
+          last_recalled_at,
+          created_at,
+          updated_at
+        FROM permanent_memories
+        WHERE actor_scope = ? AND state = ?
+        ORDER BY updated_at DESC, id DESC
+        LIMIT ?
+      `
+      )
+      .all(actorScope, state, limit) as Array<{
+      id: number;
+      actor_scope: string;
+      category: RuntimeMemoryCategory;
+      summary_text: string;
+      keywords_json: string;
+      source_session_id: string;
+      source_message_id: number;
+      salience: number;
+      state: "active" | "forgotten";
+      recall_count: number;
+      last_recalled_at: string | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+    return rows.map((row) => ({
+      id: Number(row.id),
+      actorScope: row.actor_scope,
+      category: row.category,
+      summary: row.summary_text,
+      keywords: Array.isArray(parseJson<unknown>(row.keywords_json))
+        ? (parseJson<string[]>(row.keywords_json) ?? [])
+        : [],
+      sourceSessionId: row.source_session_id,
+      sourceMessageId: Number(row.source_message_id),
+      salience: Number(row.salience),
+      state: row.state,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      lastRecalledAt: row.last_recalled_at ?? undefined,
+      recallCount: Number(row.recall_count)
+    }));
+  }
+
+  upsertPermanentMemory(input: PermanentMemoryUpsertInput): RuntimePermanentMemoryRecord {
+    const timestamp = nowIso();
+    const normalizedKey = normalizeMemoryKey(input.category, input.summary);
+    this.db
+      .prepare(
+        `
+        INSERT INTO permanent_memories (
+          actor_scope,
+          category,
+          summary_text,
+          normalized_key,
+          keywords_json,
+          source_session_id,
+          source_message_id,
+          salience,
+          state,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(actor_scope, normalized_key) DO UPDATE SET
+          category = excluded.category,
+          summary_text = excluded.summary_text,
+          keywords_json = excluded.keywords_json,
+          source_session_id = excluded.source_session_id,
+          source_message_id = excluded.source_message_id,
+          salience = excluded.salience,
+          state = excluded.state,
+          updated_at = excluded.updated_at
+      `
+      )
+      .run(
+        input.actorScope,
+        input.category,
+        input.summary,
+        normalizedKey,
+        JSON.stringify(input.keywords),
+        input.sourceSessionId,
+        input.sourceMessageId,
+        input.salience ?? 1,
+        input.state ?? "active",
+        timestamp,
+        timestamp
+      );
+
+    const row = this.db
+      .prepare(
+        `
+        SELECT
+          id,
+          actor_scope,
+          category,
+          summary_text,
+          keywords_json,
+          source_session_id,
+          source_message_id,
+          salience,
+          state,
+          recall_count,
+          last_recalled_at,
+          created_at,
+          updated_at
+        FROM permanent_memories
+        WHERE actor_scope = ? AND normalized_key = ?
+      `
+      )
+      .get(input.actorScope, normalizedKey) as {
+      id: number;
+      actor_scope: string;
+      category: RuntimeMemoryCategory;
+      summary_text: string;
+      keywords_json: string;
+      source_session_id: string;
+      source_message_id: number;
+      salience: number;
+      state: "active" | "forgotten";
+      recall_count: number;
+      last_recalled_at: string | null;
+      created_at: string;
+      updated_at: string;
+    };
+
+    return {
+      id: Number(row.id),
+      actorScope: row.actor_scope,
+      category: row.category,
+      summary: row.summary_text,
+      keywords: parseJson<string[]>(row.keywords_json) ?? [],
+      sourceSessionId: row.source_session_id,
+      sourceMessageId: Number(row.source_message_id),
+      salience: Number(row.salience),
+      state: row.state,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      lastRecalledAt: row.last_recalled_at ?? undefined,
+      recallCount: Number(row.recall_count)
+    };
+  }
+
+  forgetPermanentMemory(id: number, actorScope: string): boolean {
+    const result = this.db
+      .prepare(
+        `
+        UPDATE permanent_memories
+        SET state = 'forgotten', updated_at = ?
+        WHERE id = ? AND actor_scope = ?
+      `
+      )
+      .run(nowIso(), id, actorScope);
+    return Number(result.changes) > 0;
+  }
+
+  markPermanentMemoriesRecalled(ids: number[]): void {
+    if (ids.length === 0) {
+      return;
+    }
+    const placeholders = ids.map(() => "?").join(", ");
+    const timestamp = nowIso();
+    this.db
+      .prepare(
+        `
+        UPDATE permanent_memories
+        SET recall_count = recall_count + 1, last_recalled_at = ?, updated_at = ?
+        WHERE id IN (${placeholders})
+      `
+      )
+      .run(timestamp, timestamp, ...ids);
   }
 
   upsertOauthAccount(

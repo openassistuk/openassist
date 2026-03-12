@@ -8,6 +8,18 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Rolling context compaction plus durable actor memory:
+  - long chats now compact older transcript into a restart-safe rolling session summary stored in SQLite instead of writing `[state_snapshot_written]` markers into normal message history
+  - OpenAssist now stores conservative actor-scoped permanent memory for stable preferences, durable facts, and ongoing goals using the `<channelId>:<senderId>` boundary
+  - new operator-visible inspection surfaces:
+    - in-chat `/memory`
+    - daemon `GET /v1/memory/status`
+    - CLI `openassist memory status [--session <id>] [--sender-id <id>] [--json]`
+  - new `full-root`-only memory tools:
+    - `memory.save`
+    - `memory.search`
+  - permanent actor memory is enabled by default through `runtime.memory.enabled = true`; setting it to `false` disables permanent-memory extraction, recall, inspection output, and `memory.*` tools while leaving rolling session summaries active
+
 - Outbound channel delivery for generated files plus bounded operator notifications:
   - runtime-owned `channel.send` can now return staged files back through the active Telegram, Discord, or WhatsApp chat instead of only describing a local filesystem path
   - targeted notify delivery now stays bounded to `channels[*].settings.operatorUserIds`, and Discord additionally requires the same recipient in `allowedDmUserIds`

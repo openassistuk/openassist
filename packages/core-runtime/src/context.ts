@@ -10,13 +10,17 @@ export interface TokenBudgetSlices {
 
 export interface ContextPlannerOptions {
   maxRawTurns?: number;
-  snapshotEveryNTurns?: number;
   budget?: TokenBudgetSlices;
+}
+
+export interface ContextPlannerInput {
+  systemMessages: NormalizedMessage[];
+  recalledStateMessages?: NormalizedMessage[];
+  recentMessages: NormalizedMessage[];
 }
 
 export interface PlannedContext {
   messages: NormalizedMessage[];
-  snapshotWritten: boolean;
   estimatedTokens: number;
 }
 
@@ -35,53 +39,96 @@ function truncateToTokens(content: string, maxTokens: number): string {
 
 export class ContextPlanner {
   private readonly maxRawTurns: number;
-  private readonly snapshotEveryNTurns: number;
   private readonly budget: TokenBudgetSlices;
 
   constructor(options: ContextPlannerOptions = {}) {
-    this.maxRawTurns = options.maxRawTurns ?? 12;
-    this.snapshotEveryNTurns = options.snapshotEveryNTurns ?? 8;
+    this.maxRawTurns = options.maxRawTurns ?? 8;
     this.budget =
       options.budget ??
       {
         total: 24_000,
-        system: 1500,
-        activeTurn: 3000,
-        recalledState: 3500,
+        system: 6_000,
+        activeTurn: 9_000,
+        recalledState: 5_000,
         safetyMargin: 1000
       };
   }
 
-  plan(systemPrompt: string, recentMessages: NormalizedMessage[]): PlannedContext {
-    const raw = recentMessages.slice(-this.maxRawTurns);
-
-    const systemMessage: NormalizedMessage = {
-      role: "system",
-      content: truncateToTokens(systemPrompt, this.budget.system)
-    };
-
-    const tokenBudgetForConversation =
-      this.budget.total - this.budget.system - this.budget.safetyMargin;
-
-    const plannedConversation: NormalizedMessage[] = [];
-    let used = estimateTokens(systemMessage.content);
-
-    for (let i = raw.length - 1; i >= 0; i -= 1) {
-      const message = raw[i]!;
-      const candidateTokens = estimateTokens(message.content);
-      if (used + candidateTokens > tokenBudgetForConversation) {
+  private fitSequentialMessages(
+    messages: NormalizedMessage[],
+    maxTokens: number
+  ): { messages: NormalizedMessage[]; usedTokens: number } {
+    const fitted: NormalizedMessage[] = [];
+    let usedTokens = 0;
+    for (const message of messages) {
+      const remaining = maxTokens - usedTokens;
+      if (remaining <= 0) {
+        break;
+      }
+      const content = truncateToTokens(message.content, remaining);
+      if (content.length === 0) {
         continue;
       }
-      plannedConversation.unshift(message);
-      used += candidateTokens;
+      fitted.push({
+        ...message,
+        content
+      });
+      usedTokens += estimateTokens(content);
     }
+    return { messages: fitted, usedTokens };
+  }
 
-    const snapshotWritten = raw.length > 0 && raw.length % this.snapshotEveryNTurns === 0;
+  private fitNewestMessages(
+    messages: NormalizedMessage[],
+    maxTokens: number
+  ): { messages: NormalizedMessage[]; usedTokens: number } {
+    const fitted: NormalizedMessage[] = [];
+    let usedTokens = 0;
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index]!;
+      const remaining = maxTokens - usedTokens;
+      if (remaining <= 0) {
+        break;
+      }
+      const candidateTokens = estimateTokens(message.content);
+      if (candidateTokens <= remaining) {
+        fitted.unshift(message);
+        usedTokens += candidateTokens;
+        continue;
+      }
+      fitted.unshift({
+        ...message,
+        content: truncateToTokens(message.content, remaining)
+      });
+      usedTokens = maxTokens;
+      break;
+    }
+    return { messages: fitted, usedTokens };
+  }
+
+  plan(input: ContextPlannerInput): PlannedContext {
+    const raw = input.recentMessages.slice(-this.maxRawTurns);
+    const fittedSystem = this.fitSequentialMessages(input.systemMessages, this.budget.system);
+    const fittedRecalled = this.fitSequentialMessages(
+      input.recalledStateMessages ?? [],
+      this.budget.recalledState
+    );
+    const remainingForConversation = Math.max(
+      0,
+      this.budget.total -
+        this.budget.safetyMargin -
+        fittedSystem.usedTokens -
+        fittedRecalled.usedTokens
+    );
+    const fittedConversation = this.fitNewestMessages(
+      raw,
+      Math.min(this.budget.activeTurn, remainingForConversation)
+    );
 
     return {
-      messages: [systemMessage, ...plannedConversation],
-      snapshotWritten,
-      estimatedTokens: used
+      messages: [...fittedSystem.messages, ...fittedRecalled.messages, ...fittedConversation.messages],
+      estimatedTokens:
+        fittedSystem.usedTokens + fittedRecalled.usedTokens + fittedConversation.usedTokens
     };
   }
 }

@@ -31,6 +31,9 @@ function minimalConfig(dataDir: string, skillsDir: string): OpenAssistConfig {
         operatorPreferences: "",
         promptOnFirstContact: false
       },
+      memory: {
+        enabled: true
+      },
       scheduler: {
         enabled: true,
         tickSeconds: 60,

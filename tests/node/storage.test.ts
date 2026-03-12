@@ -202,6 +202,101 @@ describe("OpenAssistDatabase", () => {
     db.close();
   });
 
+  it("stores session compaction memory and returns compactable batches", () => {
+    const root = tempDir("openassist-db-session-memory-");
+    roots.push(root);
+
+    const db = new OpenAssistDatabase({
+      dbPath: path.join(root, "openassist.db"),
+      logger: createLogger({ service: "test" })
+    });
+
+    const sessionId = "telegram-main:c1";
+    for (let index = 1; index <= 16; index += 1) {
+      if (index % 2 === 1) {
+        db.recordInbound(sessionId, {
+          channel: "telegram",
+          channelId: "telegram-main",
+          transportMessageId: `m-${index}`,
+          conversationKey: "c1",
+          senderId: "u1",
+          text: `user-${index}`,
+          attachments: [],
+          receivedAt: new Date(Date.now() + index).toISOString(),
+          idempotencyKey: `idemp-${index}`
+        });
+      } else {
+        db.recordAssistantMessage(sessionId, "c1", {
+          role: "assistant",
+          content: `assistant-${index}`
+        });
+      }
+    }
+
+    const batch = db.getCompactionBatch(sessionId, 0, 8, 8);
+    assert.equal(batch.length, 8);
+    assert.equal(batch[0]?.content, "user-1");
+    assert.equal(batch[7]?.content, "assistant-8");
+
+    const stored = db.upsertSessionMemory({
+      sessionId,
+      summary: "Conversation summary",
+      lastCompactedMessageId: batch[7]!.messageId
+    });
+    assert.equal(stored.summary, "Conversation summary");
+    assert.equal(stored.lastCompactedMessageId, batch[7]!.messageId);
+    assert.equal(db.getSessionMemory(sessionId)?.summary, "Conversation summary");
+
+    db.close();
+  });
+
+  it("upserts, recalls, and forgets actor-scoped permanent memories", () => {
+    const root = tempDir("openassist-db-permanent-memory-");
+    roots.push(root);
+
+    const db = new OpenAssistDatabase({
+      dbPath: path.join(root, "openassist.db"),
+      logger: createLogger({ service: "test" })
+    });
+
+    const first = db.upsertPermanentMemory({
+      actorScope: "telegram-main:u1",
+      category: "preference",
+      summary: "Use Debian apt commands when suggesting package installs.",
+      keywords: ["debian", "apt"],
+      sourceSessionId: "telegram-main:c1",
+      sourceMessageId: 10,
+      salience: 4
+    });
+    const second = db.upsertPermanentMemory({
+      actorScope: "telegram-main:u1",
+      category: "preference",
+      summary: "Use Debian apt commands when suggesting package installs.",
+      keywords: ["debian", "apt", "packages"],
+      sourceSessionId: "telegram-main:c2",
+      sourceMessageId: 20,
+      salience: 5
+    });
+
+    assert.equal(first.id, second.id);
+    const memories = db.listPermanentMemories("telegram-main:u1");
+    assert.equal(memories.length, 1);
+    assert.equal(memories[0]?.salience, 5);
+    assert.equal(memories[0]?.keywords.includes("packages"), true);
+
+    db.markPermanentMemoriesRecalled([second.id]);
+    const recalled = db.listPermanentMemories("telegram-main:u1");
+    assert.equal(recalled[0]?.recallCount, 1);
+    assert.ok(recalled[0]?.lastRecalledAt);
+
+    assert.equal(db.listPermanentMemories("telegram-main:u2").length, 0);
+    assert.equal(db.listPermanentMemories("discord-main:u1").length, 0);
+    assert.equal(db.forgetPermanentMemory(second.id, "telegram-main:u1"), true);
+    assert.equal(db.listPermanentMemories("telegram-main:u1").length, 0);
+
+    db.close();
+  });
+
   it("redacts secret-like tool invocation payload fields", () => {
     const root = tempDir("openassist-db-tool-redaction-");
     roots.push(root);

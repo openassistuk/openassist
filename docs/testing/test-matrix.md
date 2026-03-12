@@ -61,6 +61,7 @@ Current suite files under `tests/vitest/`:
 - `install-context.test.ts`
 - `install-state.test.ts`
 - `lifecycle-readiness.test.ts`
+- `memory.test.ts`
 - `migration.test.ts`
 - `misfire-policy.test.ts`
 - `oauth-redirect.test.ts`
@@ -140,6 +141,7 @@ Current suite files under `tests/node/`:
 - `runtime-codex-auth.test.ts`
 - `runtime-chat-tool-exec.test.ts`
 - `runtime-chat-tool-policy-gate.test.ts`
+- `runtime-memory.test.ts`
 - `runtime-pkg-install-sudo.test.ts`
 - `runtime-provider-tool-contracts.test.ts`
 - `runtime-tool-audit.test.ts`
@@ -255,6 +257,9 @@ Current suite files under `tests/node/`:
 29. Provider tool-call mapping contracts (OpenAI/Codex/Anthropic/OpenAI-compatible) remain interoperable.
 30. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
 31. Root `README.md`, root `AGENTS.md`, `docs/README.md`, all live non-ExecPlan docs, and `docs/testing/test-matrix.md` all describe the same current command, threshold, workflow, and troubleshooting reality.
+32. In-channel `/memory`, `GET /v1/memory/status`, and `openassist memory status` agree on rolling session summary and actor-scoped durable-memory visibility for the same session and sender inputs.
+33. Rolling session summaries continue to update after raw history exceeds the retained tail, and the old `[state_snapshot_written]` marker path never reappears in persisted message history.
+34. Durable actor memory is recalled only for the same `<channelId>:<senderId>`, remains disabled when `runtime.memory.enabled=false`, and `memory.save` / `memory.search` remain advertised and auditable only in `full-root`.
 
 ## Remaining Gaps
 

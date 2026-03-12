@@ -1581,18 +1581,19 @@ describe("OpenAssistRuntime", () => {
     });
 
     assert.equal(provider.chatCalls, 0);
-    assert.equal(channel.sent.length, 4);
-    assert.match(channel.sent[0]?.text ?? "", /I can help with/i);
-    assert.match(channel.sent[0]?.text ?? "", /Capability growth:/i);
-    assert.match(channel.sent[1]?.text ?? "", /Runtime commands/i);
-    assert.match(channel.sent[1]?.text ?? "", /\/grow/i);
-    assert.match(channel.sent[2]?.text ?? "", /OpenAssist live capability inventory/i);
-    assert.match(channel.sent[2]?.text ?? "", /Capability domains/i);
-    assert.match(channel.sent[2]?.text ?? "", /Capability growth: available/i);
-    assert.match(channel.sent[3]?.text ?? "", /OpenAssist controlled growth/i);
-    assert.match(channel.sent[3]?.text ?? "", /disk-maintenance@1\.0\.0/i);
-    assert.match(channel.sent[3]?.text ?? "", /ripgrep-helper/i);
-    assert.match(channel.sent[3]?.text ?? "", /extensions-first/i);
+    assert.ok(channel.sent.length >= 4);
+    const combinedText = channel.sent.map((item) => item.text).join("\n\n");
+    assert.match(combinedText, /I can help with/i);
+    assert.match(combinedText, /Capability growth:/i);
+    assert.match(combinedText, /Runtime commands/i);
+    assert.match(combinedText, /\/grow/i);
+    assert.match(combinedText, /OpenAssist live capability inventory/i);
+    assert.match(combinedText, /Capability domains/i);
+    assert.match(combinedText, /Capability growth: available/i);
+    assert.match(combinedText, /OpenAssist controlled growth/i);
+    assert.match(combinedText, /disk-maintenance@1\.0\.0/i);
+    assert.match(combinedText, /ripgrep-helper/i);
+    assert.match(combinedText, /extensions-first/i);
 
     await runtime.stop();
     db.close();

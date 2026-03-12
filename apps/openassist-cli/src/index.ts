@@ -1065,6 +1065,88 @@ growthCommand
     }
   });
 
+const memoryCommand = program.command("memory").description("Chat memory and durable actor memory operations");
+memoryCommand
+  .command("status")
+  .description("Show rolling session summary and actor-scoped durable memory")
+  .option("--json", "Print full JSON output")
+  .option("--base-url <url>", "Daemon API base URL", detectDefaultDaemonBaseUrl())
+  .option("--session <id>", "Session ID for session summary visibility (<channelId>:<conversationKey>)")
+  .option("--sender-id <id>", "Sender ID for actor-scoped durable memory visibility")
+  .action(async (options) => {
+    try {
+      const baseUrl = String(options.baseUrl).replace(/\/+$/, "");
+      const params = new URLSearchParams();
+      if (options.session) {
+        params.set("sessionId", String(options.session));
+      }
+      if (options.senderId) {
+        params.set("senderId", String(options.senderId));
+      }
+      const query = params.size > 0 ? `?${params.toString()}` : "";
+      const result = await requestJson("GET", `${baseUrl}/v1/memory/status${query}`);
+      if (result.status >= 400) {
+        throw new Error(`Request failed with status ${result.status}`);
+      }
+      if (Boolean(options.json)) {
+        console.log(JSON.stringify(result.data, null, 2));
+        return;
+      }
+
+      const memory = (result.data as {
+        memory?: {
+          enabled: boolean;
+          sessionId?: string;
+          actorScope?: string;
+          sessionSummary?: {
+            summary: string;
+            lastCompactedMessageId: number;
+          } | null;
+          permanentMemories: Array<{
+            category: string;
+            summary: string;
+            keywords: string[];
+          }>;
+          notes: string[];
+        };
+      }).memory;
+      if (!memory) {
+        console.log("Memory status unavailable.");
+        return;
+      }
+
+      console.log("OpenAssist memory status");
+      console.log(`- Permanent memory enabled: ${memory.enabled ? "yes" : "no"}`);
+      console.log(`- Session: ${memory.sessionId ?? "(not provided)"}`);
+      console.log(`- Actor scope: ${memory.actorScope ?? "(not provided)"}`);
+      if (memory.sessionSummary) {
+        console.log(
+          `- Rolling session summary: compacted through message id ${memory.sessionSummary.lastCompactedMessageId}`
+        );
+        console.log(`- Summary text: ${memory.sessionSummary.summary}`);
+      } else {
+        console.log("- Rolling session summary: none yet");
+      }
+      console.log(`- Visible permanent memories: ${memory.permanentMemories.length}`);
+      if (memory.permanentMemories.length === 0) {
+        console.log("- Permanent memories: none");
+      } else {
+        for (const item of memory.permanentMemories) {
+          console.log(
+            `- [${item.category}] ${item.summary} (keywords: ${item.keywords.join(", ") || "none"})`
+          );
+        }
+      }
+      for (const note of memory.notes) {
+        console.log(`- Note: ${note}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Memory status failed: ${message}`);
+      process.exitCode = 1;
+    }
+  });
+
 growthCommand
   .command("helper")
   .description("Managed helper-tool registry operations")

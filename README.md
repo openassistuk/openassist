@@ -276,7 +276,7 @@ Use the troubleshooting runbook when:
 
 ## Runtime Awareness and Growth
 
-Normal chat turns plus the runtime-owned `/start`, `/help`, `/capabilities`, `/grow`, and `/status` surfaces now carry one bounded OpenAssist awareness pack so the assistant can stay grounded in:
+Normal chat turns plus the runtime-owned `/start`, `/help`, `/capabilities`, `/grow`, `/status`, and `/memory` surfaces now carry one bounded OpenAssist awareness pack so the assistant can stay grounded in:
 
 - what OpenAssist is and which modules it owns
 - the current host/runtime/access/tool boundary
@@ -285,9 +285,11 @@ Normal chat turns plus the runtime-owned `/start`, `/help`, `/capabilities`, `/g
 - which kinds of self-maintenance are safe right now and which are blocked
 - which capability domains are currently available or limited
 - which managed growth assets already exist and how durable growth should happen safely
+- what rolling session summary and actor-scoped durable memory are currently available for this chat context
 
 This does not weaken the security model. Lower-access sessions stay advisory-only for self-maintenance. Only `full-root` sessions with callable tools may make bounded local config/docs/code changes, and updater-owned paths still stay off-limits to ad-hoc edits.
 In chat, full config/env/install filesystem paths are reserved for approved operators; other senders still get the high-level lifecycle summary plus host-side command guidance.
+Longer chats now also stay bounded through a durable rolling session summary. OpenAssist compacts older transcript blocks into restart-safe per-session summary state and can recall up to four conservative actor-scoped durable memories for the same `<channelId>:<senderId>` identity. Permanent actor memory is enabled by default and can be disabled with `runtime.memory.enabled = false`; disabling it keeps rolling session summaries on but suppresses permanent-memory extraction, recall, and `memory.*` tools.
 
 Runtime-owned chat surfaces now have clearer roles:
 
@@ -295,6 +297,7 @@ Runtime-owned chat surfaces now have clearer roles:
 - `/capabilities`: live capability inventory for the current provider, channel, tools, scheduler state, and access level
 - `/grow`: managed skills, helper tools, growth policy, and safe next actions
 - `/status`: operational diagnostics, lifecycle context, sender/session IDs, and effective access
+- `/memory`: rolling session summary plus the durable actor memories visible for the current session and sender
 - `/profile`: view or intentionally update the main assistant identity
 
 ## Controlled Growth
@@ -505,6 +508,7 @@ Actor-aware access checks:
 openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id>
 openassist policy-get --session <channelId>:<conversationKey> --sender-id <sender-id> --json
 openassist tools status --session <channelId>:<conversationKey> --sender-id <sender-id>
+openassist memory status --session <channelId>:<conversationKey> --sender-id <sender-id>
 ```
 
 Managed growth:
@@ -523,6 +527,7 @@ In-chat runtime commands:
 - `/capabilities`
 - `/grow`
 - `/status`
+- `/memory`
 - `/profile`
 
 Source-checkout alternatives are documented, but the installed commands above are the primary operator path.

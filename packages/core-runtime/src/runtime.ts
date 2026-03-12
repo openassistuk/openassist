@@ -24,6 +24,8 @@ import type {
   ProviderAuthHandle,
   RuntimeConfig,
   RuntimeAwarenessSnapshot,
+  RuntimeMemoryStatus,
+  RuntimePermanentMemoryRecord,
   RuntimeStatus,
   ScheduledTaskConfig,
   SkillManifest,
@@ -58,6 +60,18 @@ import {
   detectSystemTimezoneCandidate,
   validateTimezone
 } from "./clock-health.js";
+import {
+  actorScopeFromParts,
+  buildMemoryExtractionMessages,
+  buildPermanentMemorySystemMessage,
+  buildSessionMemorySystemMessage,
+  MAX_COMPACTION_BATCHES_PER_TURN,
+  MAX_RECALLED_MEMORIES,
+  parseMemoryExtractionResponse,
+  rankMemoriesForRecall,
+  SESSION_COMPACTION_BATCH_SIZE,
+  SESSION_RAW_TAIL_SIZE
+} from "./memory.js";
 import { DatabasePolicyEngine } from "./policy-engine.js";
 import { SecretBox } from "./secrets.js";
 import {
@@ -70,6 +84,8 @@ import {
   RuntimeToolRouter,
   type ChannelSendToolRequest,
   type ChannelSendToolResult,
+  type MemorySaveToolRequest,
+  type MemorySearchToolRequest,
   type ToolExecutionRecord
 } from "./tool-router.js";
 
@@ -147,6 +163,7 @@ const SESSION_START_COMMAND_PREFIX = "/start";
 const SESSION_HELP_COMMAND_PREFIX = "/help";
 const SESSION_CAPABILITIES_COMMAND_PREFIX = "/capabilities";
 const SESSION_GROW_COMMAND_PREFIX = "/grow";
+const SESSION_MEMORY_COMMAND_PREFIX = "/memory";
 const PROFILE_FIELD_KEYS = new Set(["name", "persona", "prefs", "preferences"]);
 const PROFILE_FORCE_FIELD_KEYS = new Set(["force"]);
 
@@ -358,9 +375,16 @@ const DEFAULT_ASSISTANT_CONFIG = {
   promptOnFirstContact: true
 } as const;
 
+const DEFAULT_MEMORY_CONFIG = {
+  enabled: true
+} as const;
+
 function normalizeRuntimeConfig(config: RuntimeConfig): RuntimeConfig {
   return {
     ...config,
+    memory: {
+      enabled: config.memory?.enabled ?? true
+    },
     service: {
       systemdFilesystemAccess: config.service?.systemdFilesystemAccess ?? "hardened"
     }
@@ -1244,6 +1268,15 @@ export class OpenAssistRuntime {
     };
   }
 
+  private memoryConfig(): {
+    enabled: boolean;
+  } {
+    return {
+      ...DEFAULT_MEMORY_CONFIG,
+      ...(this.config.memory ?? {})
+    };
+  }
+
   private channelConfig(channelId: string): RuntimeConfig["channels"][number] | undefined {
     return this.config.channels.find((channel) => channel.id === channelId);
   }
@@ -1458,6 +1491,8 @@ export class OpenAssistRuntime {
       pkgTool: this.pkgTool,
       webTool: this.webTool,
       channelSendTool: async (request, context) => this.executeChannelSendTool(request, context),
+      memorySaveTool: async (request, context) => this.executeMemorySaveTool(request, context),
+      memorySearchTool: async (request, context) => this.executeMemorySearchTool(request, context),
       logger: this.logger
     });
   }
@@ -1639,6 +1674,39 @@ export class OpenAssistRuntime {
       helperToolsDirectory: this.managedHelperToolsDir(),
       installedSkills,
       managedHelpers
+    };
+  }
+
+  async getMemoryStatus(sessionId?: string, actorId?: string): Promise<RuntimeMemoryStatus> {
+    const enabled = this.memoryConfig().enabled;
+    const notes: string[] = [];
+    const sessionSummary = sessionId ? this.db.getSessionMemory(sessionId) : null;
+    if (!sessionId) {
+      notes.push("Pass sessionId to inspect rolling session summary state.");
+    } else if (!sessionSummary) {
+      notes.push("No rolling session summary has been compacted for this session yet.");
+    }
+
+    let actorScope: string | undefined;
+    let permanentMemories: RuntimePermanentMemoryRecord[] = [];
+    if (sessionId && actorId) {
+      actorScope = actorScopeFromParts(channelIdFromSessionId(sessionId), actorId);
+      if (enabled) {
+        permanentMemories = this.db.listPermanentMemories(actorScope, { state: "active", limit: 50 });
+      } else {
+        notes.push("Permanent actor memory is disabled by runtime.memory.enabled=false.");
+      }
+    } else {
+      notes.push("Pass both sessionId and senderId to inspect actor-scoped permanent memories.");
+    }
+
+    return {
+      enabled,
+      sessionId,
+      actorScope,
+      sessionSummary,
+      permanentMemories,
+      notes
     };
   }
 
@@ -1887,6 +1955,11 @@ export class OpenAssistRuntime {
         return;
       }
 
+      if (this.isMemoryCommand(commandText)) {
+        await this.handleMemoryCommand(channel, preparedInbound.envelope, sessionId);
+        return;
+      }
+
       if (this.isOperationalStatusRequest(commandText)) {
         const statusText = sanitizeUserOutput(
           await this.buildOperationalStatusMessage(sessionId, preparedInbound.envelope.senderId)
@@ -1969,27 +2042,45 @@ export class OpenAssistRuntime {
         "unknown";
       const toolSchemas = await this.resolveToolSchemasForSession(sessionId, actorId);
       const recentMessages = this.db.getRecentMessages(sessionId, 50);
-      const planned = this.contextPlanner.plan(defaultSystemPrompt(), recentMessages);
-      let conversationMessages: NormalizedMessage[] = [...planned.messages];
-      conversationMessages.splice(1, 0, this.buildSessionBootstrapSystemMessage(sessionBootstrap));
+      const sessionMemory = this.db.getSessionMemory(sessionId);
+      const recalledMemories = this.selectRecalledMemories(
+        sessionId,
+        actorId,
+        this.memoryRecallQuery(preparedInbound.envelope)
+      );
       const providerInputNotes = this.buildProviderInputNotes(provider, preparedInbound.envelope);
+      const systemMessages: NormalizedMessage[] = [
+        {
+          role: "system",
+          content: defaultSystemPrompt()
+        },
+        this.buildSessionBootstrapSystemMessage(sessionBootstrap)
+      ];
       if (providerInputNotes.length > 0) {
-        conversationMessages.splice(2, 0, {
+        systemMessages.push({
           role: "system",
           content: providerInputNotes.join("\n")
         });
       }
-
-      if (planned.snapshotWritten) {
-        this.db.recordAssistantMessage(sessionId, preparedInbound.envelope.conversationKey, {
-          role: "assistant",
-          content: "[state_snapshot_written]",
-          metadata: {
-            system: "true",
-            estimatedTokens: String(planned.estimatedTokens)
-          }
+      const recalledStateMessages: NormalizedMessage[] = [];
+      if (sessionMemory?.summary.trim()) {
+        recalledStateMessages.push({
+          role: "system",
+          content: buildSessionMemorySystemMessage(sessionMemory)
         });
       }
+      if (recalledMemories.length > 0) {
+        recalledStateMessages.push({
+          role: "system",
+          content: buildPermanentMemorySystemMessage(recalledMemories)
+        });
+      }
+      const planned = this.contextPlanner.plan({
+        systemMessages,
+        recalledStateMessages,
+        recentMessages
+      });
+      let conversationMessages: NormalizedMessage[] = [...planned.messages];
 
       let responseText = "";
       let responseUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
@@ -2138,6 +2229,22 @@ export class OpenAssistRuntime {
           providerId: provider.id()
         }
       });
+      if (recalledMemories.length > 0) {
+        this.db.markPermanentMemoriesRecalled(recalledMemories.map((memory) => memory.id));
+      }
+      try {
+        await this.refreshSessionMemoryAfterTurn(provider, model, sessionId, actorId);
+      } catch (error) {
+        this.logger.warn(
+          {
+            type: "memory.compaction.failed",
+            sessionId,
+            actorId,
+            error: error instanceof Error ? error.message : String(error)
+          },
+          "memory compaction sidecar failed after chat turn"
+        );
+      }
     } catch (error) {
       const errText = error instanceof Error ? error.message : String(error);
       const providerHint = this.classifyOperationalError(errText);
@@ -2447,6 +2554,79 @@ export class OpenAssistRuntime {
     }
   }
 
+  private async executeMemorySaveTool(
+    request: MemorySaveToolRequest,
+    context: {
+      sessionId: string;
+      actorId: string;
+    }
+  ): Promise<Record<string, unknown>> {
+    if (!this.memoryConfig().enabled) {
+      throw new Error("memory.save is disabled because runtime.memory.enabled=false.");
+    }
+    const resolution = await this.policyEngine.resolveProfile({
+      sessionId: context.sessionId,
+      actorId: context.actorId
+    });
+    if (resolution.profile !== "full-root") {
+      throw new Error("memory.save requires a full-root session.");
+    }
+    const actorScope = actorScopeFromParts(channelIdFromSessionId(context.sessionId), context.actorId);
+    const summary = request.summary.trim();
+    if (summary.length === 0) {
+      throw new Error("memory.save summary must not be empty.");
+    }
+    const sourceMessageId = this.db.getLatestMessageId(context.sessionId) ?? 0;
+    const stored = this.db.upsertPermanentMemory({
+      actorScope,
+      category: request.category,
+      summary,
+      keywords: request.keywords ?? [],
+      sourceSessionId: context.sessionId,
+      sourceMessageId,
+      salience: request.salience ?? 1,
+      state: "active"
+    });
+    return {
+      ok: true,
+      actorScope,
+      memory: stored
+    };
+  }
+
+  private async executeMemorySearchTool(
+    request: MemorySearchToolRequest,
+    context: {
+      sessionId: string;
+      actorId: string;
+    }
+  ): Promise<Record<string, unknown>> {
+    if (!this.memoryConfig().enabled) {
+      throw new Error("memory.search is disabled because runtime.memory.enabled=false.");
+    }
+    const resolution = await this.policyEngine.resolveProfile({
+      sessionId: context.sessionId,
+      actorId: context.actorId
+    });
+    if (resolution.profile !== "full-root") {
+      throw new Error("memory.search requires a full-root session.");
+    }
+    const actorScope = actorScopeFromParts(channelIdFromSessionId(context.sessionId), context.actorId);
+    const limit = Math.max(1, Math.min(10, Math.round(request.limit ?? MAX_RECALLED_MEMORIES)));
+    const ranked = rankMemoriesForRecall(
+      this.db.listPermanentMemories(actorScope, { state: "active", limit: 50 }),
+      request.query,
+      limit
+    );
+    this.db.markPermanentMemoriesRecalled(ranked.map((memory) => memory.id));
+    return {
+      ok: true,
+      actorScope,
+      query: request.query,
+      results: ranked
+    };
+  }
+
   private attachmentStorageDir(envelope: InboundEnvelope): string {
     return path.join(
       this.config.paths.dataDir,
@@ -2651,6 +2831,7 @@ export class OpenAssistRuntime {
       "- /status for diagnostics",
       "- /capabilities for the live capability inventory",
       "- /grow for managed skills, helper tools, and growth policy",
+      "- /memory to inspect rolling session summary and durable actor memory",
       "- /profile to view or update the main assistant identity"
     ].join("\n");
   }
@@ -2725,6 +2906,138 @@ export class OpenAssistRuntime {
     ].join("\n");
   }
 
+  private buildMemoryStatusMessage(status: RuntimeMemoryStatus): string {
+    const sessionSummaryLine = status.sessionSummary
+      ? `- rolling session summary: compacted through message id ${status.sessionSummary.lastCompactedMessageId}`
+      : "- rolling session summary: none yet";
+    const memoryLines =
+      status.enabled && status.permanentMemories.length > 0
+        ? status.permanentMemories.slice(0, 10).map((memory, index) => {
+            const keywords = memory.keywords.join(", ") || "none";
+            return `${index + 1}. [${memory.category}] ${memory.summary} (keywords: ${keywords})`;
+          })
+        : ["- permanent memories: none visible for this request context"];
+
+    return [
+      "OpenAssist memory status",
+      `- permanent memory enabled: ${status.enabled ? "yes" : "no"}`,
+      `- session id: ${status.sessionId ?? "(not provided)"}`,
+      `- actor scope: ${status.actorScope ?? "(not provided)"}`,
+      sessionSummaryLine,
+      ...(status.sessionSummary ? [`- summary text: ${status.sessionSummary.summary}`] : []),
+      `- visible permanent memories: ${status.permanentMemories.length}`,
+      ...memoryLines,
+      ...status.notes.map((note) => `- note: ${note}`)
+    ].join("\n");
+  }
+
+  private memoryRecallQuery(envelope: InboundEnvelope): string {
+    return [
+      envelope.text ?? "",
+      ...(envelope.attachments ?? []).flatMap((attachment) => [
+        attachment.captionText ?? "",
+        attachment.extractedText ?? ""
+      ])
+    ]
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0)
+      .join("\n");
+  }
+
+  private selectRecalledMemories(sessionId: string, actorId: string, query: string): RuntimePermanentMemoryRecord[] {
+    if (!this.memoryConfig().enabled) {
+      return [];
+    }
+    const actorScope = actorScopeFromParts(channelIdFromSessionId(sessionId), actorId);
+    const memories = this.db.listPermanentMemories(actorScope, { state: "active", limit: 50 });
+    return rankMemoriesForRecall(memories, query, MAX_RECALLED_MEMORIES);
+  }
+
+  private async refreshSessionMemoryAfterTurn(
+    provider: ProviderAdapter,
+    model: string,
+    sessionId: string,
+    actorId: string
+  ): Promise<void> {
+    let sessionMemory = this.db.getSessionMemory(sessionId) ?? {
+      sessionId,
+      summary: "",
+      lastCompactedMessageId: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    const actorScope = actorScopeFromParts(channelIdFromSessionId(sessionId), actorId);
+    const memoryEnabled = this.memoryConfig().enabled;
+
+    for (let attempt = 0; attempt < MAX_COMPACTION_BATCHES_PER_TURN; attempt += 1) {
+      const batch = this.db.getCompactionBatch(
+        sessionId,
+        sessionMemory.lastCompactedMessageId,
+        SESSION_RAW_TAIL_SIZE,
+        SESSION_COMPACTION_BATCH_SIZE
+      );
+      if (batch.length < SESSION_COMPACTION_BATCH_SIZE) {
+        return;
+      }
+
+      const batchEndId = batch[batch.length - 1]!.messageId;
+      const response = await this.chatWithProvider(provider, {
+        sessionId: `${sessionId}::memory::${batchEndId}`,
+        model,
+        messages: buildMemoryExtractionMessages({
+          existingSummary: sessionMemory.summary,
+          batch,
+          memoryEnabled
+        }),
+        tools: [],
+        metadata: {
+          source: "runtime.memory.sidecar",
+          batchEndId: String(batchEndId),
+          actorScope
+        }
+      });
+
+      const extraction = parseMemoryExtractionResponse(response.output.content, {
+        memoryEnabled
+      });
+      if (!extraction) {
+        this.logger.warn(
+          {
+            type: "memory.compaction.invalid",
+            sessionId,
+            actorScope,
+            batchEndId
+          },
+          "memory sidecar returned invalid extraction payload"
+        );
+        return;
+      }
+
+      sessionMemory = this.db.upsertSessionMemory({
+        sessionId,
+        summary: extraction.sessionSummary,
+        lastCompactedMessageId: batchEndId
+      });
+
+      if (!memoryEnabled) {
+        continue;
+      }
+
+      for (const candidate of extraction.memories) {
+        this.db.upsertPermanentMemory({
+          actorScope,
+          category: candidate.category,
+          summary: candidate.summary,
+          keywords: candidate.keywords,
+          sourceSessionId: sessionId,
+          sourceMessageId: batchEndId,
+          salience: candidate.salience,
+          state: "active"
+        });
+      }
+    }
+  }
+
   private async handleWelcomeCommand(
     channel: ChannelAdapter,
     envelope: InboundEnvelope,
@@ -2767,6 +3080,20 @@ export class OpenAssistRuntime {
     );
   }
 
+  private async handleMemoryCommand(
+    channel: ChannelAdapter,
+    envelope: InboundEnvelope,
+    sessionId: string
+  ): Promise<void> {
+    await this.sendRuntimeCommandMessage(
+      channel,
+      envelope,
+      sessionId,
+      "runtime.memory",
+      this.buildMemoryStatusMessage(await this.getMemoryStatus(sessionId, envelope.senderId))
+    );
+  }
+
   private isOperationalStatusRequest(text: string | undefined): boolean {
     const normalized = (text ?? "").trim().toLowerCase();
     return (
@@ -2801,6 +3128,11 @@ export class OpenAssistRuntime {
   private isProfileCommand(text: string | undefined): boolean {
     const normalized = (text ?? "").trim().toLowerCase();
     return normalized === SESSION_PROFILE_COMMAND_PREFIX || normalized.startsWith(`${SESSION_PROFILE_COMMAND_PREFIX} `);
+  }
+
+  private isMemoryCommand(text: string | undefined): boolean {
+    const normalized = (text ?? "").trim().toLowerCase();
+    return normalized === SESSION_MEMORY_COMMAND_PREFIX || normalized.startsWith(`${SESSION_MEMORY_COMMAND_PREFIX} `);
   }
 
   private isAccessCommand(text: string | undefined): boolean {
@@ -3332,7 +3664,8 @@ export class OpenAssistRuntime {
             : "disabled until approved operator IDs are configured"
       }`,
       `- prefer lifecycle commands: ${awareness.maintenance.preferredCommands.join(", ")}`,
-      "- global profile memory: use '/profile' to view or '/profile force=true; name=...; persona=...; prefs=...' to update"
+      "- global profile memory: use '/profile' to view or '/profile force=true; name=...; persona=...; prefs=...' to update",
+      "- chat/session memory: use '/memory' to inspect rolling summary and durable actor memory"
     ].join("\n");
   }
 
@@ -3344,7 +3677,8 @@ export class OpenAssistRuntime {
   private enabledToolSchemas(): ToolSchema[] {
     return runtimeToolSchemas({
       enablePackageTool: this.config.tools?.pkg.enabled ?? true,
-      enableWebTools: this.config.tools?.web?.enabled ?? DEFAULT_WEB_TOOLS.enabled
+      enableWebTools: this.config.tools?.web?.enabled ?? DEFAULT_WEB_TOOLS.enabled,
+      enableMemoryTools: this.memoryConfig().enabled
     });
   }
 

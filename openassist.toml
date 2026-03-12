@@ -15,6 +15,9 @@ persona = "Pragmatic, concise, and execution-focused local AI assistant."
 operatorPreferences = ""
 promptOnFirstContact = true
 
+[runtime.memory]
+enabled = true
+
 [runtime.attachments]
 maxFilesPerMessage = 4
 maxImageBytes = 10000000

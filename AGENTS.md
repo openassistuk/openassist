@@ -268,6 +268,9 @@ When touching channel/runtime/provider attachment behavior:
 - Preserve assistant memory behavior:
   - global permanent assistant identity/persona/preferences for the main agent
   - per-session host/profile context persistence for runtime grounding
+  - durable rolling session summaries for long chats without marker-only transcript writes
+  - actor-scoped permanent memory uses `<channelId>:<senderId>` boundaries, remains conservative, and stays inspectable through provider-independent `/memory` plus host-side status surfaces
+  - automatic permanent-memory extraction for normal chats stays bounded and runtime-managed; only `full-root` may receive explicit `memory.save` / `memory.search` tool schemas
   - provider-independent `/profile` command behavior with explicit force semantics for updates (`/profile force=true; ...`)
   - first-boot global-profile lock guard remains enabled unless an explicit planned change says otherwise
   - optional first-contact profile prompt controlled by config

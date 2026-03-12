@@ -3,6 +3,7 @@ import type { ToolSchema } from "@openassist/core-types";
 export function runtimeToolSchemas(options?: {
   enablePackageTool?: boolean;
   enableWebTools?: boolean;
+  enableMemoryTools?: boolean;
 }): ToolSchema[] {
   const schemas: ToolSchema[] = [
     {
@@ -174,6 +175,47 @@ export function runtimeToolSchemas(options?: {
               type: "array",
               items: { type: "string" }
             }
+          }
+        }
+      }
+    );
+  }
+
+  if (options?.enableMemoryTools !== false) {
+    schemas.push(
+      {
+        name: "memory.save",
+        description:
+          "Save or refresh a durable actor-scoped memory for future chats in the same configured channel.",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["category", "summary"],
+          properties: {
+            category: {
+              type: "string",
+              enum: ["preference", "fact", "goal"]
+            },
+            summary: { type: "string" },
+            keywords: {
+              type: "array",
+              items: { type: "string" }
+            },
+            salience: { type: "number" }
+          }
+        }
+      },
+      {
+        name: "memory.search",
+        description:
+          "Search durable actor-scoped memory for the current actor and return the most relevant stored items.",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["query"],
+          properties: {
+            query: { type: "string" },
+            limit: { type: "number" }
           }
         }
       }

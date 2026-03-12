@@ -321,6 +321,11 @@ const runtimeSchema = z.object({
       maxExtractedChars: z.number().int().positive().max(100_000).default(12_000)
     })
     .default({}),
+  memory: z
+    .object({
+      enabled: z.boolean().default(true)
+    })
+    .default({}),
   time: z
     .object({
       defaultTimezone: z
@@ -431,6 +436,7 @@ export function toRuntimeConfig(config: OpenAssistConfig): RuntimeConfig {
     workspaceRoot: config.runtime.workspaceRoot,
     assistant: config.runtime.assistant,
     attachments: config.runtime.attachments,
+    memory: config.runtime.memory,
     service: config.service,
     paths: config.runtime.paths,
     time: config.runtime.time,

@@ -417,6 +417,15 @@ program
           return;
         }
 
+        if (method === "GET" && requestUrl.pathname === "/v1/memory/status") {
+          const sessionId = requestUrl.searchParams.get("sessionId") ?? undefined;
+          const senderId = requestUrl.searchParams.get("senderId") ?? undefined;
+          sendJson(res, 200, {
+            memory: await runtime.getMemoryStatus(sessionId, senderId)
+          });
+          return;
+        }
+
         if (method === "POST" && requestUrl.pathname === "/v1/growth/helpers") {
           const body = await readJsonBody(req);
           const id = String(body.id ?? "");

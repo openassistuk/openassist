@@ -74,6 +74,7 @@ Provider-independent chat command:
 - `/capabilities` returns the live capability-domain inventory for the current session
 - `/grow` returns managed growth policy, asset inventory, and safe next actions
 - `/status` returns operational diagnostics without using the provider
+- `/memory` returns rolling session summary plus actor-scoped durable-memory visibility without using the provider
 - `/profile` returns or updates the global assistant identity without using the provider
 - `/access` shows the current sender's access, source, and whether chat-side changes are allowed
 - `/access full` sets `full-root` for that sender in the current chat only
@@ -87,10 +88,20 @@ Current runtime-exposed tool names:
 - `fs.read`
 - `fs.write`
 - `fs.delete`
+- `memory.save`
+- `memory.search`
 - `pkg.install` (omitted from schema list when disabled in config)
 - `web.search`
 - `web.fetch`
 - `web.run`
+
+`memory.*` schemas are exposed only when all are true:
+
+- effective access for the current sender/chat turn is `full-root`
+- `runtime.memory.enabled=true`
+- the runtime is advertising autonomous tools for that session at all
+
+Normal `operator` or `restricted` chats still receive no tool schemas. Their durable-memory updates come from the bounded runtime-managed sidecar extraction pass instead of from model-visible memory tools.
 
 `web.*` schemas are exposed only when both are true:
 
@@ -115,6 +126,7 @@ The awareness snapshot includes:
 - curated local doc references (`README.md`, operations/security/interface docs, `openassist.toml`) with short purpose and when-to-use text
 - maintenance/install context (repo-backed install status, install dir, config path, env path, tracked ref, last known good commit when known, service manager, configured and effective Linux systemd filesystem access, protected paths, protected surfaces, preferred lifecycle commands, safe-maintenance rules)
 - growth context (`extensions-first` default mode, whether growth actions are available now, installed skill/helper counts, growth directories, update-safety note)
+- memory context (`runtime.memory.enabled`, rolling session summary visibility, and whether actor-scoped durable memory is currently available for this sender/session query)
 
 Chat-visible `/status` keeps the same high-level awareness boundary for every sender, including the current service boundary, but full config/env/install paths are reserved for approved operators in chat. Unapproved senders should still receive the plain-language lifecycle summary plus guidance to use host-side commands such as `openassist doctor`.
 
@@ -176,17 +188,21 @@ Runtime audit event types:
 - `tool.call.finish`
 - `tool.call.blocked`
 
+`memory.save` and `memory.search` use the same audited invocation lifecycle as the rest of the runtime-owned tools.
+
 ## API and CLI Surfaces
 
 Daemon endpoints:
 
 - `GET /v1/tools/status`
 - `GET /v1/tools/invocations?sessionId=<id>&limit=<n>`
+- `GET /v1/memory/status?sessionId=<id>&senderId=<id>`
 
 CLI commands:
 
 - `openassist tools status [--session <channelId>:<conversationKey>] [--sender-id <id>]`
 - `openassist tools invocations [--session <channelId>:<conversationKey>] [--limit <n>]`
+- `openassist memory status [--session <channelId>:<conversationKey>] [--sender-id <id>] [--json]`
 - `openassist skills list [--json]`
 - `openassist skills install --path <dir>`
 - `openassist growth status [--json] [--session <channelId>:<conversationKey>] [--sender-id <id>]`

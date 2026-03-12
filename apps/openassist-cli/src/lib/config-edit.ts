@@ -27,6 +27,9 @@ function defaultConfigObjectRaw(): Record<string, unknown> {
         operatorPreferences: "",
         promptOnFirstContact: true
       },
+      memory: {
+        enabled: true
+      },
       attachments: {
         maxFilesPerMessage: 4,
         maxImageBytes: 10_000_000,

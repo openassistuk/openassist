@@ -62,16 +62,19 @@ Message semantics now include attachment-aware turns:
 - supported text-like documents stay provider-agnostic in this release: runtime injects extracted text into the normal user text context instead of using provider-specific file APIs
 
 Runtime now prepends a bounded runtime self-knowledge system message on every provider turn. Adapters must preserve system-message order and content exactly; they must not collapse or drop the message because it tells the model what OpenAssist is, what host it is running on, what effective access is active for that sender/chat turn, which tools are callable right now, which capability domains are available or limited, which local docs/config/install surfaces define behavior, what the current service boundary is, and what kinds of self-maintenance or controlled growth are safe or blocked.
+When rolling session summary or durable actor memory has been recalled for the turn, runtime injects those as additional system messages ahead of the bounded raw tail. Adapters must preserve that order too; they are part of the same provider budget contract as the normal system prompt.
 
 The runtime-awareness payload is now actor-aware in shared chats. For the same chat, one sender may arrive with `full-root` access while another stays `operator`, and provider adapters must preserve that exact system-message boundary on every turn.
 
-The runtime-owned commands `/start`, `/help`, `/capabilities`, `/grow`, `/status`, and `/profile` are handled before provider dispatch. Provider adapters only see normal model turns plus scheduler-driven work; they should not try to emulate or replace those runtime-owned command surfaces.
+The runtime-owned commands `/start`, `/help`, `/capabilities`, `/grow`, `/status`, `/memory`, and `/profile` are handled before provider dispatch. Provider adapters only see normal model turns plus scheduler-driven work; they should not try to emulate or replace those runtime-owned command surfaces.
 
 Scheduler prompt actions use the same `chat()` path with metadata that identifies scheduler context (`source`, `taskId`, `scheduledFor`).
+Runtime memory compaction also uses the same `chat()` path for a second bounded sidecar pass after eligible visible turns. That pass uses the same provider/model as the user-visible turn, sends no tool schemas, expects strict JSON-in-text output, and may fail silently without degrading the already-sent chat reply.
 
 Tool-calling request requirements:
 
 - when runtime autonomy is enabled for the session (`full-root`), `req.tools` contains the authoritative tool schema list for host tools and enabled native web tools
+- when `runtime.memory.enabled=true` and the session is `full-root`, `req.tools` may also include `memory.save` and `memory.search`
 - the runtime-owned `channel.send` schema may appear in `req.tools` when same-chat artifact replies or bounded targeted operator notify are truthfully available for that session
 - adapters must preserve assistant tool-call turns and tool-result turns in provider-native formats
 - tool-result messages are represented as normalized `role="tool"` messages with `toolCallId`
@@ -97,7 +100,7 @@ Tool-turn contract:
 `toolCalls` item shape:
 
 - `id`: provider/tool-call identifier
-- `name`: normalized tool name (`exec.run`, `fs.read`, `fs.write`, `fs.delete`, `pkg.install`, `web.search`, `web.fetch`, `web.run`)
+- `name`: normalized tool name (`exec.run`, `fs.read`, `fs.write`, `fs.delete`, `memory.save`, `memory.search`, `pkg.install`, `web.search`, `web.fetch`, `web.run`)
 - `argumentsJson`: JSON string payload consumed by runtime tool router
 
 ## Failure Behavior

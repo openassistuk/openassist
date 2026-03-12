@@ -229,6 +229,53 @@ class ChannelSendProvider implements ProviderAdapter {
   }
 }
 
+class MemorySearchProvider implements ProviderAdapter {
+  public requests: ChatRequest[] = [];
+
+  id(): string {
+    return "mock-provider";
+  }
+
+  capabilities(): ProviderCapabilities {
+    return {
+      supportsStreaming: false,
+      supportsTools: true,
+      supportsOAuth: false,
+      supportsApiKeys: true,
+      supportsImageInputs: false
+    };
+  }
+
+  async validateConfig(): Promise<ValidationResult> {
+    return { valid: true, errors: [] };
+  }
+
+  async chat(req: ChatRequest, _auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
+    this.requests.push(req);
+    if (req.messages.some((message) => message.role === "tool")) {
+      return {
+        output: { role: "assistant", content: "memory search complete" },
+        usage: { inputTokens: 2, outputTokens: 2, totalTokens: 4 }
+      };
+    }
+
+    return {
+      output: { role: "assistant", content: "" },
+      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      toolCalls: [
+        {
+          id: "memory-search-tool-1",
+          name: "memory.search",
+          argumentsJson: JSON.stringify({
+            query: "debian install",
+            limit: 1
+          })
+        }
+      ]
+    };
+  }
+}
+
 class MockChannel implements ChannelAdapter {
   public sent: OutboundEnvelope[] = [];
   private handler: ((msg: InboundEnvelope) => Promise<void>) | null = null;
@@ -393,6 +440,7 @@ describe("runtime chat policy gating", () => {
     assert.equal(channel.sent[0]?.text, "no autonomous tools");
     assert.equal(runtime.listToolInvocations("telegram-mock:conv-1", 10).length, 0);
     assert.equal(fs.existsSync(writePath), false);
+    assert.equal(provider.requests[0]?.tools.some((tool) => tool.name === "memory.search"), false);
 
     await runtime.setPolicyProfile("telegram-mock:conv-1", "full-root");
     await channel.emit(inbound("u1", "do work now", "fr-1"));
@@ -400,6 +448,8 @@ describe("runtime chat policy gating", () => {
     assert.equal(channel.sent[1]?.text, "tools executed");
     assert.equal(fs.readFileSync(writePath, "utf8"), "enabled");
     assert.equal(runtime.listToolInvocations("telegram-mock:conv-1", 10).length, 1);
+    assert.equal(provider.requests[1]?.tools.some((tool) => tool.name === "memory.search"), true);
+    assert.equal(provider.requests[1]?.tools.some((tool) => tool.name === "memory.save"), true);
 
     await runtime.stop();
     db.close();
@@ -607,6 +657,47 @@ describe("runtime chat policy gating", () => {
       String(invocations[0]?.errorText ?? ""),
       /cannot return generated files through chat/i
     );
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("executes and audits memory.search only in full-root sessions", async () => {
+    const root = tempDir("openassist-policy-gate-memory-search-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    db.upsertPermanentMemory({
+      actorScope: "telegram-mock:u1",
+      category: "preference",
+      summary: "Use Debian apt commands when suggesting package installs.",
+      keywords: ["debian", "apt"],
+      sourceSessionId: "telegram-mock:conv-1",
+      sourceMessageId: 1,
+      salience: 4
+    });
+    const provider = new MemorySearchProvider();
+    const channel = new MockChannel();
+    const runtime = new OpenAssistRuntime(
+      buildConfig(root, {
+        defaultPolicyProfile: "full-root",
+        operatorAccessProfile: "full-root"
+      }),
+      { db, logger },
+      { providers: [provider], channels: [channel] }
+    );
+
+    runtime.setProviderApiKey("mock-provider", "key");
+    await runtime.start();
+
+    await channel.emit(inbound("u1", "search my memory", "memory-search"));
+
+    assert.equal(provider.requests[0]?.tools.some((tool) => tool.name === "memory.search"), true);
+    assert.equal(channel.sent[0]?.text, "memory search complete");
+    const invocations = runtime.listToolInvocations("telegram-mock:conv-1", 10);
+    assert.equal(invocations.length, 1);
+    assert.equal(invocations[0]?.toolName, "memory.search");
+    assert.equal(invocations[0]?.status, "succeeded");
 
     await runtime.stop();
     db.close();

@@ -40,6 +40,18 @@ export interface ChannelSendToolResult {
   notes: string[];
 }
 
+export interface MemorySaveToolRequest {
+  category: "preference" | "fact" | "goal";
+  summary: string;
+  keywords?: string[];
+  salience?: number;
+}
+
+export interface MemorySearchToolRequest {
+  query: string;
+  limit?: number;
+}
+
 function asObject(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("tool arguments must be a JSON object");
@@ -129,6 +141,14 @@ export class RuntimeToolRouter {
     request: ChannelSendToolRequest,
     context: ToolExecutionContext
   ) => Promise<ChannelSendToolResult>;
+  private readonly memorySaveTool: (
+    request: MemorySaveToolRequest,
+    context: ToolExecutionContext
+  ) => Promise<Record<string, unknown>>;
+  private readonly memorySearchTool: (
+    request: MemorySearchToolRequest,
+    context: ToolExecutionContext
+  ) => Promise<Record<string, unknown>>;
   private readonly logger: OpenAssistLogger;
 
   constructor(options: {
@@ -140,6 +160,14 @@ export class RuntimeToolRouter {
       request: ChannelSendToolRequest,
       context: ToolExecutionContext
     ) => Promise<ChannelSendToolResult>;
+    memorySaveTool: (
+      request: MemorySaveToolRequest,
+      context: ToolExecutionContext
+    ) => Promise<Record<string, unknown>>;
+    memorySearchTool: (
+      request: MemorySearchToolRequest,
+      context: ToolExecutionContext
+    ) => Promise<Record<string, unknown>>;
     logger: OpenAssistLogger;
   }) {
     this.execTool = options.execTool;
@@ -147,6 +175,8 @@ export class RuntimeToolRouter {
     this.pkgTool = options.pkgTool;
     this.webTool = options.webTool;
     this.channelSendTool = options.channelSendTool;
+    this.memorySaveTool = options.memorySaveTool;
+    this.memorySearchTool = options.memorySearchTool;
     this.logger = options.logger;
   }
 
@@ -221,6 +251,54 @@ export class RuntimeToolRouter {
           result: {
             ...result
           },
+          status: "succeeded"
+        };
+      }
+
+      if (toolCall.name === "memory.save") {
+        const category = asString(argsValue.category, "category");
+        if (category !== "preference" && category !== "fact" && category !== "goal") {
+          throw new Error("category must be preference, fact, or goal");
+        }
+        const result = await this.memorySaveTool(
+          {
+            category,
+            summary: asString(argsValue.summary, "summary"),
+            keywords: asOptionalStringArray(argsValue.keywords),
+            salience: asOptionalNumber(argsValue.salience)
+          },
+          context
+        );
+        return {
+          message: {
+            toolCallId: toolCall.id,
+            name: toolCall.name,
+            content: JSON.stringify(result, null, 2),
+            isError: false
+          },
+          request: argsValue,
+          result,
+          status: "succeeded"
+        };
+      }
+
+      if (toolCall.name === "memory.search") {
+        const result = await this.memorySearchTool(
+          {
+            query: asString(argsValue.query, "query"),
+            limit: asOptionalNumber(argsValue.limit)
+          },
+          context
+        );
+        return {
+          message: {
+            toolCallId: toolCall.id,
+            name: toolCall.name,
+            content: JSON.stringify(result, null, 2),
+            isError: false
+          },
+          request: argsValue,
+          result,
           status: "succeeded"
         };
       }

@@ -25,6 +25,7 @@ Out of scope:
 - local filesystem integrity
 - conversation and scheduler run history
 - global assistant profile memory (`system_settings` / `assistant.globalProfile`) plus per-session host bootstrap context (`session_bootstrap`)
+- rolling session summaries (`session_memory`) plus actor-scoped permanent memories (`permanent_memories`)
 - access assignments (`policy_profiles`, `actor_policy_profiles`, approved operator channel settings)
 
 ## Threats and Controls
@@ -127,6 +128,18 @@ Controls:
 - global profile + per-session host context are injected as bounded system context only; no secret env values are injected into profile memory payloads
 - per-session host context now includes layered runtime awareness state, but only normalized host/runtime/access/tool metadata is stored
 - `session_bootstrap` remains a last-seen chat snapshot, not a permanent per-actor access store
+
+### Chat-memory misuse or cross-actor leakage
+
+Controls:
+
+- rolling chat compaction now stores structured summary state in `session_memory` instead of transcript markers in `messages`
+- durable actor memory is scoped to `<channelId>:<senderId>` so one actor's memory is not recalled for another actor or another channel
+- post-turn sidecar extraction is bounded, expects strict JSON, and is allowed to fail silently without affecting the visible chat reply
+- runtime filters permanent-memory candidates down to conservative `preference`, `fact`, and `goal` categories and rejects secret-like or malformed content before persistence
+- `runtime.memory.enabled=false` disables permanent-memory extraction, recall, and `memory.*` tools without disabling rolling session summaries
+- `/memory`, `GET /v1/memory/status`, and `openassist memory status` make the current visible summary/memory state inspectable instead of hidden
+- `memory.save` and `memory.search` remain `full-root`-only and use the normal audited tool invocation lifecycle
 
 ### Clock drift and scheduling errors
 

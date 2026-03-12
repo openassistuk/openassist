@@ -36,6 +36,9 @@ function baseConfig(): OpenAssistConfig {
         operatorPreferences: "",
         promptOnFirstContact: false
       },
+      memory: {
+        enabled: true
+      },
       paths: {
         dataDir: ".openassist/data",
         skillsDir: ".openassist/skills",

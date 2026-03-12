@@ -92,7 +92,7 @@ Codex setup/auth notes now follow the real supported flow:
 
 Lifecycle and status surfaces now also show the current primary provider route, default model, and reasoning/thinking state so operators do not need to reopen wizard just to confirm what is active.
 
-Runtime turns and `/status` now carry a bounded self-knowledge contract so OpenAssist can cite its own local docs, config path, env path, install directory, update track, and safe-maintenance limits without pretending it has permissions it does not have. In chat, the full config/env/install path view is reserved for approved operators; other senders still get the high-level lifecycle summary and host-side command guidance.
+Runtime turns and `/status` now carry a bounded self-knowledge contract so OpenAssist can cite its own local docs, config path, env path, install directory, update track, and safe-maintenance limits without pretending it has permissions it does not have. In chat, the full config/env/install path view is reserved for approved operators; other senders still get the high-level lifecycle summary and host-side command guidance. Long chats now also stay bounded through a rolling session summary, while conservative actor-scoped durable memory can be inspected through `/memory`, `GET /v1/memory/status`, and `openassist memory status`.
 
 Runtime-owned chat surfaces now split the general assistant intro from the operational diagnostics:
 
@@ -100,6 +100,7 @@ Runtime-owned chat surfaces now split the general assistant intro from the opera
 - `/capabilities`: live capability inventory derived from access, provider, channel, tools, scheduler state, and install context
 - `/grow`: managed skill/helper inventory, update-safety note, and safe next actions
 - `/status`: operational diagnostic surface with sender/session IDs, access source, and lifecycle context
+- `/memory`: rolling session summary plus the actor-scoped durable memories visible for the current sender and chat context
 
 Controlled growth now defaults to `extensions-first`:
 
@@ -142,6 +143,7 @@ Primary runbooks:
 - `openassist skills list`: list managed skills known to the runtime
 - `openassist skills install --path <dir>`: install a managed skill from a local directory
 - `openassist growth status`: show managed growth policy, directories, and installed assets
+- `openassist memory status`: show rolling session summary and actor-scoped durable memory visibility
 - `openassist growth helper add --name <id> --root <path> --installer <kind> --summary <text>`: register a managed helper tool
 
 Use `install.sh` or `scripts/install/bootstrap.sh` again when the checkout is no longer trustworthy, `.git` is missing, or build output is missing and you want the installer to rebuild a clean repo-backed install.

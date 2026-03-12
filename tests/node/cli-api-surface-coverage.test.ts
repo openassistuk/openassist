@@ -47,6 +47,7 @@ async function runCli(args: string[], cwd = repoRoot()): Promise<{ code: number;
 describe("cli api surface coverage", () => {
   it("covers status and mutation command paths against daemon APIs", async () => {
     const seenToolStatusQueries: string[] = [];
+    const seenMemoryStatusQueries: string[] = [];
     const seenCodexCompleteBodies: Array<Record<string, unknown>> = [];
     const seenCodexDeviceCodeBodies: Array<Record<string, unknown>> = [];
     const server = http.createServer((req, res) => {
@@ -140,6 +141,32 @@ describe("cli api surface coverage", () => {
               updateSafetyNote: "Managed growth survives normal updates more predictably.",
               installedSkills: [{ id: "disk-maintenance", version: "1.0.0" }],
               managedHelpers: [{ id: "ripgrep-helper", installer: "manual", updateSafe: true }]
+            }
+          })
+        );
+        return;
+      }
+      if (method === "GET" && pathname === "/v1/memory/status") {
+        seenMemoryStatusQueries.push(requestUrl.search);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            memory: {
+              enabled: true,
+              sessionId: "telegram-main:ops-room",
+              actorScope: "telegram-main:123456789",
+              sessionSummary: {
+                summary: "The operator prefers Debian apt commands.",
+                lastCompactedMessageId: 42
+              },
+              permanentMemories: [
+                {
+                  category: "preference",
+                  summary: "Use Debian apt commands when giving package instructions.",
+                  keywords: ["debian", "apt"]
+                }
+              ],
+              notes: []
             }
           })
         );
@@ -355,6 +382,19 @@ describe("cli api surface coverage", () => {
       },
       {
         args: [
+          "memory",
+          "status",
+          "--session",
+          "telegram-main:ops-room",
+          "--sender-id",
+          "123456789",
+          "--base-url",
+          baseUrl
+        ],
+        outputPattern: /Debian apt/
+      },
+      {
+        args: [
           "growth",
           "helper",
           "add",
@@ -470,6 +510,7 @@ describe("cli api surface coverage", () => {
       }
 
       assert.deepEqual(seenToolStatusQueries, ["?sessionId=telegram-main%3Aops-room&senderId=123456789"]);
+      assert.deepEqual(seenMemoryStatusQueries, ["?sessionId=telegram-main%3Aops-room&senderId=123456789"]);
       assert.deepEqual(seenCodexDeviceCodeBodies, [
         {
           accountId: "default",

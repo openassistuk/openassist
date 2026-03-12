@@ -20,6 +20,9 @@ Current first-class provider routes in runtime config are:
 Runtime-owned components:
 
 - `ContextPlanner`
+- rolling session-memory compaction manager (`session_memory`)
+- durable actor-memory store/recall manager (`permanent_memories`)
+- bounded post-turn memory extraction sidecar using the active provider/model
 - layered runtime-awareness builder/system-message generator
 - curated runtime self-knowledge manifest (local docs, install surfaces, safe-maintenance rules)
 - live capability-domain builder and managed-growth status builder
@@ -113,6 +116,7 @@ Runtime methods consumed by daemon API:
 - `listSchedulerTasks()`
 - `enqueueScheduledTaskNow(taskId)`
 - `getToolsStatus(sessionId?, senderId?)`
+- `getMemoryStatus(sessionId?, senderId?)`
 - `listToolInvocations(sessionId?, limit?)`
 - `listInstalledSkills()`
 - `installSkillFromPath(path)`
@@ -147,10 +151,11 @@ Daemon HTTP endpoints map directly to these methods in `apps/openassistd/src/ind
 8. if user sends `/start` or `/help`, return runtime-owned welcome and capability primer without provider dependency
 9. if user sends `/capabilities`, return the live capability inventory without provider dependency
 10. if user sends `/grow`, return managed growth policy and asset status without provider dependency
-11. if user sends `/status`, return runtime diagnostics without provider dependency
-12. if user sends `/profile`, return persisted global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`)
-13. first-contact bootstrap prompt can be emitted for `/new` when enabled by config (`runtime.assistant.promptOnFirstContact=true`)
-14. quickstart-created installs usually disable that first-contact prompt because the main assistant identity was already captured during onboarding
+11. if user sends `/memory`, return rolling session summary plus actor-scoped durable-memory visibility without provider dependency
+12. if user sends `/status`, return runtime diagnostics without provider dependency
+13. if user sends `/profile`, return persisted global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`)
+14. first-contact bootstrap prompt can be emitted for `/new` when enabled by config (`runtime.assistant.promptOnFirstContact=true`)
+15. quickstart-created installs usually disable that first-contact prompt because the main assistant identity was already captured during onboarding
 
 If max rounds is exceeded, runtime returns a safe operator-visible error message instead of unbounded looping.
 
@@ -165,8 +170,11 @@ Context planner input now includes a second runtime system message containing:
   - curated local doc references for lifecycle, security, interfaces, and runtime behavior
   - managed growth mode, asset counts, directories, and update-safety note
   - explicit safe-maintenance rules and protected lifecycle paths
+  - rolling session summary and recalled actor-scoped durable memories when available
 
-Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per chat and reused deterministically for future turns. The runtime self-knowledge snapshot is stored inside the existing `session_bootstrap.systemProfile` payload as the last-seen chat snapshot and refreshed when assistant identity, install context, effective access, or runtime tool state changes.
+Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per chat and reused deterministically for future turns. The runtime self-knowledge snapshot is stored inside the existing `session_bootstrap.systemProfile` payload as the last-seen chat snapshot and refreshed when assistant identity, install context, effective access, or runtime tool state changes. Rolling session summaries are persisted in `session_memory`, and actor-scoped durable memories are persisted in `permanent_memories`.
+
+After a successful visible chat reply, runtime may run one bounded sidecar provider pass over the next compactable 8-message transcript block. That pass updates the rolling session summary and may propose conservative permanent-memory candidates. Sidecar failures are logged and dropped without failing the main chat turn.
 
 ## Config Apply Behavior
 
@@ -194,3 +202,4 @@ Current behavior:
 - `upgrade`: health-gated in-place update with rollback.
 - `skills *`: managed skill install and listing against the runtime-owned skills directory.
 - `growth *`: managed helper registration and growth-policy inspection.
+- `memory status`: host-side inspection of rolling session summaries and actor-scoped durable memory.

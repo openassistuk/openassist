@@ -96,10 +96,12 @@ Expected:
 - `/grow` reports managed skill/helper counts and only exposes growth directory paths to approved operators
 - `/status` reflects the current effective access for that sender
 - `/status` shows the current sender ID and session ID
+- `/memory` is provider-independent and initially reports that no rolling session summary has been compacted yet
 - `/status` identifies OpenAssist, names the local docs that define lifecycle and security behavior, and only reveals full config/env/install filesystem paths for approved operators
 - before elevation, callable tools are `none`
 - after elevation, `/status` lists the same callable tools exposed through `openassist tools status`
 - after elevation, `/status` makes it explicit whether bounded local self-maintenance is available or still blocked
+- after elevation, `openassist memory status --session ... --sender-id ...` reports the same session summary and actor-scope visibility that `/memory` describes in chat
 - after elevation, `/grow` shows whether managed growth actions are available now and points operators to `openassist skills install --path ...` and `openassist growth helper add ...`
 - native web state is visible as `available`, `fallback`, `unavailable`, or `disabled`
 
@@ -191,6 +193,28 @@ Expected:
 - new autonomous tool requests still work
 - no duplicate side effects for the same inbound idempotency key
 
+## Scenario 7: Memory Compaction and Durable Recall
+
+1. in the elevated chat, have a multi-turn conversation that includes one stable preference or goal worth keeping
+2. ask for `/memory` after enough back-and-forth to exceed the raw tail
+3. inspect host-side status
+4. if you have a second chat in the same channel for the same sender, ask a follow-up that should benefit from the stored memory
+
+Commands:
+
+```bash
+openassist memory status --session telegram-main:ops-room --sender-id 123456789
+curl -fsS "http://127.0.0.1:3344/v1/memory/status?sessionId=telegram-main%3Aops-room&senderId=123456789"
+```
+
+Expected:
+
+- `/memory` reports a rolling session summary once older transcript has been compacted
+- host-side memory status shows the same `sessionSummary` and `actorScope`
+- permanent memories are limited to conservative durable items, not one-off requests or secrets
+- a second chat for the same `<channelId>:<senderId>` can benefit from the durable memory, while another sender or another channel cannot
+- if `runtime.memory.enabled=false`, `/memory` still shows session-summary state but reports permanent actor memory as disabled and `memory.*` tools are not callable
+
 ## API-Level Validation
 
 Use daemon endpoints directly when needed:
@@ -198,6 +222,7 @@ Use daemon endpoints directly when needed:
 ```bash
 curl -fsS "http://127.0.0.1:3344/v1/tools/status?sessionId=telegram-main%3Aops-room&senderId=123456789"
 curl -fsS "http://127.0.0.1:3344/v1/tools/invocations?sessionId=telegram-main%3Aops-room&limit=20"
+curl -fsS "http://127.0.0.1:3344/v1/memory/status?sessionId=telegram-main%3Aops-room&senderId=123456789"
 ```
 
 ## Evidence Checklist
@@ -208,6 +233,7 @@ curl -fsS "http://127.0.0.1:3344/v1/tools/invocations?sessionId=telegram-main%3A
 - `tools invocations` output showing succeeded/failed/blocked states
 - `tools invocations` output confirms redacted request/result payloads for secret-like values
 - `tools invocations` output confirms web backend and citation/final-URL metadata when `web.*` tools are used
+- `/memory` transcript plus `openassist memory status` output for the same session/sender
 - host-side evidence for file/package operations
 - service logs across restart scenario
 

@@ -789,7 +789,7 @@ export class OpenAssistDatabase {
     return rows
       .reverse()
       .map((row) => {
-        const metadata = parseJson<Record<string, string>>(row.metadata_json);
+        const metadata = row.metadata_json ? parseJson<Record<string, string>>(row.metadata_json) : {};
         return {
           id: String(row.id),
           role: row.role as NormalizedMessage["role"],
@@ -1182,6 +1182,7 @@ export class OpenAssistDatabase {
           summary_text = excluded.summary_text,
           last_compacted_message_id = excluded.last_compacted_message_id,
           updated_at = excluded.updated_at
+        WHERE excluded.last_compacted_message_id >= session_memory.last_compacted_message_id
       `
       )
       .run(
@@ -1243,7 +1244,7 @@ export class OpenAssistDatabase {
 
     const attachmentsByMessageId = this.getMessageAttachments(rows.map((row) => row.id));
     return rows.map((row) => {
-      const metadata = parseJson<Record<string, string>>(row.metadata_json);
+      const metadata = row.metadata_json ? parseJson<Record<string, string>>(row.metadata_json) : {};
       return {
         messageId: Number(row.id),
         id: String(row.id),

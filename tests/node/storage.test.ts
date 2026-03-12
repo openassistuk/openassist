@@ -247,6 +247,14 @@ describe("OpenAssistDatabase", () => {
     assert.equal(stored.lastCompactedMessageId, batch[7]!.messageId);
     assert.equal(db.getSessionMemory(sessionId)?.summary, "Conversation summary");
 
+    const stale = db.upsertSessionMemory({
+      sessionId,
+      summary: "Older summary should not overwrite",
+      lastCompactedMessageId: batch[3]!.messageId
+    });
+    assert.equal(stale.summary, "Conversation summary");
+    assert.equal(stale.lastCompactedMessageId, batch[7]!.messageId);
+
     db.close();
   });
 

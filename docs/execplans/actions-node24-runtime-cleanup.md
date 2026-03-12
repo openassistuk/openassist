@@ -16,7 +16,8 @@ After this change, OpenAssist's GitHub workflow runs should stop emitting the Gi
 - [x] (2026-03-12 19:16Z) Ran `pnpm lint:workflows` successfully after the workflow edits.
 - [x] (2026-03-12 19:18Z) Ran `pnpm verify:all` successfully from the repository root.
 - [x] (2026-03-12 19:18Z) Confirmed there are no separate tests, docs-truth assertions, or contributor docs that require updates for this workflow-only bootstrap change.
-- [ ] Push branch, open PR, and watch PR checks plus review threads until the branch is fully green and ready for user merge.
+- [x] (2026-03-12 19:19Z) Pushed branch `chore/actions-node24-runtime` and opened PR `#41`.
+- [ ] PR validation and review completion (completed: initial PR run exposed `setup-node` + `cache: pnpm` failure; remaining: remove the cache hook, rerun CI, and carry the PR to full green review status).
 
 ## Surprises & Discoveries
 
@@ -29,6 +30,9 @@ After this change, OpenAssist's GitHub workflow runs should stop emitting the Gi
 - Observation: The workflow change does not require additional docs-truth or test-fixture updates outside the workflow files.
   Evidence: repository search and targeted explorer review found no tracked docs/tests referencing `pnpm/action-setup` or the old workflow action majors outside `.github/workflows/`.
 
+- Observation: `actions/setup-node@v5` fails early when `cache: pnpm` is configured before any step has made `pnpm` available on `PATH`.
+  Evidence: PR `#41` initial run failed in `Setup Node` on `workflow-lint`, `quality-and-coverage`, and CodeQL analyze with `Unable to locate executable file: pnpm`.
+
 ## Decision Log
 
 - Decision: Replace `pnpm/action-setup` in all workflow files instead of waiting for a future upstream release.
@@ -39,9 +43,13 @@ After this change, OpenAssist's GitHub workflow runs should stop emitting the Gi
   Rationale: This keeps the workflows aligned with the repository's existing bootstrap strategy and avoids introducing a second package-manager installation mechanism.
   Date/Author: 2026-03-12 / Codex
 
+- Decision: Remove `cache: pnpm` from `actions/setup-node@v5` instead of trying to preserve the built-in pnpm cache path in this cleanup PR.
+  Rationale: The cache hook now requires `pnpm` to exist before `Setup Node` completes, which conflicts with the new `corepack`-first bootstrap order. Removing the cache hook keeps the workflow logic simple, warning-free, and green. The performance tradeoff is acceptable for this maintenance PR.
+  Date/Author: 2026-03-12 / Codex
+
 ## Outcomes & Retrospective
 
-Local implementation is complete and validated. The remaining work is release discipline: push the branch, open the PR, and confirm the remote workflows stop emitting the Node 20 deprecation warning while staying green on PR and `main`.
+Local implementation is complete and validated, but the first remote PR run exposed one CI-specific interaction: `actions/setup-node@v5` cannot restore `pnpm` cache before `pnpm` exists. The branch now needs one follow-up workflow tweak and a rerun, after which the remaining work is the normal PR/CI/review discipline.
 
 ## Context and Orientation
 
@@ -105,3 +113,5 @@ The changed interfaces are the YAML workflow steps under `.github/workflows/`. N
 Revision note (2026-03-12 19:12Z): Created the initial ExecPlan after confirming the warning source and the repository's existing `corepack` usage so the workflow cleanup can be implemented and audited end to end.
 
 Revision note (2026-03-12 19:18Z): Updated progress, discoveries, and outcomes after landing the workflow edits and passing `pnpm lint:workflows` plus `pnpm verify:all` locally.
+
+Revision note (2026-03-12 19:20Z): Recorded the first PR-run failure caused by `actions/setup-node@v5` plus `cache: pnpm`, and documented the decision to remove the built-in cache hook to keep the workflow bootstrap green.

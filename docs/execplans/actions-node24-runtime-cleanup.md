@@ -33,6 +33,9 @@ After this change, OpenAssist's GitHub workflow runs should stop emitting the Gi
 - Observation: `actions/setup-node@v5` fails early when `cache: pnpm` is configured before any step has made `pnpm` available on `PATH`.
   Evidence: PR `#41` initial run failed in `Setup Node` on `workflow-lint`, `quality-and-coverage`, and CodeQL analyze with `Unable to locate executable file: pnpm`.
 
+- Observation: Removing explicit `cache: pnpm` is not enough on `actions/setup-node@v5` when the repository has a `packageManager` field; the action still auto-enables package-manager caching unless told otherwise.
+  Evidence: PR `#41` second run failed in the same `Setup Node` step even after removing `cache: pnpm`, which matches the `package-manager-cache` input exposed by the upstream action.
+
 ## Decision Log
 
 - Decision: Replace `pnpm/action-setup` in all workflow files instead of waiting for a future upstream release.
@@ -47,9 +50,13 @@ After this change, OpenAssist's GitHub workflow runs should stop emitting the Gi
   Rationale: The cache hook now requires `pnpm` to exist before `Setup Node` completes, which conflicts with the new `corepack`-first bootstrap order. Removing the cache hook keeps the workflow logic simple, warning-free, and green. The performance tradeoff is acceptable for this maintenance PR.
   Date/Author: 2026-03-12 / Codex
 
+- Decision: Set `package-manager-cache: false` on every `actions/setup-node@v5` workflow step.
+  Rationale: `setup-node@v5` can auto-enable package-manager caching from the repository metadata even when `cache:` is omitted, so the explicit `false` is required to stop the early `pnpm` lookup.
+  Date/Author: 2026-03-12 / Codex
+
 ## Outcomes & Retrospective
 
-Local implementation is complete and validated, but the first remote PR run exposed one CI-specific interaction: `actions/setup-node@v5` cannot restore `pnpm` cache before `pnpm` exists. The branch now needs one follow-up workflow tweak and a rerun, after which the remaining work is the normal PR/CI/review discipline.
+Local implementation is complete and validated, but the remote PR runs exposed two CI-specific `setup-node@v5` interactions: explicit `cache: pnpm` and implicit package-manager caching both look for `pnpm` before `corepack` runs. The branch now needs the explicit `package-manager-cache: false` follow-up and another rerun before normal PR/CI/review discipline can complete.
 
 ## Context and Orientation
 
@@ -115,3 +122,5 @@ Revision note (2026-03-12 19:12Z): Created the initial ExecPlan after confirming
 Revision note (2026-03-12 19:18Z): Updated progress, discoveries, and outcomes after landing the workflow edits and passing `pnpm lint:workflows` plus `pnpm verify:all` locally.
 
 Revision note (2026-03-12 19:20Z): Recorded the first PR-run failure caused by `actions/setup-node@v5` plus `cache: pnpm`, and documented the decision to remove the built-in cache hook to keep the workflow bootstrap green.
+
+Revision note (2026-03-12 19:25Z): Recorded the second PR-run failure caused by `setup-node@v5` automatic package-manager caching and added the explicit `package-manager-cache: false` fix across all workflow files.

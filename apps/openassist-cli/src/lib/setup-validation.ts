@@ -4,6 +4,7 @@ import path from "node:path";
 import type { OpenAssistConfig } from "@openassist/config";
 import { parseConfig } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
+import type { ProviderAuthReadinessMap } from "./provider-auth-readiness.js";
 import { toProviderApiKeyEnvVar, toWebBraveApiKeyEnvVar } from "./config-edit.js";
 import { isValidBindAddress } from "./prompt-validation.js";
 import { createServiceManager } from "./service-manager.js";
@@ -25,6 +26,7 @@ export interface SetupValidationInput {
   timezoneConfirmed: boolean;
   requireEnabledChannel?: boolean;
   skipBindAvailabilityCheck?: boolean;
+  providerAuthReadiness?: ProviderAuthReadinessMap;
 }
 
 export interface SetupValidationResult {
@@ -140,6 +142,7 @@ function resolveRuntimePath(configPath: string, inputPath: string): string {
 function validateProviderRequirements(
   config: OpenAssistConfig,
   env: Record<string, string>,
+  providerAuthReadiness: ProviderAuthReadinessMap | undefined,
   errors: SetupValidationIssue[],
   warnings: SetupValidationIssue[]
 ): void {
@@ -158,13 +161,16 @@ function validateProviderRequirements(
   if (!hasEnvValue(env, defaultApiKeyVar)) {
     const defaultProvider = config.runtime.providers.find((provider) => provider.id === config.runtime.defaultProviderId);
     if (defaultProvider?.type === "codex") {
-      pushIssue(
-        warnings,
-        "provider.default_codex_account_link_pending",
-        `The primary provider '${config.runtime.defaultProviderId}' uses the Codex account-login route and still needs a linked account.`,
-        `Complete Codex account login after daemon startup with the recommended headless path: openassist auth start --provider ${config.runtime.defaultProviderId} --device-code`
-      );
-      return;
+      const readiness = providerAuthReadiness?.[defaultProvider.id];
+      if (!(readiness && readiness.linkedAccountCount > 0 && readiness.chatReady)) {
+        pushIssue(
+          warnings,
+          "provider.default_codex_account_link_pending",
+          `The primary provider '${config.runtime.defaultProviderId}' uses the Codex account-login route and still needs a linked account.`,
+          `Complete Codex account login after daemon startup with the recommended headless path: openassist auth start --provider ${config.runtime.defaultProviderId} --device-code`
+        );
+        return;
+      }
     }
     if (
       defaultProvider &&
@@ -514,7 +520,13 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
     return { errors, warnings };
   }
 
-  validateProviderRequirements(input.config, input.env, errors, warnings);
+  validateProviderRequirements(
+    input.config,
+    input.env,
+    input.providerAuthReadiness,
+    errors,
+    warnings
+  );
   validateProviderReasoningRequirements(input.config, warnings);
   validateChannelRequirements(input.config, input.env, errors, warnings);
   if (input.requireEnabledChannel) {

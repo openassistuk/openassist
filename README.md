@@ -189,6 +189,7 @@ Quickstart provider guidance now follows the split-route model:
 - The additive host-side completion path is now explicit too: `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - a fresh quickstart that selects Codex now saves only `codex-main`; it no longer keeps an unused seeded `openai-main` placeholder provider in the resulting config
 - Codex account login now counts as complete when OpenAssist has a chat-ready Codex/ChatGPT token auth handle; it no longer depends on exchanging into a separate OpenAI API key
+- Once Codex account linking finishes successfully and the daemon can confirm that the linked auth is chat-ready, the final quickstart summary no longer keeps a stale pending account-link warning for the default Codex provider.
 - Codex chat requests now preserve the upstream conversation contract by sending the runtime session id, account header, and a top-level instructions payload that combines an OpenAssist-vendored Codex baseline with bounded runtime guidance; if `openassist auth status` says the account is chat-ready and chat still fails, treat that as a provider request problem rather than a missing-auth problem
 - OpenAI and Codex quickstart both expose a beginner-facing reasoning effort choice:
   - `Default (recommended)`
@@ -296,9 +297,11 @@ Runtime-owned chat surfaces now have clearer roles:
 - `/start` and `/help`: general OpenAssist welcome plus a truthful summary of what this session can help with
 - `/capabilities`: live capability inventory for the current provider, channel, tools, scheduler state, and access level
 - `/grow`: managed skills, helper tools, growth policy, and safe next actions
-- `/status`: operational diagnostics, lifecycle context, sender/session IDs, and effective access
+- `/status`: grouped operational diagnostics for session identity, access boundaries, tools/growth, runtime health, and lifecycle context
 - `/memory`: rolling session summary plus the durable actor memories visible for the current session and sender
 - `/profile`: view or intentionally update the main assistant identity
+
+The autonomous tool loop now defaults to `12` rounds per inbound turn, can be tuned with `runtime.toolLoop.maxRoundsPerTurn`, and returns a resumable limit-hit message that tells operators completed tool work is already in conversation history.
 
 ## Controlled Growth
 
@@ -560,6 +563,7 @@ Default install path is `Standard mode (recommended)`.
 - `full-root` can also support managed growth work, but the preferred durable path is runtime-owned skills and helper tools rather than tracked repo mutation
 - native web tooling remains runtime-owned, bounded, and profile-gated
 - `/status`, `/access`, `/capabilities`, `openassist tools status`, and lifecycle output now show the current service boundary as well as the effective access mode
+- `/status` and `openassist tools status` now also show the active tool-loop budget so operators can confirm how many autonomous tool rounds the runtime will allow before it asks for a narrower follow-up
 - `/status` and lifecycle CLI output are designed to stay useful even when provider auth is broken
 
 Local merge gate:

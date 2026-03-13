@@ -98,6 +98,7 @@ When changing installer/setup/service behavior:
    - a fresh quickstart that selects `codex`, `anthropic`, or `openai-compatible` must not persist the seeded `openai-main` placeholder provider from the default config skeleton
    - Codex account linking only counts as complete when OpenAssist has a chat-ready Codex/ChatGPT token auth handle; an exchanged OpenAI API key is optional auxiliary metadata, not the definition of success
    - `openassist auth status` must stay redacted but still surface meaningful readiness signals for linked-account routes, including route, linked-account presence, active auth kind, token expiry when known, and whether the auth is chat-ready
+   - successful quickstart/wizard saves and reachable `openassist doctor` checks must not keep `provider.default_codex_account_link_pending` once the default Codex provider is linked and chat-ready; unreachable-daemon validation may stay conservative
    - Codex chat transport must preserve the upstream request contract for linked-account sessions:
      - top-level `instructions` built from the vendored Codex baseline plus bounded OpenAssist runtime guidance
      - per-turn `session_id` conversation header
@@ -166,6 +167,8 @@ When touching chat/runtime/provider/tool code:
 1. keep autonomous execution profile-gated (`full-root` only)
 2. do not expose tool schemas to `restricted` or `operator` sessions
 3. keep tool execution bounded (no unbounded provider-tool loops)
+   - `runtime.toolLoop.maxRoundsPerTurn` remains the loop-budget surface with default `12` and bounds `1..24`
+   - limit-hit replies must stay operator-actionable and explain that completed tool work is already in conversation history so a narrower follow-up can continue safely
 4. preserve durable audit rows for every tool invocation lifecycle state
 5. preserve guardrail behavior for clearly catastrophic command patterns
 6. keep tool-call contracts synchronized across:
@@ -176,9 +179,11 @@ When touching chat/runtime/provider/tool code:
    - tool routing in `packages/core-runtime/src/tool-router.ts`
 7. preserve runtime chat diagnostics path:
    - `/status` in channel chat must return local diagnostics without provider dependency
+   - `/status` should stay renderer-friendly with grouped sections and flat bullets rather than collapsing back into one wall of text
    - provider/auth/runtime failures during chat must emit channel-visible operational diagnostics (sanitized, no secret leakage)
 8. preserve the bounded runtime-awareness snapshot on every turn:
    - it must truthfully identify OpenAssist, the local host/runtime context, the active/effective access profile, the access source, and the currently callable tools
+   - it must surface the active max tool rounds per turn alongside the other live policy boundaries
    - it must state negative capability explicitly when autonomy or native web tooling is unavailable/not callable
    - it must not introduce unbounded prompt/context growth
 9. keep native web tooling runtime-owned, profile-gated, and bounded:

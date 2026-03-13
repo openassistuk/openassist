@@ -34,8 +34,9 @@ Autonomous chat tool loop gate:
 - same-chat file replies through `channel.send` still require truthful outbound-file support on the active channel
 - targeted operator notify through `channel.send` additionally requires an approved operator sender plus a listed recipient in `channels[*].settings.operatorUserIds`, and Discord also requires `allowedDmUserIds` overlap
 - if provider responses include unsolicited tool calls while schemas are not exposed, runtime ignores those calls and does not execute tools
+- autonomous tool execution still stops at the configured `runtime.toolLoop.maxRoundsPerTurn` budget (default `12`, bounds `1..24`) even in `full-root`
 - provider-independent runtime commands `/start`, `/help`, `/capabilities`, `/grow`, `/status`, `/memory`, and `/profile` remain available regardless of profile, but they only describe the truthful capability boundary for the current session
-- chat diagnostic command `/status` stays operational and provider-independent (no autonomous tool execution) and now reports awareness summary, callable tools, configured tool families, native web backend state, and managed growth context
+- chat diagnostic command `/status` stays operational and provider-independent (no autonomous tool execution) and now reports awareness summary, callable tools, configured tool families, native web backend state, managed growth context, and the active tool-loop budget in grouped sections
 - chat memory command `/memory` stays provider-independent and now reports rolling session summary plus the actor-scoped durable memories visible for that sender/session query
 - chat access command `/access` is provider-independent and available only to approved operators for their own current chat
 - global profile-memory command `/profile` is provider-independent and available regardless of profile
@@ -73,7 +74,7 @@ If scheduled shell or direct FS actions are introduced later, policy action cont
 - tool actions are auditable in `tool_invocations` (request/result payloads are redacted before persistence/retrieval)
 - actor-scoped permanent memories persist in `permanent_memories`, and rolling session summaries persist in `session_memory`
 - scheduler and clock events are auditable (`scheduler.*`, `clock.check`)
-- `/status` and `openassist tools status` expose the same capability boundary the model sees, including the Linux service boundary, which helps operators confirm whether `web.*` tools are callable and whether the daemon is still sandboxed before granting `full-root`
+- `/status` and `openassist tools status` expose the same capability boundary the model sees, including the Linux service boundary and tool-loop budget, which helps operators confirm whether `web.*` tools are callable and whether the daemon is still sandboxed before granting `full-root`
 - `/grow` and `openassist growth status` expose the same managed-growth boundary the model sees, which helps operators confirm whether durable growth actions are available before asking for extension work
 
 ## Shared-Chat Resolution

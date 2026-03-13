@@ -40,13 +40,20 @@ import {
 import {
   providerRouteLabel,
 } from "./provider-display.js";
+import {
+  extractProviderAuthReadinessMap,
+  type ProviderAuthReadinessMap
+} from "./provider-auth-readiness.js";
 import { buildSetupSummary } from "./setup-summary.js";
 import {
   type PromptAdapter,
   createInquirerPromptAdapter,
   promptReasoningEffort
 } from "./setup-wizard.js";
-import { validateSetupReadiness } from "./setup-validation.js";
+import {
+  validateSetupReadiness,
+  type SetupValidationIssue
+} from "./setup-validation.js";
 import {
   isCountryCityTimezone,
   promptBindAddress,
@@ -110,6 +117,11 @@ class OAuthAccountLinkError extends Error {
     this.requiredForFirstReply = requiredForFirstReply;
   }
 }
+
+const QUICKSTART_SUPPRESSED_WARNING_CODES = new Set<string>([
+  "tools.web_hybrid_fallback_only",
+  "provider.oauth_client_secret_unset"
+]);
 
 function stage(name: string, description?: string): void {
   console.log("");
@@ -246,6 +258,46 @@ function resolveRuntimePath(configPath: string, target: string): string {
     return target;
   }
   return path.resolve(path.dirname(configPath), target);
+}
+
+function visibleQuickstartWarnings<T extends Pick<SetupValidationIssue, "code">>(issues: T[]): T[] {
+  return issues.filter((issue) => !QUICKSTART_SUPPRESSED_WARNING_CODES.has(issue.code));
+}
+
+async function fetchProviderAuthReadiness(
+  baseUrl: string,
+  requestJsonFn: typeof requestJson
+): Promise<ProviderAuthReadinessMap | undefined> {
+  try {
+    const result = await requestJsonFn("GET", `${baseUrl}/v1/oauth/status`);
+    if (result.status >= 400) {
+      return undefined;
+    }
+    return extractProviderAuthReadinessMap(result.data);
+  } catch {
+    return undefined;
+  }
+}
+
+async function countVisibleValidationWarnings(
+  state: SetupQuickstartState,
+  options: SetupQuickstartOptions,
+  providerAuthReadiness?: ProviderAuthReadinessMap,
+  skipBindAvailabilityCheck = false
+): Promise<number> {
+  const validation = await validateSetupReadiness({
+    config: state.config,
+    env: state.env,
+    configPath: state.configPath,
+    envFilePath: state.envFilePath,
+    installDir: state.installDir,
+    skipService: options.skipService,
+    timezoneConfirmed: state.timezoneConfirmed,
+    requireEnabledChannel: true,
+    providerAuthReadiness,
+    skipBindAvailabilityCheck
+  });
+  return visibleQuickstartWarnings(validation.warnings).length;
 }
 
 async function maybeShowDetailedGuidance(
@@ -886,10 +938,6 @@ async function runValidationGate(
   options: SetupQuickstartOptions
 ): Promise<{ errors: number; warnings: number; aborted: boolean }> {
   stage("Validate", "Running schema and readiness checks.");
-  const suppressedWarningCodes = new Set<string>([
-    "tools.web_hybrid_fallback_only",
-    "provider.oauth_client_secret_unset"
-  ]);
   while (true) {
     const validation = await validateSetupReadiness({
       config: state.config,
@@ -901,9 +949,7 @@ async function runValidationGate(
       timezoneConfirmed: state.timezoneConfirmed,
       requireEnabledChannel: true
     });
-    const visibleWarnings = validation.warnings.filter(
-      (issue) => !suppressedWarningCodes.has(issue.code)
-    );
+    const visibleWarnings = visibleQuickstartWarnings(validation.warnings);
 
     if (visibleWarnings.length > 0) {
       console.log("Needs attention later:");
@@ -954,7 +1000,7 @@ async function runValidationGate(
     if (action === "abort") {
       return {
         errors: validation.errors.length,
-        warnings: validation.warnings.length,
+        warnings: visibleWarnings.length,
         aborted: true
       };
     }
@@ -1006,7 +1052,7 @@ async function runValidationGate(
       if (next === "abort") {
         return {
           errors: validation.errors.length,
-          warnings: validation.warnings.length,
+          warnings: visibleWarnings.length,
           aborted: true
         };
       }
@@ -1020,7 +1066,12 @@ async function runServiceStep(
   options: SetupQuickstartOptions,
   prompts: PromptAdapter,
   dependencies: SetupQuickstartDependencies
-): Promise<{ healthOk: boolean; aborted: boolean; errorMessage?: string }> {
+): Promise<{
+  healthOk: boolean;
+  aborted: boolean;
+  errorMessage?: string;
+  providerAuthReadiness?: ProviderAuthReadinessMap;
+}> {
   if (options.skipService) {
     return { healthOk: false, aborted: false };
   }
@@ -1041,8 +1092,11 @@ async function runServiceStep(
   let lastServiceKind: ServiceManagerAdapter["kind"] | undefined;
   let lastRunner: SpawnCommandRunner | undefined;
 
-  const maybeOfferOAuthAccountLink = async (healthyBaseUrl: string): Promise<void> => {
+  const maybeOfferOAuthAccountLink = async (
+    healthyBaseUrl: string
+  ): Promise<ProviderAuthReadinessMap | undefined> => {
     const requestJsonFn = dependencies.requestJsonFn ?? requestJson;
+    const knownReadiness: ProviderAuthReadinessMap = {};
     const ensureProviderAccountReady = async (
       provider: OpenAssistConfig["runtime"]["providers"][number]
     ): Promise<void> => {
@@ -1070,6 +1124,10 @@ async function runServiceStep(
           provider.id === state.config.runtime.defaultProviderId && provider.type === "codex"
         );
       }
+      knownReadiness[provider.id] = {
+        linkedAccountCount: accounts.length,
+        chatReady
+      };
       console.log(
         provider.type === "codex" && statusPayload.currentAuth?.authMethod === "device-code"
           ? `Linked account ready for ${provider.id} via device code.`
@@ -1266,10 +1324,10 @@ async function runServiceStep(
       return providerSupportsAccountLink(provider.type) && "oauth" in provider && Boolean(provider.oauth);
     });
     if (accountLinkProviders.length === 0) {
-      return;
+      return undefined;
     }
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
-      return;
+      return undefined;
     }
 
     console.log("");
@@ -1287,7 +1345,7 @@ async function runServiceStep(
           true
         );
       }
-      return;
+      return undefined;
     }
     for (const provider of accountLinkProviders) {
       const startThisProvider = await prompts.confirm(
@@ -1329,9 +1387,10 @@ async function runServiceStep(
 
       await runBrowserAccountLink(provider);
     }
+    return Object.keys(knownReadiness).length > 0 ? knownReadiness : undefined;
   };
 
-  const attemptServiceStep = async (): Promise<void> => {
+  const attemptServiceStep = async (): Promise<ProviderAuthReadinessMap | undefined> => {
     const runner = new SpawnCommandRunner();
     lastRunner = runner;
     const managerFactory = dependencies.createServiceManagerFn ?? createServiceManager;
@@ -1381,7 +1440,15 @@ async function runServiceStep(
     const schedulerStatus = await requestJsonFn("GET", `${activeBaseUrl}/v1/scheduler/status`);
     console.log(`Time status: ${JSON.stringify(timeStatus.data)}`);
     console.log(`Scheduler status: ${JSON.stringify(schedulerStatus.data)}`);
-    await maybeOfferOAuthAccountLink(activeBaseUrl);
+    const knownProviderAuthReadiness = await maybeOfferOAuthAccountLink(activeBaseUrl);
+    const fetchedProviderAuthReadiness = await fetchProviderAuthReadiness(activeBaseUrl, requestJsonFn);
+    if (!knownProviderAuthReadiness && !fetchedProviderAuthReadiness) {
+      return undefined;
+    }
+    return {
+      ...(fetchedProviderAuthReadiness ?? {}),
+      ...(knownProviderAuthReadiness ?? {})
+    };
   };
 
   const troubleshootingLines = [
@@ -1432,8 +1499,8 @@ async function runServiceStep(
   while (true) {
     stage(`Service + Health (attempt ${attempt})`);
     try {
-      await attemptServiceStep();
-      return { healthOk: true, aborted: false };
+      const providerAuthReadiness = await attemptServiceStep();
+      return { healthOk: true, aborted: false, providerAuthReadiness };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const oauthError = error instanceof OAuthAccountLinkError ? error : undefined;
@@ -1569,6 +1636,7 @@ export async function runSetupQuickstart(
   let serviceHealthOk = false;
   let postSaveAborted = false;
   let postSaveError: string | undefined;
+  let finalWarningCount = validationGate.warnings;
   const localWrapperCommand = `${path.join(os.homedir(), ".local", "bin", "openassist")} service status`;
   const directNodeCommand = `${process.execPath} ${path.join(
     state.installDir,
@@ -1582,6 +1650,14 @@ export async function runSetupQuickstart(
     serviceHealthOk = serviceOutcome.healthOk;
     postSaveAborted = serviceOutcome.aborted;
     postSaveError = serviceOutcome.errorMessage;
+    if (serviceOutcome.healthOk && serviceOutcome.providerAuthReadiness) {
+      finalWarningCount = await countVisibleValidationWarnings(
+        state,
+        options,
+        serviceOutcome.providerAuthReadiness,
+        true
+      );
+    }
   }
 
   const summary = buildSetupSummary({
@@ -1591,7 +1667,7 @@ export async function runSetupQuickstart(
     backupPath: saveResult.backupPath,
     config: state.config,
     changedEnvKeys: envDiff(state.originalEnv, state.env),
-    warningCount: validationGate.warnings,
+    warningCount: finalWarningCount,
     skippedService: options.skipService,
     healthOk: serviceHealthOk,
     postSaveError
@@ -1608,7 +1684,7 @@ export async function runSetupQuickstart(
   return {
     saved: true,
     backupPath: saveResult.backupPath,
-    validationWarnings: validationGate.warnings,
+    validationWarnings: finalWarningCount,
     validationErrors: validationGate.errors,
     serviceHealthOk,
     summary,

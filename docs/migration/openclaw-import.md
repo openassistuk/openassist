@@ -43,7 +43,8 @@ Codex mapping note:
 - on headless hosts that login can still be completed from the printed authorization URL by copying the full callback URL from the browser address bar and pasting it back into OpenAssist
 - the additive manual completion command is `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - imported or newly created Codex providers only count as linked when OpenAssist has a chat-ready Codex/ChatGPT token auth handle; a stored but unusable linked-account row is not treated as success
-- once linked, Codex chat requests preserve the upstream conversation contract by sending the runtime session id, account header, top-level instructions payload, and the upstream-aligned `/responses` fields Codex currently requires, including `store=false`, `stream=true`, and a prompt-cache key derived from the runtime session id; OpenAssist then folds the upstream event stream back into its normal reply contract before channel delivery
+- Once imported Codex auth is linked and chat-ready, reachable lifecycle validation and `openassist doctor` should stop surfacing the pending default-Codex account-link warning.
+- Once linked, Codex chat requests preserve the upstream conversation contract by sending the runtime session id, account header, top-level instructions payload, and the upstream-aligned `/responses` fields Codex currently requires, including `store=false`, `stream=true`, and a prompt-cache key derived from the runtime session id; OpenAssist then folds the upstream event stream back into its normal reply contract before channel delivery.
 - linked Codex auth is stored as encrypted OAuth state in SQLite, and OpenAssist attempts automatic refresh before expiry and again on auth-style provider failures when a refresh token is available
 
 ### Channel mapping

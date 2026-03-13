@@ -64,6 +64,7 @@ export interface RuntimeAwarenessBuildInput {
   };
   profile: PolicyProfile;
   source: EffectivePolicySource;
+  maxToolRoundsPerTurn: number;
   configuredToolNames: string[];
   callableToolNames: string[];
   webStatus: WebToolStatus;
@@ -544,7 +545,7 @@ export function buildRuntimeAwarenessSnapshot(
   const callableWebTools = input.callableToolNames.filter((item) => item.startsWith("web."));
   const capabilities = buildCapabilities(input);
   return {
-    version: 5,
+    version: 6,
     software: {
       product: "OpenAssist",
       role: "local-first machine assistant with bounded host, chat, tool, and lifecycle awareness",
@@ -569,6 +570,7 @@ export function buildRuntimeAwarenessSnapshot(
       profile: input.profile,
       source: input.source,
       autonomyEnabled: input.profile === "full-root",
+      maxToolRoundsPerTurn: input.maxToolRoundsPerTurn,
       callableToolNames: input.callableToolNames,
       configuredToolNames: input.configuredToolNames,
       limitations: buildLimitations(input)
@@ -625,7 +627,7 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
     `- host: ${hostParts.join(", ")}`,
     `- runtime: session=${snapshot.runtime.sessionId}, defaultProvider=${snapshot.runtime.defaultProviderId}, activeChannel=${snapshot.runtime.activeChannelId}/${snapshot.runtime.activeChannelType}, providers=${joinOrNone(snapshot.runtime.providerIds)}, channels=${joinOrNone(snapshot.runtime.channelIds)}, timezone=${snapshot.runtime.timezone}`,
     `- subsystems: ${joinOrNone(snapshot.runtime.modules)}`,
-    `- access: profile=${snapshot.policy.profile}, source=${snapshot.policy.source}, callableTools=${joinOrNone(snapshot.policy.callableToolNames)}`,
+    `- access: profile=${snapshot.policy.profile}, source=${snapshot.policy.source}, maxToolRounds=${snapshot.policy.maxToolRoundsPerTurn}, callableTools=${joinOrNone(snapshot.policy.callableToolNames)}`,
     `- service: manager=${snapshot.service.manager}, systemdConfigured=${snapshot.service.systemdFilesystemAccessConfigured}, systemdEffective=${snapshot.service.systemdFilesystemAccessEffective}, notes=${joinOrNone(snapshot.service.notes)}`,
     `- delivery: fileReplies=${yesNo(snapshot.delivery.outboundFileRepliesAvailable)}, notify=${yesNo(snapshot.delivery.operatorNotifyAvailable)}, channelSupportsFiles=${yesNo(snapshot.delivery.channelSupportsOutboundFiles)}, channelSupportsDirectNotify=${yesNo(snapshot.delivery.channelSupportsDirectRecipientDelivery)}, notes=${joinOrNone(snapshot.delivery.notes)}`,
     `- capabilities now: inspectFiles=${yesNo(snapshot.capabilities.canInspectLocalFiles)}, runCommands=${yesNo(snapshot.capabilities.canRunLocalCommands)}, editConfig=${yesNo(snapshot.capabilities.canEditConfig)}, editDocs=${yesNo(snapshot.capabilities.canEditDocs)}, editCode=${yesNo(snapshot.capabilities.canEditCode)}, serviceControl=${yesNo(snapshot.capabilities.canControlService)}, nativeWeb=${yesNo(snapshot.capabilities.nativeWebAvailable)}`,
@@ -649,6 +651,7 @@ export function summarizeRuntimeAwareness(snapshot: RuntimeAwarenessSnapshot): s
   return [
     `profile=${snapshot.policy.profile}`,
     `source=${snapshot.policy.source}`,
+    `toolLoop=${snapshot.policy.maxToolRoundsPerTurn}`,
     `service=${snapshot.service.manager}:${snapshot.service.systemdFilesystemAccessConfigured}->${snapshot.service.systemdFilesystemAccessEffective}`,
     `delivery=${snapshot.delivery.outboundFileRepliesAvailable ? "reply" : "blocked"}/${snapshot.delivery.operatorNotifyAvailable ? "notify" : "no-notify"}`,
     `fileEdits=${snapshot.capabilities.canEditConfig || snapshot.capabilities.canEditDocs || snapshot.capabilities.canEditCode ? "available" : "blocked"}`,

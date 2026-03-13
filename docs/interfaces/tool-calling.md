@@ -108,7 +108,7 @@ Normal `operator` or `restricted` chats still receive no tool schemas. Their dur
 - effective access for the current sender/chat turn is `full-root`
 - `tools.web.enabled=true`
 
-`GET /v1/tools/status` and `openassist tools status` now report both configured tool families and currently callable tools, plus native web backend mode, service manager, configured and effective Linux systemd filesystem access, and an awareness summary. Shared-chat lookups can include `senderId` so operator output matches the same actor-specific access boundary the runtime uses.
+`GET /v1/tools/status` and `openassist tools status` now report both configured tool families and currently callable tools, plus native web backend mode, service manager, configured and effective Linux systemd filesystem access, the configured `toolLoop.maxRoundsPerTurn` budget, and an awareness summary. Shared-chat lookups can include `senderId` so operator output matches the same actor-specific access boundary the runtime uses.
 
 ## Runtime Awareness Contract
 
@@ -119,7 +119,7 @@ The awareness snapshot includes:
 - software identity (`OpenAssist`, local-first machine-assistant role)
 - host summary (platform, release, arch, hostname, Node version, workspace root when known)
 - runtime/session state (session ID, provider IDs, channel IDs, timezone, runtime modules)
-- policy/autonomy state (effective profile, access source, callable tools, configured tools, negative capability text)
+- policy/autonomy state (effective profile, access source, callable tools, configured tools, max tool rounds per turn, negative capability text)
 - native web state (`enabled`, `searchMode`, `searchStatus`, callable `web.*` tools)
 - capability state for the current session (`canInspectLocalFiles`, `canRunLocalCommands`, `canEditConfig`, `canEditDocs`, `canEditCode`, `canControlService`, native web availability, blocked reasons)
 - capability domains derived from the live session boundary (system tasks, files/docs, supported attachments, web work, automation, lifecycle help, controlled growth)
@@ -128,7 +128,7 @@ The awareness snapshot includes:
 - growth context (`extensions-first` default mode, whether growth actions are available now, installed skill/helper counts, growth directories, update-safety note)
 - memory context (`runtime.memory.enabled`, rolling session summary visibility, and whether actor-scoped durable memory is currently available for this sender/session query)
 
-Chat-visible `/status` keeps the same high-level awareness boundary for every sender, including the current service boundary, but full config/env/install paths are reserved for approved operators in chat. Unapproved senders should still receive the plain-language lifecycle summary plus guidance to use host-side commands such as `openassist doctor`.
+Chat-visible `/status` keeps the same high-level awareness boundary for every sender, including the current service boundary and active tool-loop budget, but full config/env/install paths are reserved for approved operators in chat. The runtime renders those diagnostics as grouped sections so channel-safe renderers preserve structure instead of falling back to one long wall of text. Unapproved senders should still receive the plain-language lifecycle summary plus guidance to use host-side commands such as `openassist doctor`.
 
 Self-maintenance contract:
 
@@ -141,7 +141,8 @@ Self-maintenance contract:
 
 Loop defaults:
 
-- max tool rounds per inbound turn: `8`
+- max tool rounds per inbound turn: `12`
+- configurable as `runtime.toolLoop.maxRoundsPerTurn` with bounds `1..24`
 - deterministic sequential execution per provider turn
 
 Per round:
@@ -158,7 +159,9 @@ Before each provider turn, runtime reconciles tool context:
 
 This protects long-lived sessions from provider hard-failures caused by mismatched historical tool-call context.
 
-If max rounds is exceeded, runtime returns safe operator-visible error text and stops looping.
+The active tool-loop budget is surfaced through runtime awareness, `/status`, `GET /v1/tools/status`, and `openassist tools status`.
+
+If max rounds is exceeded, runtime returns safe operator-visible error text that names the configured cap, explains that completed tool results are already in conversation history, and asks the operator for a narrower or follow-up request before stopping the loop.
 
 ## Durability and Audit
 

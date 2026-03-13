@@ -17,6 +17,9 @@ describe("runtime config tools wiring", () => {
         ],
         channels: [],
         defaultPolicyProfile: "operator",
+        toolLoop: {
+          maxRoundsPerTurn: 18
+        },
         paths: {
           dataDir: ".openassist/data",
           skillsDir: "examples/skills",
@@ -85,5 +88,6 @@ describe("runtime config tools wiring", () => {
     expect(runtimeConfig.tools?.web.maxPagesPerRun).toBe(3);
     expect(runtimeConfig.security?.auditLogEnabled).toBe(true);
     expect(runtimeConfig.service?.systemdFilesystemAccess).toBe("unrestricted");
+    expect(runtimeConfig.toolLoop?.maxRoundsPerTurn).toBe(18);
   });
 });

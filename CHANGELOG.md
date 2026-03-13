@@ -109,6 +109,11 @@ The format follows Keep a Changelog conventions and this project currently track
   - adding approved operator IDs in `openassist setup wizard` while the install is still in standard mode now prompts to enable `Full access for approved operators` immediately instead of leaving filesystem tools workspace-only with no normal-flow warning
   - channel edits in wizard now preserve configured approved operator IDs while applying that prompt logic
 
+- Codex quickstart warning, `/status`, and tool-loop follow-up:
+  - quickstart and reachable `openassist doctor` now suppress the stale default-Codex pending account-link warning once the linked account is present and chat-ready, while unreachable-daemon validation stays conservative
+  - `/status` now renders grouped sections for session, access boundaries, tools/growth, runtime health, and lifecycle guidance so chat diagnostics stay readable without dropping any existing facts
+  - the autonomous tool loop now defaults to `12` rounds per inbound turn, can be tuned with `runtime.toolLoop.maxRoundsPerTurn` (`1..24`), surfaces that live budget through runtime awareness plus `GET /v1/tools/status` and `openassist tools status`, and returns a resumable limit-hit message that tells operators completed tool work is already in conversation history
+
 - Bootstrap branch-track follow-up:
   - fixed a shell-conditional regression in `scripts/install/bootstrap.sh` so non-interactive bootstrap works again for scheduled lifecycle smoke and real installs on `main`
   - added bootstrap shell-syntax coverage so invalid bash conditionals are caught before merge

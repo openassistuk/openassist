@@ -205,6 +205,7 @@ Provider and channel guidance:
 - After browser approval, the Codex flow now redirects to `http://localhost:1455/auth/callback`. If that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into quickstart.
 - A fresh quickstart that selects Codex now saves only the `codex-main` provider; it no longer keeps an unused seeded `openai-main` placeholder in the saved config.
 - Codex account linking now only completes when OpenAssist has a chat-ready Codex/ChatGPT token auth handle. If the linked account is present but unusable for chat, quickstart keeps the issue in the account-linking flow instead of silently succeeding.
+- Once the linked Codex auth is chat-ready and the daemon can confirm it, the final quickstart summary no longer keeps a stale pending account-link warning for the default provider.
 - Once linked, Codex chat requests carry the OpenAssist runtime session id, account header, and top-level instructions payload expected by the upstream Codex backend, plus the upstream-aligned `/responses` fields that Codex currently requires such as `store=false`, `stream=true`, and a prompt-cache key derived from the session id. OpenAssist folds that upstream event stream back into the normal channel reply before Telegram or other channels see it. If `openassist auth status --provider codex-main` reports `Chat-ready auth: Yes` and chat still fails, treat that as a provider request issue rather than re-running setup blindly.
 - Quickstart now also prints the exact host-side manual completion fallback:
 
@@ -292,6 +293,7 @@ Useful first-chat runtime commands:
 - `/capabilities` for the current provider/channel/tool boundary in this chat
 - `/grow` for managed skills, helper tools, and durable extension guidance
 - `/status` for local operational diagnostics without provider dependency
+- `/status` now renders grouped sections so sender/session IDs, service boundary, tool-loop budget, and lifecycle guidance stay readable in chat
 
 Access mode notes:
 

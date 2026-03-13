@@ -164,6 +164,7 @@ Codex adapter behavior:
 - Fresh quickstart installs that choose Codex must replace the seeded `openai-main` placeholder provider instead of persisting both routes in the saved config.
 - A linked Codex account row is not sufficient on its own; completion and refresh only count as successful when the provider has a usable Codex/ChatGPT token auth handle loaded for chat.
 - `openassist auth status` remains redacted, but it must surface route, linked-account presence, active auth kind, expiry when known, and whether the stored auth is chat-ready for the provider route.
+- Lifecycle validation may stay conservative when the daemon is unreachable, but once the daemon can report linked-account readiness for the default Codex provider, quickstart and `openassist doctor` must stop surfacing the pending-link warning for a linked, chat-ready account.
 - Codex chat transport uses the Codex responses route directly and must preserve the upstream conversation contract by sending `session_id` from `ChatRequest.sessionId` plus `ChatGPT-Account-ID` when account metadata is available.
 - Codex chat transport must also send top-level `instructions` on every request. Those instructions are built from the vendored Codex baseline plus the bounded OpenAssist runtime/system guidance already prepared by the runtime for the current turn.
 - When Codex lifts system guidance into top-level `instructions`, the adapter must not leave duplicate `system` role messages in the normal `input` array.

@@ -30,6 +30,9 @@ function defaultConfigObjectRaw(): Record<string, unknown> {
       memory: {
         enabled: true
       },
+      toolLoop: {
+        maxRoundsPerTurn: 12
+      },
       attachments: {
         maxFilesPerMessage: 4,
         maxImageBytes: 10_000_000,

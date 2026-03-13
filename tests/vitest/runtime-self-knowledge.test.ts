@@ -58,6 +58,7 @@ describe("runtime self-knowledge", () => {
       },
       profile: "full-root",
       source: "session-override",
+      maxToolRoundsPerTurn: 12,
       configuredToolNames: ["exec.run", "fs.read", "fs.write", "web.search", "web.fetch", "web.run"],
       callableToolNames: ["exec.run", "fs.read", "fs.write", "web.search", "web.fetch", "web.run"],
       providerCapabilities: {
@@ -112,7 +113,7 @@ describe("runtime self-knowledge", () => {
       }
     });
 
-    expect(snapshot.version).toBe(5);
+    expect(snapshot.version).toBe(6);
     expect(snapshot.service).toMatchObject({
       manager: "systemd-system",
       systemdFilesystemAccessConfigured: "hardened",
@@ -153,6 +154,7 @@ describe("runtime self-knowledge", () => {
     expect(rendered).toMatch(/config=\/srv\/openassist\/openassist\.toml/i);
     expect(rendered).toMatch(/activeChannel=telegram-main\/telegram/i);
     expect(rendered).toMatch(/systemdConfigured=hardened/i);
+    expect(rendered).toMatch(/maxToolRounds=12/i);
     expect(rendered).toMatch(/capability domains:/i);
     expect(rendered).toMatch(/growth: mode=extensions-first/i);
     expect(rendered).toMatch(/protected surfaces:/i);
@@ -180,6 +182,7 @@ describe("runtime self-knowledge", () => {
       },
       profile: "operator",
       source: "default",
+      maxToolRoundsPerTurn: 12,
       configuredToolNames: ["exec.run", "fs.read", "fs.write", "web.search", "web.fetch", "web.run"],
       callableToolNames: [],
       providerCapabilities: {

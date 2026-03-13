@@ -154,14 +154,14 @@ describe("tool loop runtime helpers", () => {
 
   it("enforces round cap in loop orchestration", async () => {
     const { router } = createRouter();
-    const calls: ToolCall[] = Array.from({ length: 12 }).map((_, idx) => ({
+    const calls: ToolCall[] = Array.from({ length: 13 }).map((_, idx) => ({
       id: `call-${idx}`,
       name: "exec.run",
       argumentsJson: JSON.stringify({ command: `echo ${idx}` })
     }));
 
-    const result = await runLoop(router, calls, 8);
-    expect(result.executed).toBe(8);
+    const result = await runLoop(router, calls, 12);
+    expect(result.executed).toBe(12);
     expect(result.hitLimit).toBe(true);
   });
 

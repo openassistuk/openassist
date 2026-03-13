@@ -131,6 +131,9 @@ export function writeDefaultConfig(filePath: string): void {
       memory: {
         enabled: true
       },
+      toolLoop: {
+        maxRoundsPerTurn: 12
+      },
       time: {
         ntpPolicy: "warn-degrade",
         ntpCheckIntervalSec: 300,

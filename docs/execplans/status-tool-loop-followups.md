@@ -20,7 +20,7 @@ The observable proof is straightforward. Run the quickstart OAuth tests and the 
 - [x] (2026-03-13 14:39Z) Added `runtime.toolLoop.maxRoundsPerTurn`, defaulted it to `12`, exposed it through runtime awareness and `/v1/tools/status`, and replaced the limit-hit message with a resumable operator-facing explanation.
 - [x] (2026-03-13 14:39Z) Updated affected tests, docs, sample config, `CHANGELOG.md`, and the OpenClaw migration path that also needed the new runtime config field for strict typing.
 - [x] (2026-03-13 14:39Z) Ran `pnpm verify:all` successfully after fixing the migration config and awareness back-compat typing gaps.
-- [ ] Push the branch, open the PR, wait for CI and CodeQL, manually dispatch the smoke workflows, resolve any automated review comments, and record the final evidence here.
+- [x] (2026-03-13 14:47Z) Pushed the branch, opened PR `#42`, waited for CI and CodeQL, manually dispatched `service-smoke.yml` and `lifecycle-e2e-smoke.yml`, and confirmed there are no review threads or automated review comments to address.
 
 ## Surprises & Discoveries
 
@@ -67,7 +67,24 @@ Local outcome as of 2026-03-13 14:39Z:
 - docs, sample config, changelog, and migration/import paths were updated in the same change
 - local proof: `pnpm verify:all` passed
 
-Hosted PR automation evidence will be added here after the branch is pushed and the GitHub checks plus manual smoke workflows are green.
+Hosted automation outcome as of 2026-03-13 14:47Z:
+
+- PR: `https://github.com/openassistuk/openassist/pull/42`
+- normal required checks green:
+  - `workflow-lint`
+  - `quality-and-coverage (ubuntu-latest)`
+  - `quality-and-coverage (macos-latest)`
+  - `quality-and-coverage (windows-latest)`
+  - `CodeQL preflight`
+  - `analyze (javascript-typescript) (javascript-typescript)`
+- supplemental smoke green:
+  - `Service Smoke`: `https://github.com/openassistuk/openassist/actions/runs/23055962952`
+  - `Lifecycle E2E Smoke`: `https://github.com/openassistuk/openassist/actions/runs/23055962658`
+- automated review state:
+  - `fetch_comments.py` reported no conversation comments, reviews, or review threads on PR `#42`
+- merge gate note:
+  - the repository `Protect main` ruleset still requires one approving review on `main`, so GitHub reports `mergeable=true` with `mergeable_state=blocked`
+  - the same ruleset reports `current_user_can_bypass = pull_requests_only`, so maintainers with that bypass can merge once they are satisfied with the branch
 
 ## Context and Orientation
 

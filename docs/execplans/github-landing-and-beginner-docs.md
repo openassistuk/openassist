@@ -19,6 +19,8 @@ The user-visible result is a GitHub-first landing page plus dedicated beginner d
 - [x] (2026-03-13 16:07Z) Synced supporting docs, sample config comments, `CHANGELOG.md`, and `AGENTS.md`.
 - [x] (2026-03-13 16:08Z) Ran `pnpm exec tsx --test tests/node/cli-docs-truth.test.ts`.
 - [x] (2026-03-13 16:08Z) Ran `pnpm verify:all`.
+- [x] (2026-03-13 16:19Z) Addressed review feedback on OAuth docs, WhatsApp config wording, and sample-config comments.
+- [x] (2026-03-13 16:19Z) Re-ran `pnpm exec tsx --test tests/node/cli-docs-truth.test.ts` and `pnpm verify:all` after the review-driven doc edits.
 - [ ] Prepare commit, push branch, open PR, and wait for PR-applicable checks.
 
 ## Surprises & Discoveries
@@ -29,6 +31,8 @@ The user-visible result is a GitHub-first landing page plus dedicated beginner d
   Evidence: `packages/config/src/schema.ts` defines the top-level TOML shape, while `packages/channels-*` and `packages/providers-*` define required per-route settings such as Telegram `botToken`, Discord `allowedDmUserIds`, and WhatsApp `sessionDir`.
 - Observation: The docs-only rewrite can still pass the full repo gate cleanly without code changes when the workflow wording and command examples stay exact.
   Evidence: `pnpm verify:all` passed after the README and docs index were restructured.
+- Observation: Review feedback was mostly about documentation precision rather than missing coverage.
+  Evidence: the follow-up edits were limited to clarifying required OAuth fields, distinguishing guidance from schema validation, and correcting sample-comment formatting.
 
 ## Decision Log
 
@@ -44,6 +48,8 @@ The user-visible result is a GitHub-first landing page plus dedicated beginner d
 The documentation work is complete locally. The repo now has a GitHub-first landing `README.md`, a rebuilt docs index, dedicated beginner docs for each first-class provider and channel, and a practical plus schema-backed configuration section. Existing lifecycle docs now point into those pages instead of forcing beginners to extract route-specific detail from long mixed-purpose runbooks.
 
 What remains is release workflow, not content design: commit the changes, push the branch, open the PR, and wait for PR-applicable GitHub checks before asking the operator to review and merge.
+
+After PR creation, an automated review highlighted a few precision issues in the new docs. Those were corrected locally, and the full local validation gate still passed on the follow-up revision.
 
 ## Context and Orientation
 
@@ -116,6 +122,12 @@ Validation evidence:
     pnpm verify:all
     # completed successfully
 
+    pnpm exec tsx --test tests/node/cli-docs-truth.test.ts
+    # pass: 7, fail: 0 (after review-driven edits)
+
+    pnpm verify:all
+    # completed successfully (after review-driven edits)
+
 ## Interfaces and Dependencies
 
 This change adds documentation surfaces only:
@@ -132,4 +144,4 @@ This change adds documentation surfaces only:
 
 The docs must continue to reference the existing public interfaces and commands rather than creating new ones.
 
-Revision note (2026-03-13): updated after implementation to record the completed docs surfaces, the successful local validation runs, and the remaining branch/PR follow-through steps.
+Revision note (2026-03-13): updated after implementation to record the completed docs surfaces, the successful local validation runs, and the later review-driven follow-up edits.

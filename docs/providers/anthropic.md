@@ -62,12 +62,17 @@ Env file entry:
 OPENASSIST_PROVIDER_ANTHROPIC_MAIN_API_KEY=replace-me
 ```
 
-Advanced optional OAuth client secret pattern:
+Advanced optional OAuth example:
 
 ```toml
 [runtime.providers.oauth]
+authorizeUrl = "https://provider.example.com/oauth/authorize"
+tokenUrl = "https://provider.example.com/oauth/token"
+clientId = "your-client-id"
 clientSecretEnv = "OPENASSIST_PROVIDER_ANTHROPIC_MAIN_OAUTH_CLIENT_SECRET"
 ```
+
+When `oauth` is present, `authorizeUrl`, `tokenUrl`, and `clientId` are required. Use provider-documented values for the route you are configuring.
 
 ## Relevant Config Fields
 

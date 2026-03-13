@@ -184,11 +184,14 @@ No provider-specific reasoning or thinking field is supported on this route in t
 
 ### Provider OAuth Object
 
-Where supported, `oauth` may contain:
+Where supported, `oauth` may contain these required fields:
 
 - `authorizeUrl`
 - `tokenUrl`
 - `clientId`
+
+Optional fields:
+
 - `clientSecretEnv`
 - `scopes`
 - `audience`
@@ -213,7 +216,7 @@ Common fields:
 - `operatorUserIds` must be a string array.
 - Telegram operator IDs must be positive numeric user IDs.
 - Discord operator IDs must be numeric snowflakes.
-- WhatsApp operator IDs must match the exact sender ID or JID shown by `/status`.
+- WhatsApp operator IDs are only schema-validated as non-empty strings; operators should copy the exact sender ID or JID shown by `/status`.
 - Secret-like channel settings must use `env:VAR_NAME`.
 - `allowedDmUserIds` is only supported on Discord channels.
 

@@ -13,7 +13,7 @@ WhatsApp has one extra operator step compared with Telegram or Discord: the chan
 - outbound file replies
 - QR-based device linking
 
-## Required Settings
+## Supported Settings
 
 Adapter-backed settings:
 
@@ -36,7 +36,7 @@ type = "whatsapp-md"
 enabled = true
 
 [runtime.channels.settings]
-sessionDir = ".openassist/data/whatsapp-main"
+sessionDir = "/absolute/path/to/openassist/data/whatsapp-main"
 printQrInTerminal = true
 maxReconnectAttempts = 10
 reconnectDelayMs = 5000
@@ -44,6 +44,7 @@ operatorUserIds = ["447700900123@s.whatsapp.net"]
 ```
 
 `operatorUserIds` should use the exact sender ID or JID that `/status` shows for that WhatsApp sender.
+Keep `sessionDir` under the install's runtime data directory rather than inside the repo-backed checkout.
 
 ## What the Main Settings Mean
 

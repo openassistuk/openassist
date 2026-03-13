@@ -84,7 +84,7 @@ Codex setup/auth notes now follow the real supported flow:
 - the additive host-side completion path is `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - browser callback/manual paste remains supported as the fallback path
 - Codex login success now depends on a usable Codex/ChatGPT token auth handle, not on exchanging into a separate OpenAI API key
-- once a default Codex provider is linked and chat-ready, quickstart and reachable doctor checks stop surfacing the stale pending-link warning for that provider
+- Once a default Codex provider is linked and chat-ready, quickstart and reachable doctor checks stop surfacing the stale pending-link warning for that provider.
 - Codex chat requests now preserve the upstream conversation contract by sending the runtime session id, account header, a top-level instructions payload that combines the vendored Codex baseline with bounded OpenAssist runtime guidance, and the upstream-aligned `/responses` fields such as `store=false`, `stream=true`, and a prompt-cache key derived from the runtime session; OpenAssist then folds the upstream event stream back into the normal chat contract, and a chat-ready auth handle plus a failing chat request should still be diagnosed as a provider request issue rather than as missing auth
 - Codex completion failures should now surface as sanitized account-link errors with safe upstream detail when available, not a generic `status=500`
 - a fresh quickstart that chooses Codex now saves only the selected Codex provider instead of also leaving the default `openai-main` placeholder behind

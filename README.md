@@ -189,7 +189,7 @@ Quickstart provider guidance now follows the split-route model:
 - The additive host-side completion path is now explicit too: `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - a fresh quickstart that selects Codex now saves only `codex-main`; it no longer keeps an unused seeded `openai-main` placeholder provider in the resulting config
 - Codex account login now counts as complete when OpenAssist has a chat-ready Codex/ChatGPT token auth handle; it no longer depends on exchanging into a separate OpenAI API key
-- once Codex account linking finishes successfully and the daemon can confirm that the linked auth is chat-ready, the final quickstart summary no longer keeps a stale pending account-link warning for the default Codex provider
+- Once Codex account linking finishes successfully and the daemon can confirm that the linked auth is chat-ready, the final quickstart summary no longer keeps a stale pending account-link warning for the default Codex provider.
 - Codex chat requests now preserve the upstream conversation contract by sending the runtime session id, account header, and a top-level instructions payload that combines an OpenAssist-vendored Codex baseline with bounded runtime guidance; if `openassist auth status` says the account is chat-ready and chat still fails, treat that as a provider request problem rather than a missing-auth problem
 - OpenAI and Codex quickstart both expose a beginner-facing reasoning effort choice:
   - `Default (recommended)`

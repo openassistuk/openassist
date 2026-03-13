@@ -162,16 +162,15 @@ function validateProviderRequirements(
     const defaultProvider = config.runtime.providers.find((provider) => provider.id === config.runtime.defaultProviderId);
     if (defaultProvider?.type === "codex") {
       const readiness = providerAuthReadiness?.[defaultProvider.id];
-      if (readiness && readiness.linkedAccountCount > 0 && readiness.chatReady) {
+      if (!(readiness && readiness.linkedAccountCount > 0 && readiness.chatReady)) {
+        pushIssue(
+          warnings,
+          "provider.default_codex_account_link_pending",
+          `The primary provider '${config.runtime.defaultProviderId}' uses the Codex account-login route and still needs a linked account.`,
+          `Complete Codex account login after daemon startup with the recommended headless path: openassist auth start --provider ${config.runtime.defaultProviderId} --device-code`
+        );
         return;
       }
-      pushIssue(
-        warnings,
-        "provider.default_codex_account_link_pending",
-        `The primary provider '${config.runtime.defaultProviderId}' uses the Codex account-login route and still needs a linked account.`,
-        `Complete Codex account login after daemon startup with the recommended headless path: openassist auth start --provider ${config.runtime.defaultProviderId} --device-code`
-      );
-      return;
     }
     if (
       defaultProvider &&

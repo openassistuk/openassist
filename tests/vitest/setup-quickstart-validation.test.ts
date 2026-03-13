@@ -208,6 +208,40 @@ describe("setup quickstart validation", () => {
     ).toBe(true);
   });
 
+  it("suppresses the default codex account-link warning when auth is already linked and chat-ready", async () => {
+    const root = tempDir("openassist-quickstart-validation-codex-ready-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.runtime.defaultProviderId = "codex-main";
+    config.runtime.providers = [
+      {
+        id: "codex-main",
+        type: "codex",
+        defaultModel: "gpt-5.4"
+      }
+    ];
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {},
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true,
+      providerAuthReadiness: {
+        "codex-main": {
+          linkedAccountCount: 1,
+          chatReady: true
+        }
+      }
+    });
+
+    expect(
+      result.warnings.some((item) => item.code === "provider.default_codex_account_link_pending")
+    ).toBe(false);
+  });
+
   it("requires Brave API configuration in api-only web mode", async () => {
     const root = tempDir("openassist-quickstart-validation-web-api-only-");
     const config = createDefaultConfigObject();

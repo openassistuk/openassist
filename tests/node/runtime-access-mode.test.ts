@@ -237,9 +237,11 @@ describe("runtime access mode", () => {
     const standardTools = await runtime.getToolsStatus("telegram-main:ops-room", "222222222");
     assert.equal(approvedTools.profile, "full-root");
     assert.equal(approvedTools.profileSource, "channel-operator-default");
+    assert.equal(approvedTools.toolLoop.maxRoundsPerTurn, 12);
     assert.ok(approvedTools.enabledTools.includes("web.search"));
     assert.equal(standardTools.profile, "operator");
     assert.equal(standardTools.profileSource, "default");
+    assert.equal(standardTools.toolLoop.maxRoundsPerTurn, 12);
     assert.deepEqual(standardTools.enabledTools, []);
 
     await channel.emit(inbound("123456789", "/status", "status-approved"));
@@ -252,10 +254,16 @@ describe("runtime access mode", () => {
       .join("\n");
 
     assert.equal(provider.chatCalls, 0);
+    assert.match(approvedStatusText, /(## Session|<b>Session<\/b>)/i);
+    assert.match(approvedStatusText, /(## Access & Boundaries|<b>Access (?:&|&amp;) Boundaries<\/b>)/i);
+    assert.match(approvedStatusText, /(## Tools & Growth|<b>Tools (?:&|&amp;) Growth<\/b>)/i);
+    assert.match(approvedStatusText, /(## Runtime Health|<b>Runtime Health<\/b>)/i);
+    assert.match(approvedStatusText, /(## Lifecycle & Next Steps|<b>Lifecycle (?:&|&amp;) Next Steps<\/b>)/i);
     assert.match(approvedStatusText, /sender id: 123456789/i);
     assert.match(approvedStatusText, /session id: telegram-main:ops-room/i);
     assert.match(approvedStatusText, /current access: Full access/i);
     assert.match(approvedStatusText, /access source: approved operator default for this channel/i);
+    assert.match(approvedStatusText, /max tool rounds per turn: 12/i);
     assert.match(approvedStatusText, /config path: .*openassist\.toml/i);
     assert.match(approvedStatusText, /trackedRef=main/i);
     assert.match(approvedStatusText, /protected surfaces:/i);

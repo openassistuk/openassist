@@ -263,6 +263,8 @@ describe("cli setup quickstart oauth coverage", () => {
       );
 
       assert.equal(result.saved, true);
+      assert.equal(result.validationWarnings, 0);
+      assert.equal(result.summary.some((line) => line.includes("Validation warnings:")), false);
       assert.equal(state.env.OPENASSIST_PROVIDER_CODEX_MAIN_API_KEY, undefined);
       assert.equal(state.config.runtime.providers[0]?.type, "codex");
       assert.equal(

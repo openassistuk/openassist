@@ -68,7 +68,7 @@ Expected:
 - policy output shows `full-root`
 - policy output shows whether the source is a sender override or session override
 - tools status lists enabled tools (`exec.run`, `fs.*`, optional `pkg.install`, and `web.*` when `tools.web.enabled=true`)
-- tools status includes awareness summary and native web backend mode/status
+- tools status includes awareness summary, native web backend mode/status, and `toolLoop.maxRoundsPerTurn`
 - tools status also reports outbound file reply availability, targeted operator-notify availability, and the delivery notes that explain any disabled path
 
 Optional host-side growth check before chat-led growth tests:
@@ -96,10 +96,12 @@ Expected:
 - `/grow` reports managed skill/helper counts and only exposes growth directory paths to approved operators
 - `/status` reflects the current effective access for that sender
 - `/status` shows the current sender ID and session ID
+- `/status` renders grouped sections for `Session`, `Access & Boundaries`, `Tools & Growth`, `Runtime Health`, and `Lifecycle & Next Steps`
 - `/memory` is provider-independent and initially reports that no rolling session summary has been compacted yet
 - `/status` identifies OpenAssist, names the local docs that define lifecycle and security behavior, and only reveals full config/env/install filesystem paths for approved operators
 - before elevation, callable tools are `none`
 - after elevation, `/status` lists the same callable tools exposed through `openassist tools status`
+- after elevation, `/status` includes the active `max tool rounds per turn` value that matches `openassist tools status`
 - after elevation, `/status` makes it explicit whether bounded local self-maintenance is available or still blocked
 - after elevation, `openassist memory status --session ... --sender-id ...` reports the same session summary and actor-scope visibility that `/memory` describes in chat
 - after elevation, `/grow` shows whether managed growth actions are available now and points operators to `openassist skills install --path ...` and `openassist growth helper add ...`

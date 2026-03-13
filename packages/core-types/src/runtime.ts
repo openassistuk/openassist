@@ -27,6 +27,10 @@ export interface RuntimeMemoryConfig {
   enabled: boolean;
 }
 
+export interface RuntimeToolLoopConfig {
+  maxRoundsPerTurn: number;
+}
+
 export interface RuntimeFsToolsConfig {
   workspaceOnly: boolean;
   allowedReadPaths: string[];
@@ -164,7 +168,7 @@ export interface ManagedCapabilityRecord {
 }
 
 export interface RuntimeAwarenessSnapshot {
-  version: 5;
+  version: 6;
   software: {
     product: string;
     role: string;
@@ -194,6 +198,7 @@ export interface RuntimeAwarenessSnapshot {
     profile: PolicyProfile;
     source: EffectivePolicySource;
     autonomyEnabled: boolean;
+    maxToolRoundsPerTurn: number;
     callableToolNames: string[];
     configuredToolNames: string[];
     limitations: string[];
@@ -271,6 +276,7 @@ export interface RuntimeConfig {
   assistant?: RuntimeAssistantConfig;
   attachments?: RuntimeAttachmentConfig;
   memory?: RuntimeMemoryConfig;
+  toolLoop?: RuntimeToolLoopConfig;
   service?: RuntimeServiceConfig;
   paths: RuntimePaths;
   time: TimeConfig;

@@ -262,6 +262,8 @@ describe("setup quickstart oauth path", () => {
       );
 
       expect(result.saved).toBe(true);
+      expect(result.validationWarnings).toBe(0);
+      expect(result.summary.some((line) => line.includes("Validation warnings:"))).toBe(false);
       expect(state.env.OPENASSIST_PROVIDER_CODEX_MAIN_API_KEY).toBeUndefined();
       expect(state.config.runtime.providers[0]).toMatchObject({
         id: "codex-main",

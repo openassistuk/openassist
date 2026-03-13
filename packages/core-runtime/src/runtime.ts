@@ -334,8 +334,6 @@ function parseAccessCommand(text: string): {
   };
 }
 
-const DEFAULT_MAX_TOOL_ROUNDS = 8;
-
 const DEFAULT_FS_TOOLS = {
   workspaceOnly: true,
   allowedReadPaths: [] as string[],
@@ -379,11 +377,18 @@ const DEFAULT_MEMORY_CONFIG = {
   enabled: true
 } as const;
 
+const DEFAULT_TOOL_LOOP_CONFIG = {
+  maxRoundsPerTurn: 12
+} as const;
+
 function normalizeRuntimeConfig(config: RuntimeConfig): RuntimeConfig {
   return {
     ...config,
     memory: {
       enabled: config.memory?.enabled ?? true
+    },
+    toolLoop: {
+      maxRoundsPerTurn: config.toolLoop?.maxRoundsPerTurn ?? DEFAULT_TOOL_LOOP_CONFIG.maxRoundsPerTurn
     },
     service: {
       systemdFilesystemAccess: config.service?.systemdFilesystemAccess ?? "hardened"
@@ -1277,6 +1282,15 @@ export class OpenAssistRuntime {
     };
   }
 
+  private toolLoopConfig(): {
+    maxRoundsPerTurn: number;
+  } {
+    return {
+      ...DEFAULT_TOOL_LOOP_CONFIG,
+      ...(this.config.toolLoop ?? {})
+    };
+  }
+
   private channelConfig(channelId: string): RuntimeConfig["channels"][number] | undefined {
     return this.config.channels.find((channel) => channel.id === channelId);
   }
@@ -1552,6 +1566,9 @@ export class OpenAssistRuntime {
     configuredTools: string[];
     autonomyMode: "full-root-auto";
     guardrailsMode: "minimal" | "off" | "strict";
+    toolLoop: {
+      maxRoundsPerTurn: number;
+    };
     profile: PolicyProfile;
     profileSource: EffectivePolicySource;
     serviceManager: RuntimeAwarenessSnapshot["service"]["manager"];
@@ -1589,6 +1606,9 @@ export class OpenAssistRuntime {
         configuredTools: enabled.map((item) => item.name),
         autonomyMode: "full-root-auto",
         guardrailsMode: this.config.tools?.exec.guardrails.mode ?? "minimal",
+        toolLoop: {
+          maxRoundsPerTurn: this.toolLoopConfig().maxRoundsPerTurn
+        },
         profile: resolution.profile,
         profileSource: resolution.source,
         serviceManager: snapshot.service.manager,
@@ -2088,8 +2108,9 @@ export class OpenAssistRuntime {
       let finalResponseId: string | undefined;
       let finalResponseMetadata: Record<string, string> | undefined;
       let finalResolved = false;
+      const maxToolRoundsPerTurn = this.toolLoopConfig().maxRoundsPerTurn;
 
-      for (let round = 0; round < DEFAULT_MAX_TOOL_ROUNDS; round += 1) {
+      for (let round = 0; round < maxToolRoundsPerTurn; round += 1) {
         conversationMessages = this.reconcileToolConversationForProvider(
           conversationMessages,
           sessionId,
@@ -2194,7 +2215,8 @@ export class OpenAssistRuntime {
 
       if (!finalResolved) {
         responseText =
-          "Tool execution reached the maximum round limit for this message. Narrow the request and try again.";
+          `Tool execution hit the configured limit of ${maxToolRoundsPerTurn} tool rounds for this message. ` +
+          "Completed tool results are already in the conversation history. Continue with a narrower follow-up request or ask me to continue from the current state.";
       }
 
       const safeText = sanitizeUserOutput(
@@ -3186,6 +3208,7 @@ export class OpenAssistRuntime {
       },
       profile: resolution.profile,
       source: resolution.source,
+      maxToolRoundsPerTurn: this.toolLoopConfig().maxRoundsPerTurn,
       configuredToolNames,
       callableToolNames,
       webStatus: this.webTool.getStatus(),
@@ -3223,9 +3246,25 @@ export class OpenAssistRuntime {
       return null;
     }
     const candidate = awareness as Partial<RuntimeAwarenessSnapshot>;
+    const candidatePolicy =
+      candidate.policy && typeof candidate.policy === "object" && !Array.isArray(candidate.policy)
+        ? (candidate.policy as Partial<RuntimeAwarenessSnapshot["policy"]>)
+        : undefined;
     return {
       ...(candidate as RuntimeAwarenessSnapshot),
-      version: 5,
+      version: 6,
+      policy: {
+        profile: candidatePolicy?.profile ?? this.config.defaultPolicyProfile,
+        source: candidatePolicy?.source ?? "default",
+        autonomyEnabled: candidatePolicy?.autonomyEnabled ?? false,
+        callableToolNames: candidatePolicy?.callableToolNames ?? [],
+        configuredToolNames: candidatePolicy?.configuredToolNames ?? [],
+        limitations: candidatePolicy?.limitations ?? [],
+        maxToolRoundsPerTurn:
+          typeof candidatePolicy?.maxToolRoundsPerTurn === "number"
+            ? candidatePolicy.maxToolRoundsPerTurn
+            : this.toolLoopConfig().maxRoundsPerTurn
+      },
       service:
         !candidate.service || typeof candidate.service !== "object" || Array.isArray(candidate.service)
           ? defaultServiceAwareness(this.config, this.installContext)
@@ -3608,64 +3647,98 @@ export class OpenAssistRuntime {
       : "self-maintenance is advisory-only in this session";
     const lifecycleStatusLines = canManageAccess
       ? [
-          `- config path: ${awareness.maintenance.configPath ?? "(not known)"}`,
-          `- env file path: ${awareness.maintenance.envFilePath ?? "(not known)"}`,
-          `- install/update: ${installSummary}; trackedRef=${awareness.maintenance.trackedRef ?? "(not known)"}; lastKnownGood=${awareness.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
-          `- protected paths: ${awareness.maintenance.protectedPaths.join(", ") || "none"}`,
-          `- protected surfaces: ${awareness.maintenance.protectedSurfaces.join(", ") || "none"}`
+          `config path: ${awareness.maintenance.configPath ?? "(not known)"}`,
+          `env file path: ${awareness.maintenance.envFilePath ?? "(not known)"}`,
+          `install/update: ${installSummary}; trackedRef=${awareness.maintenance.trackedRef ?? "(not known)"}; lastKnownGood=${awareness.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
+          `protected paths: ${awareness.maintenance.protectedPaths.join(", ") || "none"}`,
+          `protected surfaces: ${awareness.maintenance.protectedSurfaces.join(", ") || "none"}`
         ]
       : [
-          `- install/update: ${publicInstallSummary}`,
-          "- config/env/install detail: hidden in chat for this sender; approved operators can see full lifecycle paths here, and 'openassist doctor' shows them on the host.",
-          "- protected lifecycle detail: hidden in chat for this sender."
+          `install/update: ${publicInstallSummary}`,
+          "config/env/install detail: hidden in chat for this sender; approved operators can see full lifecycle paths here, and 'openassist doctor' shows them on the host.",
+          "protected lifecycle detail: hidden in chat for this sender."
         ];
+    const sections = [
+      {
+        title: "## Session",
+        lines: [
+          `sender id: ${senderId}`,
+          `session id: ${sessionId}`,
+          `assistant: ${assistant.name}`,
+          `default provider: ${this.config.defaultProviderId}`,
+          `what this is: ${OPENASSIST_SOFTWARE_IDENTITY}`,
+          `chat surface: ${this.formatChannelSurfaceSummary(sessionId)}`,
+          `awareness: ${summarizeRuntimeAwareness(awareness)}`,
+          `host: platform=${awareness.host.platform}, release=${awareness.host.release}, arch=${awareness.host.arch}, hostname=${awareness.host.hostname}, node=${awareness.host.nodeVersion}`
+        ]
+      },
+      {
+        title: "## Access & Boundaries",
+        lines: [
+          `current access: ${describeAccessMode(toolsStatus.profile)}`,
+          `access source: ${describeAccessSource(toolsStatus.profileSource)}`,
+          `service boundary: ${formatServiceBoundaryLine(awareness)}`,
+          `service boundary notes: ${formatServiceBoundaryNotes(awareness)}`,
+          `delivery boundary: ${formatDeliveryBoundaryLine(awareness)}`,
+          `delivery notes: ${formatDeliveryBoundaryNotes(awareness)}`,
+          `can inspect local files: ${awareness.capabilities.canInspectLocalFiles ? "yes" : "no"}`,
+          `can run local commands: ${awareness.capabilities.canRunLocalCommands ? "yes" : "no"}`,
+          `can edit local config/docs/code: config=${awareness.capabilities.canEditConfig ? "yes" : "no"}, docs=${awareness.capabilities.canEditDocs ? "yes" : "no"}, code=${awareness.capabilities.canEditCode ? "yes" : "no"}`,
+          `service control in this session: ${awareness.capabilities.canControlService ? "available" : "blocked"}`,
+          `blocked reasons: ${awareness.capabilities.blockedReasons.join(" | ") || "none"}`,
+          `access changes in chat: ${
+            canManageAccess
+              ? "available for this sender (/access full or /access standard)"
+              : operatorsConfigured
+                ? "not allowed for this sender"
+                : "disabled until approved operator IDs are configured"
+          }`
+        ]
+      },
+      {
+        title: "## Tools & Growth",
+        lines: [
+          `callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
+          `configured tool families: ${toolsStatus.configuredTools.join(", ") || "none"}`,
+          `max tool rounds per turn: ${toolsStatus.toolLoop.maxRoundsPerTurn}`,
+          `native web: ${toolsStatus.webTool.searchStatus} (mode=${toolsStatus.webTool.searchMode}, braveConfigured=${toolsStatus.webTool.braveApiConfigured})`,
+          `local docs/config map: ${docRefs}`,
+          `self-maintenance mode: ${maintenanceSummary}`,
+          `managed growth: mode=${growthStatus.defaultMode}, skills=${growthStatus.installedSkills.length}, helpers=${growthStatus.managedHelpers.length}, actionsNow=${growthStatus.fullRootCanGrowNow ? "yes" : "no"}`,
+          ...(canManageAccess
+            ? [`growth directories: skills=${growthStatus.skillsDirectory}, helpers=${growthStatus.helperToolsDirectory}`]
+            : ["growth directories: hidden in chat for this sender; use 'openassist growth status' on the host for full paths."]),
+          `growth update-safety: ${growthStatus.updateSafetyNote}`
+        ]
+      },
+      {
+        title: "## Runtime Health",
+        lines: [
+          `modules: ${moduleSummary}`,
+          `channels: ${channelSummary}`,
+          `time: ${time.clockHealth}, timezone=${time.timezone}, confirmed=${time.timezoneConfirmed}`,
+          `scheduler: ${schedulerState}`
+        ]
+      },
+      {
+        title: "## Lifecycle & Next Steps",
+        lines: [
+          ...lifecycleStatusLines,
+          `prefer lifecycle commands: ${awareness.maintenance.preferredCommands.join(", ")}`,
+          "global profile memory: use '/profile' to view or '/profile force=true; name=...; persona=...; prefs=...' to update",
+          "chat/session memory: use '/memory' to inspect rolling summary and durable actor memory"
+        ]
+      }
+    ];
 
     return [
       "OpenAssist local status",
-      `- sender id: ${senderId}`,
-      `- session id: ${sessionId}`,
-      `- default provider: ${this.config.defaultProviderId}`,
-      `- assistant: ${assistant.name}`,
-      `- what this is: ${OPENASSIST_SOFTWARE_IDENTITY}`,
-      `- chat surface: ${this.formatChannelSurfaceSummary(sessionId)}`,
-      `- current access: ${describeAccessMode(toolsStatus.profile)}`,
-      `- access source: ${describeAccessSource(toolsStatus.profileSource)}`,
-      `- awareness: ${summarizeRuntimeAwareness(awareness)}`,
-      `- service boundary: ${formatServiceBoundaryLine(awareness)}`,
-      `- service boundary notes: ${formatServiceBoundaryNotes(awareness)}`,
-      `- delivery boundary: ${formatDeliveryBoundaryLine(awareness)}`,
-      `- delivery notes: ${formatDeliveryBoundaryNotes(awareness)}`,
-      `- host: platform=${awareness.host.platform}, release=${awareness.host.release}, arch=${awareness.host.arch}, hostname=${awareness.host.hostname}, node=${awareness.host.nodeVersion}`,
-      `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
-      `- configured tool families: ${toolsStatus.configuredTools.join(", ") || "none"}`,
-      `- can inspect local files: ${awareness.capabilities.canInspectLocalFiles ? "yes" : "no"}`,
-      `- can run local commands: ${awareness.capabilities.canRunLocalCommands ? "yes" : "no"}`,
-      `- can edit local config/docs/code: config=${awareness.capabilities.canEditConfig ? "yes" : "no"}, docs=${awareness.capabilities.canEditDocs ? "yes" : "no"}, code=${awareness.capabilities.canEditCode ? "yes" : "no"}`,
-      `- service control in this session: ${awareness.capabilities.canControlService ? "available" : "blocked"}`,
-      `- native web: ${toolsStatus.webTool.searchStatus} (mode=${toolsStatus.webTool.searchMode}, braveConfigured=${toolsStatus.webTool.braveApiConfigured})`,
-      `- local docs/config map: ${docRefs}`,
-      `- self-maintenance mode: ${maintenanceSummary}`,
-      `- managed growth: mode=${growthStatus.defaultMode}, skills=${growthStatus.installedSkills.length}, helpers=${growthStatus.managedHelpers.length}, actionsNow=${growthStatus.fullRootCanGrowNow ? "yes" : "no"}`,
-      ...(canManageAccess
-        ? [`- growth directories: skills=${growthStatus.skillsDirectory}, helpers=${growthStatus.helperToolsDirectory}`]
-        : ["- growth directories: hidden in chat for this sender; use 'openassist growth status' on the host for full paths."]),
-      `- growth update-safety: ${growthStatus.updateSafetyNote}`,
-      ...lifecycleStatusLines,
-      `- modules: ${moduleSummary}`,
-      `- channels: ${channelSummary}`,
-      `- time: ${time.clockHealth}, timezone=${time.timezone}, confirmed=${time.timezoneConfirmed}`,
-      `- scheduler: ${schedulerState}`,
-      `- blocked reasons: ${awareness.capabilities.blockedReasons.join(" | ") || "none"}`,
-      `- access changes in chat: ${
-        canManageAccess
-          ? "available for this sender (/access full or /access standard)"
-          : operatorsConfigured
-            ? "not allowed for this sender"
-            : "disabled until approved operator IDs are configured"
-      }`,
-      `- prefer lifecycle commands: ${awareness.maintenance.preferredCommands.join(", ")}`,
-      "- global profile memory: use '/profile' to view or '/profile force=true; name=...; persona=...; prefs=...' to update",
-      "- chat/session memory: use '/memory' to inspect rolling summary and durable actor memory"
+      "",
+      ...sections.flatMap((section, index) => [
+        section.title,
+        ...section.lines.map((line) => `- ${line}`),
+        ...(index < sections.length - 1 ? [""] : [])
+      ])
     ].join("\n");
   }
 

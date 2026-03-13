@@ -51,7 +51,7 @@ Controls:
 - awareness snapshot includes explicit negative capability text when autonomy is disabled or native web search is unavailable
 - awareness snapshot now also includes a curated local docs/config/install map, capability domains, managed-growth state, plus explicit safe-maintenance and protected-path rules
 - awareness snapshots are persisted in `session_bootstrap` without raw secrets and refreshed when effective access/tool state changes
-- `/status` exposes the current sender ID, canonical session ID, effective access, and access source so operators do not need to guess identity formats
+- `/status` exposes the current sender ID, canonical session ID, effective access, access source, and active tool-loop budget so operators do not need to guess identity formats
 - `/status` keeps detailed config/env/install filesystem paths hidden from unapproved chat senders even though the high-level lifecycle summary stays available
 - `/grow` keeps managed growth directories hidden from unapproved chat senders even though the high-level growth policy stays available
 
@@ -162,7 +162,7 @@ Controls:
 
 Controls:
 
-- bounded tool loop rounds (default `8`)
+- bounded tool loop rounds via `runtime.toolLoop.maxRoundsPerTurn` (default `12`, bounds `1..24`)
 - unknown/invalid tool arguments return structured failures
 - tool execution is sequential and durably audited
 - blocked actions are visible as `blocked` status (not silent failure)

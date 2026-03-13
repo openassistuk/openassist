@@ -33,6 +33,11 @@ import {
 import { buildLifecycleReport, renderLifecycleReport } from "./lib/lifecycle-readiness.js";
 import { detectLegacyDefaultLayout } from "./lib/operator-layout.js";
 import { parseOAuthCompletionInput } from "./lib/oauth-completion.js";
+import {
+  extractProviderAuthReadinessMap,
+  type ProviderAuthReadinessMap,
+  type ProviderAuthStatusResponse
+} from "./lib/provider-auth-readiness.js";
 import { providerRouteLabel } from "./lib/provider-display.js";
 import { detectDefaultDaemonBaseUrl, extractApiErrorMessage } from "./lib/runtime-context.js";
 import { createServiceManager, detectServiceManagerKind } from "./lib/service-manager.js";
@@ -99,35 +104,9 @@ function normalizeBrowserUrl(candidate: string): string {
   return parsed.toString();
 }
 
-type AuthStatusResponse = {
-  providerId?: string;
-  providerType?: "openai" | "codex" | "anthropic" | "openai-compatible";
-  linkedAccountCount?: number;
-  accounts?: Array<{ accountId: string; expiresAt?: string }>;
-  currentAuth?: {
-    kind?: string;
-    tokenType?: string;
-    authMethod?: "callback" | "device-code";
-    expiresAt?: string;
-    chatReady?: boolean;
-    detail?: string;
-  };
-  providers?: Array<{
-    providerId: string;
-    providerType?: "openai" | "codex" | "anthropic" | "openai-compatible";
-    linkedAccountCount?: number;
-    currentAuth?: {
-      kind?: string;
-      tokenType?: string;
-      authMethod?: "callback" | "device-code";
-      expiresAt?: string;
-      chatReady?: boolean;
-      detail?: string;
-    };
-  }>;
-};
-
-function printProviderAuthStatus(status: NonNullable<AuthStatusResponse["providers"]>[number] | AuthStatusResponse): void {
+function printProviderAuthStatus(
+  status: NonNullable<ProviderAuthStatusResponse["providers"]>[number] | ProviderAuthStatusResponse
+): void {
   if (!status.providerId) {
     return;
   }
@@ -281,6 +260,7 @@ program
     let serviceHealthDetail: string | undefined;
     let timezoneConfirmed = false;
     let timeStatusReachable = false;
+    let providerAuthReadiness: ProviderAuthReadinessMap | undefined;
     let growthState:
       | Awaited<ReturnType<typeof inspectLocalGrowthState>>
       | undefined;
@@ -318,6 +298,16 @@ program
       serviceHealthDetail = health.ok
         ? `Health endpoint is responding at ${health.baseUrl ?? daemonBaseUrl}`
         : `Health endpoint returned status ${health.status} at ${health.baseUrl ?? daemonBaseUrl}`;
+      if (health.ok) {
+        try {
+          const authStatus = await requestJson("GET", `${daemonBaseUrl}/v1/oauth/status`);
+          if (authStatus.status < 400) {
+            providerAuthReadiness = extractProviderAuthReadinessMap(authStatus.data);
+          }
+        } catch {
+          providerAuthReadiness = undefined;
+        }
+      }
     } catch {
       serviceHealthDetail = `Daemon not reachable at ${daemonBaseUrl}`;
     }
@@ -346,7 +336,8 @@ program
         skipService: false,
         timezoneConfirmed,
         requireEnabledChannel: true,
-        skipBindAvailabilityCheck: serviceHealthOk && timeStatusReachable
+        skipBindAvailabilityCheck: serviceHealthOk && timeStatusReachable,
+        providerAuthReadiness
       });
       validationErrors = validation.errors;
       validationWarnings = validation.warnings;
@@ -741,7 +732,7 @@ authCommand
         );
       }
 
-      const response = result.data as AuthStatusResponse;
+      const response = result.data as ProviderAuthStatusResponse;
       console.log("Provider auth status");
       console.log("Secrets are intentionally redacted from CLI output.");
       if (providerId) {

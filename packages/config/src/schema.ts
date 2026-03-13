@@ -326,6 +326,11 @@ const runtimeSchema = z.object({
       enabled: z.boolean().default(true)
     })
     .default({}),
+  toolLoop: z
+    .object({
+      maxRoundsPerTurn: z.number().int().min(1).max(24).default(12)
+    })
+    .default({}),
   time: z
     .object({
       defaultTimezone: z
@@ -437,6 +442,7 @@ export function toRuntimeConfig(config: OpenAssistConfig): RuntimeConfig {
     assistant: config.runtime.assistant,
     attachments: config.runtime.attachments,
     memory: config.runtime.memory,
+    toolLoop: config.runtime.toolLoop,
     service: config.service,
     paths: config.runtime.paths,
     time: config.runtime.time,

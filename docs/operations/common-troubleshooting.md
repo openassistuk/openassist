@@ -200,6 +200,8 @@ That linked-account state is stored as encrypted OAuth material in SQLite rather
 
 If quickstart was truly fresh and you chose Codex, the saved config should contain only `codex-main`. If you still see a stray `openai-main` on a fresh first-run path, that is a setup bug rather than intended compatibility behavior.
 
+If the linked account is present and `openassist auth status --provider codex-main` reports that the auth is chat-ready, the final quickstart summary and reachable `openassist doctor` output should no longer show the default Codex pending account-link warning. If that warning survives after a healthy daemon restart, treat it as stale lifecycle output or a mismatched binary rather than as proof that the login is incomplete.
+
 ## Codex auth is chat-ready, but chat still fails
 
 What it usually means:

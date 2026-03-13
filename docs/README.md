@@ -45,7 +45,7 @@ Quickstart now also owns the beginner-facing access choice:
 - `Full access for approved operators` is explicit opt-in and requires per-channel approved operator IDs
 - on Linux, quickstart and wizard also expose a separate `systemd filesystem access` choice for the daemon service: `Hardened systemd sandbox` by default, or `Unrestricted systemd filesystem access` after an extra warning
 - if you add approved operator IDs later in `openassist setup wizard` while the install is still in standard mode, the wizard now prompts to enable the matching full-access preset and then asks for the Linux systemd service mode when applicable
-- `/status` shows the exact sender ID and canonical session ID you need for actor-specific access inspection later
+- `/status` shows the exact sender ID and canonical session ID you need for actor-specific access inspection later, and it now renders those diagnostics in grouped sections instead of one dense block
 - `/status`, `/access`, `/capabilities`, `openassist tools status`, and `openassist doctor` now expose the Linux service boundary separately from the chat access mode
 
 Quickstart also restores the main assistant identity prompts:
@@ -84,13 +84,14 @@ Codex setup/auth notes now follow the real supported flow:
 - the additive host-side completion path is `openassist auth complete --provider <provider-id> --callback-url "<full callback URL>" --base-url http://127.0.0.1:3344`
 - browser callback/manual paste remains supported as the fallback path
 - Codex login success now depends on a usable Codex/ChatGPT token auth handle, not on exchanging into a separate OpenAI API key
+- once a default Codex provider is linked and chat-ready, quickstart and reachable doctor checks stop surfacing the stale pending-link warning for that provider
 - Codex chat requests now preserve the upstream conversation contract by sending the runtime session id, account header, a top-level instructions payload that combines the vendored Codex baseline with bounded OpenAssist runtime guidance, and the upstream-aligned `/responses` fields such as `store=false`, `stream=true`, and a prompt-cache key derived from the runtime session; OpenAssist then folds the upstream event stream back into the normal chat contract, and a chat-ready auth handle plus a failing chat request should still be diagnosed as a provider request issue rather than as missing auth
 - Codex completion failures should now surface as sanitized account-link errors with safe upstream detail when available, not a generic `status=500`
 - a fresh quickstart that chooses Codex now saves only the selected Codex provider instead of also leaving the default `openai-main` placeholder behind
 - `openassist auth status` remains redacted, but it now exposes linked-account presence, active auth kind or method, expiry when known, and chat-readiness signals for account-login routes so operators can tell whether Codex auth is actually usable
 - account-login state is stored as encrypted OAuth material in SQLite, and the runtime attempts automatic refresh before expiry and again on auth-style provider failures when a refresh token is available
 
-Lifecycle and status surfaces now also show the current primary provider route, default model, and reasoning/thinking state so operators do not need to reopen wizard just to confirm what is active.
+Lifecycle and status surfaces now also show the current primary provider route, default model, reasoning/thinking state, and active tool-loop budget so operators do not need to reopen wizard or inspect config just to confirm what is active.
 
 Runtime turns and `/status` now carry a bounded self-knowledge contract so OpenAssist can cite its own local docs, config path, env path, install directory, update track, and safe-maintenance limits without pretending it has permissions it does not have. In chat, the full config/env/install path view is reserved for approved operators; other senders still get the high-level lifecycle summary and host-side command guidance. Long chats now also stay bounded through a rolling session summary, while conservative actor-scoped durable memory can be inspected through `/memory`, `GET /v1/memory/status`, and `openassist memory status`.
 
@@ -99,7 +100,7 @@ Runtime-owned chat surfaces now split the general assistant intro from the opera
 - `/start` and `/help`: general OpenAssist welcome plus a truthful summary of what this session can help with
 - `/capabilities`: live capability inventory derived from access, provider, channel, tools, scheduler state, and install context
 - `/grow`: managed skill/helper inventory, update-safety note, and safe next actions
-- `/status`: operational diagnostic surface with sender/session IDs, access source, and lifecycle context
+- `/status`: operational diagnostic surface with sectioned sender/session IDs, access source, active tool-loop budget, and lifecycle context
 - `/memory`: rolling session summary plus the actor-scoped durable memories visible for the current sender and chat context
 
 Controlled growth now defaults to `extensions-first`:

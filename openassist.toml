@@ -18,6 +18,10 @@ promptOnFirstContact = true
 [runtime.memory]
 enabled = true
 
+[runtime.toolLoop]
+# Maximum provider/tool rounds per user turn before OpenAssist asks for a narrower follow-up.
+maxRoundsPerTurn = 12
+
 [runtime.attachments]
 maxFilesPerMessage = 4
 maxImageBytes = 10000000

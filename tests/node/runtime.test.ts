@@ -144,6 +144,51 @@ class MockToolLoopProvider implements ProviderAdapter {
   }
 }
 
+class MockEndlessToolLoopProvider implements ProviderAdapter {
+  public calls = 0;
+  private readonly targetPath: string;
+
+  constructor(targetPath: string) {
+    this.targetPath = targetPath;
+  }
+
+  id(): string {
+    return "mock-provider";
+  }
+
+  capabilities(): ProviderCapabilities {
+    return {
+      supportsStreaming: false,
+      supportsTools: true,
+      supportsOAuth: false,
+      supportsApiKeys: true,
+      supportsImageInputs: false
+    };
+  }
+
+  async validateConfig(): Promise<ValidationResult> {
+    return { valid: true, errors: [] };
+  }
+
+  async chat(_req: ChatRequest, _auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
+    this.calls += 1;
+    return {
+      output: { role: "assistant", content: "" },
+      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      toolCalls: [
+        {
+          id: `tool-${this.calls}`,
+          name: "fs.write",
+          argumentsJson: JSON.stringify({
+            path: this.targetPath,
+            content: `round-${this.calls}`
+          })
+        }
+      ]
+    };
+  }
+}
+
 class MockStrictToolContextProvider implements ProviderAdapter {
   public lastMessages: ChatRequest["messages"] = [];
 
@@ -716,6 +761,114 @@ describe("OpenAssistRuntime", () => {
     assert.equal(channel.sent[0]?.text, "tool run complete");
     assert.equal(fs.readFileSync(targetPath, "utf8"), "hello-from-tool");
     assert.equal(runtime.listToolInvocations("telegram-mock:c1", 10)[0]?.status, "succeeded");
+
+    await runtime.stop();
+    db.close();
+  });
+
+  it("respects the configured max tool rounds per turn and returns a resumable limit message", async () => {
+    const root = tempDir("openassist-runtime-tool-loop-limit-");
+    roots.push(root);
+    const targetPath = path.join(root, "tool-loop-limit.txt");
+
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    const channel = new MockChannel();
+    const provider = new MockEndlessToolLoopProvider(targetPath);
+    const runtimeConfig: RuntimeConfig = {
+      bindAddress: "127.0.0.1",
+      bindPort: 3344,
+      defaultProviderId: "mock-provider",
+      providers: [
+        {
+          id: "mock-provider",
+          type: "openai-compatible",
+          defaultModel: "x"
+        }
+      ],
+      channels: [
+        {
+          id: "telegram-mock",
+          type: "telegram",
+          enabled: true,
+          settings: {}
+        }
+      ],
+      defaultPolicyProfile: "full-root",
+      toolLoop: {
+        maxRoundsPerTurn: 3
+      },
+      paths: {
+        dataDir: root,
+        skillsDir: path.join(root, "skills"),
+        logsDir: path.join(root, "logs")
+      },
+      time: {
+        ntpPolicy: "off",
+        ntpCheckIntervalSec: 300,
+        ntpMaxSkewMs: 10_000,
+        ntpHttpSources: [],
+        requireTimezoneConfirmation: false
+      },
+      scheduler: {
+        enabled: false,
+        tickIntervalMs: 1000,
+        heartbeatIntervalSec: 30,
+        defaultMisfirePolicy: "catch-up-once",
+        tasks: []
+      },
+      tools: {
+        fs: {
+          workspaceOnly: false,
+          allowedReadPaths: [],
+          allowedWritePaths: []
+        },
+        exec: {
+          defaultTimeoutMs: 60_000,
+          guardrails: {
+            mode: "minimal",
+            extraBlockedPatterns: []
+          }
+        },
+        pkg: {
+          enabled: false,
+          preferStructuredInstall: true,
+          allowExecFallback: true,
+          sudoNonInteractive: true,
+          allowedManagers: []
+        }
+      }
+    };
+
+    const runtime = new OpenAssistRuntime(
+      runtimeConfig,
+      { db, logger },
+      { providers: [provider], channels: [channel] }
+    );
+    runtime.setProviderApiKey("mock-provider", "test-key");
+    await runtime.start();
+
+    const toolsStatus = await runtime.getToolsStatus("telegram-mock:c-limit", "u1");
+    assert.equal(toolsStatus.toolLoop.maxRoundsPerTurn, 3);
+
+    await channel.emit({
+      channel: "telegram",
+      channelId: "telegram-mock",
+      transportMessageId: "m-limit",
+      conversationKey: "c-limit",
+      senderId: "u1",
+      text: "keep going",
+      attachments: [],
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "tool-limit-1"
+    });
+
+    assert.equal(channel.sent.length, 1);
+    assert.match(channel.sent[0]?.text ?? "", /configured limit of 3 tool rounds/i);
+    assert.match(channel.sent[0]?.text ?? "", /conversation history/i);
+    assert.equal(provider.calls, 3);
+    assert.equal(runtime.listToolInvocations("telegram-mock:c-limit", 10).length, 3);
+    assert.equal(fs.readFileSync(targetPath, "utf8"), "round-3");
 
     await runtime.stop();
     db.close();
@@ -1450,9 +1603,15 @@ describe("OpenAssistRuntime", () => {
     assert.ok(channel.sent.length >= 1);
     const statusText = combinedText(channel.sent);
     assert.match(statusText, /openassist local status/i);
+    assert.match(statusText, /(## Session|<b>Session<\/b>)/i);
+    assert.match(statusText, /(## Access & Boundaries|<b>Access (?:&|&amp;) Boundaries<\/b>)/i);
+    assert.match(statusText, /(## Tools & Growth|<b>Tools (?:&|&amp;) Growth<\/b>)/i);
+    assert.match(statusText, /(## Runtime Health|<b>Runtime Health<\/b>)/i);
+    assert.match(statusText, /(## Lifecycle & Next Steps|<b>Lifecycle (?:&|&amp;) Next Steps<\/b>)/i);
     assert.match(statusText, /what this is:/i);
     assert.match(statusText, /default provider: mock-provider/i);
     assert.match(statusText, /local docs\/config map:/i);
+    assert.match(statusText, /max tool rounds per turn: 12/i);
     assert.match(statusText, /managed growth:/i);
     assert.match(statusText, /growth directories: hidden in chat for this sender/i);
     assert.match(statusText, /config\/env\/install detail: hidden in chat for this sender/i);
@@ -1687,6 +1846,7 @@ describe("OpenAssistRuntime", () => {
     assert.match(provider.requests[0]?.messages[1]?.content ?? "", /docs\/security\/policy-profiles\.md/i);
     assert.match(provider.requests[0]?.messages[1]?.content ?? "", /installDir=/i);
     assert.match(provider.requests[0]?.messages[1]?.content ?? "", /systemdConfigured=hardened/i);
+    assert.match(provider.requests[0]?.messages[1]?.content ?? "", /maxToolRounds=12/i);
 
     const bootstrap = db.getSessionBootstrap("telegram-mock:c-awareness");
     assert.ok(bootstrap);
@@ -1696,7 +1856,7 @@ describe("OpenAssistRuntime", () => {
     );
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.version ?? 0),
-      5
+      6
     );
     assert.equal(
       ((bootstrap?.systemProfile.awareness as any)?.maintenance?.trackedRef ?? ""),

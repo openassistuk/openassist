@@ -140,12 +140,33 @@ describe("config schema security validation", () => {
     expect(() => parseConfig(input)).not.toThrow();
   });
 
+  it("accepts explicit runtime tool-loop configuration", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).toolLoop = {
+      maxRoundsPerTurn: 24
+    };
+
+    const parsed = parseConfig(input);
+
+    expect(parsed.runtime.toolLoop.maxRoundsPerTurn).toBe(24);
+  });
+
+  it("rejects out-of-range runtime tool-loop configuration", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).toolLoop = {
+      maxRoundsPerTurn: 25
+    };
+
+    expect(() => parseConfig(input)).toThrow(/maxRoundsPerTurn/);
+  });
+
   it("defaults operatorAccessProfile to operator when omitted", () => {
     const input = baseConfigInput();
 
     const parsed = parseConfig(input);
 
     expect(parsed.runtime.operatorAccessProfile).toBe("operator");
+    expect(parsed.runtime.toolLoop.maxRoundsPerTurn).toBe(12);
     expect(parsed.service.systemdFilesystemAccess).toBe("hardened");
   });
 

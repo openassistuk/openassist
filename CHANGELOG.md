@@ -94,6 +94,14 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- GitHub landing page and beginner docs expansion:
+  - reworked `README.md` into a GitHub-first landing page with shorter setup, provider, channel, config, and docs-navigation sections
+  - added dedicated beginner docs for each first-class provider under `docs/providers/`
+  - added dedicated beginner docs for each first-class channel under `docs/channels/`
+  - added practical and schema-backed config docs under `docs/configuration/`
+  - linked quickstart, wizard, troubleshooting, and the sample `openassist.toml` into the new provider, channel, and config guides
+  - extended contributor docs-sync rules so the new documentation families remain required update surfaces
+
 - Repo-wide docs/test/CI hardening follow-up:
   - `docs/README.md` now indexes every live non-ExecPlan doc, including the context-engine, config-rollout, and OpenClaw import pages
   - repo-tracked docs now describe GitHub automation using tracked workflow truth, including the separate `CodeQL` workflow and the distinction between normal PR automation versus supplemental manual/scheduled smoke

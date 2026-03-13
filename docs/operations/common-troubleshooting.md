@@ -22,6 +22,12 @@ openassist setup
 
 On a TTY, that opens the lifecycle hub and lets you choose repair, service actions, update planning, or file-location review from one menu.
 
+Route-specific references:
+
+- provider guides: [`docs/providers/openai.md`](../providers/openai.md), [`docs/providers/codex.md`](../providers/codex.md), [`docs/providers/anthropic.md`](../providers/anthropic.md), [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
+- channel guides: [`docs/channels/telegram.md`](../channels/telegram.md), [`docs/channels/discord.md`](../channels/discord.md), [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
+- config docs: [`docs/configuration/config-file-guide.md`](../configuration/config-file-guide.md), [`docs/configuration/config-reference.md`](../configuration/config-reference.md)
+
 ## `openassist` or `openassistd` is not found
 
 What it usually means:
@@ -142,6 +148,16 @@ In chat, use:
 - `/capabilities` for the current provider/channel/tool boundary
 - `/grow` for managed skills and helper-tool status
 
+Deeper route docs:
+
+- OpenAI: [`docs/providers/openai.md`](../providers/openai.md)
+- Codex: [`docs/providers/codex.md`](../providers/codex.md)
+- Anthropic: [`docs/providers/anthropic.md`](../providers/anthropic.md)
+- OpenAI-compatible: [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
+- Telegram: [`docs/channels/telegram.md`](../channels/telegram.md)
+- Discord: [`docs/channels/discord.md`](../channels/discord.md)
+- WhatsApp MD: [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
+
 ## Codex provider is configured but account login is not complete
 
 What it usually means:
@@ -187,6 +203,10 @@ openassist auth complete --provider codex-main --state <state> --code <code> --b
 ```
 
 If the daemon is already healthy but the login still does not finish, treat that as an auth-completion problem, not a service failure. OpenAssist should now surface a sanitized account-linking error with safe upstream detail when available.
+
+Codex-specific setup guide:
+
+- [`docs/providers/codex.md`](../providers/codex.md)
 
 `openassist auth status --provider codex-main` remains redacted, but it should now tell you:
 

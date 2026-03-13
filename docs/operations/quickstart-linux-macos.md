@@ -4,6 +4,12 @@ This is the canonical operator runbook for a public OpenAssist install.
 
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
 
+Deeper references for the choices you make during quickstart:
+
+- provider guides: [`docs/providers/openai.md`](../providers/openai.md), [`docs/providers/codex.md`](../providers/codex.md), [`docs/providers/anthropic.md`](../providers/anthropic.md), [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
+- channel guides: [`docs/channels/telegram.md`](../channels/telegram.md), [`docs/channels/discord.md`](../channels/discord.md), [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
+- config docs: [`docs/configuration/config-file-guide.md`](../configuration/config-file-guide.md), [`docs/configuration/config-reference.md`](../configuration/config-reference.md)
+
 The goal is one clean path:
 
 1. install OpenAssist
@@ -153,6 +159,11 @@ Canonical writable operator state for fresh installs:
 - managed skills: `~/.local/share/openassist/skills`
 - managed helper tools: `~/.local/share/openassist/data/helper-tools`
 
+If you need a practical explanation of those files before editing them directly, use:
+
+- [`docs/configuration/config-file-guide.md`](../configuration/config-file-guide.md)
+- [`docs/configuration/config-reference.md`](../configuration/config-reference.md)
+
 If OpenAssist detects the recognized old repo-local layout (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) while `openassist setup`, `openassist setup quickstart`, or `openassist setup wizard` is running, it migrates that state automatically when the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/<timestamp>` before it changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and send you back to setup instead of migrating it themselves.
 
 Quickstart rules:
@@ -226,6 +237,16 @@ openassist auth complete --provider codex-main --callback-url "<full callback UR
 - generated files can now be returned through the same Telegram, Discord, or WhatsApp chat when the active session can call `channel.send`
 - targeted operator notifications stay bounded to `channels[*].settings.operatorUserIds`, and Discord also requires the same recipient in `allowedDmUserIds`
 - OpenAI, Codex, and Anthropic can inspect inbound images; OpenAI-compatible providers will answer from text/captions only and tell you when image understanding is unavailable
+
+Use the dedicated route pages when you need the detail behind any of those choices:
+
+- OpenAI: [`docs/providers/openai.md`](../providers/openai.md)
+- Codex: [`docs/providers/codex.md`](../providers/codex.md)
+- Anthropic: [`docs/providers/anthropic.md`](../providers/anthropic.md)
+- OpenAI-compatible: [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
+- Telegram: [`docs/channels/telegram.md`](../channels/telegram.md)
+- Discord: [`docs/channels/discord.md`](../channels/discord.md)
+- WhatsApp MD: [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
 
 ## 4. Validate lifecycle readiness
 

@@ -311,6 +311,9 @@ Minimum affected surfaces:
 - root `AGENTS.md`
 - `docs/README.md`
 - relevant files under:
+  - `docs/channels/`
+  - `docs/providers/`
+  - `docs/configuration/`
   - `docs/architecture/`
   - `docs/interfaces/`
   - `docs/operations/`
@@ -328,11 +331,33 @@ When tool-loop behavior changes, always update:
 
 When provider-route or auth-path behavior changes, always update:
 
+- `docs/providers/openai.md`
+- `docs/providers/codex.md`
+- `docs/providers/anthropic.md`
+- `docs/providers/openai-compatible.md`
 - `docs/interfaces/provider-adapter.md`
 - `docs/operations/quickstart-linux-macos.md`
 - `docs/operations/setup-wizard.md`
 - `docs/operations/common-troubleshooting.md`
 - `docs/migration/openclaw-import.md`
+
+When channel integration behavior changes, always update:
+
+- `docs/channels/telegram.md`
+- `docs/channels/discord.md`
+- `docs/channels/whatsapp-md.md`
+- `docs/interfaces/channel-adapter.md`
+- `docs/operations/quickstart-linux-macos.md`
+- `docs/operations/setup-wizard.md`
+- `docs/operations/common-troubleshooting.md`
+
+When config schema, config layout, or operator config editing behavior changes, always update:
+
+- `docs/configuration/config-file-guide.md`
+- `docs/configuration/config-reference.md`
+- `docs/operations/config-rollout-and-rollback.md`
+- `docs/operations/quickstart-linux-macos.md`
+- `docs/operations/setup-wizard.md`
 
 When lifecycle UX changes, always update:
 

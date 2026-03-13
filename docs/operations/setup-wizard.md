@@ -10,6 +10,12 @@ They are not interchangeable.
 
 If setup or repair still goes sideways after using the right path, use `docs/operations/common-troubleshooting.md` for the shared recovery commands.
 
+Route and config references for the choices you make in setup:
+
+- provider guides: [`docs/providers/openai.md`](../providers/openai.md), [`docs/providers/codex.md`](../providers/codex.md), [`docs/providers/anthropic.md`](../providers/anthropic.md), [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
+- channel guides: [`docs/channels/telegram.md`](../channels/telegram.md), [`docs/channels/discord.md`](../channels/discord.md), [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
+- config docs: [`docs/configuration/config-file-guide.md`](../configuration/config-file-guide.md), [`docs/configuration/config-reference.md`](../configuration/config-reference.md)
+
 Use the bare hub when you want the default beginner path:
 
 ```bash
@@ -154,6 +160,17 @@ Use wizard for:
 - scheduler task and timing changes
 - native web settings
 - advanced tools, workspace, and security posture
+
+When one of those changes is provider-, channel-, or config-specific, use the matching reference page rather than relying only on the summary labels inside wizard:
+
+- OpenAI: [`docs/providers/openai.md`](../providers/openai.md)
+- Codex: [`docs/providers/codex.md`](../providers/codex.md)
+- Anthropic: [`docs/providers/anthropic.md`](../providers/anthropic.md)
+- OpenAI-compatible: [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
+- Telegram: [`docs/channels/telegram.md`](../channels/telegram.md)
+- Discord: [`docs/channels/discord.md`](../channels/discord.md)
+- WhatsApp MD: [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
+- config guide: [`docs/configuration/config-file-guide.md`](../configuration/config-file-guide.md)
 
 Provider reasoning-control notes:
 

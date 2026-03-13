@@ -21,7 +21,11 @@ The user-visible result is a GitHub-first landing page plus dedicated beginner d
 - [x] (2026-03-13 16:08Z) Ran `pnpm verify:all`.
 - [x] (2026-03-13 16:19Z) Addressed review feedback on OAuth docs, WhatsApp config wording, and sample-config comments.
 - [x] (2026-03-13 16:19Z) Re-ran `pnpm exec tsx --test tests/node/cli-docs-truth.test.ts` and `pnpm verify:all` after the review-driven doc edits.
-- [ ] Prepare commit, push branch, open PR, and wait for PR-applicable checks.
+- [x] (2026-03-13 16:20Z) Committed the docs work, pushed branch `docs/github-landing-and-beginner-guides`, and opened PR `#43`.
+- [x] (2026-03-13 16:22Z) Replied to the automated review comments and recorded the no-op explanation for the markdown-table false positive.
+- [x] (2026-03-13 16:28Z) Resolved all eight PR review threads after the follow-up doc changes landed.
+- [x] (2026-03-13 16:30Z) Confirmed PR-applicable checks are green: `CI` (`workflow-lint`, `quality-and-coverage` on ubuntu/macos/windows) and `CodeQL` (`CodeQL preflight`, `analyze (javascript-typescript)`).
+- [ ] Wait for the required non-author human approval before merge.
 
 ## Surprises & Discoveries
 
@@ -33,6 +37,8 @@ The user-visible result is a GitHub-first landing page plus dedicated beginner d
   Evidence: `pnpm verify:all` passed after the README and docs index were restructured.
 - Observation: Review feedback was mostly about documentation precision rather than missing coverage.
   Evidence: the follow-up edits were limited to clarifying required OAuth fields, distinguishing guidance from schema validation, and correcting sample-comment formatting.
+- Observation: The repo branch protection still requires a non-author approval even after all review threads are resolved and all checks are green.
+  Evidence: PR `#43` currently reports `reviewDecision: REVIEW_REQUIRED` and `mergeStateStatus: BLOCKED` after the successful `CI` and `CodeQL` runs completed on 2026-03-13.
 
 ## Decision Log
 
@@ -47,9 +53,11 @@ The user-visible result is a GitHub-first landing page plus dedicated beginner d
 
 The documentation work is complete locally. The repo now has a GitHub-first landing `README.md`, a rebuilt docs index, dedicated beginner docs for each first-class provider and channel, and a practical plus schema-backed configuration section. Existing lifecycle docs now point into those pages instead of forcing beginners to extract route-specific detail from long mixed-purpose runbooks.
 
-What remains is release workflow, not content design: commit the changes, push the branch, open the PR, and wait for PR-applicable GitHub checks before asking the operator to review and merge.
+The release workflow is complete up to the repository approval gate. The branch is pushed as `docs/github-landing-and-beginner-guides`, PR `#43` is open, all PR-applicable checks are green, and all automated review threads are resolved.
 
-After PR creation, an automated review highlighted a few precision issues in the new docs. Those were corrected locally, and the full local validation gate still passed on the follow-up revision.
+After PR creation, an automated review highlighted a few precision issues in the new docs. Those were corrected in a follow-up commit, the full local validation gate still passed on the revised content, and the refreshed PR checks also passed.
+
+The remaining blocker is outside the authored content: GitHub still reports `REVIEW_REQUIRED`, so a non-author human approval is needed before the PR becomes mergeable.
 
 ## Context and Orientation
 
@@ -145,3 +153,5 @@ This change adds documentation surfaces only:
 The docs must continue to reference the existing public interfaces and commands rather than creating new ones.
 
 Revision note (2026-03-13): updated after implementation to record the completed docs surfaces, the successful local validation runs, and the later review-driven follow-up edits.
+
+Revision note (2026-03-13, later): updated after PR creation to record the follow-up review fixes, resolved review threads, green PR checks, and the remaining human-approval gate.

@@ -37,6 +37,8 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
 - [x] (2026-03-20 16:49+00:00) Re-ran the full local gate with `pnpm verify:all` after the restart-race fix; workflow lint, build, lint, typecheck, Vitest, Node tests, and both coverage suites all passed again.
 - [x] (2026-03-20 16:58+00:00) Addressed the follow-up Copilot review on the same launchd adapter by making `restart()` rethrow real `stop()` failures and by waiting for post-`bootstrap` visibility before `enable` or `kickstart` proceeds; targeted launchd suites passed again.
 - [x] (2026-03-20 17:00+00:00) Re-ran the full local gate with `pnpm verify:all` after the Copilot follow-up hardening; workflow lint, build, lint, typecheck, Vitest, Node tests, and both coverage suites all passed again.
+- [x] (2026-03-20 17:12+00:00) Addressed the remaining launchd `enable()` / `disable()` review concerns by keeping startup-state commands side-effect free for unloaded jobs and by extending the hosted macOS workflow to prove disable-keeps-unloaded and enable-does-not-auto-load behavior before `start()`.
+- [x] (2026-03-20 17:15+00:00) Re-ran the full local gate with `pnpm verify:all` after the launchd `enable()` / `disable()` pass; workflow lint, build, lint, typecheck, Vitest, Node tests, and both coverage suites all passed again.
 - [ ] Push the final launchd follow-up fix, then continue the CI or review or code-scanning monitoring loop.
 - [ ] Promote the live macOS check into required branch protection on `main` once it is stable on the PR head and a rerun is also green.
 
@@ -56,6 +58,8 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
   Evidence: the second PR run of `launchd-live-smoke (macos-latest)` reached install, health, stop, and start successfully, then failed restart with `Could not find service "ai.openassist.openassistd" in domain for user gui: 501` from `launchctl kickstart -k ...`; a new regression test reproduces that stale-post-bootout `print` success in-process.
 - Observation: the same adapter benefits from symmetrical settle checks after both `bootout` and `bootstrap`, and `restart()` should not hide unload failures once those waits exist.
   Evidence: the second Copilot review on commit `44b2b79` pointed out that `waitForBootstrappedState(true)` was otherwise unused and that `.catch(() => undefined)` in `restart()` would now suppress meaningful unload-settle failures.
+- Observation: the startup-only semantics of `openassist service enable` and `openassist service disable` were still too eager on macOS until the final pass.
+  Evidence: the remaining unresolved Copilot comments highlighted that `enable()` and `disable()` were bootstrapping unloaded LaunchAgents, which could start a `RunAtLoad` job as a side effect; the final branch revision removes that bootstrap and adds hosted workflow assertions that the job stays unloaded after `enable()` until `start()` is called explicitly.
 
 ## Decision Log
 
@@ -71,10 +75,13 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
 - Decision: keep the launchd settle contract symmetrical by waiting after `bootstrap()` too, and let `restart()` surface real unload failures.
   Rationale: once hosted CI showed that launchd visibility can lag command completion, the truthful contract is to wait for both unload and load state transitions; after that, swallowing all `stop()` failures in `restart()` would only hide real service-manager defects.
   Date/Author: 2026-03-20 / Codex
+- Decision: make macOS `enable()` and `disable()` match their startup-state intent without implicitly loading an unloaded LaunchAgent.
+  Rationale: the command descriptions say these are startup-state operations, and the live hosted proof is strong enough to validate explicit `disable` -> unloaded, `enable` -> still unloaded, and `start` -> load plus health as separate steps.
+  Date/Author: 2026-03-20 / Codex
 
 ## Outcomes & Retrospective
 
-Work is in progress. The launchd command model is hardened, the dedicated live macOS workflow exists, workflow truth is synchronized across docs and tests, and the full local verification gate was green before the PR opened. PR #45 is open, the hosted CI loop has already produced one passing and one rerun-passing live macOS check on the current branch work, and the `main` ruleset has now been updated to make `launchd-live-smoke (macos-latest)` required. The hosted loop exposed two runner-only fixes plus one small follow-up hardening pass: the workflow needed `node -- dist/index.js ...` so Node 22 would not steal `--env-file`, the launchd adapter needed to wait for `bootout` to settle before restart or disable continued, and the same adapter now waits for post-`bootstrap` visibility while letting `restart()` surface real unload failures. The remaining work is to push this final follow-up, rerun the hosted checks on the new head, finish the supplemental smoke reruns, and clear the remaining review threads or code-scanning checks.
+Work is in progress. The launchd command model is hardened, the dedicated live macOS workflow exists, workflow truth is synchronized across docs and tests, and the `main` ruleset now requires `launchd-live-smoke (macos-latest)`. The hosted loop has already proven the required checks and supplemental smoke workflows green on earlier heads, and the final local revision now closes the last review gap by making `enable()` / `disable()` startup-state operations for unloaded jobs while extending the hosted macOS workflow to validate that behavior explicitly. The remaining work is to re-run the full local gate, push this final follow-up, rerun the required and supplemental workflows on the final head, and then resolve the remaining review threads against that final evidence.
 
 ## Context and Orientation
 

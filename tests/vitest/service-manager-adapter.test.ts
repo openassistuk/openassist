@@ -146,16 +146,10 @@ describe("service-manager adapters", () => {
           return 0;
         }
         if (args[0] === "enable") {
-          if (!bootstrapped) {
-            return 1;
-          }
           disabled = false;
           return 0;
         }
         if (args[0] === "disable") {
-          if (!bootstrapped) {
-            return 1;
-          }
           disabled = true;
           return 0;
         }
@@ -241,14 +235,13 @@ describe("service-manager adapters", () => {
       "print gui/501/ai.openassist.openassistd",
       "enable gui/501/ai.openassist.openassistd",
       "kickstart -k gui/501/ai.openassist.openassistd",
-      "print gui/501/ai.openassist.openassistd",
       "disable gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
       "bootout gui/501/ai.openassist.openassistd",
       "print gui/501/ai.openassist.openassistd",
+      "enable gui/501/ai.openassist.openassistd",
       "print gui/501/ai.openassist.openassistd",
       `bootstrap gui/501 ${plistPath}`,
-      "print gui/501/ai.openassist.openassistd",
-      "enable gui/501/ai.openassist.openassistd",
       "print gui/501/ai.openassist.openassistd",
       "enable gui/501/ai.openassist.openassistd",
       "kickstart -k gui/501/ai.openassist.openassistd",
@@ -286,16 +279,10 @@ describe("service-manager adapters", () => {
           return 0;
         }
         if (args[0] === "enable") {
-          if (!bootstrapped) {
-            return 1;
-          }
           disabled = false;
           return 0;
         }
         if (args[0] === "disable") {
-          if (!bootstrapped) {
-            return 1;
-          }
           disabled = true;
           return 0;
         }

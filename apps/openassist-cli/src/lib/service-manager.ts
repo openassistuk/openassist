@@ -634,14 +634,14 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
   }
 
   async enable(): Promise<void> {
-    await this.ensureBootstrapped();
     await this.enableLoadedService();
   }
 
   async disable(): Promise<void> {
-    await this.ensureBootstrapped();
     await this.disableLoadedService();
-    await this.stop();
+    if (await this.isBootstrapped()) {
+      await this.stop();
+    }
   }
 
   async isInstalled(): Promise<boolean> {

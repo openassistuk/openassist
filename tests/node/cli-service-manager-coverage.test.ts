@@ -196,16 +196,10 @@ describe("cli service-manager coverage", () => {
           return 0;
         }
         if (args[0] === "enable") {
-          if (!bootstrapped) {
-            return 1;
-          }
           disabled = false;
           return 0;
         }
         if (args[0] === "disable") {
-          if (!bootstrapped) {
-            return 1;
-          }
           disabled = true;
           return 0;
         }

@@ -135,6 +135,21 @@ jobs:
           cli service restart
           wait_for_health
 
+          cli service disable
+          if launchctl print "$service_target" >/dev/null 2>&1; then
+            echo "launchd service still appears loaded after disable" >&2
+            exit 1
+          fi
+
+          cli service enable
+          if launchctl print "$service_target" >/dev/null 2>&1; then
+            echo "launchd service unexpectedly loaded after enable" >&2
+            exit 1
+          fi
+
+          cli service start
+          wait_for_health
+
           test -f "$OPENASSIST_STDOUT_LOG"
           test -f "$OPENASSIST_STDERR_LOG"
           cli service logs --lines 20 >"$RUNNER_TEMP/macos-live-service-logs.txt"

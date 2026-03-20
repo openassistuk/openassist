@@ -159,23 +159,27 @@ describe("setup quickstart validation", () => {
     const config = createDefaultConfigObject();
     config.runtime.bindPort = await getFreePort();
     const apiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
-    vi.spyOn(process, "platform", "get").mockReturnValue("darwin");
+    const platformSpy = vi.spyOn(process, "platform", "get").mockReturnValue("darwin");
 
-    const result = await validateSetupReadiness({
-      config,
-      env: {
-        [apiKeyVar]: "test-key"
-      },
-      configPath: path.join(root, "openassist.toml"),
-      envFilePath: path.join(root, "openassistd.env"),
-      installDir: root,
-      skipService: false,
-      timezoneConfirmed: true
-    });
+    try {
+      const result = await validateSetupReadiness({
+        config,
+        env: {
+          [apiKeyVar]: "test-key"
+        },
+        configPath: path.join(root, "openassist.toml"),
+        envFilePath: path.join(root, "openassistd.env"),
+        installDir: root,
+        skipService: false,
+        timezoneConfirmed: true
+      });
 
-    expect(result.serviceManagerKind).toBe("launchd");
-    expect(result.errors.some((item) => item.code === "service.unsupported_platform")).toBe(false);
-    expect(result.errors.some((item) => item.code === "service.daemon_missing")).toBe(true);
+      expect(result.serviceManagerKind).toBe("launchd");
+      expect(result.errors.some((item) => item.code === "service.unsupported_platform")).toBe(false);
+      expect(result.errors.some((item) => item.code === "service.daemon_missing")).toBe(true);
+    } finally {
+      platformSpy.mockRestore();
+    }
   });
 
   it("warns when default provider uses OAuth without API key during onboarding", async () => {

@@ -27,6 +27,12 @@ The user-visible result is a parity pass rather than a new feature: the installe
 - [x] (2026-03-20 14:32+00:00) Manually dispatched the supplemental hosted smoke workflows on the PR branch:
   - `service-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23347135534>
   - `lifecycle-e2e-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23347136062>
+- [x] (2026-03-20 14:33+00:00) Required PR checks and a fresh pair of supplemental smoke reruns were green on head `2a86aa0`:
+  - Required CI: `workflow-lint`, `quality-and-coverage` on ubuntu/macos/windows, `CodeQL preflight`, and `analyze (javascript-typescript)`
+  - Supplemental smoke reruns:
+    - `service-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23347198799>
+    - `lifecycle-e2e-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23347198718>
+- [x] (2026-03-20 14:35+00:00) Addressed the only actionable review finding on PR #44 by restoring the darwin `process.platform` spy in `tests/vitest/setup-quickstart-validation.test.ts`, then reran `pnpm exec vitest run tests/vitest/setup-quickstart-validation.test.ts`.
 - [ ] Monitor CI, review, and code-scanning until PR #44 is merge-ready.
 
 ## Surprises & Discoveries
@@ -39,6 +45,8 @@ The user-visible result is a parity pass rather than a new feature: the installe
   Evidence: `docs/execplans/openassist-v1.md` records the earlier move from hosted live launchd operations to hosted macOS dry-run smoke while stabilizing GitHub-hosted workflow behavior.
 - Observation: the parity pass uncovered one real launchd regression in the saved quickstart summary, even though the main service-manager implementation was already in place.
   Evidence: the new darwin assertion added to `tests/node/cli-setup-validation-coverage.test.ts` initially failed because `buildSetupSummary(...)` did not pass `serviceManagerKind="launchd"` into `buildLifecycleReport(...)`.
+- Observation: the only review feedback after opening the PR was about test isolation rather than platform semantics or lifecycle correctness.
+  Evidence: Copilot review comment `#discussion_r2966084593` flagged that the new darwin validation test mocked `process.platform` without restoring it.
 
 ## Decision Log
 

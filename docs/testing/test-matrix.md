@@ -116,6 +116,7 @@ Current suite files under `tests/node/`:
 - `cli-api-surface-coverage.test.ts`
 - `cli-command-branches.test.ts`
 - `cli-command-integration.test.ts`
+- `dependency-security-overrides.test.ts`
 - `cli-docs-truth.test.ts`
 - `cli-growth-status-coverage.test.ts`
 - `cli-lib-coverage.test.ts`

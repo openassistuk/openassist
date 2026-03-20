@@ -129,6 +129,8 @@ GitHub automation:
 
 - `CI` runs on pushes to `main`, pull requests, manual dispatch, and a daily `04:30 UTC` schedule for workflow lint plus the `quality-and-coverage` matrix.
 - `CodeQL` runs on pushes to `main`, pull requests to `main`, manual dispatch, and a weekly `Mon` at `05:15 UTC` schedule. In this public repo it runs `CodeQL preflight` plus `analyze (javascript-typescript)`.
+- `.github/workflows/macos-live-launchd.yml` runs on `pull_request` targeting `main` and `workflow_dispatch`
+- it provides required `launchd-live-smoke (macos-latest)` proof of live LaunchAgent install, health, status, stop/start recovery, restart, logs, and uninstall on hosted macOS
 
 Supplemental smoke notes:
 

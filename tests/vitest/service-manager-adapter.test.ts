@@ -126,10 +126,52 @@ describe("service-manager adapters", () => {
 
   it("executes macOS launchd lifecycle", async () => {
     setPlatform("darwin");
+    setGetuid(501);
     const home = tempDir("openassist-launchd-home-");
     vi.spyOn(os, "homedir").mockReturnValue(home);
+    const chmodSpy = vi.spyOn(fs, "chmodSync");
 
-    const runner = new FakeRunner();
+    let bootstrapped = false;
+    let disabled = false;
+    const runner = new FakeRunner({
+      runCodeFn: (command, args) => {
+        if (command !== "launchctl") {
+          return 0;
+        }
+        if (args[0] === "print") {
+          return bootstrapped ? 0 : 1;
+        }
+        if (args[0] === "bootstrap") {
+          bootstrapped = true;
+          return 0;
+        }
+        if (args[0] === "enable") {
+          if (!bootstrapped) {
+            return 1;
+          }
+          disabled = false;
+          return 0;
+        }
+        if (args[0] === "disable") {
+          if (!bootstrapped) {
+            return 1;
+          }
+          disabled = true;
+          return 0;
+        }
+        if (args[0] === "kickstart") {
+          return bootstrapped && !disabled ? 0 : 1;
+        }
+        if (args[0] === "bootout") {
+          if (!bootstrapped) {
+            return 1;
+          }
+          bootstrapped = false;
+          return 0;
+        }
+        return 0;
+      }
+    });
     const manager = createServiceManager(runner);
 
     expect(manager.kind).toBe("launchd");
@@ -147,28 +189,66 @@ describe("service-manager adapters", () => {
     });
 
     const plistPath = path.join(home, "Library", "LaunchAgents", "ai.openassist.openassistd.plist");
+    const wrapperPath = path.join(home, ".config", "openassist", "openassistd-launchd-wrapper.sh");
+    const logDir = path.join(home, "Library", "Logs", "OpenAssist");
     const stdoutLogPath = path.join(home, "Library", "Logs", "OpenAssist", "openassistd.out.log");
     const stderrLogPath = path.join(home, "Library", "Logs", "OpenAssist", "openassistd.err.log");
 
     expect(fs.existsSync(plistPath)).toBe(true);
+    expect(fs.existsSync(wrapperPath)).toBe(true);
     expect(await manager.isInstalled()).toBe(true);
+    expect(chmodSpy).toHaveBeenCalledWith(path.dirname(wrapperPath), 0o700);
+    expect(chmodSpy).toHaveBeenCalledWith(logDir, 0o700);
+    expect(chmodSpy).toHaveBeenCalledWith(wrapperPath, 0o700);
+    expect(chmodSpy).toHaveBeenCalledWith(plistPath, 0o600);
 
     fs.mkdirSync(path.dirname(stdoutLogPath), { recursive: true });
     fs.writeFileSync(stdoutLogPath, "out\n", "utf8");
     fs.writeFileSync(stderrLogPath, "err\n", "utf8");
 
-    await manager.start();
     await manager.status();
     await manager.logs(20, false);
-    await manager.enable();
-    await manager.restart();
     await manager.stop();
+    await manager.start();
+    await manager.restart();
     await manager.disable();
+    await manager.enable();
+    await manager.start();
     await manager.uninstall();
 
     expect(await manager.isInstalled()).toBe(false);
     expect(runner.runCalls.some((call) => call.command === "launchctl")).toBe(true);
     expect(runner.streamCalls.some((call) => call.command === "tail")).toBe(true);
+    expect(runner.runCalls.filter((call) => call.command === "launchctl").map((call) => call.args.join(" "))).toEqual([
+      "print gui/501/ai.openassist.openassistd",
+      `bootstrap gui/501 ${plistPath}`,
+      "enable gui/501/ai.openassist.openassistd",
+      "kickstart -k gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      "bootout gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      `bootstrap gui/501 ${plistPath}`,
+      "enable gui/501/ai.openassist.openassistd",
+      "kickstart -k gui/501/ai.openassist.openassistd",
+      "bootout gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      `bootstrap gui/501 ${plistPath}`,
+      "enable gui/501/ai.openassist.openassistd",
+      "kickstart -k gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      "disable gui/501/ai.openassist.openassistd",
+      "bootout gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      `bootstrap gui/501 ${plistPath}`,
+      "enable gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      "enable gui/501/ai.openassist.openassistd",
+      "kickstart -k gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      "disable gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      "bootout gui/501/ai.openassist.openassistd"
+    ]);
   });
 
   it("covers Linux systemd-system error branches with dry-run install", async () => {

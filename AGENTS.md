@@ -300,6 +300,7 @@ Docs truth-source checks are required before claiming doc completeness:
 - workflow behavior docs must be validated against:
   - `.github/workflows/ci.yml`
   - `.github/workflows/codeql.yml`
+  - `.github/workflows/macos-live-launchd.yml`
   - `.github/workflows/service-smoke.yml`
   - `.github/workflows/lifecycle-e2e-smoke.yml`
 - coverage-threshold docs must be validated against:
@@ -409,6 +410,7 @@ CI expectations:
 - quality workflow green on Linux/macOS/Windows
 - workflow lint gate green
 - CodeQL workflow green for the public repository context, and docs must describe the tracked `CodeQL preflight` plus `analyze (javascript-typescript)` automation from `.github/workflows/codeql.yml`
+- `launchd-live-smoke (macos-latest)` green on PRs to `main` as the required hosted live macOS LaunchAgent gate from `.github/workflows/macos-live-launchd.yml`
 - service smoke workflow remains runnable for Linux/macOS dry-run lifecycle checks
 - lifecycle E2E smoke workflow remains runnable for Linux/macOS bootstrap/home-state lifecycle checks
 - service smoke trigger model is scheduled/manual (`workflow_dispatch` + schedule), not a per-push/PR required gate; docs must state this explicitly

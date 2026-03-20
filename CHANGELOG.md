@@ -94,6 +94,12 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- macOS live launchd required gate:
+  - the `launchd` adapter now uses one coherent `launchctl` model built around `print`, `bootstrap`, `enable`, `kickstart`, `bootout`, and `disable` instead of mixing those paths with legacy `load` or `unload`
+  - macOS launchd install artifacts now keep the wrapper directory, wrapper script, log directory, and plist owner-only where appropriate while preserving existing env-file security checks
+  - added `.github/workflows/macos-live-launchd.yml`, which runs on pull requests to `main` plus manual dispatch and provides the required `launchd-live-smoke (macos-latest)` proof of live service install, health, stop/start recovery, restart, logs, and uninstall on hosted macOS
+  - workflow docs and docs-truth coverage now describe that new required macOS gate while keeping `service-smoke.yml` and `lifecycle-e2e-smoke.yml` explicitly supplemental
+
 - macOS operator parity hardening:
   - shared lifecycle, architecture, testing, and contributor docs now treat Linux and macOS as first-class supported operator paths while keeping Linux-only `systemd` behavior explicit
   - docs-truth, bootstrap-contract, setup-summary, and setup-validation regression coverage now pin launchd-aware readiness behavior and prevent drift back to Linux-primary wording

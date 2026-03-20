@@ -103,4 +103,25 @@ describe("loadRuntimeInstallContext", () => {
     expect(context.serviceManager).toBe("systemd-system");
     expect(context.systemdFilesystemAccessEffective).toBe("unrestricted");
   });
+
+  it("keeps launchd install context explicitly outside Linux filesystem access", async () => {
+    const root = tempDir("openassist-install-context-launchd-env-");
+    const homeDir = path.join(root, "home");
+    const configPath = path.join(root, "openassist.toml");
+
+    fs.mkdirSync(path.join(homeDir, ".config", "openassist"), { recursive: true });
+    fs.writeFileSync(configPath, "bindAddress = \"127.0.0.1\"\n", "utf8");
+
+    vi.stubEnv("HOME", homeDir);
+    vi.stubEnv("USERPROFILE", homeDir);
+    vi.stubEnv("OPENASSIST_ENV_FILE", "");
+    vi.stubEnv("OPENASSIST_SERVICE_MANAGER_KIND", "launchd");
+    vi.stubEnv("OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS", "unrestricted");
+
+    const { loadRuntimeInstallContext } = await import("../../apps/openassistd/src/install-context.js");
+    const context = loadRuntimeInstallContext(configPath);
+
+    expect(context.serviceManager).toBe("launchd");
+    expect(context.systemdFilesystemAccessEffective).toBe("not-applicable");
+  });
 });

@@ -23,7 +23,11 @@ The user-visible result is a parity pass rather than a new feature: the installe
   - `node --test --import tsx/esm tests/node/cli-setup-validation-coverage.test.ts`
   - `node --test --import tsx/esm tests/node/install-bootstrap-idempotence.test.ts`
 - [x] (2026-03-20 14:27+00:00) Ran the full local gate with `pnpm verify:all`; workflow lint, build, lint, typecheck, Vitest, Node tests, and both coverage suites all passed.
-- [ ] Commit, push, open the PR, rerun supplemental smoke workflows on the branch, and monitor CI/review/code-scanning until the PR is merge-ready.
+- [x] (2026-03-20 14:31+00:00) Committed the parity pass as `a772cc6` (`feat: harden macOS operator parity`), pushed `feat/macos-first-class-parity`, and opened PR [#44](https://github.com/openassistuk/openassist/pull/44) with title `feat: make macOS a first-class supported operator path`.
+- [x] (2026-03-20 14:32+00:00) Manually dispatched the supplemental hosted smoke workflows on the PR branch:
+  - `service-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23347135534>
+  - `lifecycle-e2e-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23347136062>
+- [ ] Monitor CI, review, and code-scanning until PR #44 is merge-ready.
 
 ## Surprises & Discoveries
 
@@ -47,7 +51,7 @@ The user-visible result is a parity pass rather than a new feature: the installe
 
 ## Outcomes & Retrospective
 
-Work is in progress. The audit confirmed that this is primarily a parity-hardening and truthfulness pass, not a greenfield macOS implementation. The doc and regression pass is now in place, and it already caught one real launchd truthfulness bug in the saved quickstart summary. Focused validation and the full local verification gate are now green. The remaining work is the GitHub PR/CI/review loop until the branch is merge-ready.
+Work is in progress. The audit confirmed that this is primarily a parity-hardening and truthfulness pass, not a greenfield macOS implementation. The doc and regression pass is now in place, and it already caught one real launchd truthfulness bug in the saved quickstart summary. Focused validation and the full local verification gate are green, PR #44 is open, and both supplemental smoke workflows have been dispatched. The remaining work is the GitHub PR/CI/review loop until the branch is merge-ready.
 
 ## Context and Orientation
 

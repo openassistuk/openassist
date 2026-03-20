@@ -453,6 +453,7 @@ describe("docs truth", () => {
     const docsIndex = readText("docs/README.md");
     const testMatrix = readText("docs/testing/test-matrix.md");
     const agents = readText("AGENTS.md");
+    const macosLiveWorkflow = readText(".github/workflows/macos-live-launchd.yml");
     const ciSchedule = formatWorkflowSchedule(extractWorkflowScheduleCron(".github/workflows/ci.yml"));
     const codeqlSchedule = formatWorkflowSchedule(extractWorkflowScheduleCron(".github/workflows/codeql.yml"));
     const serviceSmokeSchedule = formatWorkflowSchedule(extractWorkflowScheduleCron(".github/workflows/service-smoke.yml"));
@@ -492,6 +493,31 @@ describe("docs truth", () => {
     assert.match(testMatrix, /`CodeQL preflight`/);
     assert.match(testMatrix, /`analyze \(javascript-typescript\)`/);
     assert.match(agents, /`\.github\/workflows\/codeql\.yml`/);
+
+    assert.match(macosLiveWorkflow, /pull_request:\s*\n\s*branches:\s*\n\s*-\s*main/s);
+    assert.match(macosLiveWorkflow, /workflow_dispatch:/);
+    assert.match(macosLiveWorkflow, /name:\s*launchd-live-smoke \(macos-latest\)/);
+    assert.match(macosLiveWorkflow, /runs-on:\s*macos-latest/);
+    assert.match(readme, /`macOS Live Launchd` runs on pull requests to `main` and manual dispatch\./);
+    assert.match(
+      readme,
+      /`launchd-live-smoke \(macos-latest\)` job is the required hosted live LaunchAgent gate on `main`\./
+    );
+    assert.match(
+      docsIndex,
+      /`\.github\/workflows\/macos-live-launchd\.yml` runs on `pull_request` targeting `main` and `workflow_dispatch`/
+    );
+    assert.match(
+      docsIndex,
+      /required `launchd-live-smoke \(macos-latest\)` proof of live LaunchAgent install, health, status, stop\/start recovery, restart, logs, and uninstall on hosted macOS/
+    );
+    assert.match(testMatrix, /### macOS Live Launchd \(`\.github\/workflows\/macos-live-launchd\.yml`\)/);
+    assert.match(testMatrix, /required `main` PR gate for live user LaunchAgent proof on hosted macOS/);
+    assert.match(agents, /`\.github\/workflows\/macos-live-launchd\.yml`/);
+    assert.match(
+      agents,
+      /`launchd-live-smoke \(macos-latest\)` green on PRs to `main` as the required hosted live macOS LaunchAgent gate/
+    );
 
     assert.deepEqual(parseWorkflowMatrixOs(".github/workflows/service-smoke.yml").sort(), [
       "macos-latest",

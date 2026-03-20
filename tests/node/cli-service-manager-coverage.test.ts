@@ -174,16 +174,49 @@ describe("cli service-manager coverage", () => {
     await assert.rejects(async () => manager.logs(10, false), /journalctl returned 2/);
   });
 
-  it("covers macOS launchd lifecycle and restart stop-failure branch", async () => {
+  it("covers macOS launchd lifecycle and restart error handling", async () => {
     setPlatform("darwin");
     setGetuid(501);
     const home = tempDir("openassist-launchd-home-");
     setHomedir(home);
 
+    let bootstrapped = false;
+    let disabled = false;
+    let failNextBootout = false;
     const runner = new FakeRunner({
       runCodeFn: (command, args) => {
-        if (command === "launchctl" && args[0] === "bootout") {
-          return 1;
+        if (command !== "launchctl") {
+          return 0;
+        }
+        if (args[0] === "print") {
+          return bootstrapped ? 0 : 1;
+        }
+        if (args[0] === "bootstrap") {
+          bootstrapped = true;
+          return 0;
+        }
+        if (args[0] === "enable") {
+          disabled = false;
+          return 0;
+        }
+        if (args[0] === "disable") {
+          disabled = true;
+          return 0;
+        }
+        if (args[0] === "kickstart") {
+          return bootstrapped && !disabled ? 0 : 1;
+        }
+        if (args[0] === "bootout") {
+          if (failNextBootout) {
+            failNextBootout = false;
+            bootstrapped = false;
+            return 1;
+          }
+          if (!bootstrapped) {
+            return 1;
+          }
+          bootstrapped = false;
+          return 0;
         }
         return 0;
       }
@@ -211,17 +244,33 @@ describe("cli service-manager coverage", () => {
     fs.writeFileSync(stdoutLogPath, "stdout\n", "utf8");
     fs.writeFileSync(stderrLogPath, "stderr\n", "utf8");
 
-    await manager.start();
     await manager.status();
     await manager.logs(20, true);
     await manager.enable();
+    failNextBootout = true;
+    await assert.rejects(async () => manager.restart(), /Command failed: launchctl bootout/);
     await manager.restart();
     await manager.disable();
+    await manager.enable();
+    await manager.start();
     await manager.uninstall();
 
     assert.equal(await manager.isInstalled(), false);
     assert.equal(runner.runCalls.some((call) => call.command === "launchctl"), true);
     assert.equal(runner.streamCalls.some((call) => call.command === "tail"), true);
+    const launchctlCalls = runner.runCalls
+      .filter((call) => call.command === "launchctl")
+      .map((call) => call.args.join(" "));
+    assert.equal(
+      launchctlCalls.includes(`bootstrap gui/501 ${path.join(home, "Library", "LaunchAgents", "ai.openassist.openassistd.plist")}`),
+      true
+    );
+    assert.equal(launchctlCalls.includes("enable gui/501/ai.openassist.openassistd"), true);
+    assert.equal(launchctlCalls.includes("kickstart -k gui/501/ai.openassist.openassistd"), true);
+    assert.equal(
+      launchctlCalls.filter((call) => call === "bootout gui/501/ai.openassist.openassistd").length >= 2,
+      true
+    );
   });
 
   it("covers unsupported platform manager creation failure", () => {
@@ -231,4 +280,3 @@ describe("cli service-manager coverage", () => {
     assert.throws(() => createServiceManager(new FakeRunner()), /Unsupported platform for service management: win32/);
   });
 });
-

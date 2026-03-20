@@ -1,0 +1,166 @@
+name: macOS Live Launchd
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-live-launchd-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  launchd-live-smoke:
+    name: launchd-live-smoke (macos-latest)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.31.0 --activate
+          pnpm --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm -r build
+
+      - name: Live launchd lifecycle smoke
+        shell: bash
+        env:
+          HOME: ${{ runner.temp }}/openassist-live-home
+          OPENASSIST_CONFIG_PATH: ${{ runner.temp }}/openassist-live-home/.config/openassist/openassist.toml
+          OPENASSIST_ENV_FILE: ${{ runner.temp }}/openassist-live-home/.config/openassist/openassistd.env
+          OPENASSIST_DATA_DIR: ${{ runner.temp }}/openassist-live-home/.local/share/openassist/data
+          OPENASSIST_LOGS_DIR: ${{ runner.temp }}/openassist-live-home/.local/share/openassist/logs
+          OPENASSIST_SKILLS_DIR: ${{ runner.temp }}/openassist-live-home/.local/share/openassist/skills
+          OPENASSIST_STDOUT_LOG: ${{ runner.temp }}/openassist-live-home/Library/Logs/OpenAssist/openassistd.out.log
+          OPENASSIST_STDERR_LOG: ${{ runner.temp }}/openassist-live-home/Library/Logs/OpenAssist/openassistd.err.log
+        run: |
+          set -euo pipefail
+
+          install_dir="$GITHUB_WORKSPACE"
+          uid="$(id -u)"
+          service_target="gui/${uid}/ai.openassist.openassistd"
+          plist_path="$HOME/Library/LaunchAgents/ai.openassist.openassistd.plist"
+          wrapper_path="$HOME/.config/openassist/openassistd-launchd-wrapper.sh"
+
+          cli() {
+            pnpm --filter @openassist/openassist-cli exec node -- dist/index.js "$@"
+          }
+
+          wait_for_health() {
+            local attempts=30
+            local delay=2
+            local base_url="http://127.0.0.1:3344"
+
+            for attempt in $(seq 1 "$attempts"); do
+              if cli service health --base-url "$base_url"; then
+                return 0
+              fi
+              sleep "$delay"
+            done
+
+            echo "Timed out waiting for daemon health at ${base_url}" >&2
+            return 1
+          }
+
+          cleanup() {
+            cli service uninstall >/dev/null 2>&1 || true
+            if launchctl print "$service_target" >/dev/null 2>&1; then
+              launchctl bootout "$service_target" >/dev/null 2>&1 || true
+            fi
+          }
+
+          trap cleanup EXIT
+
+          mkdir -p \
+            "$(dirname "$OPENASSIST_CONFIG_PATH")" \
+            "$OPENASSIST_DATA_DIR" \
+            "$OPENASSIST_LOGS_DIR" \
+            "$OPENASSIST_SKILLS_DIR"
+
+          cp "$install_dir/openassist.toml" "$OPENASSIST_CONFIG_PATH"
+          node -e '
+            const fs = require("node:fs");
+            const configPath = process.argv[1];
+            const dataDir = process.argv[2];
+            const skillsDir = process.argv[3];
+            const logsDir = process.argv[4];
+            let text = fs.readFileSync(configPath, "utf8");
+            text = text.replace(`dataDir = ".openassist/data"`, `dataDir = "${dataDir}"`);
+            text = text.replace(`skillsDir = ".openassist/skills"`, `skillsDir = "${skillsDir}"`);
+            text = text.replace(`logsDir = ".openassist/logs"`, `logsDir = "${logsDir}"`);
+            fs.writeFileSync(configPath, text);
+          ' "$OPENASSIST_CONFIG_PATH" "$OPENASSIST_DATA_DIR" "$OPENASSIST_SKILLS_DIR" "$OPENASSIST_LOGS_DIR"
+
+          cli service install \
+            --install-dir "$install_dir" \
+            --config "$OPENASSIST_CONFIG_PATH" \
+            --env-file "$OPENASSIST_ENV_FILE"
+
+          wait_for_health
+
+          test -f "$plist_path"
+          test -f "$wrapper_path"
+          launchctl print "$service_target" >/dev/null
+
+          cli service status >"$RUNNER_TEMP/macos-live-service-status.txt"
+          grep -F "ai.openassist.openassistd" "$RUNNER_TEMP/macos-live-service-status.txt"
+
+          cli service stop
+          if launchctl print "$service_target" >/dev/null 2>&1; then
+            echo "launchd service still appears loaded after stop" >&2
+            exit 1
+          fi
+
+          cli service start
+          wait_for_health
+
+          cli service restart
+          wait_for_health
+
+          cli service disable
+          if launchctl print "$service_target" >/dev/null 2>&1; then
+            echo "launchd service still appears loaded after disable" >&2
+            exit 1
+          fi
+
+          cli service enable
+          if launchctl print "$service_target" >/dev/null 2>&1; then
+            echo "launchd service unexpectedly loaded after enable" >&2
+            exit 1
+          fi
+
+          cli service start
+          wait_for_health
+
+          test -f "$OPENASSIST_STDOUT_LOG"
+          test -f "$OPENASSIST_STDERR_LOG"
+          cli service logs --lines 20 >"$RUNNER_TEMP/macos-live-service-logs.txt"
+
+          cli service uninstall
+
+          test ! -f "$plist_path"
+          test ! -f "$wrapper_path"
+          if launchctl print "$service_target" >/dev/null 2>&1; then
+            echo "launchd service still appears loaded after uninstall" >&2
+            exit 1
+          fi
+
+          trap - EXIT

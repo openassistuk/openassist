@@ -10,9 +10,10 @@ Prove that restart safety, scheduling correctness, and upgrade rollback behavior
 
 Supplemental workflow context:
 
+- `.github/workflows/macos-live-launchd.yml` is the required hosted live LaunchAgent gate on `macos-latest`
 - `.github/workflows/service-smoke.yml` is the lighter dry-run lifecycle smoke on hosted runners
 - `.github/workflows/lifecycle-e2e-smoke.yml` is the stronger bootstrap/home-state/doctor/upgrade smoke on hosted runners
-- neither workflow replaces the deeper scenario checks in this document
+- none of those workflows replace the deeper scenario checks in this document
 
 ## Scenario A: Restart During Scheduled Execution
 

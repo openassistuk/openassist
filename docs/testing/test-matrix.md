@@ -195,6 +195,24 @@ Current suite files under `tests/node/`:
   - this repo is currently public, so the workflow runs normally on PRs and pushes to `main`
   - the workflow still keeps its private-repo preflight guard for reuse in other repository contexts
 
+### macOS Live Launchd (`.github/workflows/macos-live-launchd.yml`)
+
+- trigger model:
+  - `pull_request` targeting `main`
+  - `workflow_dispatch`
+- required signal:
+  - required `main` PR gate for live user LaunchAgent proof on hosted macOS
+- hosted live lifecycle checks on:
+  - `macos-latest`
+- verifies:
+  - `openassist service install`
+  - `openassist service status`
+  - `openassist service stop` followed by `openassist service start`
+  - `openassist service restart`
+  - `openassist service health`
+  - `openassist service logs`
+  - clean `openassist service uninstall`
+
 ### Service Smoke (`.github/workflows/service-smoke.yml`)
 
 - trigger model:

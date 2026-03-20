@@ -429,6 +429,8 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
   readonly kind: ServiceManagerKind = "launchd";
   private readonly runner: CommandRunner;
   private readonly label = "ai.openassist.openassistd";
+  private readonly launchdStateSettleTimeoutMs = 5_000;
+  private readonly launchdStatePollIntervalMs = 100;
   private readonly plistPath: string;
   private readonly wrapperPath: string;
   private readonly stdoutLogPath: string;
@@ -440,6 +442,68 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
     this.wrapperPath = path.join(os.homedir(), ".config", "openassist", "openassistd-launchd-wrapper.sh");
     this.stdoutLogPath = path.join(os.homedir(), "Library", "Logs", "OpenAssist", "openassistd.out.log");
     this.stderrLogPath = path.join(os.homedir(), "Library", "Logs", "OpenAssist", "openassistd.err.log");
+  }
+
+  private launchdDomain(): string {
+    return `gui/${String(process.getuid?.() ?? 0)}`;
+  }
+
+  private launchdServiceTarget(): string {
+    return `${this.launchdDomain()}/${this.label}`;
+  }
+
+  private async isBootstrapped(): Promise<boolean> {
+    const result = await this.runner.run("launchctl", ["print", this.launchdServiceTarget()]);
+    return result.code === 0;
+  }
+
+  private async waitForBootstrappedState(expected: boolean): Promise<void> {
+    const deadline = Date.now() + this.launchdStateSettleTimeoutMs;
+    while (true) {
+      if ((await this.isBootstrapped()) === expected) {
+        return;
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(
+          expected
+            ? "launchd service did not finish loading after bootstrap"
+            : "launchd service did not finish unloading after bootout"
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, this.launchdStatePollIntervalMs));
+    }
+  }
+
+  private async bootstrap(): Promise<void> {
+    await runOrThrow(this.runner, "launchctl", ["bootstrap", this.launchdDomain(), this.plistPath]);
+    await this.waitForBootstrappedState(true);
+  }
+
+  private async enableLoadedService(): Promise<void> {
+    await runOrThrow(this.runner, "launchctl", ["enable", this.launchdServiceTarget()]);
+  }
+
+  private async disableLoadedService(): Promise<void> {
+    await runOrThrow(this.runner, "launchctl", ["disable", this.launchdServiceTarget()]);
+  }
+
+  private async kickstartService(): Promise<void> {
+    await runOrThrow(this.runner, "launchctl", ["kickstart", "-k", this.launchdServiceTarget()]);
+  }
+
+  private async bootoutIfLoaded(): Promise<boolean> {
+    if (!(await this.isBootstrapped())) {
+      return false;
+    }
+    await this.stop();
+    return true;
+  }
+
+  private async ensureBootstrapped(): Promise<void> {
+    if (await this.isBootstrapped()) {
+      return;
+    }
+    await this.bootstrap();
   }
 
   async install(options: ServiceInstallOptions): Promise<void> {
@@ -500,17 +564,24 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
     fs.mkdirSync(path.dirname(this.wrapperPath), { recursive: true });
     fs.mkdirSync(path.dirname(this.stdoutLogPath), { recursive: true });
     fs.chmodSync(path.dirname(this.wrapperPath), 0o700);
+    fs.chmodSync(path.dirname(this.stdoutLogPath), 0o700);
     enforceEnvFileSecurity(options.envFilePath, { allowMissing: true });
     fs.writeFileSync(this.wrapperPath, wrapper, "utf8");
-    fs.chmodSync(this.wrapperPath, 0o755);
+    fs.chmodSync(this.wrapperPath, 0o700);
     fs.writeFileSync(this.plistPath, rendered, "utf8");
+    fs.chmodSync(this.plistPath, 0o600);
 
-    await this.runner.run("launchctl", ["unload", this.plistPath]).catch(() => undefined);
-    await runOrThrow(this.runner, "launchctl", ["load", this.plistPath]);
+    await this.bootoutIfLoaded();
+    await this.bootstrap();
+    await this.enableLoadedService();
+    await this.kickstartService();
   }
 
   async uninstall(): Promise<void> {
-    await this.runner.run("launchctl", ["unload", this.plistPath]).catch(() => undefined);
+    if (await this.isBootstrapped()) {
+      await this.disableLoadedService().catch(() => undefined);
+      await this.bootoutIfLoaded().catch(() => undefined);
+    }
     if (fs.existsSync(this.plistPath)) {
       fs.rmSync(this.plistPath, { force: true });
     }
@@ -520,23 +591,25 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
   }
 
   async start(): Promise<void> {
-    const uid = String(process.getuid?.() ?? 0);
-    await runOrThrow(this.runner, "launchctl", ["kickstart", "-k", `gui/${uid}/${this.label}`]);
+    await this.ensureBootstrapped();
+    await this.enableLoadedService();
+    await this.kickstartService();
   }
 
   async stop(): Promise<void> {
-    const uid = String(process.getuid?.() ?? 0);
-    await runOrThrow(this.runner, "launchctl", ["bootout", `gui/${uid}/${this.label}`]);
+    await runOrThrow(this.runner, "launchctl", ["bootout", this.launchdServiceTarget()]);
+    await this.waitForBootstrappedState(false);
   }
 
   async restart(): Promise<void> {
-    await this.stop().catch(() => undefined);
+    if (await this.isBootstrapped()) {
+      await this.stop();
+    }
     await this.start();
   }
 
   async status(): Promise<void> {
-    const uid = String(process.getuid?.() ?? 0);
-    const result = await this.runner.run("launchctl", ["print", `gui/${uid}/${this.label}`]);
+    const result = await this.runner.run("launchctl", ["print", this.launchdServiceTarget()]);
     process.stdout.write(result.stdout);
     process.stderr.write(result.stderr);
     if (result.code !== 0) {
@@ -561,11 +634,14 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
   }
 
   async enable(): Promise<void> {
-    await runOrThrow(this.runner, "launchctl", ["load", this.plistPath]);
+    await this.enableLoadedService();
   }
 
   async disable(): Promise<void> {
-    await runOrThrow(this.runner, "launchctl", ["unload", this.plistPath]);
+    await this.disableLoadedService();
+    if (await this.isBootstrapped()) {
+      await this.stop();
+    }
   }
 
   async isInstalled(): Promise<boolean> {

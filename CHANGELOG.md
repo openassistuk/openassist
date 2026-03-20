@@ -383,8 +383,13 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Security
 
+- Dependabot alert remediation pass:
+  - enforced patched `undici` resolution via pnpm override (`undici@<6.24.0 -> 6.24.0`) to clear GitHub alerts `#3` to `#7` on the Discord transitive path
+  - enforced patched `file-type` resolution via pnpm override (`file-type@<21.3.2 -> 21.3.2`) to clear GitHub alert `#2` on the WhatsApp/Baileys transitive path
+  - enforced patched `music-metadata` resolution via pnpm override (`music-metadata@<11.12.3 -> 11.12.3`) to clear GitHub alert `#8` on the WhatsApp/Baileys transitive path
+  - added a lock-contract regression test so future dependency refreshes fail early if those vulnerable floors reappear in `package.json` or `pnpm-lock.yaml`
 - Moderate advisory remediation pass:
-  - enforced `undici` patched resolution via pnpm override (`undici@<6.23.0 -> 6.23.0`) for Discord transitive dependency chain
+  - enforced `undici` patched resolution via pnpm override for the Discord transitive dependency chain; that earlier floor has now been superseded by the `6.24.0` remediation noted above
   - removed vulnerable Vitest/Vite transitive `esbuild` audit path via targeted pnpm override (`esbuild@<=0.24.2 -> 0.25.0`)
 - Dependency advisory remediation baseline:
   - pinned `@whiskeysockets/baileys` to `6.7.21` in WhatsApp channel package to avoid vulnerable transitive graph drift

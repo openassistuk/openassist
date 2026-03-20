@@ -23,8 +23,8 @@ describe("dependency security override contract", () => {
     assert.match(lockfile, /^  file-type@21\.3\.2:$/m);
     assert.match(lockfile, /^  music-metadata@11\.12\.3:$/m);
 
-    assert.doesNotMatch(lockfile, /^  undici@6\.23\.0:$/m);
-    assert.doesNotMatch(lockfile, /^  file-type@21\.3\.1:$/m);
-    assert.doesNotMatch(lockfile, /^  music-metadata@11\.12\.1:$/m);
+    assert.doesNotMatch(lockfile, /undici@6\.23\.0:/m);
+    assert.doesNotMatch(lockfile, /file-type@21\.3\.1:/m);
+    assert.doesNotMatch(lockfile, /music-metadata@11\.12\.1:/m);
   });
 });

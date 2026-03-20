@@ -26,6 +26,16 @@ This is a security maintenance change, not a dependency modernization pass. The 
 - [x] (2026-03-20 19:09Z) Manually dispatched the supplemental smoke workflows on the PR branch:
   - `service-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23358489160>
   - `lifecycle-e2e-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23358489525>
+- [x] (2026-03-20 19:19Z) The first required-check round on PR #46 passed on head `fbf2a4a578404748898c10f86953c48fac420f3c`:
+  - CI: <https://github.com/openassistuk/openassist/actions/runs/23358512807>
+  - CodeQL: <https://github.com/openassistuk/openassist/actions/runs/23358512795>
+  - macOS live launchd: <https://github.com/openassistuk/openassist/actions/runs/23358512793>
+- [x] (2026-03-20 19:20Z) Copilot review on PR #46 identified two correctness/doc-truth follow-ups; both were fixed locally and revalidated with:
+  - `node --test --import tsx/esm tests/node/dependency-security-overrides.test.ts`
+  - `pnpm verify:all`
+- [x] (2026-03-20 19:21Z) Dispatched fresh supplemental smoke reruns on the final merge-candidate branch head:
+  - `service-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23358713608>
+  - `lifecycle-e2e-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23358713622>
 - [ ] Monitor required checks, rerun supplemental smoke workflows, address review/code-scanning feedback, and hand the PR back only when merge-ready.
 
 ## Surprises & Discoveries
@@ -38,6 +48,8 @@ This is a security maintenance change, not a dependency modernization pass. The 
   Evidence: `tests/node/cli-docs-truth.test.ts` validates the exact on-disk `tests/node/*.test.ts` inventory against `docs/testing/test-matrix.md`.
 - Observation: no direct dependency bump was required to clear the current alert set.
   Evidence: updating only root `pnpm.overrides` and regenerating `pnpm-lock.yaml` produced a clean graph and both audit commands returned zero advisories.
+- Observation: Copilot review on the PR caught one real test-coverage edge and one changelog ambiguity, both without requiring any dependency-graph change.
+  Evidence: PR #46 comments requested broader negative lockfile matching for `undici@6.23.0` and clearer historical wording for the older `undici` changelog entry.
 
 ## Decision Log
 
@@ -47,10 +59,13 @@ This is a security maintenance change, not a dependency modernization pass. The 
 - Decision: add one explicit dependency-security contract test instead of relying only on ad hoc audit output.
   Rationale: the repo already treats docs/workflow/test truth as merge-gated contracts; the security floor should have the same regression protection.
   Date/Author: 2026-03-20 / Codex
+- Decision: treat the Copilot review comments as required cleanup before final handoff even though the initial required CI round was already green.
+  Rationale: the PR should end on a head commit where both automated review feedback items are incorporated, not merely noted.
+  Date/Author: 2026-03-20 / Codex
 
 ## Outcomes & Retrospective
 
-Work is in progress. The remediation is complete locally and PR #46 is open with the first pair of supplemental smoke reruns dispatched. The lockfile uses only patched versions for the three affected transitive packages, both `pnpm audit` commands are clean, and `pnpm verify:all` passed without needing any direct dependency bump. The remaining work is the remote PR/check/review loop until the branch is merge-ready.
+Work is in progress. The remediation is complete locally and PR #46 is open. The lockfile uses only patched versions for the three affected transitive packages, both `pnpm audit` commands are clean, the first required-check round passed on head `fbf2a4a578404748898c10f86953c48fac420f3c`, and the two Copilot review comments have been fixed locally with another clean `pnpm verify:all` pass. The remaining work is to push that review-response commit and finish the final PR/check/review loop until the branch is merge-ready.
 
 ## Context and Orientation
 

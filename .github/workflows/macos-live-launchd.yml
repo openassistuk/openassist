@@ -61,7 +61,7 @@ jobs:
           wrapper_path="$HOME/.config/openassist/openassistd-launchd-wrapper.sh"
 
           cli() {
-            pnpm --filter @openassist/openassist-cli exec node dist/index.js "$@"
+            pnpm --filter @openassist/openassist-cli exec node -- dist/index.js "$@"
           }
 
           wait_for_health() {

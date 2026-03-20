@@ -27,7 +27,11 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
   - `pnpm exec vitest run tests/vitest/setup-quickstart-validation.test.ts`
   - `node --test --import tsx/esm tests/node/cli-docs-truth.test.ts`
 - [x] (2026-03-20 16:25+00:00) Ran the full local gate with `pnpm verify:all`; workflow lint, build, lint, typecheck, Vitest, Node tests, and both coverage suites all passed.
-- [ ] Commit, push, open the PR, and enter the CI or review or code-scanning monitoring loop.
+- [x] (2026-03-20 16:28+00:00) Committed `edb3074` (`feat: require live macOS launchd smoke`), pushed `feat/macos-live-launchd-required-gate`, opened PR [#45](https://github.com/openassistuk/openassist/pull/45), and dispatched the supplemental smoke workflows:
+  - `service-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23352211454>
+  - `lifecycle-e2e-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23352211933>
+- [x] (2026-03-20 16:30+00:00) Entered the hosted CI loop and diagnosed the first failing `launchd-live-smoke (macos-latest)` run as a workflow invocation bug rather than a launchd-domain failure.
+- [ ] Push the live-workflow follow-up fix, then continue the CI or review or code-scanning monitoring loop.
 - [ ] Promote the live macOS check into required branch protection on `main` once it is stable on the PR head and a rerun is also green.
 
 ## Surprises & Discoveries
@@ -40,6 +44,8 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
   Evidence: launchd lifecycle tests run under mocked `darwin` paths in cross-platform CI, so the stable contract is the requested `chmodSync` arguments rather than host-specific `stat()` mode bits.
 - Observation: the new required macOS gate can stay narrow and still meaningfully prove the previously missing launchd behavior.
   Evidence: one hosted `macos-latest` job can validate install, `launchctl print` status, real `bootout` stop, start-after-bootout recovery, restart, health, logs, and uninstall without changing the existing supplemental smoke workflows or the normal `pnpm ci:strict` topology.
+- Observation: Node 22 will treat `--env-file` as a runtime flag unless the workflow stops Node option parsing explicitly before the CLI script path.
+  Evidence: the first PR run of `launchd-live-smoke (macos-latest)` failed before service health with `node: /Users/runner/work/_temp/openassist-live-home/.config/openassist/openassistd.env: not found`, and the workflow invoked the CLI as `node dist/index.js ... --env-file ...` instead of `node -- dist/index.js ...`.
 
 ## Decision Log
 
@@ -52,7 +58,7 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
 
 ## Outcomes & Retrospective
 
-Work is in progress. The launchd command model is hardened, the dedicated live macOS workflow exists, workflow truth is synchronized across docs and tests, and the full local verification gate is green. The remaining work is the remote half: open the PR, let the new hosted macOS check prove itself, promote it into the required ruleset once stable, and then keep the CI/review/code-scanning loop clean until the branch is merge-ready.
+Work is in progress. The launchd command model is hardened, the dedicated live macOS workflow exists, workflow truth is synchronized across docs and tests, and the full local verification gate is green. PR #45 is open, the supplemental smoke workflows are running, and the first hosted macOS live run already exposed one real runner-only fix: the workflow must invoke the built CLI as `node -- dist/index.js ...` so Node 22 does not steal the CLI's `--env-file` flag. The remaining work is to push that fix, rerun the live macOS job until it is stably green, promote it into the required ruleset, and then finish the CI/review/code-scanning loop.
 
 ## Context and Orientation
 

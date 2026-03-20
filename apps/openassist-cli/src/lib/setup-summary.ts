@@ -37,6 +37,7 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
     serviceWasSkipped: input.skippedService,
     serviceHealthOk: input.healthOk,
     serviceHealthDetail: input.postSaveError,
+    serviceManagerKind: platform === "darwin" ? "launchd" : undefined,
     daemonBuildExists: fs.existsSync(path.join(input.installDir, "apps", "openassistd", "dist", "index.js")),
     hasNode: true
   });

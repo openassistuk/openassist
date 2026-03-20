@@ -425,6 +425,29 @@ describe("docs truth", () => {
     assert.match(testMatrix, new RegExp(`branches >= ${node.branches}`));
   });
 
+  it("keeps Linux and macOS operator parity wording aligned across shared docs", () => {
+    const readme = readText("README.md");
+    const docsIndex = readText("docs/README.md");
+    const quickstart = readText("docs/operations/quickstart-linux-macos.md");
+    const linuxInstall = readText("docs/operations/install-linux.md");
+    const macosInstall = readText("docs/operations/install-macos.md");
+    const architecture = readText("docs/architecture/overview.md");
+    const chaos = readText("docs/testing/chaos-and-soak.md");
+    const agents = readText("AGENTS.md");
+
+    assert.match(readme, /Linux and macOS are first-class supported operator paths/i);
+    assert.match(docsIndex, /Linux and macOS are the first-class operator paths/i);
+    assert.match(quickstart, /Linux and macOS are first-class supported operator paths/);
+    assert.doesNotMatch(quickstart, /Linux is the primary release target/);
+    assert.match(linuxInstall, /Linux is a first-class OpenAssist operator path\./);
+    assert.match(macosInstall, /macOS is a first-class OpenAssist operator path and uses `launchd` service management\./);
+    assert.doesNotMatch(macosInstall, /Linux remains the deeper validation target/);
+    assert.match(architecture, /Linux: first-class supported operator path/);
+    assert.match(architecture, /macOS: first-class supported operator path/);
+    assert.match(chaos, /all applicable scenarios pass on Linux and macOS supported operator paths/);
+    assert.match(agents, /shared operator docs and lifecycle messaging must treat Linux and macOS as first-class supported operator paths/);
+  });
+
   it("keeps workflow statements aligned with workflow truth", () => {
     const readme = readText("README.md");
     const docsIndex = readText("docs/README.md");

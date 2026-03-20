@@ -4,7 +4,7 @@ This page covers macOS-specific installation details. For the full install-to-fi
 
 ## Platform Behavior
 
-macOS is a supported OpenAssist operator path and uses `launchd` service management.
+macOS is a first-class OpenAssist operator path and uses `launchd` service management.
 
 Bootstrap can install missing prerequisites automatically with Homebrew unless you disable it:
 
@@ -194,4 +194,4 @@ openassist upgrade --dry-run --install-dir "$HOME/openassist" --ref main
 openassist upgrade --install-dir "$HOME/openassist" --ref main
 ```
 
-Linux remains the deeper validation target, but the installed-command lifecycle is the same on macOS.
+Shared installed-command lifecycle guidance stays aligned across Linux and macOS. Linux-only `systemd` notes remain explicitly Linux-specific.

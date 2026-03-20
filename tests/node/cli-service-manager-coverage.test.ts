@@ -174,7 +174,7 @@ describe("cli service-manager coverage", () => {
     await assert.rejects(async () => manager.logs(10, false), /journalctl returned 2/);
   });
 
-  it("covers macOS launchd lifecycle and restart stop-failure branch", async () => {
+  it("covers macOS launchd lifecycle and restart error handling", async () => {
     setPlatform("darwin");
     setGetuid(501);
     const home = tempDir("openassist-launchd-home-");
@@ -254,6 +254,7 @@ describe("cli service-manager coverage", () => {
     await manager.logs(20, true);
     await manager.enable();
     failNextBootout = true;
+    await assert.rejects(async () => manager.restart(), /Command failed: launchctl bootout/);
     await manager.restart();
     await manager.disable();
     await manager.enable();

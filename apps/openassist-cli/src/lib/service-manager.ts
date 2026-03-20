@@ -476,6 +476,7 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
 
   private async bootstrap(): Promise<void> {
     await runOrThrow(this.runner, "launchctl", ["bootstrap", this.launchdDomain(), this.plistPath]);
+    await this.waitForBootstrappedState(true);
   }
 
   private async enableLoadedService(): Promise<void> {
@@ -601,7 +602,9 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
   }
 
   async restart(): Promise<void> {
-    await this.stop().catch(() => undefined);
+    if (await this.isBootstrapped()) {
+      await this.stop();
+    }
     await this.start();
   }
 

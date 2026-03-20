@@ -22,7 +22,10 @@ This is a security maintenance change, not a dependency modernization pass. The 
   - `pnpm audit --prod --json`
   - `pnpm audit --json`
 - [x] (2026-03-20 19:05Z) Ran `pnpm verify:all`; workflow lint, build, lint, typecheck, Vitest, Node tests, and both coverage suites all passed after the dependency remediation.
-- [ ] Commit, push, open the PR, and record the PR number plus workflow evidence here.
+- [x] (2026-03-20 19:08Z) Committed the remediation as `bc97b77` (`fix: remediate open Dependabot alerts`), pushed `fix/dependabot-alert-remediation`, and opened PR [#46](https://github.com/openassistuk/openassist/pull/46).
+- [x] (2026-03-20 19:09Z) Manually dispatched the supplemental smoke workflows on the PR branch:
+  - `service-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23358489160>
+  - `lifecycle-e2e-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23358489525>
 - [ ] Monitor required checks, rerun supplemental smoke workflows, address review/code-scanning feedback, and hand the PR back only when merge-ready.
 
 ## Surprises & Discoveries
@@ -47,7 +50,7 @@ This is a security maintenance change, not a dependency modernization pass. The 
 
 ## Outcomes & Retrospective
 
-Work is in progress. The remediation is complete locally: the lockfile uses only patched versions for the three affected transitive packages, both `pnpm audit` commands are clean, and `pnpm verify:all` passed without needing any direct dependency bump. The remaining work is the remote PR/check/review loop until the branch is merge-ready.
+Work is in progress. The remediation is complete locally and PR #46 is open with the first pair of supplemental smoke reruns dispatched. The lockfile uses only patched versions for the three affected transitive packages, both `pnpm audit` commands are clean, and `pnpm verify:all` passed without needing any direct dependency bump. The remaining work is the remote PR/check/review loop until the branch is merge-ready.
 
 ## Context and Orientation
 

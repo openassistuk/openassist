@@ -429,6 +429,8 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
   readonly kind: ServiceManagerKind = "launchd";
   private readonly runner: CommandRunner;
   private readonly label = "ai.openassist.openassistd";
+  private readonly launchdStateSettleTimeoutMs = 5_000;
+  private readonly launchdStatePollIntervalMs = 100;
   private readonly plistPath: string;
   private readonly wrapperPath: string;
   private readonly stdoutLogPath: string;
@@ -455,6 +457,23 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
     return result.code === 0;
   }
 
+  private async waitForBootstrappedState(expected: boolean): Promise<void> {
+    const deadline = Date.now() + this.launchdStateSettleTimeoutMs;
+    while (true) {
+      if ((await this.isBootstrapped()) === expected) {
+        return;
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(
+          expected
+            ? "launchd service did not finish loading after bootstrap"
+            : "launchd service did not finish unloading after bootout"
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, this.launchdStatePollIntervalMs));
+    }
+  }
+
   private async bootstrap(): Promise<void> {
     await runOrThrow(this.runner, "launchctl", ["bootstrap", this.launchdDomain(), this.plistPath]);
   }
@@ -475,7 +494,7 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
     if (!(await this.isBootstrapped())) {
       return false;
     }
-    await runOrThrow(this.runner, "launchctl", ["bootout", this.launchdServiceTarget()]);
+    await this.stop();
     return true;
   }
 
@@ -578,6 +597,7 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
 
   async stop(): Promise<void> {
     await runOrThrow(this.runner, "launchctl", ["bootout", this.launchdServiceTarget()]);
+    await this.waitForBootstrappedState(false);
   }
 
   async restart(): Promise<void> {
@@ -618,7 +638,7 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
   async disable(): Promise<void> {
     await this.ensureBootstrapped();
     await this.disableLoadedService();
-    await runOrThrow(this.runner, "launchctl", ["bootout", this.launchdServiceTarget()]);
+    await this.stop();
   }
 
   async isInstalled(): Promise<boolean> {

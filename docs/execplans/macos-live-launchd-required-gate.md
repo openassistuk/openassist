@@ -31,7 +31,11 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
   - `service-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23352211454>
   - `lifecycle-e2e-smoke.yml`: <https://github.com/openassistuk/openassist/actions/runs/23352211933>
 - [x] (2026-03-20 16:30+00:00) Entered the hosted CI loop and diagnosed the first failing `launchd-live-smoke (macos-latest)` run as a workflow invocation bug rather than a launchd-domain failure.
-- [ ] Push the live-workflow follow-up fix, then continue the CI or review or code-scanning monitoring loop.
+- [x] (2026-03-20 16:35+00:00) Pushed `50f8b29` (`fix: stop node from consuming launchd env flag`) after confirming the first hosted failure was Node 22 stealing the CLI `--env-file` flag inside the workflow wrapper.
+- [x] (2026-03-20 16:46+00:00) Diagnosed the second hosted `launchd-live-smoke (macos-latest)` failure as a real launchd restart race, then hardened the adapter so `bootout` waits for `launchctl print` to stop seeing the job before restart or disable continues.
+- [x] (2026-03-20 16:45+00:00) Added a regression test that simulates one stale `launchctl print` success after `bootout`, and reran the focused macOS launchd and docs-truth suites successfully.
+- [x] (2026-03-20 16:49+00:00) Re-ran the full local gate with `pnpm verify:all` after the restart-race fix; workflow lint, build, lint, typecheck, Vitest, Node tests, and both coverage suites all passed again.
+- [ ] Push the launchd restart-race follow-up fix, then continue the CI or review or code-scanning monitoring loop.
 - [ ] Promote the live macOS check into required branch protection on `main` once it is stable on the PR head and a rerun is also green.
 
 ## Surprises & Discoveries
@@ -46,6 +50,8 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
   Evidence: one hosted `macos-latest` job can validate install, `launchctl print` status, real `bootout` stop, start-after-bootout recovery, restart, health, logs, and uninstall without changing the existing supplemental smoke workflows or the normal `pnpm ci:strict` topology.
 - Observation: Node 22 will treat `--env-file` as a runtime flag unless the workflow stops Node option parsing explicitly before the CLI script path.
   Evidence: the first PR run of `launchd-live-smoke (macos-latest)` failed before service health with `node: /Users/runner/work/_temp/openassist-live-home/.config/openassist/openassistd.env: not found`, and the workflow invoked the CLI as `node dist/index.js ... --env-file ...` instead of `node -- dist/index.js ...`.
+- Observation: `launchctl bootout` on hosted macOS can return before `launchctl print gui/<uid>/<label>` stops reporting the job, which makes an immediate restart race its own bootstrap predicate.
+  Evidence: the second PR run of `launchd-live-smoke (macos-latest)` reached install, health, stop, and start successfully, then failed restart with `Could not find service "ai.openassist.openassistd" in domain for user gui: 501` from `launchctl kickstart -k ...`; a new regression test reproduces that stale-post-bootout `print` success in-process.
 
 ## Decision Log
 
@@ -55,10 +61,13 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
 - Decision: keep `service-smoke.yml` and `lifecycle-e2e-smoke.yml` supplemental even after the new live macOS job lands.
   Rationale: the follow-up goal is a dedicated stable live LaunchAgent proof, not a silent trigger-model change for the existing dry-run and bootstrap smoke workflows.
   Date/Author: 2026-03-20 / Codex
+- Decision: treat `launchctl bootout` as a state transition that must settle before restart or disable continues.
+  Rationale: real hosted macOS runners showed that a direct `bootout` followed by an immediate bootstrap check can observe a stale loaded state and skip the required re-bootstrap, so the adapter now polls `launchctl print` until the unload is visible before moving on.
+  Date/Author: 2026-03-20 / Codex
 
 ## Outcomes & Retrospective
 
-Work is in progress. The launchd command model is hardened, the dedicated live macOS workflow exists, workflow truth is synchronized across docs and tests, and the full local verification gate is green. PR #45 is open, the supplemental smoke workflows are running, and the first hosted macOS live run already exposed one real runner-only fix: the workflow must invoke the built CLI as `node -- dist/index.js ...` so Node 22 does not steal the CLI's `--env-file` flag. The remaining work is to push that fix, rerun the live macOS job until it is stably green, promote it into the required ruleset, and then finish the CI/review/code-scanning loop.
+Work is in progress. The launchd command model is hardened, the dedicated live macOS workflow exists, workflow truth is synchronized across docs and tests, and the full local verification gate was green before the PR opened. PR #45 is open, the supplemental smoke workflows were dispatched, and the hosted CI loop has now exposed two runner-only issues that were fixed iteratively: first the workflow had to invoke the built CLI as `node -- dist/index.js ...` so Node 22 would not steal `--env-file`, and then the launchd adapter had to wait for `bootout` to settle before restart or disable continued. The remaining work is to push the restart-race fix, rerun the live macOS job until it is stably green, promote it into the required ruleset, and then finish the CI/review/code-scanning loop.
 
 ## Context and Orientation
 

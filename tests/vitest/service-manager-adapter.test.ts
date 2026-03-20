@@ -227,10 +227,12 @@ describe("service-manager adapters", () => {
       "print gui/501/ai.openassist.openassistd",
       "bootout gui/501/ai.openassist.openassistd",
       "print gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
       `bootstrap gui/501 ${plistPath}`,
       "enable gui/501/ai.openassist.openassistd",
       "kickstart -k gui/501/ai.openassist.openassistd",
       "bootout gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
       "print gui/501/ai.openassist.openassistd",
       `bootstrap gui/501 ${plistPath}`,
       "enable gui/501/ai.openassist.openassistd",
@@ -239,6 +241,7 @@ describe("service-manager adapters", () => {
       "disable gui/501/ai.openassist.openassistd",
       "bootout gui/501/ai.openassist.openassistd",
       "print gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
       `bootstrap gui/501 ${plistPath}`,
       "enable gui/501/ai.openassist.openassistd",
       "print gui/501/ai.openassist.openassistd",
@@ -247,7 +250,94 @@ describe("service-manager adapters", () => {
       "print gui/501/ai.openassist.openassistd",
       "disable gui/501/ai.openassist.openassistd",
       "print gui/501/ai.openassist.openassistd",
-      "bootout gui/501/ai.openassist.openassistd"
+      "bootout gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd"
+    ]);
+  });
+
+  it("waits for launchd bootout to settle before restarting", async () => {
+    setPlatform("darwin");
+    setGetuid(501);
+    const home = tempDir("openassist-launchd-race-home-");
+    vi.spyOn(os, "homedir").mockReturnValue(home);
+
+    let bootstrapped = false;
+    let disabled = false;
+    let stalePrintsAfterBootout = 0;
+    const runner = new FakeRunner({
+      runCodeFn: (command, args) => {
+        if (command !== "launchctl") {
+          return 0;
+        }
+        if (args[0] === "print") {
+          if (stalePrintsAfterBootout > 0) {
+            stalePrintsAfterBootout -= 1;
+            return 0;
+          }
+          return bootstrapped ? 0 : 1;
+        }
+        if (args[0] === "bootstrap") {
+          bootstrapped = true;
+          return 0;
+        }
+        if (args[0] === "enable") {
+          if (!bootstrapped) {
+            return 1;
+          }
+          disabled = false;
+          return 0;
+        }
+        if (args[0] === "disable") {
+          if (!bootstrapped) {
+            return 1;
+          }
+          disabled = true;
+          return 0;
+        }
+        if (args[0] === "kickstart") {
+          return bootstrapped && !disabled ? 0 : 1;
+        }
+        if (args[0] === "bootout") {
+          if (!bootstrapped) {
+            return 1;
+          }
+          bootstrapped = false;
+          stalePrintsAfterBootout = 1;
+          return 0;
+        }
+        return 0;
+      }
+    });
+    const manager = createServiceManager(runner);
+    const repoRoot = tempDir("openassist-launchd-race-repo-");
+    const installDir = path.join(repoRoot, "install");
+    const configPath = path.join(installDir, "openassist.toml");
+    const envFilePath = path.join(home, ".config", "openassist", "openassistd.env");
+    const plistPath = path.join(home, "Library", "LaunchAgents", "ai.openassist.openassistd.plist");
+
+    await manager.install({
+      installDir,
+      configPath,
+      envFilePath,
+      repoRoot
+    });
+
+    await manager.restart();
+
+    expect(
+      runner.runCalls.filter((call) => call.command === "launchctl").map((call) => call.args.join(" "))
+    ).toEqual([
+      "print gui/501/ai.openassist.openassistd",
+      `bootstrap gui/501 ${plistPath}`,
+      "enable gui/501/ai.openassist.openassistd",
+      "kickstart -k gui/501/ai.openassist.openassistd",
+      "bootout gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      "print gui/501/ai.openassist.openassistd",
+      `bootstrap gui/501 ${plistPath}`,
+      "enable gui/501/ai.openassist.openassistd",
+      "kickstart -k gui/501/ai.openassist.openassistd"
     ]);
   });
 

@@ -197,7 +197,7 @@ Expected:
 
 ## Exit Criteria for Release Candidate
 
-- all scenarios pass on Linux primary target
-- macOS dry-run lifecycle checks remain stable
+- all applicable scenarios pass on Linux and macOS supported operator paths
+- hosted Linux/macOS lifecycle smoke remains stable
 - residual risks documented in security/testing docs
 - ExecPlan retrospective updated with evidence

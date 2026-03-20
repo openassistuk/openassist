@@ -238,6 +238,20 @@ describe("cli setup validation and summary coverage", () => {
       }).some((line) => line.includes("Linux systemd filesystem access: Unrestricted systemd filesystem access")),
       true
     );
+    assert.equal(
+      buildSetupSummary({
+        installDir: root,
+        configPath: "/tmp/openassist.toml",
+        envFilePath: "/tmp/openassistd.env",
+        config,
+        changedEnvKeys: [],
+        warningCount: 0,
+        skippedService: true,
+        healthOk: false,
+        platform: "darwin"
+      }).some((line) => line.includes("Linux systemd filesystem access: Not applicable on launchd")),
+      true
+    );
 
     const skippedServiceSummary = buildSetupSummary({
       installDir: root,

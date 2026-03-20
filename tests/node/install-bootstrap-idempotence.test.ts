@@ -33,6 +33,10 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("Choose next step for prerequisite recovery"));
     assert.ok(script.includes("Retry automatic installation"));
     assert.ok(script.includes("Exit and fix manually"));
+    assert.ok(script.includes('Darwin) echo "darwin" ;;'));
+    assert.ok(script.includes("Homebrew is required for automatic prerequisite installation on macOS."));
+    assert.ok(script.includes("brew install git"));
+    assert.ok(script.includes("brew install node@22 || brew install node"));
     assert.ok(script.includes("deb.nodesource.com/setup_22.x"));
     assert.ok(script.includes("Node.js is still <22 after package install; attempting fallback install via npm+n"));
     assert.ok(script.includes("npm install -g n"));
@@ -86,6 +90,7 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("Service install and health checks were skipped."));
     assert.ok(script.includes("This shell may need a new login shell before 'openassist' is on PATH."));
     assert.ok(script.includes("SERVICE_KIND=\"systemd-system\""));
+    assert.ok(script.includes("SERVICE_KIND=\"launchd\""));
     assert.ok(script.includes("Cannot use --ref and --pr together."));
     assert.ok(script.includes('if [[ "${TRACKED_REF}" == "HEAD" ]]; then'));
     assert.ok(script.includes('TRACKED_REF="main"'));

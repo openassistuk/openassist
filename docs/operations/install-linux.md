@@ -4,7 +4,7 @@ This page covers Linux-specific installation details. For the end-to-end operato
 
 ## Platform Behavior
 
-Linux is the primary OpenAssist release target.
+Linux is a first-class OpenAssist operator path.
 
 Bootstrap can install missing prerequisites automatically unless you disable it:
 

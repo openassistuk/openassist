@@ -94,6 +94,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- macOS operator parity hardening:
+  - shared lifecycle, architecture, testing, and contributor docs now treat Linux and macOS as first-class supported operator paths while keeping Linux-only `systemd` behavior explicit
+  - docs-truth, bootstrap-contract, setup-summary, and setup-validation regression coverage now pin launchd-aware readiness behavior and prevent drift back to Linux-primary wording
+
 - GitHub landing page and beginner docs expansion:
   - reworked `README.md` into a GitHub-first landing page with shorter setup, provider, channel, config, and docs-navigation sections
   - added dedicated beginner docs for each first-class provider under `docs/providers/`

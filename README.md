@@ -33,6 +33,8 @@ Canonical beginner docs:
 - Common troubleshooting: [`docs/operations/common-troubleshooting.md`](docs/operations/common-troubleshooting.md)
 - Full docs index: [`docs/README.md`](docs/README.md)
 
+Linux and macOS are first-class supported operator paths for the installed lifecycle in this release. Windows stays in the required CI matrix, but service-manager parity is not the operator target yet.
+
 ## Why OpenAssist
 
 - Local-first: OpenAssist is meant to help with the machine it runs on, not only with its own repo.

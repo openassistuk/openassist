@@ -4,6 +4,8 @@ This document defines local and CI validation expectations.
 
 The normal Node integration gate now includes docs-truth validation, so stale live-doc links or anchors, incomplete docs indexing, mismatched workflow statements, stale threshold references, and stale test inventories are expected to fail before merge instead of waiting for release review.
 
+Linux and macOS are the first-class operator platforms for lifecycle and service validation in this release. Windows remains part of the required quality matrix, but it is not the service-manager parity target.
+
 ## Primary Local Gate
 
 Run this before merge:

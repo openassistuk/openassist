@@ -86,8 +86,8 @@ SQLite runs in WAL mode for local durability and concurrent reader behavior.
 
 ## Platform Scope
 
-- Linux: primary operational target
-- macOS: supported path
+- Linux: first-class supported operator path (`systemd --user` or system-level `systemd`)
+- macOS: first-class supported operator path (`launchd`)
 - Windows: CI validated, service-manager parity deferred
 
 ## Non-Goals for Current Release

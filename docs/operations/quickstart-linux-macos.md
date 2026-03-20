@@ -30,8 +30,9 @@ Supported runtime baseline:
 
 Platform notes:
 
-- Linux is the primary release target
-- macOS is supported with `launchd`
+- Linux and macOS are first-class supported operator paths
+- Linux uses `systemd` (`systemd --user` for non-root, system-level `systemd` for root)
+- macOS uses `launchd`
 - Windows has CI coverage, but service lifecycle parity is not the operator target yet
 
 ## 1. Install OpenAssist

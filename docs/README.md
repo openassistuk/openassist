@@ -19,6 +19,8 @@ Core entrypoints:
 - Common troubleshooting: [`docs/operations/common-troubleshooting.md`](operations/common-troubleshooting.md)
 - Setup hub and wizard guide: [`docs/operations/setup-wizard.md`](operations/setup-wizard.md)
 
+Linux and macOS are the first-class operator paths for lifecycle and service validation in this release. Windows stays in the required CI matrix, but it is not the service-manager parity target.
+
 Fresh installs keep writable operator state outside the repo checkout by default:
 
 - config: `~/.config/openassist/openassist.toml`

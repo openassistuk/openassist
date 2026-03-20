@@ -2,7 +2,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createDefaultConfigObject,
   toProviderApiKeyEnvVar,
@@ -152,6 +152,34 @@ describe("setup quickstart validation", () => {
     const codes = new Set(result.errors.map((item) => item.code));
     const hasServiceSignal = codes.has("service.daemon_missing") || codes.has("service.unsupported_platform");
     expect(hasServiceSignal).toBe(true);
+  });
+
+  it("resolves launchd as the service manager on macOS without falling into unsupported-platform handling", async () => {
+    const root = tempDir("openassist-quickstart-validation-launchd-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    const apiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
+    const platformSpy = vi.spyOn(process, "platform", "get").mockReturnValue("darwin");
+
+    try {
+      const result = await validateSetupReadiness({
+        config,
+        env: {
+          [apiKeyVar]: "test-key"
+        },
+        configPath: path.join(root, "openassist.toml"),
+        envFilePath: path.join(root, "openassistd.env"),
+        installDir: root,
+        skipService: false,
+        timezoneConfirmed: true
+      });
+
+      expect(result.serviceManagerKind).toBe("launchd");
+      expect(result.errors.some((item) => item.code === "service.unsupported_platform")).toBe(false);
+      expect(result.errors.some((item) => item.code === "service.daemon_missing")).toBe(true);
+    } finally {
+      platformSpy.mockRestore();
+    }
   });
 
   it("warns when default provider uses OAuth without API key during onboarding", async () => {

@@ -1,15 +1,18 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { Command } from "../../apps/openassist-cli/node_modules/commander/index.js";
 import {
   registerServiceCommands,
   type ServiceCommandDeps,
   type ServiceManagerLike
 } from "../../apps/openassist-cli/src/commands/service.js";
 import type { ServiceManagerKind } from "../../apps/openassist-cli/src/lib/install-state.js";
+
+const cliRequire = createRequire(new URL("../../apps/openassist-cli/package.json", import.meta.url));
+const { Command } = cliRequire("commander") as typeof import("commander");
 
 function tempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

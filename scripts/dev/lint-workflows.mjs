@@ -64,9 +64,11 @@ function fail(message) {
 }
 
 function workflowTargetsForPolicy() {
-  return effectiveArgs
+  const explicitTargets = effectiveArgs
     .filter((arg) => !arg.startsWith("-"))
-    .filter((arg) => !arg.includes("*") && !arg.includes("?"))
+    .filter((arg) => !arg.includes("*") && !arg.includes("?"));
+  const targets = explicitTargets.length > 0 ? explicitTargets : defaultTargets;
+  return targets
     .map((target) => (path.isAbsolute(target) ? target : path.join(repoRoot, target)));
 }
 

@@ -85,6 +85,13 @@ describe("workflow lint script", () => {
     assert.equal(result.code, 0, result.stderr || result.stdout);
   });
 
+  it("keeps policy enforcement active when invoked with a literal workflow glob", async () => {
+    const scriptPath = path.resolve("scripts", "dev", "lint-workflows.mjs");
+    const result = await runCommand(process.execPath, [scriptPath, ".github/workflows/*.yml"], path.resolve("."));
+    assert.equal(result.code, 0, result.stderr || result.stdout);
+    assert.match(result.stdout + result.stderr, /workflow file\(s\)|passed lint checks/i);
+  });
+
   it("fails when a tracked workflow uses outdated action majors", async () => {
     const scriptPath = path.resolve("scripts", "dev", "lint-workflows.mjs");
     const root = tempDir("openassist-workflow-lint-bad-");

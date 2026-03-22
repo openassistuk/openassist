@@ -119,4 +119,57 @@ describe("legacy operator layout cleanup safety", () => {
       expect(fs.existsSync(path.join(installDir, "config.d", "extra.toml"))).toBe(true);
       expect(fs.existsSync(path.join(installDir, ".openassist"))).toBe(false);
     }));
+
+  it("keeps tracked repo files in place when git metadata lookup fails before checkout", async () =>
+    await withHomeDir(tempDir("openassist-layout-cleanup-home-lookup-failure-"), async () => {
+      const homeDir = process.env.HOME!;
+      const installDir = tempDir("openassist-layout-cleanup-install-lookup-failure-");
+      const operatorPaths = resolveOperatorPaths({ homeDir, installDir });
+      const legacyConfigPath = writeLegacyDefaultConfig(installDir);
+
+      fs.mkdirSync(path.join(installDir, ".git"), { recursive: true });
+      fs.mkdirSync(path.join(installDir, "config.d"), { recursive: true });
+      fs.writeFileSync(path.join(installDir, "config.d", ".gitkeep"), "", "utf8");
+      fs.writeFileSync(path.join(installDir, "config.d", "extra.toml"), "[runtime]\n", "utf8");
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
+      fs.mkdirSync(path.dirname(operatorPaths.envFilePath), { recursive: true });
+      fs.writeFileSync(operatorPaths.envFilePath, "# env\n", "utf8");
+      saveInstallState(
+        {
+          installDir,
+          configPath: legacyConfigPath,
+          envFilePath: operatorPaths.envFilePath
+        },
+        operatorPaths.installStatePath
+      );
+
+      spawnSyncMock.mockImplementation((_command: string, args?: readonly string[]) => {
+        if (args?.includes("ls-files")) {
+          return {
+            status: null,
+            error: new Error("git unavailable")
+          };
+        }
+        return {
+          status: 1,
+          error: undefined
+        };
+      });
+
+      const { autoMigrateLegacyDefaultLayoutIfNeeded } = await import(
+        "../../apps/openassist-cli/src/lib/operator-layout.js"
+      );
+      const result = await autoMigrateLegacyDefaultLayoutIfNeeded({
+        installDir,
+        configPath: operatorPaths.configPath,
+        envFilePath: operatorPaths.envFilePath
+      });
+
+      expect(result.migrated).toBe(true);
+      expect(result.message).toContain("kept tracked repo files in place because git checkout was unavailable");
+      expect(fs.existsSync(path.join(installDir, "openassist.toml"))).toBe(true);
+      expect(fs.existsSync(path.join(installDir, "config.d", ".gitkeep"))).toBe(true);
+      expect(fs.existsSync(path.join(installDir, "config.d", "extra.toml"))).toBe(true);
+      expect(fs.existsSync(path.join(installDir, ".openassist"))).toBe(false);
+    }));
 });

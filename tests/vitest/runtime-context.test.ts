@@ -2,7 +2,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultDataDir } from "../../packages/config/src/operator-paths.js";
 import {
   defaultEnvFilePath,
@@ -19,6 +19,10 @@ import {
 function tempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("runtime-context", () => {
   it("resolves workspace-relative paths and db defaults", () => {
@@ -67,6 +71,31 @@ describe("runtime-context", () => {
     expect(empty.data).toEqual({});
 
     server.close();
+  });
+
+  it("rejects invalid json responses instead of silently coercing them", async () => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end("{not-json");
+    });
+
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", () => resolve());
+    });
+
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("failed to resolve test server address");
+    }
+
+    await expect(requestJson("GET", `http://127.0.0.1:${address.port}/bad`)).rejects.toThrow();
+    server.close();
+  });
+
+  it("propagates fetch failures from the daemon request helper", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("socket hang up"));
+
+    await expect(requestJson("GET", "http://127.0.0.1:65535/health")).rejects.toThrow("socket hang up");
   });
 
   it("detects repository root and platform defaults", () => {

@@ -126,6 +126,108 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
 }
 
 describe("cli setup quickstart runtime coverage", () => {
+  it("returns unsaved when validation fails and the operator aborts", async () => {
+    const root = tempDir("openassist-node-quickstart-abort-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+
+    const prompts = new ScriptedPromptAdapter([
+      "false",
+      "127.0.0.1",
+      String(bindPort),
+      "OpenAssist",
+      "Pragmatic and concise",
+      "Keep answers practical",
+      "openai",
+      "openai-main",
+      "gpt-5.4",
+      "",
+      "default",
+      "",
+      "telegram",
+      "telegram-main",
+      "",
+      "",
+      "Europe",
+      "Europe/London",
+      "true",
+      "save",
+      "abort"
+    ]);
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    assert.equal(result.saved, false);
+    assert.ok(result.validationErrors > 0);
+    assert.equal(fs.existsSync(configPath), false);
+  });
+
+  it("supports explicit allow-incomplete continuation after validation errors", async () => {
+    const root = tempDir("openassist-node-quickstart-allow-incomplete-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+
+    const prompts = new ScriptedPromptAdapter([
+      "false",
+      "127.0.0.1",
+      String(bindPort),
+      "OpenAssist",
+      "Pragmatic and concise",
+      "Keep answers practical",
+      "openai",
+      "openai-main",
+      "gpt-5.4",
+      "",
+      "default",
+      "",
+      "telegram",
+      "telegram-main",
+      "",
+      "",
+      "Europe",
+      "Europe/London",
+      "true",
+      "save",
+      "true"
+    ]);
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: true,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    assert.equal(result.saved, true);
+    assert.ok(result.validationErrors > 0);
+    assert.equal(fs.existsSync(configPath), true);
+  });
+
   it("runs minimal first-reply onboarding and saves config/env", async () => {
     const root = tempDir("openassist-node-quickstart-");
     const configPath = path.join(root, "openassist.toml");
@@ -322,5 +424,217 @@ describe("cli setup quickstart runtime coverage", () => {
     assert.equal(await service.isInstalled(), true);
     assert.equal(counters.installCalls, 1);
     assert.equal(counters.restartCalls, 1);
+  });
+
+  it("uses loopback health probe urls when the bind address is wildcard", async () => {
+    const root = tempDir("openassist-node-quickstart-loopback-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    let healthArg: string | string[] | undefined;
+    const requestUrls: string[] = [];
+    const validationContinuationAnswers = process.platform === "win32" ? ["true"] : [];
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: true,
+        skipService: false,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      new ScriptedPromptAdapter([
+        "false",
+        "0.0.0.0",
+        String(bindPort),
+        "OpenAssist",
+        "Pragmatic and concise",
+        "Keep answers practical",
+        "openai",
+        "openai-main",
+        "gpt-5.4",
+        "",
+        "default",
+        "openai-key",
+        "telegram",
+        "telegram-main",
+        "telegram-token",
+        "123,456",
+        "Europe",
+        "Europe/London",
+        "true",
+        "save",
+        ...validationContinuationAnswers
+      ]),
+      {
+        createServiceManagerFn: () => createFakeService(),
+        waitForHealthyFn: async (baseUrl) => {
+          healthArg = baseUrl;
+          return {
+            ok: true,
+            status: 200,
+            bodyText: "{\"status\":\"ok\"}"
+          };
+        },
+        requestJsonFn: async (_method, url) => {
+          requestUrls.push(url);
+          return {
+            status: 200,
+            data: { status: "ok" }
+          };
+        }
+      }
+    );
+
+    assert.equal(result.saved, true);
+    assert.equal(Array.isArray(healthArg), true);
+    assert.equal((healthArg as string[]).some((entry) => entry.includes("127.0.0.1")), true);
+    assert.equal(requestUrls.some((url) => url.startsWith(`http://127.0.0.1:${bindPort}`)), true);
+  });
+
+  it("re-enters runtime to fix a busy port before saving", async () => {
+    const root = tempDir("openassist-node-quickstart-runtime-fix-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const busyPort = await getFreePort();
+    const freePort = await getFreePort();
+    const holder = net.createServer();
+    holder.unref();
+    await new Promise<void>((resolve, reject) => {
+      holder.once("error", reject);
+      holder.listen(busyPort, "127.0.0.1", () => resolve());
+    });
+
+    try {
+      const state = loadSetupQuickstartState(configPath, envPath, installDir);
+      const result = await runSetupQuickstart(
+        state,
+        {
+          configPath,
+          envFilePath: envPath,
+          installDir,
+          allowIncomplete: false,
+          skipService: true,
+          requireTty: false,
+          preflightCommandChecks: false
+        },
+        new ScriptedPromptAdapter([
+          "false",
+          "127.0.0.1",
+          String(busyPort),
+          "OpenAssist",
+          "Pragmatic and concise",
+          "Keep answers practical",
+          "openai",
+          "openai-main",
+          "gpt-5.4",
+          "",
+          "default",
+          "openai-key",
+          "telegram",
+          "telegram-main",
+          "telegram-token",
+          "123",
+          "Europe",
+          "Europe/London",
+          "true",
+          "save",
+          "service-health",
+          "false",
+          "127.0.0.1",
+          String(freePort)
+        ])
+      );
+
+      assert.equal(result.saved, true);
+      assert.equal(result.validationErrors, 0);
+      assert.equal(state.config.runtime.bindPort, freePort);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        holder.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
+  it("re-enters provider, channel, and time stages until validation passes", async () => {
+    const root = tempDir("openassist-node-quickstart-repair-flow-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    state.config.runtime.bindPort = await getFreePort();
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      new ScriptedPromptAdapter([
+        "true",
+        "OpenAssist",
+        "Pragmatic and concise",
+        "Keep answers practical",
+        "openai",
+        "openai-main",
+        "gpt-5.4",
+        "",
+        "default",
+        "",
+        "telegram",
+        "telegram-main",
+        "",
+        "",
+        "Europe",
+        "Europe/London",
+        "false",
+        "save",
+        "provider-auth",
+        "false",
+        "openai",
+        "openai-main",
+        "gpt-5.4",
+        "",
+        "default",
+        "openai-key",
+        "channel-auth-routing",
+        "telegram",
+        "false",
+        "telegram-main",
+        "telegram-token",
+        "123",
+        "timezone-time",
+        "Europe",
+        "Europe/London",
+        "true"
+      ])
+    );
+
+    assert.equal(result.saved, true);
+    assert.equal(result.validationErrors, 0);
+    assert.equal(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY, "openai-key");
+    assert.equal(state.env.OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN, "telegram-token");
+    assert.equal(state.config.runtime.time.defaultTimezone, "Europe/London");
+    assert.equal(result.summary.some((line) => line.includes("Service state: Service checks skipped")), true);
   });
 });

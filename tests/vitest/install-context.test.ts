@@ -26,6 +26,79 @@ afterEach(() => {
 });
 
 describe("loadRuntimeInstallContext", () => {
+  it("reuses stored install metadata when the config stays under the stored install directory", async () => {
+    const root = tempDir("openassist-install-context-stored-relative-");
+    const homeDir = path.join(root, "home");
+    const installDir = path.join(root, "install");
+    const configPath = path.join(installDir, "configs", "openassist.toml");
+    const installStatePath = path.join(homeDir, ".config", "openassist", "install-state.json");
+
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.mkdirSync(path.dirname(installStatePath), { recursive: true });
+    fs.writeFileSync(configPath, "bindAddress = \"127.0.0.1\"\n", "utf8");
+    fs.writeFileSync(
+      installStatePath,
+      JSON.stringify({
+        installDir,
+        trackedRef: "feature/coverage-hardening",
+        lastKnownGoodCommit: "abc123"
+      }),
+      "utf8"
+    );
+
+    vi.stubEnv("HOME", homeDir);
+    vi.stubEnv("USERPROFILE", homeDir);
+    vi.stubEnv("OPENASSIST_ENV_FILE", "");
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+
+    const spawnSync = vi.mocked(childProcess.spawnSync);
+    const { loadRuntimeInstallContext } = await import("../../apps/openassistd/src/install-context.js");
+    const context = loadRuntimeInstallContext(configPath);
+
+    expect(spawnSync).not.toHaveBeenCalled();
+    expect(context.repoBackedInstall).toBe(false);
+    expect(context.installDir).toBe(installDir);
+    expect(context.configPath).toBe(configPath);
+    expect(context.trackedRef).toBe("feature/coverage-hardening");
+    expect(context.lastKnownGoodCommit).toBe("abc123");
+  });
+
+  it("prefers stored config and env paths when install-state matches the exact config file", async () => {
+    const root = tempDir("openassist-install-context-stored-exact-");
+    const homeDir = path.join(root, "home");
+    const installDir = path.join(root, "install");
+    const configPath = path.join(root, "active-config", "openassist.toml");
+    const storedEnvFilePath = path.join(root, "canonical", "openassistd.env");
+    const installStatePath = path.join(homeDir, ".config", "openassist", "install-state.json");
+
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.mkdirSync(path.dirname(storedEnvFilePath), { recursive: true });
+    fs.mkdirSync(path.dirname(installStatePath), { recursive: true });
+    fs.writeFileSync(configPath, "bindAddress = \"127.0.0.1\"\n", "utf8");
+    fs.writeFileSync(
+      installStatePath,
+      JSON.stringify({
+        installDir,
+        configPath,
+        envFilePath: storedEnvFilePath
+      }),
+      "utf8"
+    );
+
+    vi.stubEnv("HOME", homeDir);
+    vi.stubEnv("USERPROFILE", homeDir);
+    vi.stubEnv("OPENASSIST_ENV_FILE", path.join(root, "env-from-process.env"));
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+
+    const { loadRuntimeInstallContext } = await import("../../apps/openassistd/src/install-context.js");
+    const context = loadRuntimeInstallContext(configPath);
+
+    expect(context.repoBackedInstall).toBe(false);
+    expect(context.installDir).toBe(installDir);
+    expect(context.configPath).toBe(configPath);
+    expect(context.envFilePath).toBe(storedEnvFilePath);
+  });
+
   it("times out git probing, logs once, and falls back to best-effort install metadata", async () => {
     const root = tempDir("openassist-install-context-");
     const homeDir = path.join(root, "home");
@@ -123,5 +196,43 @@ describe("loadRuntimeInstallContext", () => {
 
     expect(context.serviceManager).toBe("launchd");
     expect(context.systemdFilesystemAccessEffective).toBe("not-applicable");
+  });
+
+  it("ignores malformed install-state and falls back to explicit env plus manual service metadata", async () => {
+    const root = tempDir("openassist-install-context-invalid-state-");
+    const homeDir = path.join(root, "home");
+    const repoRoot = path.join(root, "repo");
+    const configPath = path.join(repoRoot, "openassist.toml");
+    const installStatePath = path.join(homeDir, ".config", "openassist", "install-state.json");
+    const explicitEnvFile = path.join(root, "custom", "openassistd.env");
+
+    fs.mkdirSync(path.join(homeDir, ".config", "openassist"), { recursive: true });
+    fs.mkdirSync(path.join(repoRoot, ".git"), { recursive: true });
+    fs.writeFileSync(configPath, "bindAddress = \"127.0.0.1\"\n", "utf8");
+    fs.writeFileSync(installStatePath, "{not-json", "utf8");
+
+    vi.stubEnv("HOME", homeDir);
+    vi.stubEnv("USERPROFILE", homeDir);
+    vi.stubEnv("OPENASSIST_ENV_FILE", explicitEnvFile);
+    vi.stubEnv("OPENASSIST_SERVICE_MANAGER_KIND", "manual");
+    vi.stubEnv("OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS", "hardened");
+
+    const spawnSync = vi.mocked(childProcess.spawnSync);
+    spawnSync.mockReturnValue({
+      status: 1,
+      stdout: ""
+    } as unknown as ReturnType<typeof childProcess.spawnSync>);
+
+    const { loadRuntimeInstallContext } = await import("../../apps/openassistd/src/install-context.js");
+    const context = loadRuntimeInstallContext(configPath);
+
+    expect(spawnSync).toHaveBeenCalledTimes(2);
+    expect(context.repoBackedInstall).toBe(true);
+    expect(context.installDir).toBe(repoRoot);
+    expect(context.envFilePath).toBe(path.resolve(explicitEnvFile));
+    expect(context.trackedRef).toBeUndefined();
+    expect(context.lastKnownGoodCommit).toBeUndefined();
+    expect(context.serviceManager).toBe("manual");
+    expect(context.systemdFilesystemAccessEffective).toBe("unknown");
   });
 });

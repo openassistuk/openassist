@@ -303,7 +303,7 @@ Docs truth-source checks are required before claiming doc completeness:
   - `.github/workflows/macos-live-launchd.yml`
   - `.github/workflows/service-smoke.yml`
   - `.github/workflows/lifecycle-e2e-smoke.yml`
-- coverage-threshold docs must be validated against:
+- coverage-threshold and coverage-scope docs must be validated against:
   - `vitest.config.ts`
   - `package.json`
 - testing inventory docs must be validated against:
@@ -403,6 +403,8 @@ Coverage policy discipline:
 
 - Do not lower coverage thresholds to get a green run.
 - Prefer targeted branch/contract tests to recover red gates.
+- Keep Node coverage totals limited to product code by excluding `tests/**` from the reported coverage scope.
+- Keep Vitest coverage scope explicit and targeted in `vitest.config.ts`; do not describe it as full-repo source coverage unless the config actually changes to that model.
 - Keep repo-wide docs-truth validation in the normal test gate so README/AGENTS/workflow/test-matrix drift fails early.
 
 CI expectations:

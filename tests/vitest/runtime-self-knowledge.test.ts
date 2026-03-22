@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildRuntimeAwarenessSnapshot,
   buildRuntimeAwarenessSystemMessage,
-  getRuntimeSelfKnowledgeDocs
+  canFsToolMutatePath,
+  getRuntimeSelfKnowledgeDocs,
+  resolveManagedHelperToolsDir
 } from "../../packages/core-runtime/src/index.js";
 
 function buildWebStatus(
@@ -255,5 +257,41 @@ describe("runtime self-knowledge", () => {
       expect(ref.purpose.length).toBeGreaterThan(10);
       expect(ref.whenToUse.length).toBeGreaterThan(10);
     }
+  });
+
+  it("applies workspace and allowed-write-path boundaries to fs mutation checks", () => {
+    expect(resolveManagedHelperToolsDir("runtime-data")).toBe(path.join(path.resolve("runtime-data"), "helper-tools"));
+
+    expect(
+      canFsToolMutatePath({
+        targetPath: "/srv/openassist/docs/README.md",
+        workspaceRoot: "/srv/openassist"
+      })
+    ).toBe(true);
+
+    expect(
+      canFsToolMutatePath({
+        targetPath: "/srv/other/file.txt",
+        workspaceRoot: "/srv/openassist"
+      })
+    ).toBe(false);
+
+    expect(
+      canFsToolMutatePath({
+        targetPath: "/var/lib/openassist/helper-tools/tool.js",
+        workspaceRoot: "/srv/openassist",
+        workspaceOnly: false,
+        allowedWritePaths: ["/var/lib/openassist/helper-tools"]
+      })
+    ).toBe(true);
+
+    expect(
+      canFsToolMutatePath({
+        targetPath: "/var/lib/openassist/secrets.txt",
+        workspaceRoot: "/srv/openassist",
+        workspaceOnly: false,
+        allowedWritePaths: ["/var/lib/openassist/helper-tools"]
+      })
+    ).toBe(false);
   });
 });

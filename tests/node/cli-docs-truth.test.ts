@@ -338,6 +338,30 @@ function extractNodeCoverageThresholds(): { lines: number; functions: number; br
   };
 }
 
+function extractVitestCoverageIncludes(): string[] {
+  const config = readText("vitest.config.ts");
+  const match = config.match(/coverage:\s*{[\s\S]*?include:\s*\[([\s\S]*?)\]\s*,[\s\S]*?exclude:/m);
+  assert.ok(match?.[1], "Could not parse Vitest coverage include list from vitest.config.ts");
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((entry) => entry[1] ?? "");
+}
+
+function extractNodeCoverageCommand(): string {
+  const packageJson = JSON.parse(readText("package.json")) as {
+    scripts?: Record<string, string>;
+  };
+  return packageJson.scripts?.["test:coverage:node"] ?? "";
+}
+
+function extractNodeCoverageSources(): string[] {
+  const script = extractNodeCoverageCommand();
+  return [...script.matchAll(/--src\s+("[^"]+"|\S+)/g)].map((match) => match[1]?.replace(/^"|"$/g, "") ?? "");
+}
+
+function extractNodeCoverageExcludes(): string[] {
+  const script = extractNodeCoverageCommand();
+  return [...script.matchAll(/--exclude\s+("[^"]+"|\S+)/g)].map((match) => match[1]?.replace(/^"|"$/g, "") ?? "");
+}
+
 function extractLifecycleSmokeDoctorJsonVersion(workflowPath: string): number {
   const workflow = readText(workflowPath);
   const match = workflow.match(/report\.version !== (\d+)/);
@@ -423,6 +447,36 @@ describe("docs truth", () => {
     assert.match(testMatrix, new RegExp(`lines/statements >= ${node.lines}`));
     assert.match(testMatrix, new RegExp(`functions >= ${node.functions}`));
     assert.match(testMatrix, new RegExp(`branches >= ${node.branches}`));
+  });
+
+  it("keeps coverage-scope wording aligned with config truth", () => {
+    const readme = readText("README.md");
+    const docsIndex = readText("docs/README.md");
+    const agents = readText("AGENTS.md");
+    const testMatrix = readText("docs/testing/test-matrix.md");
+    const vitestIncludes = extractVitestCoverageIncludes();
+    const nodeSources = extractNodeCoverageSources();
+    const nodeExcludes = extractNodeCoverageExcludes();
+
+    assert.match(agents, /coverage-threshold and coverage-scope docs must be validated against/);
+    assert.match(agents, /excluding `tests\/\*\*`/);
+    assert.match(testMatrix, /## Coverage Scope/);
+    assert.match(testMatrix, /Vitest coverage is intentionally targeted and currently measures:/);
+    assert.match(testMatrix, /Node coverage is also targeted and currently measures:/);
+
+    for (const include of vitestIncludes) {
+      assert.match(testMatrix, new RegExp(`- \`${escapeRegExp(include)}\``));
+    }
+    for (const src of nodeSources) {
+      assert.match(testMatrix, new RegExp(`- \`${escapeRegExp(src)}\``));
+    }
+
+    assert.ok(nodeExcludes.includes("tests/**"), "Node coverage script must exclude tests/** from totals");
+    assert.match(testMatrix, /`tests\/\*\*` are excluded from coverage totals/);
+    assert.match(readme, /Node coverage now excludes `tests\/\*\*` from reported totals/);
+    assert.match(docsIndex, /Node coverage excludes `tests\/\*\*` from its totals/);
+    assert.match(readme, /Vitest coverage intentionally targets the CLI library plus selected daemon, config, runtime, provider, and web-tool modules/);
+    assert.match(docsIndex, /Coverage reporting stays intentionally targeted rather than pretending to be full-repo source coverage/);
   });
 
   it("keeps Linux and macOS operator parity wording aligned across shared docs", () => {

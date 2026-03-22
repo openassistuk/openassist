@@ -118,6 +118,12 @@ The format follows Keep a Changelog conventions and this project currently track
   - docs-truth enforcement is now broader: it validates all live docs except archived ExecPlans, checks local links plus anchors, verifies docs-index completeness, verifies coverage-threshold wording against `vitest.config.ts` and `package.json`, and verifies workflow wording against `ci.yml`, `codeql.yml`, `service-smoke.yml`, and `lifecycle-e2e-smoke.yml`
   - the lifecycle E2E smoke workflow now checks the current `openassist doctor --json` report `version: 3` instead of the stale `version: 2` expectation that local tests no longer exercised
 
+- CI, docs-truth, and coverage hardening:
+  - repo-tracked workflows now use `actions/checkout@v6`, `actions/setup-node@v6`, and `actions/upload-artifact@v7` where applicable, and the workflow lint gate now fails if tracked workflows fall below the approved action-major floors for those actions or for `github/codeql-action/*@v4`
+  - Node coverage totals now exclude `tests/**`, so the reported Node coverage reflects product code instead of mixed source-plus-test files
+  - Vitest coverage now measures additional operator-relevant daemon, config, runtime, provider, and web-tool modules instead of leaving those already-tested files outside the reported scope
+  - docs-truth now validates coverage-scope wording against `vitest.config.ts` and `package.json`, and the repo docs explain the targeted coverage model explicitly instead of implying full-repo source coverage
+
 - Outbound channel delivery follow-up hardening:
   - runtime now blocks and audits provider tool calls that were not actually advertised for the active session, which closes the gap where a provider could force hidden delivery tools in `full-root`
   - `channel.send mode="reply"` now enforces the same outbound-file availability boundary surfaced in runtime awareness instead of relying only on schema exposure

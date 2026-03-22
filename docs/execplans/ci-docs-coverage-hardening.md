@@ -19,7 +19,7 @@ The visible proof is that `pnpm verify:all` passes locally, the PR reaches green
 - [x] (2026-03-22 14:24Z) Added the requested targeted Vitest coverage plus targeted Node coverage for the remaining CLI command surface needed to keep the honest Node gate green.
 - [x] (2026-03-22 14:26Z) Refreshed `README.md`, `AGENTS.md`, `docs/README.md`, `docs/testing/test-matrix.md`, `CHANGELOG.md`, and `tests/node/cli-docs-truth.test.ts` so workflow and coverage statements match code truth.
 - [x] (2026-03-22 14:30Z) Ran focused suites and a full `pnpm verify:all` pass and recorded the evidence below.
-- [ ] Push the branch, open the PR, dispatch `service-smoke.yml` and `lifecycle-e2e-smoke.yml`, and monitor checks/review until the PR is fully green.
+- [x] (2026-03-22 14:48Z) Pushed the branch, opened PR `#47`, reran the supplemental smoke workflows on the final head SHA, addressed the Copilot review follow-ups, and confirmed the PR’s automated state is green.
 
 ## Surprises & Discoveries
 
@@ -37,6 +37,9 @@ The visible proof is that `pnpm verify:all` passes locally, the PR reaches green
 
 - Observation: the cheapest safe way to recover the honest Node gate was to make `apps/openassist-cli/src/commands/service.ts` injectable for tests instead of adding more black-box CLI coverage that would touch the real host service manager.
   Evidence: a small dependency-injection seam plus `tests/node/cli-service-command-registration.test.ts` raised the Node gate to `80.08%` lines/statements without changing operator-facing behavior.
+
+- Observation: the automated review loop surfaced two valid follow-ups after the first green PR build, but both were small truth-preserving fixes rather than architectural changes.
+  Evidence: Copilot flagged the workflow-lint glob fallback and an unrestored `vi.spyOn(fs.promises, "rm")`; both were fixed in follow-up commit `ada2578` and revalidated with `pnpm verify:all`.
 
 ## Decision Log
 
@@ -73,6 +76,33 @@ Local evidence captured on 2026-03-22:
   - `pnpm verify:all`
 
 Remaining work is external to the workspace: push the branch, open the PR, wait for green `CI`, `CodeQL`, and `macOS Live Launchd`, manually dispatch and pass `service-smoke.yml` plus `lifecycle-e2e-smoke.yml`, confirm there are no unresolved actionable review comments or `CHANGES_REQUESTED`, and confirm there are no open code-scanning alerts for the PR head SHA.
+
+PR validation evidence on the final head SHA `ada257830f6d52c3ec7f63faedb5dc3495c8afc3`:
+
+- PR: `https://github.com/openassistuk/openassist/pull/47`
+- Required checks green:
+  - `workflow-lint`
+  - `quality-and-coverage (ubuntu-latest)`
+  - `quality-and-coverage (macos-latest)`
+  - `quality-and-coverage (windows-latest)`
+  - `CodeQL preflight`
+  - `analyze (javascript-typescript)`
+  - `CodeQL`
+  - `launchd-live-smoke (macos-latest)`
+- Supplemental workflow_dispatch runs green on the same branch head:
+  - Service Smoke run `23405403907`
+  - Lifecycle E2E Smoke run `23405404217`
+- Review state:
+  - No `CHANGES_REQUESTED`
+  - Both Copilot review threads resolved after follow-up commit `ada2578`
+  - No issue comments requiring action
+- Code scanning:
+  - `gh api "repos/openassistuk/openassist/code-scanning/alerts?state=open&ref=refs/heads/chore/ci-docs-coverage-hardening&per_page=100"` returned `[]`
+- Merge status:
+  - `mergeable = MERGEABLE`
+  - `mergeStateStatus = BLOCKED`
+  - `reviewDecision = REVIEW_REQUIRED`
+  - Interpretation: the remaining block is human review/approval, which is expected for manual check and merge.
 
 ## Context and Orientation
 

@@ -13,18 +13,140 @@ import {
   detectDefaultDaemonBaseUrl
 } from "../lib/runtime-context.js";
 import { detectInstallStateFromRepo, loadInstallState, saveInstallState } from "../lib/install-state.js";
+import type { ServiceManagerKind } from "../lib/install-state.js";
 import { detectLegacyDefaultLayout } from "../lib/operator-layout.js";
 import { writeEnvTemplateIfMissing } from "../lib/env-file.js";
 
-function normalizeBaseUrl(baseUrl?: string): string {
+export interface ServiceManagerLike {
+  readonly kind: ServiceManagerKind;
+  install(options: {
+    installDir: string;
+    configPath: string;
+    envFilePath: string;
+    repoRoot: string;
+    dryRun?: boolean;
+    systemdFilesystemAccess?: string;
+  }): Promise<void>;
+  uninstall(): Promise<void>;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  restart(): Promise<void>;
+  status(): Promise<void>;
+  logs(lines: number, follow: boolean): Promise<void>;
+  enable(): Promise<void>;
+  disable(): Promise<void>;
+  isInstalled(): Promise<boolean>;
+}
+
+export interface ServiceCommandDeps {
+  createRunner(): unknown;
+  createServiceManager(runner: unknown): ServiceManagerLike;
+  checkHealth(baseUrl: string): Promise<{
+    ok: boolean;
+    status: number;
+    bodyText: string;
+  }>;
+  loadConfig(options: {
+    baseFile: string;
+    overlaysDir: string;
+  }): {
+    config?: {
+      service?: {
+        systemdFilesystemAccess?: string;
+      };
+    };
+  };
+  resolveConfigOverlaysDir(configPath: string): string;
+  defaultInstallDir(): string;
+  defaultConfigPath(): string;
+  defaultEnvFilePath(): string;
+  detectDefaultDaemonBaseUrl(configPath?: string): string;
+  loadInstallState():
+    | {
+        installDir?: string;
+        configPath?: string;
+        envFilePath?: string;
+        serviceManager?: ServiceManagerKind;
+        trackedRef?: string;
+        repoUrl?: string;
+        lastKnownGoodCommit?: string;
+      }
+    | undefined;
+  saveInstallState(
+    nextState: {
+      installDir: string;
+      configPath: string;
+      envFilePath: string;
+      serviceManager: ServiceManagerKind;
+      repoUrl?: string;
+      trackedRef?: string;
+      lastKnownGoodCommit?: string;
+    },
+    filePath?: string,
+      existingState?: {
+        installDir?: string;
+        configPath?: string;
+        envFilePath?: string;
+        serviceManager?: ServiceManagerKind;
+        trackedRef?: string;
+        repoUrl?: string;
+        lastKnownGoodCommit?: string;
+    }
+  ): void;
+  detectInstallStateFromRepo(installDir: string): {
+    repoUrl?: string;
+    trackedRef?: string;
+    lastKnownGoodCommit?: string;
+  };
+  detectLegacyDefaultLayout(installDir: string): {
+    status: string;
+    legacy: {
+      configPath: string;
+    };
+  };
+  writeEnvTemplateIfMissing(envFilePath: string): void;
+  existsSync(filePath: string): boolean;
+  promptInput(options: {
+    message: string;
+    default?: string;
+  }): Promise<string>;
+  promptSelect(options: {
+    message: string;
+    pageSize?: number;
+    choices: Array<{ name: string; value: string }>;
+    default?: string;
+  }): Promise<string>;
+}
+
+const defaultServiceCommandDeps: ServiceCommandDeps = {
+  createRunner: () => new SpawnCommandRunner(),
+  createServiceManager: (runner) => createServiceManager(runner as SpawnCommandRunner),
+  checkHealth,
+  loadConfig,
+  resolveConfigOverlaysDir,
+  defaultInstallDir,
+  defaultConfigPath,
+  defaultEnvFilePath,
+  detectDefaultDaemonBaseUrl,
+  loadInstallState,
+  saveInstallState,
+  detectInstallStateFromRepo,
+  detectLegacyDefaultLayout,
+  writeEnvTemplateIfMissing,
+  existsSync: fs.existsSync,
+  promptInput: (options) => inqInput(options),
+  promptSelect: (options) => inqSelect(options)
+};
+
+function normalizeBaseUrl(baseUrl: string | undefined, deps: ServiceCommandDeps): string {
   if (baseUrl && baseUrl.length > 0) {
     return baseUrl.replace(/\/+$/, "");
   }
-  return detectDefaultDaemonBaseUrl();
+  return deps.detectDefaultDaemonBaseUrl();
 }
 
-async function runHealthProbe(baseUrl: string): Promise<void> {
-  const result = await checkHealth(baseUrl);
+async function runHealthProbe(baseUrl: string, deps: ServiceCommandDeps): Promise<void> {
+  const result = await deps.checkHealth(baseUrl);
   if (result.ok) {
     console.log(`openassist health: ok (${baseUrl})`);
     return;
@@ -32,50 +154,50 @@ async function runHealthProbe(baseUrl: string): Promise<void> {
   throw new Error(`openassist health failed (${baseUrl}) status=${result.status} body=${result.bodyText}`);
 }
 
-export function registerServiceCommands(program: Command): void {
+export function registerServiceCommands(program: Command, deps: ServiceCommandDeps = defaultServiceCommandDeps): void {
   const serviceCommand = program.command("service").description("Service lifecycle operations");
 
   serviceCommand
     .command("install")
     .description("Install and enable service")
-    .option("--install-dir <path>", "Install directory", defaultInstallDir())
+    .option("--install-dir <path>", "Install directory", deps.defaultInstallDir())
     .option("--config <path>", "Path to openassist.toml")
-    .option("--env-file <path>", "Environment file path", defaultEnvFilePath())
+    .option("--env-file <path>", "Environment file path", deps.defaultEnvFilePath())
     .option("--dry-run", "Preview install without writing files")
     .action(async (options) => {
-      const installState = loadInstallState();
+      const installState = deps.loadInstallState();
       const installDir = path.resolve(String(options.installDir));
-      const legacyLayout = detectLegacyDefaultLayout(installDir);
+      const legacyLayout = deps.detectLegacyDefaultLayout(installDir);
       const configPath = options.config
         ? path.resolve(String(options.config))
         : installState?.configPath ??
-          (!fs.existsSync(defaultConfigPath()) && legacyLayout.status !== "none"
+          (!deps.existsSync(deps.defaultConfigPath()) && legacyLayout.status !== "none"
             ? legacyLayout.legacy.configPath
-            : defaultConfigPath());
+            : deps.defaultConfigPath());
       const envFilePath = path.resolve(String(options.envFile));
 
       try {
-        writeEnvTemplateIfMissing(envFilePath);
-        const config = fs.existsSync(configPath)
-          ? loadConfig({
+        deps.writeEnvTemplateIfMissing(envFilePath);
+        const config = deps.existsSync(configPath)
+          ? deps.loadConfig({
               baseFile: configPath,
-              overlaysDir: resolveConfigOverlaysDir(configPath)
+              overlaysDir: deps.resolveConfigOverlaysDir(configPath)
             }).config
           : undefined;
-        const runner = new SpawnCommandRunner();
-        const service = createServiceManager(runner);
+        const runner = deps.createRunner();
+        const service = deps.createServiceManager(runner);
         const existingState = installState;
-        const repoMetadata = detectInstallStateFromRepo(installDir);
+        const repoMetadata = deps.detectInstallStateFromRepo(installDir);
         await service.install({
           installDir,
           configPath,
           envFilePath,
           repoRoot: installDir,
           dryRun: Boolean(options.dryRun),
-          systemdFilesystemAccess: config?.service.systemdFilesystemAccess
+          systemdFilesystemAccess: config?.service?.systemdFilesystemAccess
         });
         if (!options.dryRun) {
-          saveInstallState({
+          deps.saveInstallState({
             installDir,
             configPath,
             envFilePath,
@@ -104,7 +226,7 @@ export function registerServiceCommands(program: Command): void {
     .description("Uninstall service")
     .action(async () => {
       try {
-        const service = createServiceManager(new SpawnCommandRunner());
+        const service = deps.createServiceManager(deps.createRunner());
         await service.uninstall();
         console.log("Service uninstalled.");
       } catch (error) {
@@ -119,7 +241,7 @@ export function registerServiceCommands(program: Command): void {
     .description("Start service")
     .action(async () => {
       try {
-        const service = createServiceManager(new SpawnCommandRunner());
+        const service = deps.createServiceManager(deps.createRunner());
         await service.start();
         console.log("Service started.");
       } catch (error) {
@@ -134,7 +256,7 @@ export function registerServiceCommands(program: Command): void {
     .description("Stop service")
     .action(async () => {
       try {
-        const service = createServiceManager(new SpawnCommandRunner());
+        const service = deps.createServiceManager(deps.createRunner());
         await service.stop();
         console.log("Service stopped.");
       } catch (error) {
@@ -149,7 +271,7 @@ export function registerServiceCommands(program: Command): void {
     .description("Restart service")
     .action(async () => {
       try {
-        const service = createServiceManager(new SpawnCommandRunner());
+        const service = deps.createServiceManager(deps.createRunner());
         await service.restart();
         console.log("Service restarted.");
       } catch (error) {
@@ -164,7 +286,7 @@ export function registerServiceCommands(program: Command): void {
     .description("Reload config by restarting daemon service")
     .action(async () => {
       try {
-        const service = createServiceManager(new SpawnCommandRunner());
+        const service = deps.createServiceManager(deps.createRunner());
         await service.restart();
         console.log("Service config reload complete (restart finished).");
       } catch (error) {
@@ -179,7 +301,7 @@ export function registerServiceCommands(program: Command): void {
     .description("Show service status")
     .action(async () => {
       try {
-        const service = createServiceManager(new SpawnCommandRunner());
+        const service = deps.createServiceManager(deps.createRunner());
         await service.status();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -196,7 +318,7 @@ export function registerServiceCommands(program: Command): void {
     .action(async (options) => {
       const lines = Number.parseInt(String(options.lines ?? "100"), 10);
       try {
-        const service = createServiceManager(new SpawnCommandRunner());
+        const service = deps.createServiceManager(deps.createRunner());
         await service.logs(Number.isFinite(lines) ? lines : 100, Boolean(options.follow));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -210,7 +332,7 @@ export function registerServiceCommands(program: Command): void {
     .description("Enable service at startup")
     .action(async () => {
       try {
-        const service = createServiceManager(new SpawnCommandRunner());
+        const service = deps.createServiceManager(deps.createRunner());
         await service.enable();
         console.log("Service enabled.");
       } catch (error) {
@@ -225,7 +347,7 @@ export function registerServiceCommands(program: Command): void {
     .description("Disable service at user startup")
     .action(async () => {
       try {
-        const service = createServiceManager(new SpawnCommandRunner());
+        const service = deps.createServiceManager(deps.createRunner());
         await service.disable();
         console.log("Service disabled.");
       } catch (error) {
@@ -240,9 +362,9 @@ export function registerServiceCommands(program: Command): void {
     .description("Run daemon health check")
     .option("--base-url <url>", "Daemon API base URL")
     .action(async (options) => {
-      const baseUrl = normalizeBaseUrl(options.baseUrl ? String(options.baseUrl) : undefined);
+      const baseUrl = normalizeBaseUrl(options.baseUrl ? String(options.baseUrl) : undefined, deps);
       try {
-        await runHealthProbe(baseUrl);
+        await runHealthProbe(baseUrl, deps);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`Health check failed: ${message}`);
@@ -261,13 +383,13 @@ export function registerServiceCommands(program: Command): void {
         return;
       }
 
-      const baseUrl = normalizeBaseUrl(options.baseUrl ? String(options.baseUrl) : undefined);
-      const service = createServiceManager(new SpawnCommandRunner());
+      const baseUrl = normalizeBaseUrl(options.baseUrl ? String(options.baseUrl) : undefined, deps);
+      const service = deps.createServiceManager(deps.createRunner());
       console.log(`Service manager: ${service.kind}`);
       console.log(`Health endpoint: ${baseUrl}/v1/health`);
 
       while (true) {
-        const action = await inqSelect({
+        const action = await deps.promptSelect({
           message: "Service console action",
           pageSize: 12,
           choices: [
@@ -294,7 +416,7 @@ export function registerServiceCommands(program: Command): void {
             continue;
           }
           if (action === "health") {
-            await runHealthProbe(baseUrl);
+            await runHealthProbe(baseUrl, deps);
             continue;
           }
           if (action === "start") {
@@ -313,7 +435,7 @@ export function registerServiceCommands(program: Command): void {
             continue;
           }
           if (action === "logs") {
-            const linesRaw = await inqInput({
+            const linesRaw = await deps.promptInput({
               message: "How many lines?",
               default: "200"
             });

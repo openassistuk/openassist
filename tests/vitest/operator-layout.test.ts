@@ -114,6 +114,45 @@ describe("legacy operator layout migration", () => {
       expect(detection.status).toBe("ready");
     }));
 
+  it("blocks automatic migration when the legacy config uses custom runtime paths", async () =>
+    await withHomeDir(tempDir("openassist-operator-layout-home-custom-runtime-"), async () => {
+      const homeDir = process.env.HOME!;
+      const installDir = tempDir("openassist-operator-layout-install-custom-runtime-");
+      const operatorPaths = resolveOperatorPaths({ homeDir, installDir });
+      const config = createDefaultConfigObject();
+      config.runtime.paths.dataDir = ".openassist/custom-data";
+      config.runtime.paths.logsDir = ".openassist/logs";
+      config.runtime.paths.skillsDir = ".openassist/skills";
+      saveConfigObject(path.join(installDir, "openassist.toml"), config);
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
+
+      const detection = detectLegacyDefaultLayout(installDir, operatorPaths);
+      expect(detection.status).toBe("blocked");
+      expect(detection.reason).toContain("custom runtime paths");
+
+      const result = await autoMigrateLegacyDefaultLayoutIfNeeded({
+        installDir,
+        configPath: operatorPaths.configPath,
+        envFilePath: operatorPaths.envFilePath
+      });
+      expect(result.migrated).toBe(false);
+      expect(result.blockedReason).toContain("custom runtime paths");
+    }));
+
+  it("blocks automatic migration when the legacy config cannot be parsed", async () =>
+    await withHomeDir(tempDir("openassist-operator-layout-home-invalid-config-"), () => {
+      const homeDir = process.env.HOME!;
+      const installDir = tempDir("openassist-operator-layout-install-invalid-config-");
+      const operatorPaths = resolveOperatorPaths({ homeDir, installDir });
+      fs.writeFileSync(path.join(installDir, "openassist.toml"), "runtime = [", "utf8");
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "data", "openassist.db"));
+
+      const detection = detectLegacyDefaultLayout(installDir, operatorPaths);
+
+      expect(detection.status).toBe("blocked");
+      expect(detection.reason).toContain("could not be read");
+    }));
+
   it("migrates the recognized legacy default layout into the canonical home-state directories", async () =>
     await withHomeDir(tempDir("openassist-operator-layout-home-migrate-"), async () => {
       const homeDir = process.env.HOME!;
@@ -169,5 +208,26 @@ describe("legacy operator layout migration", () => {
 
       expect(detection.status).toBe("blocked");
       expect(detection.reason).toContain(operatorPaths.dataDir);
+    }));
+
+  it("lists all conflicting home-state targets when multiple targets already contain data", async () =>
+    await withHomeDir(tempDir("openassist-operator-layout-home-multi-blocked-"), () => {
+      const homeDir = process.env.HOME!;
+      const installDir = tempDir("openassist-operator-layout-install-multi-blocked-");
+      const operatorPaths = resolveOperatorPaths({ homeDir, installDir });
+      writeLegacyDefaultConfig(installDir);
+      fs.mkdirSync(path.join(installDir, "config.d"), { recursive: true });
+      fs.writeFileSync(path.join(installDir, "config.d", "channel.toml"), "[runtime]\n", "utf8");
+      writeOwnerOnlyFile(path.join(installDir, ".openassist", "logs", "daemon.log"), "log");
+      fs.mkdirSync(operatorPaths.overlaysDir, { recursive: true });
+      fs.writeFileSync(path.join(operatorPaths.overlaysDir, "existing.toml"), "[runtime]\n", "utf8");
+      fs.mkdirSync(operatorPaths.logsDir, { recursive: true });
+      fs.writeFileSync(path.join(operatorPaths.logsDir, "existing.log"), "", "utf8");
+
+      const detection = detectLegacyDefaultLayout(installDir, operatorPaths);
+
+      expect(detection.status).toBe("blocked");
+      expect(detection.reason).toContain(operatorPaths.overlaysDir);
+      expect(detection.reason).toContain(operatorPaths.logsDir);
     }));
 });

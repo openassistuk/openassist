@@ -12,6 +12,15 @@ const lintArgs = process.argv.slice(2);
 const mode = process.env.OPENASSIST_ACTIONLINT_MODE ?? "auto";
 const image = process.env.OPENASSIST_ACTIONLINT_IMAGE ?? "rhysd/actionlint:1.7.11";
 const workflowDir = path.join(repoRoot, ".github", "workflows");
+const minimumActionMajors = new Map([
+  ["actions/checkout", 6],
+  ["actions/setup-node", 6],
+  ["actions/upload-artifact", 7],
+  ["github/codeql-action/init", 4],
+  ["github/codeql-action/analyze", 4],
+  ["github/codeql-action/autobuild", 4],
+  ["github/codeql-action/upload-sarif", 4]
+]);
 const defaultTargets = fs.existsSync(workflowDir)
   ? fs
       .readdirSync(workflowDir)
@@ -54,9 +63,70 @@ function fail(message) {
   process.exit(1);
 }
 
+function workflowTargetsForPolicy() {
+  const explicitTargets = effectiveArgs
+    .filter((arg) => !arg.startsWith("-"))
+    .filter((arg) => !arg.includes("*") && !arg.includes("?"));
+  const targets = explicitTargets.length > 0 ? explicitTargets : defaultTargets;
+  return targets
+    .map((target) => (path.isAbsolute(target) ? target : path.join(repoRoot, target)));
+}
+
+function parseTaggedActionMajor(ref) {
+  const match = /^v(\d+)(?:[.-].*)?$/i.exec(ref.trim());
+  return match ? Number(match[1]) : undefined;
+}
+
+function validateWorkflowPolicies() {
+  const errors = [];
+  for (const workflowPath of workflowTargetsForPolicy()) {
+    if (!fs.existsSync(workflowPath)) {
+      errors.push(`${path.relative(repoRoot, workflowPath)} does not exist.`);
+      continue;
+    }
+
+    const workflow = fs.readFileSync(workflowPath, "utf8");
+    for (const match of workflow.matchAll(/uses:\s*([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)?)@([^\s#]+)/g)) {
+      const action = match[1];
+      const ref = match[2];
+      const requiredMajor = action ? minimumActionMajors.get(action) : undefined;
+      if (!action || !ref || requiredMajor === undefined) {
+        continue;
+      }
+
+      const major = parseTaggedActionMajor(ref);
+      if (major === undefined) {
+        errors.push(
+          `${path.relative(repoRoot, workflowPath)} uses ${action}@${ref}, which is not a major tag. Use v${requiredMajor}+ for repo-tracked workflows.`
+        );
+        continue;
+      }
+      if (major < requiredMajor) {
+        errors.push(
+          `${path.relative(repoRoot, workflowPath)} uses ${action}@${ref}, which is below the required v${requiredMajor}+ floor.`
+        );
+      }
+    }
+  }
+  return errors;
+}
+
+function finishLint(result) {
+  const status = result.status ?? 1;
+  if (status !== 0) {
+    process.exit(status);
+  }
+
+  const policyErrors = validateWorkflowPolicies();
+  if (policyErrors.length > 0) {
+    fail(`Workflow action version policy failed:\n- ${policyErrors.join("\n- ")}`);
+  }
+
+  process.exit(0);
+}
+
 function runPathActionlint() {
-  const result = run("actionlint", effectiveArgs);
-  process.exit(result.status ?? 1);
+  finishLint(run("actionlint", effectiveArgs));
 }
 
 function hasNodeActionlintBin() {
@@ -77,8 +147,7 @@ function runNodeActionlint() {
     "bin",
     "node-actionlint.js"
   );
-  const result = run(process.execPath, [cliPath, target]);
-  process.exit(result.status ?? 1);
+  finishLint(run(process.execPath, [cliPath, target]));
 }
 
 function resolveNodeActionlintTarget() {
@@ -99,8 +168,7 @@ function runDockerActionlint() {
   }
 
   const mount = `${repoRoot}:/repo`;
-  const result = run("docker", ["run", "--rm", "-v", mount, "-w", "/repo", image, ...effectiveArgs]);
-  process.exit(result.status ?? 1);
+  finishLint(run("docker", ["run", "--rm", "-v", mount, "-w", "/repo", image, ...effectiveArgs]));
 }
 
 if (mode === "path") {

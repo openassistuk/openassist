@@ -123,11 +123,11 @@ Recognized older installs that still use repo-local operator state (`openassist.
 - Chaos and soak scenarios: [`docs/testing/chaos-and-soak.md`](testing/chaos-and-soak.md)
 - Changelog: [`CHANGELOG.md`](../CHANGELOG.md)
 
-The test matrix is expected to match the on-disk suite inventory exactly, and the normal Node test gate validates all live docs except archived ExecPlans: local links and anchors, docs-index completeness, workflow statements, coverage-threshold references, and documented command examples must stay in sync with the real repo.
+The test matrix is expected to match the on-disk suite inventory exactly, and the normal Node test gate validates all live docs except archived ExecPlans: local links and anchors, docs-index completeness, workflow statements, coverage-threshold references, coverage-scope references, and documented command examples must stay in sync with the real repo.
 
 GitHub automation:
 
-- `CI` runs on pushes to `main`, pull requests, manual dispatch, and a daily `04:30 UTC` schedule for workflow lint plus the `quality-and-coverage` matrix.
+- `CI` runs on pushes to `main`, pull requests, manual dispatch, and a daily `04:30 UTC` schedule for workflow lint plus the `quality-and-coverage` matrix. The workflow lint leg also enforces the tracked action-version floors for `actions/checkout@v6`, `actions/setup-node@v6`, `actions/upload-artifact@v7`, and `github/codeql-action/*@v4`.
 - `CodeQL` runs on pushes to `main`, pull requests to `main`, manual dispatch, and a weekly `Mon` at `05:15 UTC` schedule. In this public repo it runs `CodeQL preflight` plus `analyze (javascript-typescript)`.
 - `.github/workflows/macos-live-launchd.yml` runs on `pull_request` targeting `main` and `workflow_dispatch`
 - it provides required `launchd-live-smoke (macos-latest)` proof of live LaunchAgent install, health, status, stop/start recovery, restart, logs, and uninstall on hosted macOS
@@ -138,6 +138,8 @@ Supplemental smoke notes:
 - it is a supplemental lifecycle check, not a required per-push or per-PR gate
 - `.github/workflows/lifecycle-e2e-smoke.yml` runs on `workflow_dispatch` and schedule (`Tue`/`Sat` at `07:00 UTC`)
 - it is a stronger bootstrap or home-state lifecycle smoke, also supplemental and not a required per-push or per-PR gate
+
+Coverage reporting stays intentionally targeted rather than pretending to be full-repo source coverage. Node coverage excludes `tests/**` from its totals, and the exact Vitest plus Node source lists are documented in `docs/testing/test-matrix.md`.
 
 ## Migration and Planning
 
@@ -174,6 +176,7 @@ Current lifecycle ExecPlans:
 - [`docs/execplans/provider-reasoning-controls.md`](execplans/provider-reasoning-controls.md)
 - [`docs/execplans/provider-reasoning-ux.md`](execplans/provider-reasoning-ux.md)
 - [`docs/execplans/public-release-codeql-hardening.md`](execplans/public-release-codeql-hardening.md)
+- [`docs/execplans/ci-docs-coverage-hardening.md`](execplans/ci-docs-coverage-hardening.md)
 - [`docs/execplans/repo-wide-docs-test-hardening.md`](execplans/repo-wide-docs-test-hardening.md)
 - [`docs/execplans/repo-wide-docs-tests-ci-hardening-followup.md`](execplans/repo-wide-docs-tests-ci-hardening-followup.md)
 - [`docs/execplans/runtime-self-awareness.md`](execplans/runtime-self-awareness.md)

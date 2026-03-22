@@ -42,6 +42,30 @@ Node integration gate (`pnpm test:coverage:node`):
 - functions >= 80
 - branches >= 70
 
+## Coverage Scope
+
+Vitest coverage is intentionally targeted and currently measures:
+
+- `apps/openassist-cli/src/lib/**/*.ts`
+- `apps/openassistd/src/channel-settings.ts`
+- `apps/openassistd/src/install-context.ts`
+- `apps/openassistd/src/oauth-redirect.ts`
+- `packages/config/src/operator-paths.ts`
+- `packages/config/src/schema.ts`
+- `packages/core-runtime/src/{attachments,clock-health,context,memory,scheduler,self-knowledge}.ts`
+- `packages/providers-anthropic/src/index.ts`
+- `packages/providers-codex/src/index.ts`
+- `packages/providers-openai/src/index.ts`
+- `packages/providers-openai-compatible/src/index.ts`
+- `packages/tools-web/src/index.ts`
+
+Node coverage is also targeted and currently measures:
+
+- `apps/openassist-cli/src/commands`
+- `apps/openassist-cli/src/lib`
+- `apps/openassistd/src/channel-settings.ts`
+- `tests/**` are excluded from coverage totals so the report reflects product code instead of test files
+
 ## Unit and Logic Suites (Vitest)
 
 Current suite files under `tests/vitest/`:
@@ -59,6 +83,7 @@ Current suite files under `tests/vitest/`:
 - `fs-tool-delete.test.ts`
 - `fs-tool-write.test.ts`
 - `git-dirty.test.ts`
+- `growth-status.test.ts`
 - `health-check.test.ts`
 - `install-context.test.ts`
 - `install-state.test.ts`
@@ -74,6 +99,7 @@ Current suite files under `tests/vitest/`:
 - `pkg-install-tool.test.ts`
 - `pnpm-workspace-policy.test.ts`
 - `prompt-validation.test.ts`
+- `provider-auth-readiness.test.ts`
 - `provider-anthropic-tool-mapping.test.ts`
 - `provider-codex-auth.test.ts`
 - `provider-display.test.ts`
@@ -113,6 +139,7 @@ Current suite files under `tests/vitest/`:
 Current suite files under `tests/node/`:
 
 - `bootstrap-interactive-contract.test.ts`
+- `cli-access-and-auth-lib-coverage.test.ts`
 - `cli-api-surface-coverage.test.ts`
 - `cli-command-branches.test.ts`
 - `cli-command-integration.test.ts`
@@ -124,6 +151,7 @@ Current suite files under `tests/node/`:
 - `cli-operator-layout-coverage.test.ts`
 - `cli-prompt-validation-coverage.test.ts`
 - `cli-root-commands.test.ts`
+- `cli-service-command-registration.test.ts`
 - `cli-service-lifecycle.test.ts`
 - `cli-service-manager-coverage.test.ts`
 - `cli-setup-hub-coverage.test.ts`
@@ -163,6 +191,7 @@ Current suite files under `tests/node/`:
 - `docs/README.md` links every live non-ExecPlan doc under `docs/`
 - workflow statements match `.github/workflows/ci.yml`, `.github/workflows/codeql.yml`, `.github/workflows/service-smoke.yml`, and `.github/workflows/lifecycle-e2e-smoke.yml`
 - coverage-threshold wording matches `vitest.config.ts` plus root `package.json`
+- coverage-scope wording matches `vitest.config.ts` plus root `package.json`
 - lifecycle E2E smoke keeps its inline `doctor --json` report-version expectation aligned with the current lifecycle-report version
 - this file matches the exact on-disk `tests/node/*.test.ts` and `tests/vitest/*.test.ts` inventories
 
@@ -177,6 +206,7 @@ Current suite files under `tests/node/`:
   - scheduled cadence (`daily` at `04:30 UTC`)
 - jobs:
   - workflow lint (`pnpm lint:workflows`)
+  - workflow lint also enforces tracked action-version floors for `actions/checkout@v6`, `actions/setup-node@v6`, `actions/upload-artifact@v7`, and `github/codeql-action/*@v4`
   - quality and coverage matrix (`pnpm ci:strict`) on:
     - `ubuntu-latest`
     - `macos-latest`

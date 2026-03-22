@@ -58,6 +58,7 @@ describe("upgrade state machine planning", () => {
 
     expect(plan.explicitTargetRequired).toBe(true);
     expect(plan.executionMode).toBe("explicit-target-required");
+    expect(plan.explicitTargetSuggestion).toBe("openassist upgrade --pr 23");
     expect(plan.targetLabel).toBe("PR #23 (refs/pull/23/head)");
   });
 
@@ -112,6 +113,62 @@ describe("upgrade state machine planning", () => {
       "- None.",
       "Next command",
       "- openassist upgrade --install-dir \"/tmp/openassist\" --ref \"main\""
+    ]);
+  });
+
+  it("renders blocker next steps and managed growth details when an update is not ready", () => {
+    const plan = buildUpgradePlan({
+      currentBranch: "HEAD",
+      trackedRef: "refs/pull/23/head",
+      skipRestart: false,
+      dryRun: true
+    });
+
+    expect(
+      renderUpgradePlanSummary({
+        installDir: "/tmp/openassist",
+        currentBranch: "HEAD",
+        currentCommit: "abcdef1234567890",
+        trackedRef: "refs/pull/23/head",
+        rollbackTarget: undefined,
+        upgradeReadiness: "fix-before-updating",
+        upgradeBlockers: [
+          {
+            id: "setup-needed",
+            stage: "upgrade",
+            label: "Setup",
+            detail: "Finish setup first",
+            nextStep: "openassist setup"
+          }
+        ],
+        growth: {
+          installedSkillCount: 2,
+          managedHelperCount: 1,
+          skillsDirectory: "/tmp/openassist/skills",
+          helperToolsDirectory: "/tmp/openassist/helpers",
+          updateSafetyNote: "Managed assets survive updates more predictably."
+        },
+        plan
+      })
+    ).toEqual([
+      "Update readiness",
+      "Ready now",
+      "- Status: fix before updating",
+      "- OpenAssist location: /tmp/openassist",
+      "- Current branch: HEAD",
+      "- Current commit: abcdef123456",
+      "- Current update track: PR #23 (refs/pull/23/head)",
+      "- Target update track: PR #23 (refs/pull/23/head)",
+      "- Update method: explicit --pr or --ref required before update",
+      "- Restart and health checks after update: enabled",
+      "- Rollback target if the update fails: (not available)",
+      "- Managed growth assets: skills=2, helpers=1",
+      "- Managed growth directories: skills=/tmp/openassist/skills; helpers=/tmp/openassist/helpers",
+      "- Managed growth update safety: Managed assets survive updates more predictably.",
+      "Needs action",
+      "- Setup: Finish setup first. Next step: openassist setup",
+      "Next command",
+      "- openassist setup"
     ]);
   });
 });

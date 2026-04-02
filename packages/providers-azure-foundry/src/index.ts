@@ -58,7 +58,11 @@ class AzureFoundryProviderError extends Error {
 }
 
 function trimTrailingSlash(value: string): string {
-  return value.replace(/\/+$/, "");
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return end === value.length ? value : value.slice(0, end);
 }
 
 function deriveBaseUrl(config: AzureFoundryProviderConfig): string {

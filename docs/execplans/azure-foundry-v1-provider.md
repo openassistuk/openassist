@@ -20,6 +20,8 @@ After this change, an operator can choose `azure-foundry` as a first-class provi
 - [x] (2026-04-02 18:11Z) Updated the required operator and contributor documentation surfaces, including `README.md`, `AGENTS.md`, `CHANGELOG.md`, provider docs, config docs, operations docs, interface docs, architecture docs, testing docs, and migration notes.
 - [x] (2026-04-02 18:43Z) Ran `pnpm verify:all` successfully after adding extra node integration coverage for Azure quickstart, wizard, and validation branches.
 - [x] (2026-04-02 19:34Z) Published branch `codex/azure-foundry-v1-provider`, opened PR `#48`, fixed the GitHub Advanced Security CodeQL alert on `trimTrailingSlash`, reran `pnpm verify:all`, and confirmed all tracked PR checks are green on commit `f0d4f88`.
+- [x] (2026-04-02) Addressed three outstanding PR review comments by trimming whitespace-only Azure wizard base URLs before persistence, aligning `azure-foundry.resourceName` schema validation with the adapter pattern, and typing config schemas directly against runtime provider/channel contracts so `toRuntimeConfig()` no longer needs unsafe casts.
+  Evidence: `pnpm typecheck`; `pnpm vitest run tests/vitest/config-security-schema.test.ts tests/vitest/setup-wizard-runtime.test.ts tests/vitest/runtime-config-tools-wiring.test.ts`; `pnpm exec tsx --test tests/node/cli-setup-wizard.test.ts`; `pnpm verify:all`.
 
 ## Surprises & Discoveries
 
@@ -33,6 +35,8 @@ After this change, an operator can choose `azure-foundry` as a first-class provi
   Evidence: targeted CLI and runtime tests passed after adding runtime/CLI status support plus quickstart/wizard Entra handling, without any OAuth-table changes.
 - Observation: GitHub Advanced Security raised a separate CodeQL check run for new PR alerts even after the Actions CodeQL workflow itself passed.
   Evidence: PR `#48` showed a failing `CodeQL` check run from the `github-advanced-security` app pointing at `packages/providers-azure-foundry/src/index.ts:61`, while the Actions workflow `CodeQL` and `analyze (javascript-typescript)` jobs were already green.
+- Observation: typing Zod schemas directly to the shared `ChannelConfig` contract requires widening the schema input type because `.default()` makes the parse input looser than the normalized output shape.
+  Evidence: `pnpm typecheck` initially failed on `packages/config/src/schema.ts` with `enabled: boolean | undefined` not assignable to `boolean` until the schema annotation was widened to `z.ZodType<ChannelConfig, z.ZodTypeDef, unknown>`.
 
 ## Decision Log
 
@@ -51,10 +55,13 @@ After this change, an operator can choose `azure-foundry` as a first-class provi
 - Decision: keep the Azure route on the generic `OpenAI` JavaScript client and pass the Entra bearer token provider through `apiKey`.
   Rationale: that matches Microsoft’s current v1 JavaScript guidance for Azure resource-style `/openai/v1/` endpoints and keeps the adapter aligned with the existing OpenAssist OpenAI-shared helper path.
   Date/Author: 2026-04-02 / Codex
+- Decision: type the config package provider/channel Zod schemas against the shared runtime contracts and widen only the parse input side.
+  Rationale: this removes the unsafe `toRuntimeConfig()` casts while preserving the existing defaulted-input UX that Zod accepts during parsing.
+  Date/Author: 2026-04-02 / Codex
 
 ## Outcomes & Retrospective
 
-The Azure Foundry route is now implemented end to end in the repo. Shared provider contracts, runtime auth-status handling, daemon adapter construction, setup quickstart, setup wizard, validation, provider display, docs, and regression coverage have all been updated together. Local repo-wide verification is green on `pnpm verify:all`, PR `#48` is open and ready for review, and the tracked CI plus CodeQL checks are green on the latest commit.
+The Azure Foundry route is implemented end to end in the repo, and the follow-up PR review fixes are now included locally as well. Shared provider contracts, runtime auth-status handling, daemon adapter construction, setup quickstart, setup wizard, validation, provider display, docs, and regression coverage were updated together, and local repo-wide verification is green on `pnpm verify:all` after the review-fix patch. Remote PR status must be refreshed by publishing the latest follow-up commit and waiting for CI before final handoff.
 
 ## Context and Orientation
 

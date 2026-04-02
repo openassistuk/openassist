@@ -229,7 +229,7 @@ describe("setup wizard runtime flow", () => {
       "entra",
       "gpt-5-deployment",
       "gpt-5.4",
-      "",
+      "   ",
       "medium",
       "true",
       "tenant-id",
@@ -245,7 +245,10 @@ describe("setup wizard runtime flow", () => {
 
     expect(result.saved).toBe(true);
     expect(state.config.runtime.providers.some((provider) => provider.id === "azure-foundry-main")).toBe(true);
-    expect(state.config.runtime.providers.find((provider) => provider.id === "azure-foundry-main")).toMatchObject({
+    const azureProvider = state.config.runtime.providers.find((provider) => provider.id === "azure-foundry-main");
+    expect(azureProvider).not.toBeUndefined();
+    expect(azureProvider).not.toHaveProperty("baseUrl");
+    expect(azureProvider).toMatchObject({
       type: "azure-foundry",
       authMode: "entra",
       resourceName: "demo-resource",

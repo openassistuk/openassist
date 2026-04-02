@@ -560,6 +560,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       "Base URL override (optional; blank derives it from resource name and endpoint type)",
       ""
     );
+    const trimmedBaseUrl = baseUrl.trim();
     const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts);
     state.config.runtime.providers.push({
       id: providerId,
@@ -569,7 +570,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       resourceName,
       endpointFlavor,
       ...(underlyingModel ? { underlyingModel } : {}),
-      ...(baseUrl ? { baseUrl } : {}),
+      ...(trimmedBaseUrl.length > 0 ? { baseUrl: trimmedBaseUrl } : {}),
       ...(reasoningEffort ? { reasoningEffort } : {})
     });
 

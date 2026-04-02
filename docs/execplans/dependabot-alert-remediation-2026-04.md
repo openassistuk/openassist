@@ -27,7 +27,7 @@ This is a narrow security maintenance change. It should not broaden into a direc
 - [x] (2026-04-02 17:12Z) Committed, pushed, and opened PR `#49` (`fix: remediate open Dependabot alerts (lodash, picomatch)`), then manually dispatched `service-smoke.yml` and `lifecycle-e2e-smoke.yml` on the branch.
 - [x] (2026-04-02 17:17Z) Verified the initial PR head `1ab0ca58079c649c3fd875b45ea3fa3730f0ea2d` was green on required checks plus both supplemental smoke runs.
 - [x] (2026-04-02 17:38Z) Investigated 2 Copilot review threads about deprecated `lodash@4.18.0`, confirmed `4.18.1` is the current non-deprecated release, updated the remediation target, refreshed the lockfile, and reran focused validation plus `pnpm verify:all`.
-- [ ] Push the review-driven follow-up commit, then rerun required checks, supplemental smoke, code scanning, and review-thread verification until the final PR head is fully green and review-clean.
+- [x] (2026-04-02 17:27Z) Pushed the review-driven follow-up commit `752c33e`, reran required checks plus both supplemental smoke workflows on that head, verified CodeQL/code-scanning stayed clean, replied to the outdated Copilot threads, and resolved both review threads.
 
 ## Surprises & Discoveries
 
@@ -64,7 +64,7 @@ This is a narrow security maintenance change. It should not broaden into a direc
 
 ## Outcomes & Retrospective
 
-Local remediation is complete and validated, and the first published PR head was already fully green. Review surfaced one legitimate follow-up: GitHub's first patched lodash floor (`4.18.0`) is deprecated on npm even though it satisfies the advisory, so the branch now advances to the non-deprecated patched release `4.18.1`. The remaining work is GitHub-facing on that follow-up head: push it, rerun required checks and supplemental smoke runs, and close out review/code-scanning surfaces until the final PR head is fully green and review-clean.
+Local remediation is complete and validated, and the final published PR head is green across the full expected surface. Review surfaced one legitimate follow-up during the first PR head: GitHub's first patched lodash floor (`4.18.0`) was already deprecated on npm, so the branch advanced to non-deprecated `4.18.1`, refreshed the lockfile, reran audits and `pnpm verify:all`, reran the supplemental smoke workflows on the new head, and closed the outdated review threads with evidence. The final branch state remains intentionally narrow while clearing both the open Dependabot alerts and the stricter full-audit gate.
 
 ## Context and Orientation
 
@@ -148,6 +148,14 @@ GitHub evidence so far:
     Supplemental workflow dispatches on the initial PR head:
     - service-smoke.yml -> run 23912525383 -> pass
     - lifecycle-e2e-smoke.yml -> run 23912525398 -> pass
+
+    Final PR head:
+    - head commit 752c33e1fdc0b51032b245fe6b9d0967a057a357
+    - required checks -> pass
+    - service-smoke.yml -> run 23912954973 -> pass
+    - lifecycle-e2e-smoke.yml -> run 23912954876 -> pass
+    - code-scanning alerts for refs/heads/fix/dependabot-alert-remediation-2026-04 -> 0 open alerts
+    - Copilot review threads about deprecated lodash@4.18.0 -> replied and resolved after the 4.18.1 follow-up
 
 ## Interfaces and Dependencies
 

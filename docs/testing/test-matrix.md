@@ -54,6 +54,7 @@ Vitest coverage is intentionally targeted and currently measures:
 - `packages/config/src/schema.ts`
 - `packages/core-runtime/src/{attachments,clock-health,context,memory,scheduler,self-knowledge}.ts`
 - `packages/providers-anthropic/src/index.ts`
+- `packages/providers-azure-foundry/src/index.ts`
 - `packages/providers-codex/src/index.ts`
 - `packages/providers-openai/src/index.ts`
 - `packages/providers-openai-compatible/src/index.ts`
@@ -101,6 +102,7 @@ Current suite files under `tests/vitest/`:
 - `prompt-validation.test.ts`
 - `provider-auth-readiness.test.ts`
 - `provider-anthropic-tool-mapping.test.ts`
+- `provider-azure-foundry.test.ts`
 - `provider-codex-auth.test.ts`
 - `provider-display.test.ts`
 - `provider-openai-compatible-tool-mapping.test.ts`
@@ -305,7 +307,7 @@ Current suite files under `tests/node/`:
 26. Guardrail blocks are visible and deterministic for destructive command patterns.
 27. `/status` and `openassist tools status` show the same awareness boundary the model receives, including callable tools, native web backend state, and the current Linux service boundary when applicable.
 28. Native web tools remain bounded: `web.search`/`web.fetch` work only in `full-root`, stay within HTTP/redirect/byte/result caps, and return structured unavailable guidance when no backend is configured.
-29. Provider tool-call mapping contracts (OpenAI/Codex/Anthropic/OpenAI-compatible) remain interoperable.
+29. Provider tool-call mapping contracts (OpenAI/Codex/Anthropic/Azure Foundry/OpenAI-compatible) remain interoperable.
 30. Runtime startup remains non-blocking when a channel connector hangs during startup; daemon and health surfaces stay available.
 31. Root `README.md`, root `AGENTS.md`, `docs/README.md`, all live non-ExecPlan docs, and `docs/testing/test-matrix.md` all describe the same current command, threshold, workflow, and troubleshooting reality.
 32. In-channel `/memory`, `GET /v1/memory/status`, and `openassist memory status` agree on rolling session summary and actor-scoped durable-memory visibility for the same session and sender inputs.

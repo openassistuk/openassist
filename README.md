@@ -11,12 +11,12 @@ OpenAssist is a local-first machine assistant built around one daemon, `openassi
 It is designed for real operator workflows on a real host:
 
 - one primary setup hub with `openassist setup`
-- first-class providers for OpenAI, Codex, Anthropic, and OpenAI-compatible backends
+- first-class providers for OpenAI, Codex, Anthropic, Azure Foundry, and OpenAI-compatible backends
 - first-class chat channels for Telegram, Discord, and WhatsApp MD
 - restart-safe runtime behavior, policy-gated tools, and bounded native web research
 - durable lifecycle commands for setup, service management, health, and upgrades
 
-Built-in OpenAI, Codex, and Anthropic providers can inspect inbound images. OpenAI-compatible providers stay text-only for images and say so explicitly.
+Built-in OpenAI, Codex, Anthropic, and Azure Foundry providers can inspect inbound images. OpenAI-compatible providers stay text-only for images and say so explicitly.
 
 ## Start Here
 
@@ -50,6 +50,7 @@ Linux and macOS are first-class supported operator paths for the installed lifec
 | OpenAI | API key | You want the standard OpenAI API-key path with image support and optional reasoning tuning. | [`docs/providers/openai.md`](docs/providers/openai.md) |
 | Codex | Linked OpenAI account login | You want the separate Codex account-login route, especially on a VPS or remote host via device code. | [`docs/providers/codex.md`](docs/providers/codex.md) |
 | Anthropic | API key | You want Claude-family models with optional thinking budgets. | [`docs/providers/anthropic.md`](docs/providers/anthropic.md) |
+| Azure Foundry | API key or Microsoft Entra host credentials | You want Azure resource-style `/openai/v1/` endpoints with a deployed Azure model and optional reasoning hints. | [`docs/providers/azure-foundry.md`](docs/providers/azure-foundry.md) |
 | OpenAI-compatible | API key or backend token | You are targeting an API-compatible backend and accept text-only image behavior. | [`docs/providers/openai-compatible.md`](docs/providers/openai-compatible.md) |
 
 Provider route rules that matter at a glance:
@@ -59,6 +60,7 @@ Provider route rules that matter at a glance:
 - Codex is intentionally documented as Codex-only in this release.
 - OpenAI and Codex quickstart both expose `Default`, `Low`, `Medium`, `High`, and `XHigh` reasoning effort choices.
 - Anthropic exposes `thinkingBudgetTokens` in wizard for supported thinking-capable models.
+- Azure Foundry is the Azure resource-style `/openai/v1/` route, uses the Responses API only, and requires a deployed Azure deployment name plus either API-key or Entra host auth.
 
 ## Pick a Channel
 
@@ -186,6 +188,7 @@ Providers:
 - [`docs/providers/openai.md`](docs/providers/openai.md)
 - [`docs/providers/codex.md`](docs/providers/codex.md)
 - [`docs/providers/anthropic.md`](docs/providers/anthropic.md)
+- [`docs/providers/azure-foundry.md`](docs/providers/azure-foundry.md)
 - [`docs/providers/openai-compatible.md`](docs/providers/openai-compatible.md)
 
 Channels:

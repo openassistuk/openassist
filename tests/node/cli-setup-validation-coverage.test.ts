@@ -149,6 +149,42 @@ describe("cli setup validation and summary coverage", () => {
     assert.equal(hasServiceSignal, true);
   });
 
+  it("covers Azure Foundry Entra validation warnings and skips API-key enforcement", async () => {
+    const root = tempDir("openassist-node-validation-azure-foundry-");
+    const config = createDefaultConfigObject();
+    config.runtime.defaultProviderId = "azure-foundry-main";
+    config.runtime.providers = [
+      {
+        id: "azure-foundry-main",
+        type: "azure-foundry",
+        defaultModel: "opaque-deployment",
+        authMode: "entra",
+        resourceName: "demo-resource",
+        endpointFlavor: "openai-resource",
+        underlyingModel: "legacy-chat-model",
+        reasoningEffort: "high"
+      }
+    ];
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {
+        AZURE_TENANT_ID: "tenant-only"
+      },
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    const warningCodes = new Set(result.warnings.map((issue) => issue.code));
+    assert.equal(warningCodes.has("provider.azure_foundry_entra_service_principal_partial"), true);
+    assert.equal(warningCodes.has("provider.azure_foundry_reasoning_model_unsupported"), true);
+    assert.equal(warningCodes.has("provider.azure_foundry_responses_model_unknown"), true);
+    assert.equal(result.errors.some((issue) => issue.code === "provider.default_auth_missing"), false);
+  });
+
   it("renders validation issues and setup summary variants", () => {
     const root = tempDir("openassist-node-summary-");
     const withHint = renderValidationIssues([

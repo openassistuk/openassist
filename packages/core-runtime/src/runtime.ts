@@ -9,6 +9,7 @@ import type {
   ChannelCapabilities,
   ChatRequest,
   ChatResponse,
+  EntraAuth,
   EffectivePolicySource,
   InboundEnvelope,
   ManagedCapabilityRecord,
@@ -21,6 +22,7 @@ import type {
   PolicyProfile,
   PolicyResolution,
   ProviderAdapter,
+  ProviderAuth,
   ProviderAuthHandle,
   RuntimeConfig,
   RuntimeAwarenessSnapshot,
@@ -101,7 +103,7 @@ export interface RuntimeAdapterSet {
 }
 
 export interface RuntimeAuthMap {
-  [providerId: string]: ApiKeyAuth | ProviderAuthHandle;
+  [providerId: string]: ProviderAuth;
 }
 
 export interface RuntimeInstallContext extends RuntimeInstallKnowledgeInput {}
@@ -480,7 +482,7 @@ interface ProviderAuthStatusSnapshot {
     updatedAt: string;
   }>;
   currentAuth: {
-    kind: "none" | "api-key" | "oauth";
+    kind: "none" | "api-key" | "oauth" | "entra";
     tokenType?: string;
     authMethod?: ProviderAuthHandle["authMethod"];
     expiresAt?: string;
@@ -497,7 +499,7 @@ export class OpenAssistRuntime {
   private readonly channels = new Map<string, ChannelAdapter>();
   private readonly channelTypes = new Map<string, RuntimeConfig["channels"][number]["type"]>();
   private readonly apiKeyAuth = new Map<string, ApiKeyAuth>();
-  private readonly auth = new Map<string, ApiKeyAuth | ProviderAuthHandle>();
+  private readonly auth = new Map<string, ProviderAuth>();
   private readonly oauthRefreshLocks = new Map<string, Promise<ProviderAuthHandle>>();
   private readonly policyEngine: DatabasePolicyEngine;
   private readonly contextPlanner = new ContextPlanner();
@@ -728,6 +730,13 @@ export class OpenAssistRuntime {
     this.auth.set(handle.providerId, handle);
   }
 
+  setProviderEntraAuth(providerId: string): void {
+    this.auth.set(providerId, {
+      providerId,
+      kind: "entra"
+    });
+  }
+
   private serializeOAuthHandle(handle: ProviderAuthHandle): string {
     return this.secretBox.encrypt(
       JSON.stringify({
@@ -750,8 +759,12 @@ export class OpenAssistRuntime {
     this.auth.set(handle.providerId, handle);
   }
 
-  private isOAuthAuthHandle(auth: ApiKeyAuth | ProviderAuthHandle): auth is ProviderAuthHandle {
+  private isOAuthAuthHandle(auth: ProviderAuth): auth is ProviderAuthHandle {
     return "accountId" in auth;
+  }
+
+  private isEntraAuth(auth: ProviderAuth): auth is EntraAuth {
+    return "kind" in auth && auth.kind === "entra";
   }
 
   private isOAuthRefreshDue(auth: ProviderAuthHandle): boolean {
@@ -837,7 +850,7 @@ export class OpenAssistRuntime {
   private async resolveProviderAuth(
     provider: ProviderAdapter,
     forceRefresh = false
-  ): Promise<ApiKeyAuth | ProviderAuthHandle> {
+  ): Promise<ProviderAuth> {
     const current = this.auth.get(provider.id());
     if (!current) {
       throw new Error(`Missing authentication for provider ${provider.id()}`);
@@ -1110,6 +1123,20 @@ export class OpenAssistRuntime {
           kind: "none",
           chatReady: false,
           detail: accounts.length > 0 ? "Linked account is stored but not active in runtime." : "No active authentication is loaded."
+        }
+      };
+    }
+
+    if (this.isEntraAuth(current)) {
+      return {
+        providerId,
+        providerType: providerConfig?.type,
+        linkedAccountCount: accounts.length,
+        accounts,
+        currentAuth: {
+          kind: "entra",
+          chatReady: true,
+          detail: "Entra host credential auth is configured for this provider."
         }
       };
     }

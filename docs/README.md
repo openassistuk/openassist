@@ -44,6 +44,7 @@ Advanced developer note:
 - OpenAI: [`docs/providers/openai.md`](providers/openai.md)
 - Codex: [`docs/providers/codex.md`](providers/codex.md)
 - Anthropic: [`docs/providers/anthropic.md`](providers/anthropic.md)
+- Azure Foundry: [`docs/providers/azure-foundry.md`](providers/azure-foundry.md)
 - OpenAI-compatible: [`docs/providers/openai-compatible.md`](providers/openai-compatible.md)
 - Provider contract: [`docs/interfaces/provider-adapter.md`](interfaces/provider-adapter.md)
 
@@ -54,6 +55,7 @@ Provider truth that stays consistent across setup and docs:
 - Codex is intentionally documented as Codex-only in this release.
 - OpenAI and Codex reasoning controls include `xhigh` alongside `low`, `medium`, and `high`.
 - Anthropic thinking budgets are supported only on thinking-capable Claude families.
+- Azure Foundry is the Azure resource-style `/openai/v1/` route with API-key or Entra host auth and a required deployed Azure deployment name.
 
 ## Channels
 
@@ -68,7 +70,7 @@ First-class channel scope:
 - Discord: guild text channels, threads, DMs
 - WhatsApp MD: private chats, groups
 
-Inbound images and supported text-like documents now flow through the runtime as durable attachment metadata. OpenAI, Codex, and Anthropic can inspect inbound images; OpenAI-compatible providers stay text-only and surface an explicit note when image understanding is unavailable.
+Inbound images and supported text-like documents now flow through the runtime as durable attachment metadata. OpenAI, Codex, Anthropic, and Azure Foundry can inspect inbound images; OpenAI-compatible providers stay text-only and surface an explicit note when image understanding is unavailable.
 Generated files can also be returned back through the active Telegram, Discord, or WhatsApp chat when the current session can call `channel.send`. Targeted operator notifications stay bounded to `channels[*].settings.operatorUserIds`, with Discord additionally requiring `allowedDmUserIds` overlap for DM delivery.
 
 ## Configuration

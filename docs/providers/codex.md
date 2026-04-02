@@ -186,6 +186,7 @@ Start with:
 ## Related Docs
 
 - [OpenAI Provider](openai.md)
+- [Azure Foundry Provider](azure-foundry.md)
 - [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
 - [Common Troubleshooting](../operations/common-troubleshooting.md)

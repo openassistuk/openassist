@@ -165,6 +165,39 @@ function minimalCodexAnswers(extra: string[] = []): string[] {
   ];
 }
 
+function minimalAzureFoundryEntraAnswers(bindPort: number, extra: string[] = []): string[] {
+  return [
+    "false",
+    "127.0.0.1",
+    String(bindPort),
+    "OpenAssist",
+    "Pragmatic and concise",
+    "Keep answers practical",
+    "azure-foundry",
+    "azure-foundry-main",
+    "demo-resource",
+    "openai-resource",
+    "entra",
+    "gpt-5-deployment",
+    "gpt-5.4",
+    "",
+    "high",
+    "true",
+    "tenant-id",
+    "client-id",
+    "client-secret",
+    "telegram",
+    "telegram-main",
+    "telegram-token",
+    "123,456",
+    "Europe",
+    "Europe/London",
+    "true",
+    "save",
+    ...extra
+  ];
+}
+
 describe("setup quickstart flow", () => {
   it("requires TTY by default for interactive quickstart", async () => {
     const root = tempDir("openassist-quickstart-flow-tty-required-");
@@ -536,6 +569,56 @@ describe("setup quickstart flow", () => {
     });
     expect(state.config.runtime.time.defaultTimezone).toBe("Europe/London");
     expect(result.summary.some((line) => line.includes("openassist channel qr --id whatsapp-main"))).toBe(true);
+  });
+
+  it("supports Azure Foundry quickstart with Entra auth and service-principal env capture", async () => {
+    const root = tempDir("openassist-quickstart-flow-azure-foundry-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+    const bindPort = await getFreePort();
+    const prompts = new ScriptedPromptAdapter(minimalAzureFoundryEntraAnswers(bindPort));
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      prompts
+    );
+
+    const provider = state.config.runtime.providers.find((entry) => entry.id === "azure-foundry-main");
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.defaultProviderId).toBe("azure-foundry-main");
+    expect(state.config.runtime.providers).toHaveLength(1);
+    expect(provider).toMatchObject({
+      type: "azure-foundry",
+      authMode: "entra",
+      resourceName: "demo-resource",
+      endpointFlavor: "openai-resource",
+      defaultModel: "gpt-5-deployment",
+      underlyingModel: "gpt-5.4",
+      reasoningEffort: "high"
+    });
+    expect(state.env.AZURE_TENANT_ID).toBe("tenant-id");
+    expect(state.env.AZURE_CLIENT_ID).toBe("client-id");
+    expect(state.env.AZURE_CLIENT_SECRET).toBe("client-secret");
+    expect(result.summary.some((line) => line.includes("Primary provider: azure-foundry-main (Azure Foundry)"))).toBe(true);
+    expect(
+      result.summary.some((line) =>
+        line.includes("Provider tuning: Auth: Entra ID; Underlying model: gpt-5.4; Reasoning effort: high")
+      )
+    ).toBe(true);
   });
 
   it("replaces the seeded openai placeholder provider on a fresh codex quickstart", async () => {

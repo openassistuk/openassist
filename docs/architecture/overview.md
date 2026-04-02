@@ -29,6 +29,7 @@ Current first-class provider routes are implemented as separate adapter packages
 - `packages/providers-openai`
 - `packages/providers-codex`
 - `packages/providers-anthropic`
+- `packages/providers-azure-foundry`
 - `packages/providers-openai-compatible`
 
 Operator CLI includes dual setup surfaces:

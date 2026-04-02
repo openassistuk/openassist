@@ -6,7 +6,7 @@ If something goes wrong while following this runbook, use `docs/operations/commo
 
 Deeper references for the choices you make during quickstart:
 
-- provider guides: [`docs/providers/openai.md`](../providers/openai.md), [`docs/providers/codex.md`](../providers/codex.md), [`docs/providers/anthropic.md`](../providers/anthropic.md), [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
+- provider guides: [`docs/providers/openai.md`](../providers/openai.md), [`docs/providers/codex.md`](../providers/codex.md), [`docs/providers/anthropic.md`](../providers/anthropic.md), [`docs/providers/azure-foundry.md`](../providers/azure-foundry.md), [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
 - channel guides: [`docs/channels/telegram.md`](../channels/telegram.md), [`docs/channels/discord.md`](../channels/discord.md), [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
 - config docs: [`docs/configuration/config-file-guide.md`](../configuration/config-file-guide.md), [`docs/configuration/config-reference.md`](../configuration/config-reference.md)
 
@@ -124,10 +124,11 @@ What quickstart configures:
 
 - runtime defaults for the first reply
 - the main assistant name, persona, and ongoing objectives/preferences
-- one primary provider from four first-class routes:
+- one primary provider from five first-class routes:
   - OpenAI (API Key)
   - Codex (OpenAI account login)
   - Anthropic (API Key)
+  - Azure Foundry
   - OpenAI-compatible
 - one primary channel
 - first-class Telegram, Discord, or WhatsApp chat setup with readable replies and attachment ingest
@@ -230,6 +231,9 @@ openassist auth complete --provider codex-main --callback-url "<full callback UR
 - `openassist auth status --provider codex-main` now stays redacted while still showing whether the linked account is present, which auth method is active, whether the current auth is chat-ready, and the token expiry when known. The linked account state is stored encrypted in SQLite, and OpenAssist attempts automatic refresh before expiry and again on auth-style provider failures when a refresh token is available.
 - If Codex auth is chat-ready and the daemon plus channel are healthy, remaining failures should now be investigated as upstream Codex request-contract problems rather than as login failures.
 - Anthropic stays API-key-first for the fastest first reply; optional provider OAuth configuration still lives in `openassist setup wizard`.
+- Azure Foundry quickstart asks for the Azure resource name, resource-host flavor, deployed deployment name, auth mode, and optional underlying model hint.
+- Azure Foundry can use either an API key or Microsoft Entra host credentials. Entra uses `DefaultAzureCredential` on the host running `openassistd`; quickstart can also capture `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET` when you want service-principal auth.
+- Azure Foundry uses Azure resource-style `/openai/v1/` endpoints only and the Responses API only. If the deployment does not already exist or does not support Responses, chat fails as a deployment/model mismatch rather than as a generic login problem.
 - OpenAI-compatible stays the custom API-compatible route.
 - legacy `openai + oauth` configs still load, but new account-login installs should use `codex`.
 - after provider OAuth is configured or when you want to re-link Codex later, use `openassist auth start --provider <provider-id> --device-code` on headless hosts or `--open-browser` as the fallback browser path
@@ -237,13 +241,14 @@ openassist auth complete --provider codex-main --callback-url "<full callback UR
 - Discord direct messages stay disabled unless you explicitly add `allowedDmUserIds`
 - generated files can now be returned through the same Telegram, Discord, or WhatsApp chat when the active session can call `channel.send`
 - targeted operator notifications stay bounded to `channels[*].settings.operatorUserIds`, and Discord also requires the same recipient in `allowedDmUserIds`
-- OpenAI, Codex, and Anthropic can inspect inbound images; OpenAI-compatible providers will answer from text/captions only and tell you when image understanding is unavailable
+- OpenAI, Codex, Anthropic, and Azure Foundry can inspect inbound images; OpenAI-compatible providers will answer from text/captions only and tell you when image understanding is unavailable
 
 Use the dedicated route pages when you need the detail behind any of those choices:
 
 - OpenAI: [`docs/providers/openai.md`](../providers/openai.md)
 - Codex: [`docs/providers/codex.md`](../providers/codex.md)
 - Anthropic: [`docs/providers/anthropic.md`](../providers/anthropic.md)
+- Azure Foundry: [`docs/providers/azure-foundry.md`](../providers/azure-foundry.md)
 - OpenAI-compatible: [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
 - Telegram: [`docs/channels/telegram.md`](../channels/telegram.md)
 - Discord: [`docs/channels/discord.md`](../channels/discord.md)

@@ -15,6 +15,7 @@ Current first-class provider routes in runtime config are:
 - `openai` for OpenAI API-key auth
 - `codex` for the separate OpenAI account-login route
 - `anthropic`
+- `azure-foundry` for Azure resource-style `/openai/v1/` endpoints with API-key or Entra host auth
 - `openai-compatible`
 
 Runtime-owned components:

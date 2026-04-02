@@ -85,6 +85,14 @@ const providerSchema = z.discriminatedUnion("type", [
   }),
   commonProviderSchema.extend({
     type: z.literal("openai-compatible")
+  }),
+  commonProviderSchema.extend({
+    type: z.literal("azure-foundry"),
+    authMode: z.enum(["api-key", "entra"]),
+    resourceName: z.string().min(1),
+    endpointFlavor: z.enum(["openai-resource", "foundry-resource"]),
+    underlyingModel: z.string().min(1).optional(),
+    reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
   })
 ]);
 
@@ -434,8 +442,8 @@ export function toRuntimeConfig(config: OpenAssistConfig): RuntimeConfig {
     bindAddress: config.runtime.bindAddress,
     bindPort: config.runtime.bindPort,
     defaultProviderId: config.runtime.defaultProviderId,
-    providers: config.runtime.providers,
-    channels: config.runtime.channels,
+    providers: config.runtime.providers as RuntimeConfig["providers"],
+    channels: config.runtime.channels as RuntimeConfig["channels"],
     defaultPolicyProfile: config.runtime.defaultPolicyProfile,
     operatorAccessProfile: config.runtime.operatorAccessProfile,
     workspaceRoot: config.runtime.workspaceRoot,

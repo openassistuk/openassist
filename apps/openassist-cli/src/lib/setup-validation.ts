@@ -35,6 +35,12 @@ export interface SetupValidationResult {
   serviceManagerKind?: "systemd-user" | "systemd-system" | "launchd";
 }
 
+const AZURE_SERVICE_PRINCIPAL_ENV_VARS = [
+  "AZURE_TENANT_ID",
+  "AZURE_CLIENT_ID",
+  "AZURE_CLIENT_SECRET"
+] as const;
+
 function pushIssue(
   target: SetupValidationIssue[],
   code: string,
@@ -79,6 +85,23 @@ function supportsAnthropicThinking(model: string): boolean {
 function supportsCodexRouteModel(model: string): boolean {
   const normalized = model.trim().toLowerCase();
   return normalized === "gpt-5.4" || normalized.includes("codex");
+}
+
+function supportsAzureFoundryResponsesModel(model: string): boolean {
+  const normalized = model.trim().toLowerCase();
+  return (
+    normalized.startsWith("gpt-5") ||
+    normalized.startsWith("o1") ||
+    normalized.startsWith("o2") ||
+    normalized.startsWith("o3") ||
+    normalized.startsWith("o4") ||
+    normalized.includes("deepseek") ||
+    normalized.includes("grok") ||
+    normalized.includes("mai") ||
+    normalized.includes("llama") ||
+    normalized.includes("mistral") ||
+    normalized.includes("phi")
+  );
 }
 
 function forEachEnvReference(
@@ -160,7 +183,9 @@ function validateProviderRequirements(
   const defaultApiKeyVar = toProviderApiKeyEnvVar(config.runtime.defaultProviderId);
   if (!hasEnvValue(env, defaultApiKeyVar)) {
     const defaultProvider = config.runtime.providers.find((provider) => provider.id === config.runtime.defaultProviderId);
-    if (defaultProvider?.type === "codex") {
+    if (defaultProvider?.type === "azure-foundry" && defaultProvider.authMode === "entra") {
+      // Entra-backed Azure Foundry providers rely on host credentials rather than a provider API key.
+    } else if (defaultProvider?.type === "codex") {
       const readiness = providerAuthReadiness?.[defaultProvider.id];
       if (!(readiness && readiness.linkedAccountCount > 0 && readiness.chatReady)) {
         pushIssue(
@@ -171,8 +196,7 @@ function validateProviderRequirements(
         );
         return;
       }
-    }
-    if (
+    } else if (
       defaultProvider &&
       "oauth" in defaultProvider &&
       defaultProvider.oauth &&
@@ -189,16 +213,54 @@ function validateProviderRequirements(
           : `Complete account link after daemon startup: openassist auth start --provider ${config.runtime.defaultProviderId} --account default --open-browser`
       );
       return;
+    } else if (!(defaultProvider?.type === "azure-foundry" && defaultProvider.authMode === "entra")) {
+      pushIssue(
+        errors,
+        "provider.default_auth_missing",
+        `The primary provider '${config.runtime.defaultProviderId}' still needs an API key in ${defaultApiKeyVar}.`,
+        "Set the API key in quickstart or setup env, then re-run validation."
+      );
     }
-    pushIssue(
-      errors,
-      "provider.default_auth_missing",
-      `The primary provider '${config.runtime.defaultProviderId}' still needs an API key in ${defaultApiKeyVar}.`,
-      "Set the API key in quickstart or setup env, then re-run validation."
-    );
+  }
+
+  const hasAzureEntraProvider = config.runtime.providers.some(
+    (provider) => provider.type === "azure-foundry" && provider.authMode === "entra"
+  );
+  if (hasAzureEntraProvider) {
+    const configuredAzureEnvVars = AZURE_SERVICE_PRINCIPAL_ENV_VARS.filter((key) => hasEnvValue(env, key));
+    if (
+      configuredAzureEnvVars.length > 0 &&
+      configuredAzureEnvVars.length < AZURE_SERVICE_PRINCIPAL_ENV_VARS.length
+    ) {
+      pushIssue(
+        warnings,
+        "provider.azure_foundry_entra_service_principal_partial",
+        `Azure Foundry Entra auth has only a partial service-principal env configuration (${configuredAzureEnvVars.join(", ")} set).`,
+        "Leave all three AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET unset if you plan to use Azure CLI login or managed identity, or set all three for a service principal."
+      );
+    }
   }
 
   for (const provider of config.runtime.providers) {
+    if (provider.type === "azure-foundry") {
+      if (provider.resourceName.trim().length === 0) {
+        pushIssue(
+          errors,
+          "provider.azure_foundry_resource_missing",
+          `Provider '${provider.id}' is missing an Azure resource name.`,
+          "Set resourceName to the Azure resource host prefix that owns the deployment."
+        );
+      }
+      if (provider.defaultModel.trim().length === 0) {
+        pushIssue(
+          errors,
+          "provider.azure_foundry_deployment_missing",
+          `Provider '${provider.id}' is missing a deployment name.`,
+          "Set defaultModel to the Azure deployment name that should receive the request."
+        );
+      }
+    }
+
     if (provider.type === "openai" && "oauth" in provider && provider.oauth) {
       pushIssue(
         warnings,
@@ -276,6 +338,33 @@ function validateProviderReasoningRequirements(
         "provider.codex_model_unsupported",
         `Provider '${provider.id}' uses the Codex account-login route, but model '${provider.defaultModel}' is not on the built-in Codex route allow-list.`,
         "Use gpt-5.4 or a Codex-family model on the codex route."
+      );
+    }
+
+    if (
+      provider.type === "azure-foundry" &&
+      provider.reasoningEffort &&
+      !supportsOpenAIReasoningEffort(provider.underlyingModel ?? provider.defaultModel)
+    ) {
+      const reasoningModel = provider.underlyingModel ?? provider.defaultModel;
+      pushIssue(
+        warnings,
+        "provider.azure_foundry_reasoning_model_unsupported",
+        `Provider '${provider.id}' sets Azure Foundry reasoning effort '${provider.reasoningEffort}', but model '${reasoningModel}' is not on the built-in reasoning-effort allow-list.`,
+        "Use a GPT-5 or o-series underlying model for Azure reasoning effort, or leave the setting unset so Azure can use its deployment defaults."
+      );
+    }
+
+    if (
+      provider.type === "azure-foundry" &&
+      !supportsAzureFoundryResponsesModel(provider.underlyingModel ?? provider.defaultModel)
+    ) {
+      const modelName = provider.underlyingModel ?? provider.defaultModel;
+      pushIssue(
+        warnings,
+        "provider.azure_foundry_responses_model_unknown",
+        `Provider '${provider.id}' uses Azure Foundry deployment/model '${modelName}', which is not on the built-in Responses-capable allow-list.`,
+        "Confirm that the deployment exists and uses a Responses API-compatible model family. If the deployment name hides the model family, set underlyingModel for better validation hints."
       );
     }
   }

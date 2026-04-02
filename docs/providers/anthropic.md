@@ -131,5 +131,6 @@ Troubleshooting runbook:
 
 - [OpenAI Provider](openai.md)
 - [Codex Provider](codex.md)
+- [Azure Foundry Provider](azure-foundry.md)
 - [OpenAI-compatible Provider](openai-compatible.md)
 - [Configuration File Guide](../configuration/config-file-guide.md)

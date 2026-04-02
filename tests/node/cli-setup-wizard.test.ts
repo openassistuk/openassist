@@ -418,4 +418,64 @@ describe("cli setup wizard", () => {
     );
     assert.equal(Object.keys(state.env).some((key) => key.includes("CODEX_MAIN_API_KEY")), false);
   });
+
+  it("adds Azure Foundry with API-key auth and can later switch it to Entra auth", async () => {
+    const root = tempDir("openassist-cli-setup-azure-foundry-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const state = loadSetupWizardState(configPath, envPath);
+
+    const result = await runSetupWizard(
+      state,
+      new ScriptedPromptAdapter([
+        "providers",
+        "add",
+        "azure-foundry-main",
+        "azure-foundry",
+        "demo-resource",
+        "openai-resource",
+        "api-key",
+        "gpt-5-deployment",
+        "gpt-5.4",
+        "",
+        "high",
+        "true",
+        "azure-key",
+        "edit",
+        "azure-foundry-main",
+        "demo-resource",
+        "foundry-resource",
+        "entra",
+        "gpt-5-deployment-v2",
+        "",
+        "https://custom.example/openai/v1",
+        "default",
+        "true",
+        "tenant-id",
+        "client-id",
+        "client-secret",
+        "back",
+        "save"
+      ]),
+      { requireTty: false }
+    );
+
+    assert.equal(result.saved, true);
+    assert.deepEqual(
+      state.config.runtime.providers.find((provider) => provider.id === "azure-foundry-main"),
+      {
+        id: "azure-foundry-main",
+        type: "azure-foundry",
+        defaultModel: "gpt-5-deployment-v2",
+        authMode: "entra",
+        resourceName: "demo-resource",
+        endpointFlavor: "foundry-resource",
+        baseUrl: "https://custom.example/openai/v1"
+      }
+    );
+    assert.equal(state.env.OPENASSIST_PROVIDER_AZURE_FOUNDRY_MAIN_API_KEY, "azure-key");
+    assert.equal(state.env.AZURE_TENANT_ID, "tenant-id");
+    assert.equal(state.env.AZURE_CLIENT_ID, "client-id");
+    assert.equal(state.env.AZURE_CLIENT_SECRET, "client-secret");
+  });
 });

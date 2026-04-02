@@ -16,6 +16,7 @@
     "@openassist/core-types": "workspace:*",
     "@openassist/channels-telegram": "workspace:*",
     "@openassist/channels-discord": "workspace:*",
+    "@openassist/providers-azure-foundry": "workspace:*",
     "@openassist/providers-openai-compatible": "workspace:*",
     "@openassist/config": "workspace:*",
     "@openassist/observability": "workspace:*",

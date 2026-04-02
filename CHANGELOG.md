@@ -8,6 +8,17 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Added
 
+- Azure Foundry provider route:
+  - added a first-class `azure-foundry` provider route that targets Azure resource-style `/openai/v1/` endpoints
+  - the route is Responses-only in this release
+  - the route supports API-key auth and Microsoft Entra host credentials
+  - runtime, auth-status, and tool-loop flows now treat Azure Foundry as a normal built-in provider route
+
+- Azure Foundry setup, validation, and docs:
+  - quickstart and setup wizard now guide Azure Foundry operators through resource name, endpoint flavor, deployment name, auth mode, optional underlying model hints, optional service-principal env capture, and Azure-specific validation warnings
+  - added `packages/providers-azure-foundry`, Azure adapter tests, setup/runtime regression coverage, and the new `docs/providers/azure-foundry.md` guide
+  - provider matrices, config docs, troubleshooting docs, migration notes, and contributor docs-sync surfaces now include Azure Foundry
+
 - Rolling context compaction plus durable actor memory:
   - long chats now compact older transcript into a restart-safe rolling session summary stored in SQLite instead of writing `[state_snapshot_written]` markers into normal message history
   - OpenAssist now stores conservative actor-scoped permanent memory for stable preferences, durable facts, and ongoing goals using the `<channelId>:<senderId>` boundary

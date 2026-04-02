@@ -37,6 +37,9 @@
       "path": "../../packages/providers-openai-compatible"
     },
     {
+      "path": "../../packages/providers-azure-foundry"
+    },
+    {
       "path": "../../packages/channels-telegram"
     },
     {

@@ -24,7 +24,7 @@ On a TTY, that opens the lifecycle hub and lets you choose repair, service actio
 
 Route-specific references:
 
-- provider guides: [`docs/providers/openai.md`](../providers/openai.md), [`docs/providers/codex.md`](../providers/codex.md), [`docs/providers/anthropic.md`](../providers/anthropic.md), [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
+- provider guides: [`docs/providers/openai.md`](../providers/openai.md), [`docs/providers/codex.md`](../providers/codex.md), [`docs/providers/anthropic.md`](../providers/anthropic.md), [`docs/providers/azure-foundry.md`](../providers/azure-foundry.md), [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
 - channel guides: [`docs/channels/telegram.md`](../channels/telegram.md), [`docs/channels/discord.md`](../channels/discord.md), [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
 - config docs: [`docs/configuration/config-file-guide.md`](../configuration/config-file-guide.md), [`docs/configuration/config-reference.md`](../configuration/config-reference.md)
 
@@ -153,10 +153,38 @@ Deeper route docs:
 - OpenAI: [`docs/providers/openai.md`](../providers/openai.md)
 - Codex: [`docs/providers/codex.md`](../providers/codex.md)
 - Anthropic: [`docs/providers/anthropic.md`](../providers/anthropic.md)
+- Azure Foundry: [`docs/providers/azure-foundry.md`](../providers/azure-foundry.md)
 - OpenAI-compatible: [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
 - Telegram: [`docs/channels/telegram.md`](../channels/telegram.md)
 - Discord: [`docs/channels/discord.md`](../channels/discord.md)
 - WhatsApp MD: [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
+
+## Azure Foundry auth or deployment keeps failing
+
+What it usually means:
+
+- the Azure resource name or endpoint flavor is wrong
+- the deployment name in `defaultModel` does not exist on that resource
+- the deployment is not Responses-compatible
+- Entra host credentials are missing or incomplete on the machine running `openassistd`
+
+What to run:
+
+```bash
+openassist auth status --provider azure-foundry-main
+openassist setup show --config "$HOME/.config/openassist/openassist.toml"
+openassist doctor
+```
+
+What to check:
+
+- `auth status` shows `Active auth: API key` or `Active auth: Entra ID`
+- the saved provider uses `type = "azure-foundry"`
+- `resourceName`, `endpointFlavor`, and `defaultModel` match the real Azure resource host and deployed deployment name
+- if you use Entra service-principal auth, either all of `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET` are set, or none of them are set because you are relying on Azure CLI login or managed identity instead
+- if the deployment name hides the model family, set `underlyingModel` so setup validation can give better reasoning and compatibility hints
+
+Azure Foundry does not use linked-account storage or `openassist auth start/complete`. If auth is correct but chat still fails, treat that as a resource or deployment problem, not an account-link problem.
 
 ## Codex provider is configured but account login is not complete
 
@@ -281,7 +309,9 @@ Current operator story:
 
 - OpenAI quickstart and wizard both expose `reasoningEffort`
 - Codex quickstart and wizard both expose `reasoningEffort`
+- Azure Foundry quickstart and wizard both expose `reasoningEffort`
 - OpenAI and Codex both support `low`, `medium`, `high`, and `xhigh`
+- Azure Foundry supports `low`, `medium`, `high`, and `xhigh` when the underlying model family supports Responses reasoning
 - Anthropic `thinkingBudgetTokens` stays wizard-editable only
 - OpenAI-compatible stays provider-default only
 

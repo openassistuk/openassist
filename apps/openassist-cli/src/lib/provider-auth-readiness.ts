@@ -7,7 +7,7 @@ export type ProviderAuthReadinessMap = Record<string, ProviderAuthReadiness>;
 
 export interface ProviderAuthStatusResponse {
   providerId?: string;
-  providerType?: "openai" | "codex" | "anthropic" | "openai-compatible";
+  providerType?: "openai" | "codex" | "anthropic" | "openai-compatible" | "azure-foundry";
   linkedAccountCount?: number;
   accounts?: Array<{ accountId: string; expiresAt?: string }>;
   currentAuth?: {
@@ -20,7 +20,7 @@ export interface ProviderAuthStatusResponse {
   };
   providers?: Array<{
     providerId: string;
-    providerType?: "openai" | "codex" | "anthropic" | "openai-compatible";
+    providerType?: "openai" | "codex" | "anthropic" | "openai-compatible" | "azure-foundry";
     linkedAccountCount?: number;
     currentAuth?: {
       kind?: string;

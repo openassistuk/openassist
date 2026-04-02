@@ -123,6 +123,8 @@ function printProviderAuthStatus(
   const authKind =
     currentAuth.kind === "api-key"
       ? "API key"
+      : currentAuth.kind === "entra"
+        ? "Entra ID"
       : currentAuth.kind === "oauth"
         ? "Account login"
         : "None";

@@ -139,7 +139,7 @@ If OpenAssist is responding but image understanding is not working, confirm that
 
 - the active channel supports inbound images
 - the uploaded file stayed within attachment limits
-- you are using `openai`, `codex`, or `anthropic`, not `openai-compatible`
+- you are using `openai`, `codex`, `anthropic`, or `azure-foundry`, not `openai-compatible`
 
 If you need a richer troubleshooting path, start with:
 
@@ -149,6 +149,7 @@ If you need a richer troubleshooting path, start with:
 
 - [Codex Provider](codex.md)
 - [Anthropic Provider](anthropic.md)
+- [Azure Foundry Provider](azure-foundry.md)
 - [OpenAI-compatible Provider](openai-compatible.md)
 - [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)

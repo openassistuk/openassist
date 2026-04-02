@@ -12,7 +12,7 @@ If setup or repair still goes sideways after using the right path, use `docs/ope
 
 Route and config references for the choices you make in setup:
 
-- provider guides: [`docs/providers/openai.md`](../providers/openai.md), [`docs/providers/codex.md`](../providers/codex.md), [`docs/providers/anthropic.md`](../providers/anthropic.md), [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
+- provider guides: [`docs/providers/openai.md`](../providers/openai.md), [`docs/providers/codex.md`](../providers/codex.md), [`docs/providers/anthropic.md`](../providers/anthropic.md), [`docs/providers/azure-foundry.md`](../providers/azure-foundry.md), [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
 - channel guides: [`docs/channels/telegram.md`](../channels/telegram.md), [`docs/channels/discord.md`](../channels/discord.md), [`docs/channels/whatsapp-md.md`](../channels/whatsapp-md.md)
 - config docs: [`docs/configuration/config-file-guide.md`](../configuration/config-file-guide.md), [`docs/configuration/config-reference.md`](../configuration/config-reference.md)
 
@@ -92,6 +92,7 @@ Quickstart rules:
 - OpenAI stays the API-key route in quickstart and wizard
 - Codex stays the separate OpenAI account-login route and quickstart can complete its account linking during onboarding
 - Anthropic stays API-key-first for the fastest first reply; provider OAuth client configuration still belongs in wizard
+- Azure Foundry stays the Azure resource-style Responses-only route with API-key or Entra host auth
 - legacy `openai + oauth` configs remain readable for compatibility, but new account-login installs should use `codex`
 - account linking later uses `openassist auth start --provider <provider-id> --device-code` on headless or remote hosts, with `--open-browser` kept as the browser/manual fallback
 - quickstart only asks for approved operator IDs if you opt into full access
@@ -145,14 +146,16 @@ Use wizard for:
 - advanced runtime changes
 - later edits to the global main assistant identity or re-enabling the first-chat identity reminder
 - additional providers or provider OAuth config
-- choosing between the four first-class provider routes:
+- choosing between the five first-class provider routes:
   - OpenAI (API Key)
   - Codex (OpenAI account login)
   - Anthropic (API Key)
+  - Azure Foundry
   - OpenAI-compatible
 - advanced provider-native reasoning controls:
   - OpenAI `reasoningEffort` (`Default`, `low`, `medium`, `high`, `xhigh`)
   - Codex `reasoningEffort` (`Default`, `low`, `medium`, `high`, `xhigh`)
+  - Azure Foundry `reasoningEffort` (`Default`, `low`, `medium`, `high`, `xhigh`)
   - Anthropic `thinkingBudgetTokens` (blank disables it)
   - OpenAI-compatible stays unchanged in this release
 - additional channels or non-default channel behavior
@@ -166,6 +169,7 @@ When one of those changes is provider-, channel-, or config-specific, use the ma
 - OpenAI: [`docs/providers/openai.md`](../providers/openai.md)
 - Codex: [`docs/providers/codex.md`](../providers/codex.md)
 - Anthropic: [`docs/providers/anthropic.md`](../providers/anthropic.md)
+- Azure Foundry: [`docs/providers/azure-foundry.md`](../providers/azure-foundry.md)
 - OpenAI-compatible: [`docs/providers/openai-compatible.md`](../providers/openai-compatible.md)
 - Telegram: [`docs/channels/telegram.md`](../channels/telegram.md)
 - Discord: [`docs/channels/discord.md`](../channels/discord.md)
@@ -180,6 +184,7 @@ Provider reasoning-control notes:
 - OpenAssist omits unsupported request fields automatically:
   - OpenAI reasoning effort is only sent on supported Responses API model families.
   - Codex reasoning effort is only sent on supported Codex Responses-model families.
+  - Azure Foundry reasoning effort is only sent on supported Responses-model families.
   - Anthropic thinking budget is only sent on supported thinking-capable Claude families.
 - If your configured default model does not match a supported family, setup validation warns but still saves safely.
 
@@ -187,6 +192,9 @@ Provider-route notes:
 
 - OpenAI remains the public API-key route in setup and docs.
 - Codex is the public OpenAI account-login route and is intentionally Codex-only in this release.
+- Azure Foundry is the Azure resource-style `/openai/v1/` route and uses the Responses API only.
+- Azure Foundry setup asks for the Azure resource name, host flavor, deployment name, auth mode, and optional underlying model hint.
+- Azure Foundry Entra auth uses `DefaultAzureCredential` on the host and does not use linked-account storage or `openassist auth start/complete`.
 - Codex does not ask for a custom base URL in the normal wizard provider editor.
 - Codex account linking is headless-friendly: OpenAssist can print the authorization URL, pause so you can copy or open it on another device, and accept either the full callback URL or a pasted code when you complete the login.
 - The default Codex browser redirect is `http://localhost:1455/auth/callback`; if that localhost page cannot load on a VPS, copy the full URL from the browser address bar and paste it back into OpenAssist.

@@ -55,6 +55,16 @@ export interface SetupWizardState {
   env: Record<string, string>;
 }
 
+type ProviderConfig = OpenAssistConfig["runtime"]["providers"][number];
+type ProviderType = ProviderConfig["type"];
+type AzureFoundryProviderConfig = Extract<ProviderConfig, { type: "azure-foundry" }>;
+type AzureFoundryAuthMode = AzureFoundryProviderConfig["authMode"];
+type AzureFoundryEndpointFlavor = AzureFoundryProviderConfig["endpointFlavor"];
+
+export const AZURE_TENANT_ID_ENV_VAR = "AZURE_TENANT_ID";
+export const AZURE_CLIENT_ID_ENV_VAR = "AZURE_CLIENT_ID";
+export const AZURE_CLIENT_SECRET_ENV_VAR = "AZURE_CLIENT_SECRET";
+
 export function createInquirerPromptAdapter(): PromptAdapter {
   return {
     async input(message: string, initial = ""): Promise<string> {
@@ -91,11 +101,11 @@ export function createInquirerPromptAdapter(): PromptAdapter {
   };
 }
 
-function providerUsesApiKey(type: OpenAssistConfig["runtime"]["providers"][number]["type"]): boolean {
+function providerUsesApiKey(type: ProviderType): boolean {
   return type === "openai" || type === "anthropic" || type === "openai-compatible";
 }
 
-function providerSupportsAccountLink(type: OpenAssistConfig["runtime"]["providers"][number]["type"]): boolean {
+function providerSupportsAccountLink(type: ProviderType): boolean {
   return type === "codex" || type === "anthropic";
 }
 
@@ -112,9 +122,7 @@ function parseCsv(value: string): string[] {
 
 type ReasoningEffortPromptChoice = "default" | OpenAIReasoningEffort;
 
-function providerSupportsCustomBaseUrl(
-  type: OpenAssistConfig["runtime"]["providers"][number]["type"]
-): boolean {
+function providerSupportsCustomBaseUrl(type: ProviderType): boolean {
   return type === "openai" || type === "anthropic" || type === "openai-compatible";
 }
 
@@ -151,6 +159,104 @@ async function promptCodexReasoningEffort(
   initial?: OpenAIReasoningEffort
 ): Promise<OpenAIReasoningEffort | undefined> {
   return promptReasoningEffort(prompts, "Codex", initial);
+}
+
+export async function promptAzureFoundryReasoningEffort(
+  prompts: PromptAdapter,
+  initial?: OpenAIReasoningEffort
+): Promise<OpenAIReasoningEffort | undefined> {
+  return promptReasoningEffort(prompts, "Azure Foundry", initial);
+}
+
+export async function promptAzureFoundryEndpointFlavor(
+  prompts: PromptAdapter,
+  initial: AzureFoundryEndpointFlavor = "openai-resource"
+): Promise<AzureFoundryEndpointFlavor> {
+  console.log("- Azure Foundry resource endpoints can use either the OpenAI resource host or the Foundry resource host.");
+  console.log("- OpenAI resource hosts use https://<resource>.openai.azure.com/openai/v1/");
+  console.log("- Foundry resource hosts use https://<resource>.services.ai.azure.com/openai/v1/");
+  return prompts.select<AzureFoundryEndpointFlavor>(
+    "Azure endpoint type",
+    [
+      { name: "OpenAI resource host (.openai.azure.com)", value: "openai-resource" },
+      { name: "Foundry resource host (.services.ai.azure.com)", value: "foundry-resource" }
+    ],
+    initial
+  );
+}
+
+export async function promptAzureFoundryAuthMode(
+  prompts: PromptAdapter,
+  initial: AzureFoundryAuthMode = "api-key"
+): Promise<AzureFoundryAuthMode> {
+  console.log("- Azure Foundry supports API key auth and Microsoft Entra host credentials in this route.");
+  console.log("- Entra uses DefaultAzureCredential, so Azure CLI login, managed identity, or full service-principal env vars can satisfy it.");
+  return prompts.select<AzureFoundryAuthMode>(
+    "Azure auth mode",
+    [
+      { name: "API key", value: "api-key" },
+      { name: "Microsoft Entra ID", value: "entra" }
+    ],
+    initial
+  );
+}
+
+export async function promptAzureFoundryUnderlyingModel(
+  prompts: PromptAdapter,
+  initial = ""
+): Promise<string | undefined> {
+  console.log("- Azure sends your deployment name in the outgoing model field.");
+  console.log("- If you know the underlying model family, add it here so OpenAssist can give better reasoning-effort and compatibility hints.");
+  const value = await prompts.input(
+    "Underlying model name (recommended for hints; blank if unknown)",
+    initial
+  );
+  return value.trim().length > 0 ? value.trim() : undefined;
+}
+
+export async function maybePromptAzureServicePrincipalEnv(
+  state: SetupWizardState,
+  prompts: PromptAdapter,
+  allowRemoval: boolean
+): Promise<void> {
+  console.log("- Azure service-principal env vars are global to the OpenAssist process, not scoped to one provider.");
+  console.log(`- Optional env vars: ${AZURE_TENANT_ID_ENV_VAR}, ${AZURE_CLIENT_ID_ENV_VAR}, ${AZURE_CLIENT_SECRET_ENV_VAR}`);
+  console.log("- Leave them unset if you plan to rely on Azure CLI login or managed identity instead.");
+  const shouldUpdate = await prompts.confirm(
+    allowRemoval
+      ? "Update Azure service-principal env vars now?"
+      : "Store Azure service-principal env vars now?",
+    false
+  );
+  if (!shouldUpdate) {
+    return;
+  }
+
+  const tenantId = await prompts.input(
+    `${AZURE_TENANT_ID_ENV_VAR} ${allowRemoval ? "(blank removes it)" : "(blank leaves it unset)"}`,
+    state.env[AZURE_TENANT_ID_ENV_VAR] ?? ""
+  );
+  const clientId = await prompts.input(
+    `${AZURE_CLIENT_ID_ENV_VAR} ${allowRemoval ? "(blank removes it)" : "(blank leaves it unset)"}`,
+    state.env[AZURE_CLIENT_ID_ENV_VAR] ?? ""
+  );
+  const clientSecret = await prompts.password(
+    `${AZURE_CLIENT_SECRET_ENV_VAR} ${allowRemoval ? "(blank removes it)" : "(blank leaves it unset)"}`
+  );
+
+  const applyEnvValue = (key: string, value: string) => {
+    if (value.trim().length === 0) {
+      if (allowRemoval) {
+        delete state.env[key];
+      }
+      return;
+    }
+    state.env[key] = value.trim();
+  };
+
+  applyEnvValue(AZURE_TENANT_ID_ENV_VAR, tenantId);
+  applyEnvValue(AZURE_CLIENT_ID_ENV_VAR, clientId);
+  applyEnvValue(AZURE_CLIENT_SECRET_ENV_VAR, clientSecret);
 }
 
 async function promptOptionalPositiveInteger(
@@ -429,16 +535,67 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
     throw new Error(`Provider ${providerId} already exists`);
   }
 
-  const providerType = await prompts.select(
+  const providerType = await prompts.select<ProviderType>(
     "Provider type",
     [
       { name: "OpenAI (API Key)", value: "openai" },
       { name: "Codex (OpenAI account login)", value: "codex" },
       { name: "Anthropic (API Key)", value: "anthropic" },
+      { name: "Azure Foundry", value: "azure-foundry" },
       { name: "OpenAI-compatible", value: "openai-compatible" }
     ],
     "openai"
   );
+  if (providerType === "azure-foundry") {
+    const resourceName = await promptRequiredText(prompts, "Azure resource name", "");
+    const endpointFlavor = await promptAzureFoundryEndpointFlavor(prompts);
+    const authMode = await promptAzureFoundryAuthMode(prompts);
+    const defaultModel = await promptRequiredText(
+      prompts,
+      "Deployment name (sent in the model field)",
+      "gpt-5-deployment"
+    );
+    const underlyingModel = await promptAzureFoundryUnderlyingModel(prompts);
+    const baseUrl = await prompts.input(
+      "Base URL override (optional; blank derives it from resource name and endpoint type)",
+      ""
+    );
+    const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts);
+    state.config.runtime.providers.push({
+      id: providerId,
+      type: providerType,
+      defaultModel,
+      authMode,
+      resourceName,
+      endpointFlavor,
+      ...(underlyingModel ? { underlyingModel } : {}),
+      ...(baseUrl ? { baseUrl } : {}),
+      ...(reasoningEffort ? { reasoningEffort } : {})
+    });
+
+    if (authMode === "api-key") {
+      const saveApiKey = await prompts.confirm("Store API key in env file now?", true);
+      if (saveApiKey) {
+        const varName = toProviderApiKeyEnvVar(providerId);
+        console.log(`Secret env var: ${varName}`);
+        console.log("Paste full key then press Enter (masked input accepts long values).");
+        const key = await prompts.password("Provider API key (blank keeps unset)");
+        if (key.trim().length > 0) {
+          state.env[varName] = key.trim();
+        }
+      }
+    } else {
+      console.log("Azure Foundry Entra auth uses host credentials via DefaultAzureCredential.");
+      console.log("No linked account is stored in OpenAssist for this route.");
+      await maybePromptAzureServicePrincipalEnv(state, prompts, false);
+    }
+
+    if (!state.config.runtime.defaultProviderId) {
+      state.config.runtime.defaultProviderId = providerId;
+    }
+    return;
+  }
+
   const defaultModel = await promptRequiredText(
     prompts,
     "Default model",
@@ -532,7 +689,63 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
     return;
   }
 
+  if (provider.type === "azure-foundry") {
+    provider.resourceName = await promptRequiredText(prompts, "Azure resource name", provider.resourceName);
+    provider.endpointFlavor = await promptAzureFoundryEndpointFlavor(prompts, provider.endpointFlavor);
+    provider.authMode = await promptAzureFoundryAuthMode(prompts, provider.authMode);
+    provider.defaultModel = await promptRequiredText(
+      prompts,
+      "Deployment name (sent in the model field)",
+      provider.defaultModel
+    );
+    const underlyingModel = await prompts.input(
+      "Underlying model name (blank to unset)",
+      provider.underlyingModel ?? ""
+    );
+    if (underlyingModel.trim().length > 0) {
+      provider.underlyingModel = underlyingModel.trim();
+    } else {
+      delete provider.underlyingModel;
+    }
+    const baseUrl = await prompts.input(
+      "Base URL override (blank to derive from resource name and endpoint type)",
+      provider.baseUrl ?? ""
+    );
+    if (baseUrl.trim().length > 0) {
+      provider.baseUrl = baseUrl.trim();
+    } else {
+      delete provider.baseUrl;
+    }
+    const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts, provider.reasoningEffort);
+    if (reasoningEffort) {
+      provider.reasoningEffort = reasoningEffort;
+    } else {
+      delete provider.reasoningEffort;
+    }
+
+    if (provider.authMode === "api-key") {
+      const updateApiKey = await prompts.confirm("Update API key in env file?", false);
+      if (updateApiKey) {
+        const varName = toProviderApiKeyEnvVar(provider.id);
+        console.log(`Secret env var: ${varName}`);
+        console.log("Paste full key then press Enter (masked input accepts long values).");
+        const key = await prompts.password("Provider API key (blank to remove)");
+        if (key.trim().length === 0) {
+          delete state.env[varName];
+        } else {
+          state.env[varName] = key.trim();
+        }
+      }
+    } else {
+      console.log("Azure Foundry Entra auth uses host credentials via DefaultAzureCredential.");
+      console.log("No linked account is stored in OpenAssist for this route.");
+      await maybePromptAzureServicePrincipalEnv(state, prompts, true);
+    }
+    return;
+  }
+
   provider.defaultModel = await promptRequiredText(prompts, "Default model", provider.defaultModel);
+
   if (providerSupportsCustomBaseUrl(provider.type)) {
     const baseUrl = await prompts.input("Base URL (blank to unset)", provider.baseUrl ?? "");
     if (baseUrl) {

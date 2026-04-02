@@ -12,6 +12,7 @@ import { OpenAIProviderAdapter } from "@openassist/providers-openai";
 import { CodexProviderAdapter } from "@openassist/providers-codex";
 import { AnthropicProviderAdapter } from "@openassist/providers-anthropic";
 import { OpenAICompatibleProviderAdapter } from "@openassist/providers-openai-compatible";
+import { AzureFoundryProviderAdapter } from "@openassist/providers-azure-foundry";
 import { TelegramChannelAdapter } from "@openassist/channels-telegram";
 import { DiscordChannelAdapter } from "@openassist/channels-discord";
 import { WhatsAppMdChannelAdapter } from "@openassist/channels-whatsapp-md";
@@ -225,6 +226,18 @@ program
           oauth: providerConfig.oauth
         });
       }
+      if (providerConfig.type === "azure-foundry") {
+        return new AzureFoundryProviderAdapter({
+          id: providerConfig.id,
+          defaultModel: providerConfig.defaultModel,
+          baseUrl: providerConfig.baseUrl,
+          authMode: providerConfig.authMode,
+          resourceName: providerConfig.resourceName,
+          endpointFlavor: providerConfig.endpointFlavor,
+          underlyingModel: providerConfig.underlyingModel,
+          reasoningEffort: providerConfig.reasoningEffort
+        });
+      }
       return new OpenAICompatibleProviderAdapter({
         id: providerConfig.id,
         defaultModel: providerConfig.defaultModel,
@@ -318,6 +331,10 @@ program
 
     for (const providerConfig of config.runtime.providers) {
       if (providerConfig.type === "codex") {
+        continue;
+      }
+      if (providerConfig.type === "azure-foundry" && providerConfig.authMode === "entra") {
+        runtime.setProviderEntraAuth(providerConfig.id);
         continue;
       }
       const varName = envApiKeyVar(providerConfig.id);

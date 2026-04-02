@@ -11,7 +11,7 @@ Every adapter must implement:
 - `id(): string`
 - `capabilities(): ProviderCapabilities`
 - `validateConfig(config: unknown): Promise<ValidationResult>`
-- `chat(req: ChatRequest, auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse>`
+- `chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse>`
 
 Optional OAuth hooks:
 
@@ -25,6 +25,7 @@ Runtime resolves auth context and passes either:
 
 - API-key auth material
 - OAuth auth handle
+- Entra host-credential auth material
 
 Adapter implementations should fail explicitly for missing or invalid auth, rather than silently degrading.
 
@@ -33,6 +34,7 @@ Built-in public provider-route expectations:
 - `openai`: API-key route in operator-facing setup and docs
 - `codex`: OpenAI account-login route in operator-facing setup and docs
 - `anthropic`: API-key route, with optional account-linking where configured
+- `azure-foundry`: Azure resource-style `/openai/v1/` route with API-key or Entra host auth
 - `openai-compatible`: API-compatible route
 
 `codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: use `gpt-5.4` or another Codex-family model on that route.
@@ -119,11 +121,12 @@ Runtime converts provider/auth/runtime failures into sanitized channel diagnosti
 - OpenAI: `packages/providers-openai/src/index.ts`
 - Codex: `packages/providers-codex/src/index.ts`
 - Anthropic: `packages/providers-anthropic/src/index.ts`
+- Azure Foundry: `packages/providers-azure-foundry/src/index.ts`
 - OpenAI-compatible: `packages/providers-openai-compatible/src/index.ts`
 
 Current image-input rule:
 
-- OpenAI, Codex, and Anthropic are first-class image-input providers in the built-in adapter set
+- OpenAI, Codex, Anthropic, and Azure Foundry are first-class image-input providers in the built-in adapter set
 - OpenAI-compatible providers remain text-only for images and must preserve the runtime note that image binaries were not inspected
 
 Provider-native reasoning controls:
@@ -131,12 +134,14 @@ Provider-native reasoning controls:
 - OpenAI providers may optionally set `reasoningEffort = "low" | "medium" | "high" | "xhigh"` in config.
 - Codex providers may optionally set `reasoningEffort = "low" | "medium" | "high" | "xhigh"` in config.
 - Anthropic providers may optionally set `thinkingBudgetTokens = <integer>` in config.
+- Azure Foundry providers may optionally set `reasoningEffort = "low" | "medium" | "high" | "xhigh"` plus `underlyingModel` for better compatibility hints.
 - OpenAI-compatible providers do not expose a public reasoning control in this release.
 - Safe default is unset: when the field is omitted, adapters do not send any reasoning or thinking parameter.
 - Adapters must omit unsupported reasoning fields instead of risking provider API errors:
-  - OpenAI reasoning effort is sent only on supported Responses API model families.
-  - Codex reasoning effort is sent only on supported Codex Responses-model families.
-  - Anthropic thinking budget is sent only on supported thinking-capable Claude families.
+- OpenAI reasoning effort is sent only on supported Responses API model families.
+- Codex reasoning effort is sent only on supported Codex Responses-model families.
+- Anthropic thinking budget is sent only on supported thinking-capable Claude families.
+- Azure Foundry reasoning effort is sent only on supported Responses-model families and is evaluated against `underlyingModel ?? defaultModel`.
 - Setup validation may warn when a configured default model does not match the built-in allow-list, but runtime still stays safe by omitting the field.
 
 OpenAI adapter endpoint behavior:
@@ -145,6 +150,15 @@ OpenAI adapter endpoint behavior:
 - GPT-5/codex-class models are routed through the OpenAI Responses API.
 - If chat-completions returns a model/endpoint mismatch (for example "not a chat model"), adapter falls back to Responses API automatically.
 - `reasoningEffort` is only attached on the supported Responses API path. It is never sent on chat-completions requests.
+
+Azure Foundry adapter endpoint behavior:
+
+- The route targets Azure resource-style `/openai/v1/` endpoints only.
+- Requests are Responses API only; there is no chat-completions fallback on this route.
+- `defaultModel` is the Azure deployment name sent in the outgoing `model` field.
+- `underlyingModel` is optional operator metadata used for reasoning gating and validation hints when the deployment name does not reveal the model family.
+- `authMode="entra"` uses `DefaultAzureCredential` plus `getBearerTokenProvider`; it does not use linked-account storage or `openassist auth start/complete`.
+- Error text must stay sanitized and distinguish auth problems from deployment or Responses-compatibility problems.
 
 Codex adapter behavior:
 

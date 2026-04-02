@@ -39,6 +39,14 @@ defaultModel = "gpt-5.4"
 OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY=replace-me
 ```
 
+Azure Foundry service-principal env vars are global to the daemon process rather than derived from the provider ID:
+
+```text
+AZURE_TENANT_ID=replace-me
+AZURE_CLIENT_ID=replace-me
+AZURE_CLIENT_SECRET=replace-me
+```
+
 Channel secret-like settings should use `env:VAR_NAME` references in the TOML:
 
 ```toml
@@ -158,6 +166,7 @@ Examples:
 
 - `openai-main` -> `OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY`
 - `telegram-main` + `botToken` -> `OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN`
+- Azure Foundry service-principal auth uses the global Azure env vars above instead of `OPENASSIST_PROVIDER_<ID>_API_KEY`
 
 ## When to Use Quickstart, Wizard, or Manual Edits
 
@@ -181,5 +190,6 @@ Use manual TOML edits when:
 
 - [Configuration Reference](config-reference.md)
 - [OpenAI Provider](../providers/openai.md)
+- [Azure Foundry Provider](../providers/azure-foundry.md)
 - [Telegram Channel](../channels/telegram.md)
 - [Config Rollout and Rollback](../operations/config-rollout-and-rollback.md)

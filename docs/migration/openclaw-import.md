@@ -31,6 +31,11 @@ Required source file:
 - names containing `openai` map to type `openai`
 - all other provider names map to type `openai-compatible`
 
+Azure Foundry note:
+
+- the current importer does not auto-convert Azure/OpenAI-compatible entries into `azure-foundry`
+- if you want the Azure resource-style `/openai/v1/` route, change the imported provider manually after import or rerun setup wizard and create a fresh `azure-foundry` provider
+
 Mapped fields: `id`, `type`, `defaultModel`, optional `baseUrl`.
 
 Codex mapping note:
@@ -75,4 +80,5 @@ Importer:
 
 - config migration only (no live token/session material import)
 - OAuth linked-account state is not imported
+- Azure Foundry provider entries are not auto-detected as a separate route by the current importer
 - unsupported fields are intentionally reported as warnings, not silently dropped

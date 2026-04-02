@@ -119,7 +119,7 @@ Common fields for all providers:
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id` | string | required |
-| `type` | enum | `openai`, `codex`, `anthropic`, `openai-compatible` |
+| `type` | enum | `openai`, `codex`, `anthropic`, `azure-foundry`, `openai-compatible` |
 | `defaultModel` | string | required |
 | `baseUrl` | string | optional URL |
 | `metadata` | record | optional |
@@ -169,6 +169,34 @@ Additional fields:
 
 - `thinkingBudgetTokens`: integer `1024..32000`
 - optional `oauth` object for advanced provider-managed OAuth configuration
+
+### Azure Foundry
+
+```toml
+[[runtime.providers]]
+id = "azure-foundry-main"
+type = "azure-foundry"
+defaultModel = "gpt-5-deployment"
+authMode = "entra"
+resourceName = "your-resource-name"
+endpointFlavor = "openai-resource"
+# Optional but recommended when the deployment name hides the model family:
+# underlyingModel = "gpt-5.4"
+# Optional for supported Responses-model families:
+# reasoningEffort = "medium"
+# Optional advanced override:
+# baseUrl = "https://your-resource-name.openai.azure.com/openai/v1"
+```
+
+Additional fields:
+
+- `authMode`: `api-key` or `entra`
+- `resourceName`: Azure resource host prefix used to derive the endpoint
+- `endpointFlavor`: `openai-resource` or `foundry-resource`
+- `underlyingModel`: optional model-family hint used for reasoning and compatibility guidance
+- `reasoningEffort`: optional, `low`, `medium`, `high`, `xhigh`
+
+Azure Foundry sends the deployment name in `defaultModel`. This route uses Azure resource-style `/openai/v1/` endpoints only and the Responses API only. For Entra host auth, the optional service-principal env vars are global process settings: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`.
 
 ### OpenAI-compatible
 

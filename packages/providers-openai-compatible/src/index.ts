@@ -5,6 +5,7 @@ import type {
   ChatRequest,
   ChatResponse,
   ProviderAdapter,
+  ProviderAuth,
   ProviderAuthHandle,
   ProviderCapabilities,
   ValidationResult
@@ -131,8 +132,8 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     };
   }
 
-  async chat(req: ChatRequest, auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
-    const apiKey = "apiKey" in auth ? auth.apiKey : auth.accessToken;
+  async chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse> {
+    const apiKey = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
     if (!apiKey) {
       throw new Error("OpenAI-compatible provider requires an API key or access token");
     }

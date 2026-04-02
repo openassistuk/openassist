@@ -19,6 +19,9 @@ export function providerRouteLabel(type: ProviderConfig["type"]): string {
   if (type === "anthropic") {
     return "Anthropic (API Key)";
   }
+  if (type === "azure-foundry") {
+    return "Azure Foundry";
+  }
   return "OpenAI-compatible";
 }
 
@@ -32,6 +35,16 @@ export function providerTuningLabel(provider: ProviderConfig): string {
     return typeof provider.thinkingBudgetTokens === "number"
       ? `Thinking budget: ${provider.thinkingBudgetTokens} tokens`
       : "Thinking budget: Default (disabled)";
+  }
+  if (provider.type === "azure-foundry") {
+    const details = [
+      `Auth: ${provider.authMode === "entra" ? "Entra ID" : "API key"}`,
+      provider.underlyingModel ? `Underlying model: ${provider.underlyingModel}` : undefined,
+      provider.reasoningEffort
+        ? `Reasoning effort: ${provider.reasoningEffort}`
+        : "Reasoning effort: Default (recommended)"
+    ].filter((entry): entry is string => Boolean(entry));
+    return details.join("; ");
   }
   return "Provider defaults";
 }

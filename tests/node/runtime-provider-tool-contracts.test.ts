@@ -4,16 +4,15 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import type {
-  ApiKeyAuth,
   ChannelAdapter,
   ChannelCapabilities,
   ChatRequest,
   ChatResponse,
   HealthStatus,
+  ProviderAuth,
   InboundEnvelope,
   OutboundEnvelope,
   ProviderAdapter,
-  ProviderAuthHandle,
   ProviderCapabilities,
   RuntimeConfig,
   ValidationResult
@@ -50,7 +49,7 @@ class ContractProvider implements ProviderAdapter {
     return { valid: true, errors: [] };
   }
 
-  async chat(req: ChatRequest, _auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
+  async chat(req: ChatRequest, _auth: ProviderAuth): Promise<ChatResponse> {
     this.requests.push(req);
     if (req.messages.some((message) => message.role === "tool")) {
       return {
@@ -132,11 +131,22 @@ function tempDir(prefix: string): string {
 }
 
 function baseConfig(root: string, providerId: string, providerType: RuntimeConfig["providers"][number]["type"]): RuntimeConfig {
+  const providerConfig =
+    providerType === "azure-foundry"
+      ? {
+          id: providerId,
+          type: providerType,
+          defaultModel: "gpt-5-deployment",
+          authMode: "entra" as const,
+          resourceName: "demo-resource",
+          endpointFlavor: "openai-resource" as const
+        }
+      : { id: providerId, type: providerType, defaultModel: "x" };
   return {
     bindAddress: "127.0.0.1",
     bindPort: 3344,
     defaultProviderId: providerId,
-    providers: [{ id: providerId, type: providerType, defaultModel: "x" }],
+    providers: [providerConfig],
     channels: [{ id: "telegram-mock", type: "telegram", enabled: true, settings: {} }],
     defaultPolicyProfile: "full-root",
     paths: {
@@ -187,12 +197,13 @@ describe("runtime provider tool contracts", () => {
   const contracts: Array<{
     id: string;
     type: RuntimeConfig["providers"][number]["type"];
-    auth: "api-key" | "oauth";
+    auth: "api-key" | "oauth" | "entra";
   }> = [
     { id: "openai-main", type: "openai", auth: "api-key" },
     { id: "codex-main", type: "codex", auth: "oauth" },
     { id: "anthropic-main", type: "anthropic", auth: "api-key" },
-    { id: "compat-main", type: "openai-compatible", auth: "api-key" }
+    { id: "compat-main", type: "openai-compatible", auth: "api-key" },
+    { id: "azure-foundry-main", type: "azure-foundry", auth: "entra" }
   ];
 
   for (const contract of contracts) {
@@ -218,6 +229,8 @@ describe("runtime provider tool contracts", () => {
           refreshToken: "oauth-refresh",
           expiresAt: new Date(Date.now() + 60_000).toISOString()
         });
+      } else if (contract.auth === "entra") {
+        runtime.setProviderEntraAuth(contract.id);
       } else {
         runtime.setProviderApiKey(contract.id, "key");
       }

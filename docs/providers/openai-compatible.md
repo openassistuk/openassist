@@ -1,6 +1,6 @@
 # OpenAI-compatible Provider
 
-Use the OpenAI-compatible route when you are connecting OpenAssist to an API-compatible backend instead of the built-in OpenAI, Codex, or Anthropic integrations.
+Use the OpenAI-compatible route when you are connecting OpenAssist to an API-compatible backend instead of the built-in OpenAI, Codex, Anthropic, or Azure Foundry integrations.
 
 This route is intentionally simpler than the built-in providers and stays text-only for images in the current release.
 
@@ -18,7 +18,7 @@ This route is intentionally simpler than the built-in providers and stays text-o
 - you need a custom `baseUrl`
 - you understand that image inputs are not supported on this route
 
-Use the built-in [OpenAI](openai.md), [Codex](codex.md), or [Anthropic](anthropic.md) routes when you want first-class provider-specific behavior instead.
+Use the built-in [OpenAI](openai.md), [Codex](codex.md), [Anthropic](anthropic.md), or [Azure Foundry](azure-foundry.md) routes when you want first-class provider-specific behavior instead.
 
 ## Quickstart Path
 
@@ -96,7 +96,7 @@ That means:
 - captions and extracted text from supported documents still help
 - the provider must not imply it inspected an image binary when it did not
 
-If you need image-capable chat, use OpenAI, Codex, or Anthropic instead.
+If you need image-capable chat, use OpenAI, Codex, Anthropic, or Azure Foundry instead.
 
 ## Common Problems
 
@@ -113,5 +113,6 @@ If the backend accepts chat but tool calls fail, confirm the backend really supp
 ## Related Docs
 
 - [OpenAI Provider](openai.md)
+- [Azure Foundry Provider](azure-foundry.md)
 - [Configuration Reference](../configuration/config-reference.md)
 - [Common Troubleshooting](../operations/common-troubleshooting.md)

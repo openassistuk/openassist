@@ -8,6 +8,7 @@ import type {
   OAuthStartContext,
   OAuthStartResult,
   ProviderAdapter,
+  ProviderAuth,
   ProviderAuthHandle,
   ProviderCapabilities,
   ValidationResult
@@ -186,8 +187,8 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
     };
   }
 
-  async chat(req: ChatRequest, auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
-    const apiKey = "apiKey" in auth ? auth.apiKey : auth.accessToken;
+  async chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse> {
+    const apiKey = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
     if (!apiKey) {
       throw new Error("OpenAI provider requires an API key or access token");
     }

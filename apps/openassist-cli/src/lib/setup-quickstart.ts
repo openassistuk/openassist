@@ -47,6 +47,11 @@ import {
 import { buildSetupSummary } from "./setup-summary.js";
 import {
   type PromptAdapter,
+  maybePromptAzureServicePrincipalEnv,
+  promptAzureFoundryAuthMode,
+  promptAzureFoundryEndpointFlavor,
+  promptAzureFoundryReasoningEffort,
+  promptAzureFoundryUnderlyingModel,
   createInquirerPromptAdapter,
   promptReasoningEffort
 } from "./setup-wizard.js";
@@ -64,6 +69,8 @@ import {
 } from "./prompt-validation.js";
 
 type ProviderType = OpenAssistConfig["runtime"]["providers"][number]["type"];
+type ProviderConfig = OpenAssistConfig["runtime"]["providers"][number];
+type AzureFoundryProviderConfig = Extract<ProviderConfig, { type: "azure-foundry" }>;
 
 export interface SetupQuickstartOptions {
   configPath: string;
@@ -159,6 +166,13 @@ function defaultProviderForType(type: ProviderType): { id: string; model: string
       id: "compat-main",
       model: "gpt-5.4",
       baseUrl: "http://127.0.0.1:11434/v1"
+    };
+  }
+
+  if (type === "azure-foundry") {
+    return {
+      id: "azure-foundry-main",
+      model: "gpt-5-deployment"
     };
   }
 
@@ -427,8 +441,8 @@ async function configureAssistantIdentity(state: SetupQuickstartState, prompts: 
 
 async function promptProvider(
   prompts: PromptAdapter,
-  existing?: OpenAssistConfig["runtime"]["providers"][number]
-): Promise<OpenAssistConfig["runtime"]["providers"][number]> {
+  existing?: ProviderConfig
+): Promise<ProviderConfig> {
   const defaultType = existing?.type ?? "openai";
   const type = await prompts.select<ProviderType>(
     "Provider type",
@@ -436,6 +450,7 @@ async function promptProvider(
       { name: "OpenAI (API Key)", value: "openai" },
       { name: "Codex (OpenAI account login)", value: "codex" },
       { name: "Anthropic (API Key)", value: "anthropic" },
+      { name: "Azure Foundry", value: "azure-foundry" },
       { name: "OpenAI-compatible", value: "openai-compatible" }
     ],
     defaultType
@@ -449,6 +464,58 @@ async function promptProvider(
     defaultProviderId
   );
   console.log(`Internal provider ID: ${providerId}`);
+
+  if (type === "azure-foundry") {
+    const existingAzure: AzureFoundryProviderConfig | undefined =
+      existing?.type === "azure-foundry" ? existing : undefined;
+    console.log("- Azure Foundry uses a deployed Azure model endpoint on a resource-style /openai/v1/ host.");
+    console.log("- The deployment must already exist on that Azure resource before OpenAssist can send requests.");
+    const resourceName = await promptRequiredText(
+      prompts,
+      "Azure resource name",
+      existingAzure?.resourceName ?? ""
+    );
+    const endpointFlavor = await promptAzureFoundryEndpointFlavor(
+      prompts,
+      existingAzure?.endpointFlavor ?? "openai-resource"
+    );
+    const authMode = await promptAzureFoundryAuthMode(
+      prompts,
+      existingAzure?.authMode ?? "api-key"
+    );
+    const defaultModel = await promptRequiredText(
+      prompts,
+      "Deployment name (sent in the model field)",
+      existingAzure?.defaultModel ?? suggested.model
+    );
+    const underlyingModel = await promptAzureFoundryUnderlyingModel(
+      prompts,
+      existingAzure?.underlyingModel ?? ""
+    );
+    const baseUrlInput = await prompts.input(
+      "Base URL override (blank derives it from resource name and endpoint type)",
+      existingAzure?.baseUrl ?? ""
+    );
+    const baseUrl = baseUrlInput.trim();
+    const reasoningEffort = await promptAzureFoundryReasoningEffort(
+      prompts,
+      existingAzure?.reasoningEffort
+    );
+
+    return {
+      id: providerId,
+      type,
+      defaultModel,
+      authMode,
+      resourceName,
+      endpointFlavor,
+      ...(underlyingModel ? { underlyingModel } : {}),
+      ...(baseUrl.length > 0 ? { baseUrl } : {}),
+      ...(reasoningEffort ? { reasoningEffort } : {}),
+      ...(existingAzure?.metadata ? { metadata: existingAzure.metadata } : {})
+    };
+  }
+
   const defaultModel = await promptRequiredText(
     prompts,
     "Default model",
@@ -481,8 +548,30 @@ async function promptProvider(
 async function configureProviderAuthentication(
   state: SetupQuickstartState,
   prompts: PromptAdapter,
-  provider: OpenAssistConfig["runtime"]["providers"][number]
+  provider: ProviderConfig
 ): Promise<void> {
+  if (provider.type === "azure-foundry") {
+    if (provider.authMode === "api-key") {
+      const apiKeyVar = toProviderApiKeyEnvVar(provider.id);
+      console.log(`Secret env var: ${apiKeyVar}`);
+      console.log("Azure Foundry API key auth is the fastest quickstart path when you already have the resource key.");
+      console.log("Paste full key then press Enter (masked input accepts long values).");
+      const apiKey = await prompts.password(
+        `Provider API key for ${provider.id} (blank keeps current value)`
+      );
+      if (apiKey.trim().length > 0) {
+        state.env[apiKeyVar] = apiKey.trim();
+      }
+      return;
+    }
+
+    console.log("Azure Foundry Entra auth uses DefaultAzureCredential on the host running openassistd.");
+    console.log("Supported host credential paths include Azure CLI login, managed identity, or full service-principal env vars.");
+    console.log("No linked account is stored in OpenAssist for this route.");
+    await maybePromptAzureServicePrincipalEnv(state, prompts, false);
+    return;
+  }
+
   if (providerUsesApiKey(provider.type)) {
     const apiKeyVar = toProviderApiKeyEnvVar(provider.id);
     console.log(`Secret env var: ${apiKeyVar}`);
@@ -533,6 +622,8 @@ async function configureProviders(state: SetupQuickstartState, prompts: PromptAd
       "- Codex uses OpenAI account login on the separate Codex route.",
       "- OpenAI and Codex can both set reasoning effort here; leave it on Default if you are not sure.",
       "- Anthropic can still use API key auth and may support account linking when configured.",
+      "- Azure Foundry uses Azure resource-style /openai/v1 endpoints and needs a deployed model deployment name before it will work.",
+      "- Azure Foundry can use either an API key or Microsoft Entra host credentials in quickstart.",
       "- Add extra providers later with: openassist setup wizard"
     ]
   );

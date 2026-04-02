@@ -233,6 +233,23 @@ describe("config schema security validation", () => {
     expect("oauth" in parsed.runtime.providers[0]).toBe(false);
   });
 
+  it("rejects invalid Azure Foundry resource names at config-parse time", () => {
+    const input = baseConfigInput();
+    (input.runtime as any).defaultProviderId = "azure-foundry-main";
+    (input.runtime as any).providers = [
+      {
+        id: "azure-foundry-main",
+        type: "azure-foundry",
+        defaultModel: "gpt-5-deployment",
+        authMode: "api-key",
+        resourceName: "demo resource",
+        endpointFlavor: "openai-resource"
+      }
+    ];
+
+    expect(() => parseConfig(input)).toThrow(/resourceName must use letters, numbers, or hyphen/);
+  });
+
   it("drops unsupported reasoning fields from openai-compatible providers", () => {
     const input = baseConfigInput();
     (input.runtime as any).providers = [

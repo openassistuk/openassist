@@ -270,6 +270,79 @@ describe("setup quickstart validation", () => {
     ).toBe(false);
   });
 
+  it("allows an Azure Foundry Entra default provider without a provider API key and warns on partial service-principal env", async () => {
+    const root = tempDir("openassist-quickstart-validation-azure-entra-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.runtime.defaultProviderId = "azure-foundry-main";
+    config.runtime.providers = [
+      {
+        id: "azure-foundry-main",
+        type: "azure-foundry",
+        defaultModel: "gpt-5-deployment",
+        authMode: "entra",
+        resourceName: "demo-resource",
+        endpointFlavor: "openai-resource",
+        underlyingModel: "gpt-5.4"
+      }
+    ];
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {
+        AZURE_CLIENT_ID: "client-id-only"
+      },
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(result.errors.some((item) => item.code === "provider.default_auth_missing")).toBe(false);
+    expect(
+      result.warnings.some((item) => item.code === "provider.azure_foundry_entra_service_principal_partial")
+    ).toBe(true);
+  });
+
+  it("warns when Azure Foundry reasoning and model hints look unsupported", async () => {
+    const root = tempDir("openassist-quickstart-validation-azure-model-warning-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindPort = await getFreePort();
+    config.runtime.defaultProviderId = "azure-foundry-main";
+    config.runtime.providers = [
+      {
+        id: "azure-foundry-main",
+        type: "azure-foundry",
+        defaultModel: "mystery-deployment",
+        authMode: "api-key",
+        resourceName: "demo-resource",
+        endpointFlavor: "foundry-resource",
+        underlyingModel: "mystery-model",
+        reasoningEffort: "high"
+      }
+    ];
+
+    const result = await validateSetupReadiness({
+      config,
+      env: {
+        [toProviderApiKeyEnvVar(config.runtime.defaultProviderId)]: "test-key"
+      },
+      configPath: path.join(root, "openassist.toml"),
+      envFilePath: path.join(root, "openassistd.env"),
+      installDir: root,
+      skipService: true,
+      timezoneConfirmed: true
+    });
+
+    expect(
+      result.warnings.some((item) => item.code === "provider.azure_foundry_reasoning_model_unsupported")
+    ).toBe(true);
+    expect(
+      result.warnings.some((item) => item.code === "provider.azure_foundry_responses_model_unknown")
+    ).toBe(true);
+  });
+
   it("requires Brave API configuration in api-only web mode", async () => {
     const root = tempDir("openassist-quickstart-validation-web-api-only-");
     const config = createDefaultConfigObject();

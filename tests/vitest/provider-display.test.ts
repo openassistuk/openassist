@@ -94,6 +94,7 @@ describe("provider display helpers", () => {
     expect(providerRouteLabel("openai")).toBe("OpenAI (API Key)");
     expect(providerRouteLabel("codex")).toBe("Codex (OpenAI account login)");
     expect(providerRouteLabel("anthropic")).toBe("Anthropic (API Key)");
+    expect(providerRouteLabel("azure-foundry")).toBe("Azure Foundry");
     expect(providerTuningLabel({
       id: "codex-main",
       type: "codex",
@@ -106,6 +107,16 @@ describe("provider display helpers", () => {
       defaultModel: "claude-sonnet-4-6",
       thinkingBudgetTokens: 4096
     })).toBe("Thinking budget: 4096 tokens");
+    expect(providerTuningLabel({
+      id: "azure-foundry-main",
+      type: "azure-foundry",
+      defaultModel: "gpt-5-deployment",
+      authMode: "entra",
+      resourceName: "demo-resource",
+      endpointFlavor: "openai-resource",
+      underlyingModel: "gpt-5.4",
+      reasoningEffort: "high"
+    })).toBe("Auth: Entra ID; Underlying model: gpt-5.4; Reasoning effort: high");
   });
 
   it("describes the primary provider and provider menu labels", () => {
@@ -124,6 +135,19 @@ describe("provider display helpers", () => {
     });
     expect(formatProviderMenuLabel(config.runtime.providers[1]!)).toBe(
       "codex-main (Codex (OpenAI account login), gpt-5.4, Reasoning effort: Default (recommended))"
+    );
+
+    config.runtime.providers.push({
+      id: "azure-foundry-main",
+      type: "azure-foundry",
+      defaultModel: "gpt-5-deployment",
+      authMode: "api-key",
+      resourceName: "demo-resource",
+      endpointFlavor: "foundry-resource",
+      underlyingModel: "gpt-5.4"
+    });
+    expect(formatProviderMenuLabel(config.runtime.providers[2]!)).toBe(
+      "azure-foundry-main (Azure Foundry, gpt-5-deployment, Auth: API key; Underlying model: gpt-5.4; Reasoning effort: Default (recommended))"
     );
   });
 });

@@ -70,13 +70,15 @@ When changing installer/setup/service behavior:
 9. preserve local health probe fallback behavior (wildcard bind addresses must resolve to loopback probes for setup/service checks)
 10. preserve Linux service-manager auto-selection semantics (non-root -> `systemd --user`, root -> system-level `systemd`)
 11. preserve provider-route onboarding semantics:
-   - operator-facing setup and docs must present four first-class provider routes:
+   - operator-facing setup and docs must present five first-class provider routes:
      - `openai` for OpenAI API-key auth
      - `codex` for the separate Codex/OpenAI account-login route
      - `anthropic`
+     - `azure-foundry` for Azure resource-style `/openai/v1/` endpoints with API-key or Entra host-credential auth
      - `openai-compatible`
    - OpenAI remains the public API-key route in setup/docs
    - Codex remains the public account-login route in setup/docs
+   - Azure Foundry remains the Azure resource-style Responses-only route in setup/docs
    - Codex must be described truthfully as Codex-only in V1, not as generic ChatGPT API auth for arbitrary OpenAI models
    - legacy `openai + oauth` configs may remain readable for compatibility, but new account-login guidance must steer operators to `codex`
    - quickstart must expose the beginner-facing reasoning-effort choice for `openai` and `codex`
@@ -84,7 +86,11 @@ When changing installer/setup/service behavior:
    - wizard remains the full provider-tuning surface:
      - `openai.reasoningEffort`
      - `codex.reasoningEffort`
+     - `azure-foundry.reasoningEffort`
      - `anthropic.thinkingBudgetTokens`
+   - Azure Foundry quickstart and wizard must ask for the Azure resource name, endpoint flavor, deployment name, auth mode, and optional underlying model hint
+   - Azure Foundry Entra auth uses host credentials via `DefaultAzureCredential`; it must not reuse linked-account storage or `openassist auth start/complete`
+   - `openassist auth status` must be able to surface `Entra ID` as the active auth kind for Azure Foundry providers
    - lifecycle and status output must surface the active primary provider route, model, and reasoning/thinking state
    - normal operator setup paths must not prompt for a custom Codex base URL
    - Codex account-link guidance must stay headless-friendly:
@@ -95,7 +101,7 @@ When changing installer/setup/service behavior:
      - additive CLI completion with `--callback-url` must remain supported alongside the older `--state` plus `--code` path
      - browser callback/manual paste remains supported as a fallback path
      - provider or daemon completion failures must surface as sanitized account-link errors, not generic service-failure or bare `500` wording
-   - a fresh quickstart that selects `codex`, `anthropic`, or `openai-compatible` must not persist the seeded `openai-main` placeholder provider from the default config skeleton
+   - a fresh quickstart that selects `codex`, `anthropic`, `azure-foundry`, or `openai-compatible` must not persist the seeded `openai-main` placeholder provider from the default config skeleton
    - Codex account linking only counts as complete when OpenAssist has a chat-ready Codex/ChatGPT token auth handle; an exchanged OpenAI API key is optional auxiliary metadata, not the definition of success
    - `openassist auth status` must stay redacted but still surface meaningful readiness signals for linked-account routes, including route, linked-account presence, active auth kind, token expiry when known, and whether the auth is chat-ready
    - successful quickstart/wizard saves and reachable `openassist doctor` checks must not keep `provider.default_codex_account_link_pending` once the default Codex provider is linked and chat-ready; unreachable-daemon validation may stay conservative
@@ -339,6 +345,7 @@ When provider-route or auth-path behavior changes, always update:
 - `docs/providers/openai.md`
 - `docs/providers/codex.md`
 - `docs/providers/anthropic.md`
+- `docs/providers/azure-foundry.md`
 - `docs/providers/openai-compatible.md`
 - `docs/interfaces/provider-adapter.md`
 - `docs/operations/quickstart-linux-macos.md`

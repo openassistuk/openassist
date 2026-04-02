@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { RuntimeConfig } from "@openassist/core-types";
+import type { ChannelConfig, ProviderConfig, RuntimeConfig } from "@openassist/core-types";
 
 function isValidIanaTimezone(value: string): boolean {
   try {
@@ -12,6 +12,7 @@ function isValidIanaTimezone(value: string): boolean {
 
 const ENV_VAR_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const CONFIG_IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const AZURE_FOUNDRY_RESOURCE_NAME_PATTERN = /^[A-Za-z0-9-]+$/;
 const SECRET_LIKE_CHANNEL_SETTING_KEY_PATTERN =
   /(token|secret|api[_-]?key|password|passphrase|credential|authorization|auth)/i;
 
@@ -70,7 +71,7 @@ const oauthProviderSchema = commonProviderSchema.extend({
     .optional()
 });
 
-const providerSchema = z.discriminatedUnion("type", [
+const providerSchema: z.ZodType<ProviderConfig, z.ZodTypeDef, unknown> = z.discriminatedUnion("type", [
   oauthProviderSchema.extend({
     type: z.literal("openai"),
     reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
@@ -85,6 +86,20 @@ const providerSchema = z.discriminatedUnion("type", [
   }),
   commonProviderSchema.extend({
     type: z.literal("openai-compatible")
+  }),
+  commonProviderSchema.extend({
+    type: z.literal("azure-foundry"),
+    authMode: z.enum(["api-key", "entra"]),
+    resourceName: z
+      .string()
+      .min(1)
+      .regex(
+        AZURE_FOUNDRY_RESOURCE_NAME_PATTERN,
+        "resourceName must use letters, numbers, or hyphen"
+      ),
+    endpointFlavor: z.enum(["openai-resource", "foundry-resource"]),
+    underlyingModel: z.string().min(1).optional(),
+    reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
   })
 ]);
 
@@ -156,7 +171,7 @@ const scheduledTaskSchema = z
     }
   });
 
-const channelSchema = z.object({
+const channelSchema: z.ZodType<ChannelConfig, z.ZodTypeDef, unknown> = z.object({
   id: z
     .string()
     .regex(CONFIG_IDENTIFIER_PATTERN, "Channel IDs must use letters, numbers, dot, dash, or underscore"),

@@ -22,6 +22,13 @@ export interface ApiKeyAuth {
   apiKey: string;
 }
 
+export interface EntraAuth {
+  providerId: string;
+  kind: "entra";
+}
+
+export type ProviderAuth = ProviderAuthHandle | ApiKeyAuth | EntraAuth;
+
 export interface OAuthStartContext {
   accountId: string;
   redirectUri: string;
@@ -104,7 +111,7 @@ export interface ProviderAdapter {
   completeOAuthDeviceCodeLogin?(ctx: OAuthDeviceCodeCompleteContext): Promise<ProviderAuthHandle>;
   refreshOAuthAuth?(auth: ProviderAuthHandle): Promise<ProviderAuthHandle>;
   validateConfig(config: unknown): Promise<ValidationResult>;
-  chat(req: ChatRequest, auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse>;
+  chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse>;
 }
 
 interface CommonProviderConfig {
@@ -146,8 +153,21 @@ export interface OpenAICompatibleProviderRuntimeConfig extends CommonProviderCon
   type: "openai-compatible";
 }
 
+export type AzureFoundryAuthMode = "api-key" | "entra";
+export type AzureFoundryEndpointFlavor = "openai-resource" | "foundry-resource";
+
+export interface AzureFoundryProviderRuntimeConfig extends CommonProviderConfig {
+  type: "azure-foundry";
+  authMode: AzureFoundryAuthMode;
+  resourceName: string;
+  endpointFlavor: AzureFoundryEndpointFlavor;
+  underlyingModel?: string;
+  reasoningEffort?: OpenAIReasoningEffort;
+}
+
 export type ProviderConfig =
   | OpenAIProviderRuntimeConfig
   | CodexProviderRuntimeConfig
   | AnthropicProviderRuntimeConfig
-  | OpenAICompatibleProviderRuntimeConfig;
+  | OpenAICompatibleProviderRuntimeConfig
+  | AzureFoundryProviderRuntimeConfig;

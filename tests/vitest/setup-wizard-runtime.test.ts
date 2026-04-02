@@ -213,6 +213,55 @@ describe("setup wizard runtime flow", () => {
     ]);
   });
 
+  it("adds an Azure Foundry provider with Entra auth and persists optional service-principal env vars", async () => {
+    const root = tempDir("openassist-vitest-setup-azure-foundry-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const state = loadSetupWizardState(configPath, envPath);
+
+    const prompts = new ScriptedPromptAdapter([
+      "providers",
+      "add",
+      "azure-foundry-main",
+      "azure-foundry",
+      "demo-resource",
+      "foundry-resource",
+      "entra",
+      "gpt-5-deployment",
+      "gpt-5.4",
+      "   ",
+      "medium",
+      "true",
+      "tenant-id",
+      "client-id",
+      "client-secret",
+      "back",
+      "save"
+    ]);
+
+    const result = await runSetupWizard(state, prompts, {
+      requireTty: false
+    });
+
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.providers.some((provider) => provider.id === "azure-foundry-main")).toBe(true);
+    const azureProvider = state.config.runtime.providers.find((provider) => provider.id === "azure-foundry-main");
+    expect(azureProvider).not.toBeUndefined();
+    expect(azureProvider).not.toHaveProperty("baseUrl");
+    expect(azureProvider).toMatchObject({
+      type: "azure-foundry",
+      authMode: "entra",
+      resourceName: "demo-resource",
+      endpointFlavor: "foundry-resource",
+      defaultModel: "gpt-5-deployment",
+      underlyingModel: "gpt-5.4",
+      reasoningEffort: "medium"
+    });
+    expect(state.env.AZURE_TENANT_ID).toBe("tenant-id");
+    expect(state.env.AZURE_CLIENT_ID).toBe("client-id");
+    expect(state.env.AZURE_CLIENT_SECRET).toBe("client-secret");
+  });
+
   it("prompts to enable full access when adding approved operator IDs in standard mode", async () => {
     const root = tempDir("openassist-vitest-setup-full-access-prompt-add-");
     const configPath = path.join(root, "openassist.toml");

@@ -125,6 +125,39 @@ function validQuickstartAnswers(bindPort: number, extra: string[] = []): string[
   ];
 }
 
+function azureFoundryEntraQuickstartAnswers(bindPort: number, extra: string[] = []): string[] {
+  return [
+    "false",
+    "127.0.0.1",
+    String(bindPort),
+    "OpenAssist",
+    "Pragmatic and concise",
+    "Keep answers practical",
+    "azure-foundry",
+    "azure-foundry-main",
+    "demo-resource",
+    "openai-resource",
+    "entra",
+    "gpt-5-deployment",
+    "gpt-5.4",
+    "",
+    "high",
+    "true",
+    "tenant-id",
+    "client-id",
+    "client-secret",
+    "telegram",
+    "telegram-main",
+    "telegram-token",
+    "123,456",
+    "Europe",
+    "Europe/London",
+    "true",
+    "save",
+    ...extra
+  ];
+}
+
 describe("cli setup quickstart runtime coverage", () => {
   it("returns unsaved when validation fails and the operator aborts", async () => {
     const root = tempDir("openassist-node-quickstart-abort-");
@@ -636,5 +669,58 @@ describe("cli setup quickstart runtime coverage", () => {
     assert.equal(state.env.OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN, "telegram-token");
     assert.equal(state.config.runtime.time.defaultTimezone, "Europe/London");
     assert.equal(result.summary.some((line) => line.includes("Service state: Service checks skipped")), true);
+  });
+
+  it("supports Azure Foundry quickstart with Entra auth and service-principal env capture", async () => {
+    const root = tempDir("openassist-node-quickstart-azure-foundry-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const installDir = root;
+    const bindPort = await getFreePort();
+    fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
+    const state = loadSetupQuickstartState(configPath, envPath, installDir);
+
+    const result = await runSetupQuickstart(
+      state,
+      {
+        configPath,
+        envFilePath: envPath,
+        installDir,
+        allowIncomplete: false,
+        skipService: true,
+        requireTty: false,
+        preflightCommandChecks: false
+      },
+      new ScriptedPromptAdapter(azureFoundryEntraQuickstartAnswers(bindPort))
+    );
+
+    assert.equal(result.saved, true);
+    assert.equal(result.validationErrors, 0);
+    assert.equal(state.config.runtime.defaultProviderId, "azure-foundry-main");
+    assert.equal(state.config.runtime.providers.length, 1);
+    assert.deepEqual(state.config.runtime.providers[0], {
+      id: "azure-foundry-main",
+      type: "azure-foundry",
+      defaultModel: "gpt-5-deployment",
+      authMode: "entra",
+      resourceName: "demo-resource",
+      endpointFlavor: "openai-resource",
+      underlyingModel: "gpt-5.4",
+      reasoningEffort: "high"
+    });
+    assert.equal(state.env.AZURE_TENANT_ID, "tenant-id");
+    assert.equal(state.env.AZURE_CLIENT_ID, "client-id");
+    assert.equal(state.env.AZURE_CLIENT_SECRET, "client-secret");
+    assert.equal(
+      result.summary.some((line) => line.includes("Primary provider: azure-foundry-main (Azure Foundry)")),
+      true
+    );
+    assert.equal(
+      result.summary.some((line) =>
+        line.includes("Provider tuning: Auth: Entra ID; Underlying model: gpt-5.4; Reasoning effort: high")
+      ),
+      true
+    );
   });
 });

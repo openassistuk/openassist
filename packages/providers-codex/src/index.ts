@@ -10,6 +10,7 @@ import type {
   OAuthStartContext,
   OAuthStartResult,
   ProviderAdapter,
+  ProviderAuth,
   ProviderAuthHandle,
   ProviderCapabilities,
   ValidationResult
@@ -850,13 +851,13 @@ export class CodexProviderAdapter implements ProviderAdapter {
     return { valid: true, errors: [] };
   }
 
-  async chat(req: ChatRequest, auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
-    const accessToken = "apiKey" in auth ? auth.apiKey : auth.accessToken;
+  async chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse> {
+    const accessToken = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
     if (!accessToken) {
       throw new Error("Codex provider requires a linked Codex account");
     }
 
-    const claims = "apiKey" in auth ? {} : decodeClaimsMetadata(auth.scopes);
+    const claims = "apiKey" in auth || !("scopes" in auth) ? {} : decodeClaimsMetadata(auth.scopes);
     const defaultHeaders: Record<string, string> = {
       session_id: req.sessionId
     };

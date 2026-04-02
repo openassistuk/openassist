@@ -73,6 +73,7 @@ Task schema constraints:
 
 - provider keys are environment variables (`OPENASSIST_PROVIDER_<ID>_API_KEY`)
 - channel secrets can be `env:VAR_NAME` indirections
+- Azure Foundry Entra service-principal auth may also use global `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`
 - plaintext secret-like channel settings (`token`, `secret`, `apiKey`, `password`, etc.) are rejected
 - provider OAuth `clientSecretEnv` must be a valid env-var name (`[A-Za-z_][A-Za-z0-9_]*`)
 

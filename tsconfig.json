@@ -16,6 +16,7 @@
     { "path": "packages/providers-codex" },
     { "path": "packages/providers-anthropic" },
     { "path": "packages/providers-openai-compatible" },
+    { "path": "packages/providers-azure-foundry" },
     { "path": "packages/channels-telegram" },
     { "path": "packages/channels-discord" },
     { "path": "packages/channels-whatsapp-md" },

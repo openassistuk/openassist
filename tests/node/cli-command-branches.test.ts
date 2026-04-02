@@ -220,6 +220,169 @@ describe("cli command branch coverage", () => {
     assert.equal(result.stdout.includes("sk-test-long-key-value"), false);
   });
 
+  it("covers Azure Foundry Entra auth status output", async () => {
+    const root = tempDir("openassist-cli-auth-status-azure-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+
+    const init = await runCli(["init", "--config", configPath], root);
+    assert.equal(init.code, 0, init.stderr || init.stdout);
+    fs.writeFileSync(envPath, "", "utf8");
+
+    fs.writeFileSync(
+      configPath,
+      [
+        "[runtime]",
+        'bindAddress = "127.0.0.1"',
+        "bindPort = 3344",
+        'defaultProviderId = "azure-foundry-main"',
+        'defaultPolicyProfile = "operator"',
+        'operatorAccessProfile = "operator"',
+        "",
+        "[runtime.paths]",
+        'dataDir = ".openassist/data"',
+        'skillsDir = ".openassist/skills"',
+        'logsDir = ".openassist/logs"',
+        "",
+        "[runtime.attachments]",
+        "maxFilesPerMessage = 4",
+        "maxImageBytes = 10000000",
+        "maxDocumentBytes = 1000000",
+        "maxExtractedChars = 12000",
+        "",
+        "[runtime.assistant]",
+        'name = "OpenAssist"',
+        'persona = "Pragmatic and concise"',
+        'operatorPreferences = ""',
+        "promptOnFirstContact = false",
+        "",
+        "[runtime.memory]",
+        "enabled = true",
+        "",
+        "[runtime.time]",
+        'ntpPolicy = "off"',
+        "ntpCheckIntervalSec = 300",
+        "ntpMaxSkewMs = 10000",
+        "ntpHttpSources = []",
+        "requireTimezoneConfirmation = false",
+        "",
+        "[runtime.scheduler]",
+        "enabled = false",
+        "tickIntervalMs = 1000",
+        "heartbeatIntervalSec = 30",
+        'defaultMisfirePolicy = "catch-up-once"',
+        "tasks = []",
+        "",
+        "[[runtime.providers]]",
+        'id = "azure-foundry-main"',
+        'type = "azure-foundry"',
+        'defaultModel = "gpt-5-deployment"',
+        'authMode = "entra"',
+        'resourceName = "demo-resource"',
+        'endpointFlavor = "openai-resource"',
+        'underlyingModel = "gpt-5.4"',
+        "",
+        "[tools.fs]",
+        "workspaceOnly = true",
+        "allowedReadPaths = []",
+        "allowedWritePaths = []",
+        "",
+        "[tools.exec]",
+        "defaultTimeoutMs = 60000",
+        "",
+        "[tools.exec.guardrails]",
+        'mode = "minimal"',
+        "extraBlockedPatterns = []",
+        "",
+        "[tools.pkg]",
+        "enabled = true",
+        "preferStructuredInstall = true",
+        "allowExecFallback = true",
+        "sudoNonInteractive = true",
+        "allowedManagers = []",
+        "",
+        "[tools.web]",
+        "enabled = true",
+        'searchMode = "hybrid"',
+        "requestTimeoutMs = 15000",
+        "maxRedirects = 5",
+        "maxFetchBytes = 1000000",
+        "maxSearchResults = 8",
+        "maxPagesPerRun = 4",
+        "",
+        "[security]",
+        "auditLogEnabled = true",
+        'secretsBackend = "encrypted-file"',
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+
+    const server = http.createServer((req, res) => {
+      if (req.url === "/v1/oauth/status") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            accounts: [],
+            providers: [
+              {
+                providerId: "azure-foundry-main",
+                providerType: "azure-foundry",
+                linkedAccountCount: 0,
+                currentAuth: {
+                  kind: "entra",
+                  chatReady: true,
+                  detail: "Entra host credential auth is configured for this provider."
+                }
+              }
+            ]
+          })
+        );
+        return;
+      }
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", () => resolve());
+    });
+    const address = server.address();
+    assert.notEqual(address, null);
+    assert.equal(typeof address, "object");
+    const baseUrl = `http://127.0.0.1:${(address as { port: number }).port}`;
+
+    const result = await runCli(
+      [
+        "auth",
+        "status",
+        "--base-url",
+        baseUrl,
+        "--config",
+        configPath,
+        "--env-file",
+        envPath
+      ],
+      root
+    );
+
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+
+    assert.equal(result.code, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /Provider: azure-foundry-main/);
+    assert.match(result.stdout, /Route: Azure Foundry/);
+    assert.match(result.stdout, /Active auth: Entra ID/);
+    assert.match(result.stdout, /Chat-ready auth: Yes/);
+  });
+
   it("covers upgrade dry-run dirty-worktree and invalid-install-dir failures", async () => {
     const gitRepo = tempDir("openassist-cli-upgrade-dirty-");
 

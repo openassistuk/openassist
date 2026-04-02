@@ -24,7 +24,10 @@ This is a narrow security maintenance change. It should not broaden into a direc
   - `pnpm audit --prod --json`
   - `pnpm audit --json`
 - [x] (2026-04-02 17:31Z) Ran `pnpm verify:all` successfully on branch `fix/dependabot-alert-remediation-2026-04`.
-- [ ] Commit, push, open the PR, dispatch `service-smoke.yml` and `lifecycle-e2e-smoke.yml`, and monitor the branch until all required checks and review surfaces are green.
+- [x] (2026-04-02 17:12Z) Committed, pushed, and opened PR `#49` (`fix: remediate open Dependabot alerts (lodash, picomatch)`), then manually dispatched `service-smoke.yml` and `lifecycle-e2e-smoke.yml` on the branch.
+- [x] (2026-04-02 17:17Z) Verified the initial PR head `1ab0ca58079c649c3fd875b45ea3fa3730f0ea2d` was green on required checks plus both supplemental smoke runs.
+- [x] (2026-04-02 17:38Z) Investigated 2 Copilot review threads about deprecated `lodash@4.18.0`, confirmed `4.18.1` is the current non-deprecated release, updated the remediation target, refreshed the lockfile, and reran focused validation plus `pnpm verify:all`.
+- [ ] Push the review-driven follow-up commit, then rerun required checks, supplemental smoke, code scanning, and review-thread verification until the final PR head is fully green and review-clean.
 
 ## Surprises & Discoveries
 
@@ -38,6 +41,8 @@ This is a narrow security maintenance change. It should not broaden into a direc
   Evidence: `@sapphire/shapeshift@4.0.0` still declares `lodash ^4.17.21`, and `@tktco/node-actionlint@1.6.0` still pulls `fast-glob@^3.3.3 -> micromatch@^4.0.8 -> picomatch@^2.3.1`.
 - Observation: the explicit `pnpm audit --json` gate is stricter than the currently open Dependabot alert set.
   Evidence: after the `lodash` and `picomatch` fixes, `pnpm audit --prod --json` was clean but `pnpm audit --json` still reported `brace-expansion@5.0.3` through `@vitest/coverage-v8 -> test-exclude -> glob/minimatch`.
+- Observation: the first patched lodash release reported by GitHub (`4.18.0`) is now deprecated on npm, while `4.18.1` is available without a deprecation marker.
+  Evidence: `npm view lodash@4.18.0 deprecated` returns `Bad release. Please use lodash@4.17.21 instead.`, `npm view lodash version` returns `4.18.1`, and `npm view lodash@4.18.1 deprecated` returns no message.
 
 ## Decision Log
 
@@ -53,10 +58,13 @@ This is a narrow security maintenance change. It should not broaden into a direc
 - Decision: include the dev-only `brace-expansion@5.0.5` override in this branch even though it is not one of the 3 currently open GitHub alerts.
   Rationale: the agreed validation commands include `pnpm audit --json`, so the narrowest decision-complete implementation is to clear that remaining audited advisory in the same remediation PR.
   Date/Author: 2026-04-02 / Codex
+- Decision: advance the lodash override target from `4.18.0` to `4.18.1` after PR review surfaced that `4.18.0` is deprecated on npm.
+  Rationale: GitHub marks `4.18.0` as the first patched advisory version, but `4.18.1` is a newer non-deprecated patched release that satisfies the same security requirement without leaving a known-bad deprecation marker in the lockfile.
+  Date/Author: 2026-04-02 / Codex
 
 ## Outcomes & Retrospective
 
-Local remediation is complete and validated. The branch now pins the narrow patched floors required for the open GitHub alerts and the stricter full-audit path, the contract test covers those exact floors, and the full local verification gate passed. The remaining work is GitHub-facing: publish the branch, open the PR, dispatch the supplemental smoke workflows, and keep iterating on CI, code scanning, and review comments until the final PR head is fully green and review-clean.
+Local remediation is complete and validated, and the first published PR head was already fully green. Review surfaced one legitimate follow-up: GitHub's first patched lodash floor (`4.18.0`) is deprecated on npm even though it satisfies the advisory, so the branch now advances to the non-deprecated patched release `4.18.1`. The remaining work is GitHub-facing on that follow-up head: push it, rerun required checks and supplemental smoke runs, and close out review/code-scanning surfaces until the final PR head is fully green and review-clean.
 
 ## Context and Orientation
 
@@ -132,12 +140,21 @@ Local proof after remediation:
     Full local gate:
     - pnpm verify:all -> pass
 
+GitHub evidence so far:
+
+    PR:
+    - #49 fix: remediate open Dependabot alerts (lodash, picomatch)
+
+    Supplemental workflow dispatches on the initial PR head:
+    - service-smoke.yml -> run 23912525383 -> pass
+    - lifecycle-e2e-smoke.yml -> run 23912525398 -> pass
+
 ## Interfaces and Dependencies
 
 No public interfaces change. No CLI commands, config keys, workflow triggers, or runtime types are added.
 
 The dependency floors that must exist at the end of this work are:
 
-    lodash@<4.18.0 -> 4.18.0
+    lodash@<4.18.1 -> 4.18.1
     picomatch@<2.3.2 -> 2.3.2
     brace-expansion@>=5.0.0 <5.0.5 -> 5.0.5

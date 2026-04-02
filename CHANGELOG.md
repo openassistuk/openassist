@@ -105,6 +105,11 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Changed
 
+- Dependency security floors:
+  - root `pnpm.overrides` now pins patched transitive minimums for `lodash@4.18.1`, `picomatch@2.3.2`, and the dev-tooling audit path `brace-expansion@5.0.5`
+  - the dependency lockfile no longer resolves the newly alerted vulnerable exact versions `lodash@4.17.23` and `picomatch@2.3.1`, it avoids the deprecated `lodash@4.18.0` release, and it also no longer resolves the audited dev-only `brace-expansion@5.0.3` path
+  - this remediation stays intentionally narrow and does not broaden into direct dependency version churn
+
 - macOS live launchd required gate:
   - the `launchd` adapter now uses one coherent `launchctl` model built around `print`, `bootstrap`, `enable`, `kickstart`, `bootout`, and `disable` instead of mixing those paths with legacy `load` or `unload`
   - macOS launchd install artifacts now keep the wrapper directory, wrapper script, log directory, and plist owner-only where appropriate while preserving existing env-file security checks

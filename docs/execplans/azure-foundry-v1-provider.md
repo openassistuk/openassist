@@ -19,7 +19,7 @@ After this change, an operator can choose `azure-foundry` as a first-class provi
 - [x] (2026-04-02 17:36Z) Added and updated tests across provider adapter, setup flows, provider display, auth status, and runtime provider-tool contracts.
 - [x] (2026-04-02 18:11Z) Updated the required operator and contributor documentation surfaces, including `README.md`, `AGENTS.md`, `CHANGELOG.md`, provider docs, config docs, operations docs, interface docs, architecture docs, testing docs, and migration notes.
 - [x] (2026-04-02 18:43Z) Ran `pnpm verify:all` successfully after adding extra node integration coverage for Azure quickstart, wizard, and validation branches.
-- [ ] Publish the branch, open a PR, and keep iterating until all PR checks and review findings are green.
+- [x] (2026-04-02 19:34Z) Published branch `codex/azure-foundry-v1-provider`, opened PR `#48`, fixed the GitHub Advanced Security CodeQL alert on `trimTrailingSlash`, reran `pnpm verify:all`, and confirmed all tracked PR checks are green on commit `f0d4f88`.
 
 ## Surprises & Discoveries
 
@@ -31,6 +31,8 @@ After this change, an operator can choose `azure-foundry` as a first-class provi
   Evidence: https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle shows `const client = new OpenAI({ baseURL: ".../openai/v1/", apiKey: tokenProvider })` for JavaScript Entra auth.
 - Observation: the existing runtime auth-status path only needed a truthful synthetic `currentAuth.kind = "entra"` branch; Azure did not need linked-account storage, daemon OAuth endpoints, or `openassist auth start/complete`.
   Evidence: targeted CLI and runtime tests passed after adding runtime/CLI status support plus quickstart/wizard Entra handling, without any OAuth-table changes.
+- Observation: GitHub Advanced Security raised a separate CodeQL check run for new PR alerts even after the Actions CodeQL workflow itself passed.
+  Evidence: PR `#48` showed a failing `CodeQL` check run from the `github-advanced-security` app pointing at `packages/providers-azure-foundry/src/index.ts:61`, while the Actions workflow `CodeQL` and `analyze (javascript-typescript)` jobs were already green.
 
 ## Decision Log
 
@@ -52,7 +54,7 @@ After this change, an operator can choose `azure-foundry` as a first-class provi
 
 ## Outcomes & Retrospective
 
-The Azure Foundry route is now implemented end to end in the repo. Shared provider contracts, runtime auth-status handling, daemon adapter construction, setup quickstart, setup wizard, validation, provider display, docs, and regression coverage have all been updated together. Local repo-wide verification is green on `pnpm verify:all`. The remaining work is the publish-and-fix cycle on the PR.
+The Azure Foundry route is now implemented end to end in the repo. Shared provider contracts, runtime auth-status handling, daemon adapter construction, setup quickstart, setup wizard, validation, provider display, docs, and regression coverage have all been updated together. Local repo-wide verification is green on `pnpm verify:all`, PR `#48` is open and ready for review, and the tracked CI plus CodeQL checks are green on the latest commit.
 
 ## Context and Orientation
 

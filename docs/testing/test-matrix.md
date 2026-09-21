@@ -321,3 +321,7 @@ Current suite files under `tests/node/`:
 - long-duration multi-day soak data collection on production-like hosts
 
 Node runtime rejection is exercised by `tests/node/runtime-version.test.ts` for both CLI and daemon before application imports.
+
+Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
+
+`tests/node/whatsapp-signal-compatibility.test.ts` verifies real Baileys/libsignal encryption and decryption across a persisted-session reload without a network account.

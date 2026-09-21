@@ -3,12 +3,12 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("pnpm workspace build-script policy", () => {
-  it("declares onlyBuiltDependencies for required postinstall packages", () => {
+  it("declares allowBuilds for required postinstall packages", () => {
     const workspacePath = path.resolve("pnpm-workspace.yaml");
     const raw = fs.readFileSync(workspacePath, "utf8");
 
-    expect(raw).toMatch(/onlyBuiltDependencies:/);
-    expect(raw).toMatch(/- esbuild/);
-    expect(raw).toMatch(/- protobufjs/);
+    expect(raw).toMatch(/allowBuilds:/);
+    expect(raw).toMatch(/esbuild: true/);
+    expect(raw).toMatch(/protobufjs: true/);
   });
 });

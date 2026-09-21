@@ -32,7 +32,7 @@ describe("bootstrap interactive contract", () => {
     assert.match(script, /Node\.js is outside >=24\.21\.0 <25 after package install; attempting fallback install via npm\+n/);
     assert.match(script, /npm install -g n/);
     assert.match(script, /n 24.21.0/);
-    assert.match(script, /PINNED_PNPM_VERSION="10.31.0"/);
+    assert.match(script, /PINNED_PNPM_VERSION="12.5.1"/);
     assert.match(script, /corepack prepare "pnpm@\$\{PINNED_PNPM_VERSION\}" --activate/);
     assert.match(script, /run_git_step/);
     assert.match(script, /Git fast-forward failed for ref/);

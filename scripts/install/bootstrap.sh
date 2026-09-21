@@ -14,7 +14,7 @@ ALLOW_DIRTY=0
 AUTO_INSTALL_PREREQS=1
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 GLOBAL_BIN_DIR="${OPENASSIST_GLOBAL_BIN_DIR:-/usr/local/bin}"
-PINNED_PNPM_VERSION="10.31.0"
+PINNED_PNPM_VERSION="12.5.1"
 
 # When this script is piped from curl in an interactive shell, stdin is often
 # a pipe instead of a TTY. Reattach stdin to /dev/tty so interactive setup can
@@ -540,11 +540,11 @@ install_pnpm_runtime() {
 
   if command -v npm >/dev/null 2>&1; then
     if [[ "$(id -u)" -eq 0 ]]; then
-      npm install -g pnpm
+      npm install -g "pnpm@${PINNED_PNPM_VERSION}"
     elif command -v sudo >/dev/null 2>&1; then
-      sudo npm install -g pnpm
+      sudo npm install -g "pnpm@${PINNED_PNPM_VERSION}"
     else
-      npm install -g pnpm
+      npm install -g "pnpm@${PINNED_PNPM_VERSION}"
     fi
     return
   fi
@@ -571,12 +571,12 @@ collect_missing_prereqs() {
   fi
 
   if ! command -v pnpm >/dev/null 2>&1; then
-    MISSING_PREREQS+=("pnpm>=10")
+    MISSING_PREREQS+=("pnpm>=12")
   else
     local pnpm_v
     pnpm_v="$(pnpm_major)"
-    if [[ "${pnpm_v}" -lt 10 ]]; then
-      MISSING_PREREQS+=("pnpm>=10")
+    if [[ "${pnpm_v}" -lt 12 ]]; then
+      MISSING_PREREQS+=("pnpm>=12")
     fi
   fi
 }

@@ -13,12 +13,12 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "@inquirer/prompts": "^7.5.3",
+    "@inquirer/prompts": "^8.7.2",
     "@openassist/core-types": "workspace:*",
     "@openassist/observability": "workspace:*",
     "@openassist/core-runtime": "workspace:*",
     "@openassist/config": "workspace:*",
-    "commander": "^14.0.1",
+    "commander": "^15.0.0",
     "@openassist/migration-openclaw": "workspace:*",
     "@openassist/storage-sqlite": "workspace:*"
   },

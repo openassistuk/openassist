@@ -50,7 +50,7 @@ const commonProviderSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 const oauthProviderSchema = commonProviderSchema.extend({
@@ -65,13 +65,13 @@ const oauthProviderSchema = commonProviderSchema.extend({
         .optional(),
       scopes: z.array(z.string()).optional(),
       audience: z.string().optional(),
-      extraAuthParams: z.record(z.string()).optional(),
-      extraTokenParams: z.record(z.string()).optional()
+      extraAuthParams: z.record(z.string(), z.string()).optional(),
+      extraTokenParams: z.record(z.string(), z.string()).optional()
     })
     .optional()
 });
 
-const providerSchema: z.ZodType<ProviderConfig, z.ZodTypeDef, unknown> = z.discriminatedUnion("type", [
+const providerSchema: z.ZodType<ProviderConfig, unknown> = z.discriminatedUnion("type", [
   oauthProviderSchema.extend({
     type: z.literal("openai"),
     reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
@@ -120,13 +120,13 @@ const scheduledActionSchema = z.discriminatedUnion("type", [
     providerId: z.string().min(1).optional(),
     model: z.string().min(1).optional(),
     promptTemplate: z.string().min(1),
-    metadata: z.record(z.string()).optional()
+    metadata: z.record(z.string(), z.string()).optional()
   }),
   z.object({
     type: z.literal("skill"),
     skillId: z.string().min(1),
     entrypoint: z.string().min(1),
-    input: z.record(z.unknown()).optional()
+    input: z.record(z.string(), z.unknown()).optional()
   })
 ]);
 
@@ -171,15 +171,15 @@ const scheduledTaskSchema = z
     }
   });
 
-const channelSchema: z.ZodType<ChannelConfig, z.ZodTypeDef, unknown> = z.object({
+const channelSchema: z.ZodType<ChannelConfig, unknown> = z.object({
   id: z
     .string()
     .regex(CONFIG_IDENTIFIER_PATTERN, "Channel IDs must use letters, numbers, dot, dash, or underscore"),
   type: z.enum(["telegram", "discord", "whatsapp-md"]),
   enabled: z.boolean().default(true),
   settings: z
-    .record(z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]))
-    .default({})
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]))
+    .prefault({})
 }).superRefine((channel, ctx) => {
   for (const [key, value] of Object.entries(channel.settings)) {
     if (key === "allowedDmUserIds") {
@@ -327,7 +327,7 @@ const runtimeSchema = z.object({
       operatorPreferences: z.string().default(""),
       promptOnFirstContact: z.boolean().default(true)
     })
-    .default({}),
+    .prefault({}),
   attachments: z
     .object({
       maxFilesPerMessage: z.number().int().min(1).max(16).default(4),
@@ -335,17 +335,17 @@ const runtimeSchema = z.object({
       maxDocumentBytes: z.number().int().positive().max(10_000_000).default(1_000_000),
       maxExtractedChars: z.number().int().positive().max(100_000).default(12_000)
     })
-    .default({}),
+    .prefault({}),
   memory: z
     .object({
       enabled: z.boolean().default(true)
     })
-    .default({}),
+    .prefault({}),
   toolLoop: z
     .object({
       maxRoundsPerTurn: z.number().int().min(1).max(24).default(12)
     })
-    .default({}),
+    .prefault({}),
   time: z
     .object({
       defaultTimezone: z
@@ -364,7 +364,7 @@ const runtimeSchema = z.object({
         ]),
       requireTimezoneConfirmation: z.boolean().default(true)
     })
-    .default({}),
+    .prefault({}),
   scheduler: z
     .object({
       enabled: z.boolean().default(true),
@@ -373,7 +373,7 @@ const runtimeSchema = z.object({
       defaultMisfirePolicy: z.enum(["catch-up-once", "skip", "backfill"]).default("catch-up-once"),
       tasks: z.array(scheduledTaskSchema).default([])
     })
-    .default({}),
+    .prefault({}),
   paths: z.object({
     dataDir: z.string().min(1),
     skillsDir: z.string().min(1),
@@ -394,7 +394,7 @@ const execGuardrailsSchema = z.object({
 
 const execToolSchema = z.object({
   defaultTimeoutMs: z.number().int().positive().default(60_000),
-  guardrails: execGuardrailsSchema.default({})
+  guardrails: execGuardrailsSchema.prefault({})
 });
 
 const packageToolSchema = z.object({
@@ -426,16 +426,16 @@ const serviceSchema = z.object({
 
 export const openAssistConfigSchema = z.object({
   runtime: runtimeSchema,
-  service: serviceSchema.default({}),
+  service: serviceSchema.prefault({}),
   tools: z
     .object({
-      fs: toolPoliciesSchema.default({}),
-      exec: execToolSchema.default({}),
-      pkg: packageToolSchema.default({}),
-      web: webToolSchema.default({})
+      fs: toolPoliciesSchema.prefault({}),
+      exec: execToolSchema.prefault({}),
+      pkg: packageToolSchema.prefault({}),
+      web: webToolSchema.prefault({})
     })
-    .default({}),
-  security: securitySchema.default({})
+    .prefault({}),
+  security: securitySchema.prefault({})
 });
 
 export type OpenAssistConfig = z.infer<typeof openAssistConfigSchema>;

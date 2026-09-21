@@ -25,10 +25,10 @@
     "@openassist/tools-fs": "workspace:*",
     "@openassist/tools-package": "workspace:*",
     "@openassist/tools-web": "workspace:*",
-    "cron-parser": "^5.5.0",
+    "cron-parser": "^5.10.1",
     "luxon": "^3.7.2"
   },
   "devDependencies": {
-    "@types/luxon": "^3.7.1"
+    "@types/luxon": "^3.7.5"
   }
 }

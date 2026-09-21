@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@openassist/core-types": "workspace:*",
-    "zod": "^3.24.1",
-    "@anthropic-ai/sdk": "^0.61.0"
+    "zod": "^4.6.5",
+    "@anthropic-ai/sdk": "^0.127.0"
   }
 }

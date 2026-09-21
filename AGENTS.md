@@ -391,7 +391,7 @@ Release-notes policy:
 - Any operator-facing change must update `CHANGELOG.md` in the same PR.
 - Changelog entries must be concrete (behavioral impact + affected surfaces), not placeholder text.
 - If behavior is security-sensitive, include explicit risk/control language in changelog notes.
-- Keep `pnpm-workspace.yaml` build-script allowlist (`onlyBuiltDependencies`) aligned with actual postinstall requirements so bootstrap/install remains non-blocking.
+- Keep `pnpm-workspace.yaml` build-script allowlist (`allowBuilds`) aligned with actual postinstall requirements so bootstrap/install remains non-blocking.
 
 ## Testing and CI Rules
 
@@ -457,3 +457,5 @@ A change is done only when all are true:
 ## Node runtime discipline
 
 Support Node >=24.21.0 <25 only. Keep entrypoint guards, bootstrap checks, CI and service guidance synchronized. CLI command registration lives in `apps/openassist-cli/src/main.ts`; `src/index.ts` is the early runtime guard and dynamic launcher. Daemon startup uses the same separation. Reject unsupported runtimes before loading provider or storage modules.
+
+Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.

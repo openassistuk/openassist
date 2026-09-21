@@ -428,6 +428,8 @@ describe("docs truth", () => {
     const testMatrix = readText("docs/testing/test-matrix.md");
     const vitest = extractVitestThresholds();
     const node = extractNodeCoverageThresholds();
+    assert.equal(vitest.functions, vitest.lines, "Combined docs wording must reflect the actual function threshold");
+    assert.equal(vitest.statements, vitest.lines, "Combined docs wording must reflect the actual statement threshold");
 
     assert.match(
       agents,

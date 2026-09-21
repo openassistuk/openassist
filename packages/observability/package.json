@@ -15,6 +15,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "pino": "^9.3.2"
+    "pino": "^10.3.1"
   }
 }

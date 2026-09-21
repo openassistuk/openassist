@@ -34,8 +34,8 @@ const configSchema = z.object({
         .optional(),
       scopes: z.array(z.string()).optional(),
       audience: z.string().optional(),
-      extraAuthParams: z.record(z.string()).optional(),
-      extraTokenParams: z.record(z.string()).optional()
+      extraAuthParams: z.record(z.string(), z.string()).optional(),
+      extraTokenParams: z.record(z.string(), z.string()).optional()
     })
     .optional()
 });

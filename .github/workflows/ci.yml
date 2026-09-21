@@ -33,7 +33,7 @@ jobs:
       - name: Setup pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@10.31.0 --activate
+          corepack prepare pnpm@12.5.1 --activate
           pnpm --version
 
       - name: Install dependencies
@@ -65,7 +65,7 @@ jobs:
       - name: Setup pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@10.31.0 --activate
+          corepack prepare pnpm@12.5.1 --activate
           pnpm --version
 
       - name: Install dependencies

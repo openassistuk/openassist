@@ -242,3 +242,9 @@ pnpm verify:all
 That gate includes a docs-truth validation pass, so stale command examples, broken local doc links, broken doc anchors, incomplete docs indexing, mismatched coverage-threshold references, mismatched coverage-scope references, or workflow drift fail alongside code regressions.
 
 Node coverage now excludes `tests/**` from reported totals, and Vitest coverage intentionally targets the CLI library plus selected daemon, config, runtime, provider, and web-tool modules instead of claiming full-repo source coverage. The exact measured source list lives in [`docs/testing/test-matrix.md`](docs/testing/test-matrix.md).
+
+## Node 24 runtime migration
+
+OpenAssist requires Node.js `>=24.21.0 <25` on development and operator hosts. Before upgrading an existing Node 22 installation, stop the service and back up the config directory, env file, runtime data (including SQLite files), and service definition with their owner-only permissions intact. Keep the previous checkout and record its commit. Install Node 24.21.0 or a newer Node 24 release, then verify `node --version` in both the operator shell and the service's configured executable path. Reinstall the service definition if its Node path changed. Run `openassist upgrade --dry-run`, upgrade, and confirm `openassist doctor` and `openassist service health` before removing backups.
+
+Node 22, Node 25+, and earlier Node 24 versions are rejected before the CLI or daemon loads providers or opens operator state. If upgrading fails, retain the backup, restore the previous checkout and service definition, and verify health before resuming chat traffic. This change does not migrate the database or rewrite saved model IDs.

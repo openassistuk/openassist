@@ -29,5 +29,8 @@
   },
   "bin": {
     "openassistd": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=24.21.0 <25"
   }
 }

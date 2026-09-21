@@ -109,3 +109,9 @@ Re-run bootstrap instead of forcing an in-place recovery when:
 - the checkout is damaged or untrusted
 - build output is missing under `apps/openassist-cli/dist` or `apps/openassistd/dist`
 - you want to move a detached install back onto an explicit branch or tag through the installer flow
+
+## Node 24 runtime migration
+
+OpenAssist requires Node.js `>=24.21.0 <25` on development and operator hosts. Before upgrading an existing Node 22 installation, stop the service and back up the config directory, env file, runtime data (including SQLite files), and service definition with their owner-only permissions intact. Keep the previous checkout and record its commit. Install Node 24.21.0 or a newer Node 24 release, then verify `node --version` in both the operator shell and the service's configured executable path. Reinstall the service definition if its Node path changed. Run `openassist upgrade --dry-run`, upgrade, and confirm `openassist doctor` and `openassist service health` before removing backups.
+
+Node 22, Node 25+, and earlier Node 24 versions are rejected before the CLI or daemon loads providers or opens operator state. If upgrading fails, retain the backup, restore the previous checkout and service definition, and verify health before resuming chat traffic. This change does not migrate the database or rewrite saved model IDs.

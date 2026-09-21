@@ -137,7 +137,7 @@ function extractRegisteredCommands(filePath: string): string[] {
 function collectSupportedCommands(): Set<string> {
   const supported = new Set<string>(["openassist", "openassistd"]);
   for (const filePath of [
-    "apps/openassist-cli/src/index.ts",
+    "apps/openassist-cli/src/main.ts",
     "apps/openassist-cli/src/commands/setup.ts",
     "apps/openassist-cli/src/commands/service.ts",
     "apps/openassist-cli/src/commands/upgrade.ts"

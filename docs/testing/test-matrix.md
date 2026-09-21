@@ -319,3 +319,5 @@ Current suite files under `tests/node/`:
 - full live-provider contract certification with production credentials
 - fully automated live channel end-to-end tests in CI
 - long-duration multi-day soak data collection on production-like hosts
+
+Node runtime rejection is exercised by `tests/node/runtime-version.test.ts` for both CLI and daemon before application imports.

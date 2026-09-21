@@ -390,6 +390,10 @@ node_major() {
   node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0
 }
 
+node_supported() {
+  node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major === 24 && minor >= 21 ? 0 : 1)' >/dev/null 2>&1
+}
+
 pnpm_major() {
   if ! command -v pnpm >/dev/null 2>&1; then
     echo 0
@@ -469,35 +473,35 @@ install_node_runtime() {
   local os_kind="$1"
   local pkg_manager="$2"
   if [[ "${os_kind}" == "darwin" ]]; then
-    brew install node@22 || brew install node
-    brew link --overwrite --force node@22 >/dev/null 2>&1 || true
+    brew install node@24
+    brew link --overwrite --force node@24 >/dev/null 2>&1 || true
     return
   fi
 
   case "${pkg_manager}" in
     apt-get)
-      echo "Installing Node.js 22.x via NodeSource (Debian/Ubuntu)..."
+      echo "Installing Node.js 24.x via NodeSource (Debian/Ubuntu)..."
       run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates gnupg
-      if curl -fsSL https://deb.nodesource.com/setup_22.x | run_as_root bash -; then
+      if curl -fsSL https://deb.nodesource.com/setup_24.x | run_as_root bash -; then
         run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
       else
         echo "NodeSource setup failed; falling back to distro nodejs package."
         run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm
       fi
 
-      if [[ "$(node_major)" -lt 22 ]]; then
-        echo "Node.js is still <22 after package install; attempting fallback install via npm+n..."
+      if ! node_supported; then
+        echo "Node.js is outside >=24.21.0 <25 after package install; attempting fallback install via npm+n..."
         if command -v npm >/dev/null 2>&1; then
           if [[ "$(id -u)" -eq 0 ]]; then
-            if ! (npm install -g n && n 22); then
+            if ! (npm install -g n && n 24.21.0); then
               echo "Fallback install via npm+n failed (root mode)."
             fi
           elif command -v sudo >/dev/null 2>&1; then
-            if ! (sudo npm install -g n && sudo n 22); then
+            if ! (sudo npm install -g n && sudo n 24.21.0); then
               echo "Fallback install via npm+n failed (sudo mode)."
             fi
           else
-            if ! (npm install -g n && n 22); then
+            if ! (npm install -g n && n 24.21.0); then
               echo "Fallback install via npm+n failed (user mode)."
             fi
           fi
@@ -559,12 +563,10 @@ collect_missing_prereqs() {
   fi
 
   if ! command -v node >/dev/null 2>&1; then
-    MISSING_PREREQS+=("node>=22")
+    MISSING_PREREQS+=("node>=24.21.0 <25")
   else
-    local node_v
-    node_v="$(node_major)"
-    if [[ "${node_v}" -lt 22 ]]; then
-      MISSING_PREREQS+=("node>=22")
+    if ! node_supported; then
+      MISSING_PREREQS+=("node>=24.21.0 <25")
     fi
   fi
 
@@ -773,8 +775,8 @@ print_prereq_troubleshooting() {
     else
       echo "Try these commands manually:"
       echo "  brew update"
-      echo "  brew install git node@22"
-      echo "  brew link --overwrite --force node@22"
+      echo "  brew install git node@24"
+      echo "  brew link --overwrite --force node@24"
       echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
     fi
     return
@@ -785,7 +787,7 @@ print_prereq_troubleshooting() {
       echo "Try these commands manually:"
       echo "  sudo apt-get update"
       echo "  sudo apt-get install -y curl ca-certificates gnupg git"
-      echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -"
+      echo "  curl -fsSL https://deb.nodesource.com/setup_24.x | sudo bash -"
       echo "  sudo apt-get install -y nodejs"
       echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
       ;;
@@ -957,7 +959,7 @@ ensure_prereqs() {
     install_base_prereqs "${os_kind}" "${pkg_manager}"
     hash -r
 
-    if ! command -v node >/dev/null 2>&1 || [[ "$(node_major)" -lt 22 ]]; then
+    if ! command -v node >/dev/null 2>&1 || ! node_supported; then
       echo "Installing Node.js runtime..."
       install_node_runtime "${os_kind}" "${pkg_manager}"
       hash -r

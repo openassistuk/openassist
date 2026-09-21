@@ -6,6 +6,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+### Modernization
+
+- Require Node >=24.21.0 <25 for CLI, daemon, installers and CI. Early launchers reject unsupported runtimes before opening operator state. Existing Node 22 installs must back up state and update the service Node executable before upgrading; rollback guidance preserves the previous checkout and service definition.
+
 ### Added
 
 - Azure Foundry provider route:

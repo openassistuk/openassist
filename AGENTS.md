@@ -299,7 +299,7 @@ Docs truth-source checks are required before claiming doc completeness:
 - root `README.md` is a mandatory updated surface for operator-facing lifecycle or public-product changes
 - root `AGENTS.md` is a mandatory updated surface for contributor discipline, workflow, or docs-sync changes
 - command examples must be validated against CLI registry files:
-  - `apps/openassist-cli/src/index.ts`
+  - `apps/openassist-cli/src/main.ts`
   - `apps/openassist-cli/src/commands/setup.ts`
   - `apps/openassist-cli/src/commands/service.ts`
   - `apps/openassist-cli/src/commands/upgrade.ts`
@@ -453,3 +453,7 @@ A change is done only when all are true:
 4. docs are current and specific
 5. security and reliability impacts are explicit
 6. ExecPlan is updated for non-trivial scope
+
+## Node runtime discipline
+
+Support Node >=24.21.0 <25 only. Keep entrypoint guards, bootstrap checks, CI and service guidance synchronized. CLI command registration lives in `apps/openassist-cli/src/main.ts`; `src/index.ts` is the early runtime guard and dynamic launcher. Daemon startup uses the same separation. Reject unsupported runtimes before loading provider or storage modules.

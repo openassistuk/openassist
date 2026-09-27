@@ -1,3 +1,4 @@
+import { OPENAI_REASONING_EFFORTS, ANTHROPIC_THINKING_MODES, ANTHROPIC_THINKING_EFFORTS, providerTuningErrors } from "./provider-models.js";
 import { z } from "zod";
 import type { ChannelConfig, ProviderConfig, RuntimeConfig } from "@openassist/core-types";
 
@@ -74,15 +75,17 @@ const oauthProviderSchema = commonProviderSchema.extend({
 const providerSchema: z.ZodType<ProviderConfig, unknown> = z.discriminatedUnion("type", [
   oauthProviderSchema.extend({
     type: z.literal("openai"),
-    reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
+    reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
   }),
   commonProviderSchema.extend({
     type: z.literal("codex"),
-    reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
+    reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
   }),
   oauthProviderSchema.extend({
     type: z.literal("anthropic"),
-    thinkingBudgetTokens: z.number().int().min(1024).max(32_000).optional()
+    thinkingBudgetTokens: z.number().int().min(1024).max(32_000).optional(),
+    thinkingMode: z.enum(ANTHROPIC_THINKING_MODES).optional(),
+    thinkingEffort: z.enum(ANTHROPIC_THINKING_EFFORTS).optional()
   }),
   commonProviderSchema.extend({
     type: z.literal("openai-compatible")
@@ -99,9 +102,13 @@ const providerSchema: z.ZodType<ProviderConfig, unknown> = z.discriminatedUnion(
       ),
     endpointFlavor: z.enum(["openai-resource", "foundry-resource"]),
     underlyingModel: z.string().min(1).optional(),
-    reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
+    reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
   })
-]);
+]).superRefine((provider, ctx) => {
+  for (const message of providerTuningErrors(provider)) {
+    ctx.addIssue({ code: "custom", message });
+  }
+});
 
 const scheduledOutputSchema = z
   .object({

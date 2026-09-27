@@ -105,6 +105,7 @@ Current suite files under `tests/vitest/`:
 - `provider-azure-foundry.test.ts`
 - `provider-codex-auth.test.ts`
 - `provider-display.test.ts`
+- `provider-model-catalog.test.ts`
 - `provider-openai-compatible-tool-mapping.test.ts`
 - `provider-openai-tool-mapping.test.ts`
 - `runtime-attachments-rendering.test.ts`
@@ -179,6 +180,8 @@ Current suite files under `tests/node/`:
 - `runtime-provider-tool-contracts.test.ts`
 - `runtime-tool-audit.test.ts`
 - `runtime.test.ts`
+- `runtime-version.test.ts`
+- `whatsapp-signal-compatibility.test.ts`
 - `scheduler-runtime.test.ts`
 - `storage.test.ts`
 - `systemd-template-contract.test.ts`
@@ -325,3 +328,5 @@ Node runtime rejection is exercised by `tests/node/runtime-version.test.ts` for 
 Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
 
 `tests/node/whatsapp-signal-compatibility.test.ts` verifies real Baileys/libsignal encryption and decryption across a persisted-session reload without a network account.
+
+- `tests/vitest/provider-model-catalog.test.ts`: current defaults, saved/retired IDs, exact capability matching, reasoning prompts, adaptive/manual validation, and actual SDK request payloads with mocked transport.

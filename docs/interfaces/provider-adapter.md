@@ -37,7 +37,7 @@ Built-in public provider-route expectations:
 - `azure-foundry`: Azure resource-style `/openai/v1/` route with API-key or Entra host auth
 - `openai-compatible`: API-compatible route
 
-`codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: use `gpt-5.4` or another Codex-family model on that route.
+`codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: fresh setup recommends `gpt-5.6-terra`; saved retired models require explicit operator replacement.
 
 Provider OAuth config requirements:
 
@@ -131,18 +131,13 @@ Current image-input rule:
 
 Provider-native reasoning controls:
 
-- OpenAI providers may optionally set `reasoningEffort = "low" | "medium" | "high" | "xhigh"` in config.
-- Codex providers may optionally set `reasoningEffort = "low" | "medium" | "high" | "xhigh"` in config.
-- Anthropic providers may optionally set `thinkingBudgetTokens = <integer>` in config.
-- Azure Foundry providers may optionally set `reasoningEffort = "low" | "medium" | "high" | "xhigh"` plus `underlyingModel` for better compatibility hints.
-- OpenAI-compatible providers do not expose a public reasoning control in this release.
-- Safe default is unset: when the field is omitted, adapters do not send any reasoning or thinking parameter.
-- Adapters must omit unsupported reasoning fields instead of risking provider API errors:
-- OpenAI reasoning effort is sent only on supported Responses API model families.
-- Codex reasoning effort is sent only on supported Codex Responses-model families.
-- Anthropic thinking budget is sent only on supported thinking-capable Claude families.
-- Azure Foundry reasoning effort is sent only on supported Responses-model families and is evaluated against `underlyingModel ?? defaultModel`.
-- Setup validation may warn when a configured default model does not match the built-in allow-list, but runtime still stays safe by omitting the field.
+- `@openassist/config` exports the bounded exact-ID model catalog and tuning validation; core-types owns the interfaces.
+- OpenAI, Codex, and Azure accept model-specific `none|low|medium|high|xhigh|max` reasoning effort on Responses requests. Default omits it. Unknown model IDs remain accepted but receive no inferred optional controls.
+- Azure's `defaultModel` remains a deployment name. Reasoning uses only its cataloged `underlyingModel`; an overridden deployment has no inferred tuning.
+- Anthropic accepts optional `thinkingMode` and `thinkingEffort`; budget-only configurations still mean manual thinking on compatible models. Adaptive/disabled plus a manual budget is invalid. Unsupported combinations fail config validation.
+- Sonnet 5 and Opus 5 default to adaptive thinking. Unset fields omit request parameters. Sampling parameters are omitted where the catalog marks them unsupported, even when thinking is disabled.
+- OpenAI-compatible keeps backend-supplied model names and no public reasoning/thinking controls.
+- See [model compatibility](../providers/model-compatibility.md) for recommendations, retirement handling, and sources.
 
 OpenAI adapter endpoint behavior:
 
@@ -166,7 +161,7 @@ Codex adapter behavior:
 - The adapter refreshes the linked account before expiry or when a provider call proves the stored account needs renewal.
 - The current public route keeps one linked account per provider instance.
 - The Codex route is account-login only in operator-facing setup and docs; it is not the generic OpenAI API-key route.
-- The Codex route validates `gpt-5.4` and Codex-family models only in this release.
+- The Codex route blocks known retired model IDs with explicit replacement guidance; custom IDs remain accepted without inferred optional capabilities.
 - The Codex route now exposes the same public `reasoningEffort` control shape as the OpenAI API-key route, but it still omits the field automatically when the model is outside the built-in supported set.
 - Device code is the recommended Codex headless login path, while browser callback/manual paste remains a supported fallback.
 - New Codex login flows default to `http://localhost:1455/auth/callback` instead of the daemon callback route because that matches the supported public account-login redirect shape.

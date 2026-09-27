@@ -1,3 +1,4 @@
+import { OPENAI_REASONING_EFFORTS, modelCapabilities, providerTuningErrors } from "@openassist/config";
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 import OpenAI from "openai";
 import { z } from "zod";
@@ -34,7 +35,7 @@ const configSchema = z.object({
     .regex(RESOURCE_NAME_PATTERN, "resourceName must use letters, numbers, or hyphen"),
   endpointFlavor: z.enum(["openai-resource", "foundry-resource"]),
   underlyingModel: z.string().min(1).optional(),
-  reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
+  reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
 });
 
 export interface AzureFoundryProviderConfig extends z.infer<typeof configSchema> {}
@@ -141,26 +142,11 @@ function sanitizeProviderError(
 }
 
 export function supportsAzureFoundryResponsesModel(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return (
-    normalized.startsWith("gpt-5") ||
-    normalized.startsWith("o1") ||
-    normalized.startsWith("o2") ||
-    normalized.startsWith("o3") ||
-    normalized.startsWith("o4") ||
-    normalized.includes("deepseek") ||
-    normalized.includes("grok") ||
-    normalized.includes("mai") ||
-    normalized.includes("llama") ||
-    normalized.includes("mistral") ||
-    normalized.includes("phi")
-  );
+  return modelCapabilities(model, "azure-foundry")?.responses ?? false;
 }
 
 function resolveReasoningModel(config: AzureFoundryProviderConfig, requestedModel: string): string {
-  return requestedModel === config.defaultModel && config.underlyingModel
-    ? config.underlyingModel
-    : requestedModel;
+  return requestedModel === config.defaultModel ? config.underlyingModel ?? "" : "";
 }
 
 export class AzureFoundryProviderAdapter implements ProviderAdapter {
@@ -195,7 +181,8 @@ export class AzureFoundryProviderAdapter implements ProviderAdapter {
   async validateConfig(config: unknown): Promise<ValidationResult> {
     const parsed = configSchema.safeParse(config);
     if (parsed.success) {
-      return { valid: true, errors: [] };
+      const errors = providerTuningErrors({ ...parsed.data, type: "azure-foundry" });
+      return { valid: errors.length === 0, errors };
     }
 
     return {
@@ -247,7 +234,7 @@ export class AzureFoundryProviderAdapter implements ProviderAdapter {
         model,
         temperature: req.temperature,
         max_output_tokens: req.maxTokens,
-        reasoning: reasoningPayload(reasoningModel, this.config.reasoningEffort as OpenAIReasoningEffort | undefined),
+        reasoning: reasoningPayload(reasoningModel, this.config.reasoningEffort as OpenAIReasoningEffort | undefined, "azure-foundry"),
         input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata

@@ -195,3 +195,5 @@ OpenAssist requires Node.js `>=24.21.0 <25` on development and operator hosts. B
 Node 22, Node 25+, and earlier Node 24 versions are rejected before the CLI or daemon loads providers or opens operator state. If upgrading fails, retain the backup, restore the previous checkout and service definition, and verify health before resuming chat traffic. This change does not migrate the database or rewrite saved model IDs.
 
 Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
+
+- [Model recommendations and compatibility](providers/model-compatibility.md): shared capabilities, explicit retired-model repair, and legacy configuration behavior.

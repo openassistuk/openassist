@@ -312,7 +312,7 @@ Current operator story:
 - Azure Foundry quickstart and wizard both expose `reasoningEffort`
 - OpenAI and Codex both support `low`, `medium`, `high`, and `xhigh`
 - Azure Foundry supports `low`, `medium`, `high`, and `xhigh` when the underlying model family supports Responses reasoning
-- Anthropic `thinkingBudgetTokens` stays wizard-editable only
+- Anthropic `thinkingMode`, `thinkingEffort`, and legacy `thinkingBudgetTokens` stay wizard-editable
 - OpenAI-compatible stays provider-default only
 
 ## Full access is not working
@@ -508,3 +508,9 @@ If the issue is proactive notify instead of same-chat file reply, also verify:
 OpenAssist requires Node.js `>=24.21.0 <25` on development and operator hosts. Before upgrading an existing Node 22 installation, stop the service and back up the config directory, env file, runtime data (including SQLite files), and service definition with their owner-only permissions intact. Keep the previous checkout and record its commit. Install Node 24.21.0 or a newer Node 24 release, then verify `node --version` in both the operator shell and the service's configured executable path. Reinstall the service definition if its Node path changed. Run `openassist upgrade --dry-run`, upgrade, and confirm `openassist doctor` and `openassist service health` before removing backups.
 
 Node 22, Node 25+, and earlier Node 24 versions are rejected before the CLI or daemon loads providers or opens operator state. If upgrading fails, retain the backup, restore the previous checkout and service definition, and verify health before resuming chat traffic. This change does not migrate the database or rewrite saved model IDs.
+
+## Retired models and thinking validation
+
+A linked Codex account can be chat-ready while its saved model is retired. `provider.codex_model_retired` blocks readiness for `gpt-5.4` (replacement `gpt-5.6-terra`) and `gpt-5.4-mini` (replacement `gpt-5.6-luna`). Run `openassist setup wizard`, edit the provider, explicitly enter the replacement, save, and verify `openassist doctor`. OpenAssist never silently substitutes a saved model.
+
+For Sonnet 5 or Opus 5, remove `thinkingBudgetTokens` and choose adaptive thinking in wizard. Budget-only settings retain manual meaning on supported older models. If schema validation prevents opening wizard, back up the TOML, remove the conflicting fields directly, and run `openassist config validate` before restarting. Unknown/custom models omit optional OpenAI tuning; explicit unsupported Anthropic tuning fails validation. See [model compatibility](../providers/model-compatibility.md).

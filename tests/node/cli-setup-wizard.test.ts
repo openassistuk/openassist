@@ -89,7 +89,8 @@ describe("cli setup wizard", () => {
       "anthropic",
       "claude-sonnet-4-6",
       "",
-      "",
+      "default",
+      "default",
       "true",
       "anthropic-key",
       "default",
@@ -366,20 +367,21 @@ describe("cli setup wizard", () => {
         "providers",
         "edit",
         "openai-main",
-        "gpt-5.4",
+        "gpt-5.6-terra",
         "",
         "high",
         "false",
         "add",
         "codex-main",
         "codex",
-        "gpt-5.4",
+        "gpt-5.6-terra",
         "medium",
         "add",
         "anthropic-main",
         "anthropic",
         "claude-sonnet-4-6",
         "",
+        "enabled",
         "4096",
         "false",
         "back",
@@ -394,7 +396,7 @@ describe("cli setup wizard", () => {
       {
         id: "openai-main",
         type: "openai",
-        defaultModel: "gpt-5.4",
+        defaultModel: "gpt-5.6-terra",
         reasoningEffort: "high"
       }
     );
@@ -403,7 +405,7 @@ describe("cli setup wizard", () => {
       {
         id: "codex-main",
         type: "codex",
-        defaultModel: "gpt-5.4",
+        defaultModel: "gpt-5.6-terra",
         reasoningEffort: "medium"
       }
     );
@@ -436,7 +438,7 @@ describe("cli setup wizard", () => {
         "openai-resource",
         "api-key",
         "gpt-5-deployment",
-        "gpt-5.4",
+        "gpt-5.6-terra",
         "",
         "high",
         "true",
@@ -449,7 +451,6 @@ describe("cli setup wizard", () => {
         "gpt-5-deployment-v2",
         "",
         "https://custom.example/openai/v1",
-        "default",
         "true",
         "tenant-id",
         "client-id",

@@ -111,3 +111,7 @@ openassist growth status --session <channelId>:<conversationKey> --sender-id <se
 openassist skills list
 openassist tools invocations --session <channelId>:<conversationKey> --limit 20
 ```
+
+## Modernization compatibility
+
+New model and thinking choices do not change access profiles: only full-root sessions receive autonomous tools. Higher reasoning effort does not increase tool-round, file, attachment, or web limits.

@@ -1,3 +1,4 @@
+import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL } from "@openassist/config";
 import fs from "node:fs";
 import path from "node:path";
 import TOML from "@iarna/toml";
@@ -81,10 +82,11 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
     ? providerEntries.map(([id, value]) => {
         const record = asRecord(value);
         const baseUrl = typeof record.baseUrl === "string" ? record.baseUrl : undefined;
+        const type = mapProviderType(String(record.type ?? id));
         return {
           id,
-          type: mapProviderType(String(record.type ?? id)),
-          defaultModel: typeof record.model === "string" ? record.model : "gpt-5.4",
+          type,
+          defaultModel: typeof record.model === "string" ? record.model : type === "anthropic" ? DEFAULT_ANTHROPIC_MODEL : DEFAULT_OPENAI_MODEL,
           ...(baseUrl ? { baseUrl } : {})
         };
       })
@@ -92,7 +94,7 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
         {
           id: "openai-main",
           type: "openai" as const,
-          defaultModel: "gpt-5.4"
+          defaultModel: DEFAULT_OPENAI_MODEL
         }
       ];
 

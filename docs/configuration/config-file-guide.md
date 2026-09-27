@@ -32,7 +32,7 @@ Examples:
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.4"
+defaultModel = "gpt-5.6-terra"
 ```
 
 ```text
@@ -95,7 +95,7 @@ promptOnFirstContact = false
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.4"
+defaultModel = "gpt-5.6-terra"
 
 [[runtime.channels]]
 id = "telegram-main"
@@ -193,3 +193,7 @@ Use manual TOML edits when:
 - [Azure Foundry Provider](../providers/azure-foundry.md)
 - [Telegram Channel](../channels/telegram.md)
 - [Config Rollout and Rollback](../operations/config-rollout-and-rollback.md)
+
+## Modernization compatibility
+
+Fresh OpenAI/Codex setup recommends Terra and Anthropic recommends Sonnet 5. Existing TOML model IDs are preserved. Use wizard for an explicit model change; retired Codex IDs block readiness. Optional Anthropic `thinkingMode` and `thinkingEffort` complement legacy manual budgets; unsupported combinations fail validation.

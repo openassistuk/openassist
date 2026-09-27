@@ -116,3 +116,7 @@ If the backend accepts chat but tool calls fail, confirm the backend really supp
 - [Azure Foundry Provider](azure-foundry.md)
 - [Configuration Reference](../configuration/config-reference.md)
 - [Common Troubleshooting](../operations/common-troubleshooting.md)
+
+## Modernization compatibility
+
+Custom backend model IDs remain operator-supplied. The current-model catalog does not infer optional reasoning or thinking controls for this route; backend authentication and text-only image behavior remain unchanged.

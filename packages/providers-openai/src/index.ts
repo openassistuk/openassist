@@ -1,3 +1,4 @@
+import { OPENAI_REASONING_EFFORTS, providerTuningErrors } from "@openassist/config";
 import OpenAI from "openai";
 import { z } from "zod";
 import type {
@@ -30,7 +31,7 @@ const configSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
-  reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional(),
+  reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional(),
   oauth: z
     .object({
       authorizeUrl: z.string().url(),
@@ -178,7 +179,8 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
   async validateConfig(config: unknown): Promise<ValidationResult> {
     const parsed = configSchema.safeParse(config);
     if (parsed.success) {
-      return { valid: true, errors: [] };
+      const errors = providerTuningErrors({ ...parsed.data, type: "openai" });
+      return { valid: errors.length === 0, errors };
     }
 
     return {

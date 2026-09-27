@@ -133,3 +133,7 @@ openassist tools status --session <channelId>:<conversationKey> --sender-id <sen
 - [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
 - [Common Troubleshooting](../operations/common-troubleshooting.md)
+
+## Modernization compatibility
+
+Provider modernization retains guild/thread/DM boundaries and approved operator checks. Channel `/status` reports the configured provider route, model, and effective tuning from the shared catalog; known retired Codex models show explicit repair guidance without making a provider call.

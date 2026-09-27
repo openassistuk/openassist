@@ -34,6 +34,8 @@ For non-trivial changes, follow `.agents/PLANS.md`.
   - `Outcomes & Retrospective`
 - Record concrete evidence before marking milestones complete.
 
+Model compatibility lives in `packages/config/src/provider-models.ts`, with contracts in core-types. Setup, validation, request mapping, and status must use these definitions. Preserve saved model IDs and require explicit repair for retired Codex selections. Do not infer optional capabilities from model-name substrings or Azure deployment names. Preserve manual budget semantics on compatible Anthropic models and reject unsupported/conflicting tuning.
+
 ## Module Boundaries
 
 - `packages/core-types`: contracts only
@@ -82,12 +84,13 @@ When changing installer/setup/service behavior:
    - Codex must be described truthfully as Codex-only in V1, not as generic ChatGPT API auth for arbitrary OpenAI models
    - legacy `openai + oauth` configs may remain readable for compatibility, but new account-login guidance must steer operators to `codex`
    - quickstart must expose the beginner-facing reasoning-effort choice for `openai` and `codex`
-   - OpenAI and Codex reasoning-effort choices now include `xhigh` in addition to `low`, `medium`, and `high`
+   - OpenAI and Codex reasoning-effort choices come from the shared model catalog and include `none` and `max` only where supported; Default omits the parameter
    - wizard remains the full provider-tuning surface:
      - `openai.reasoningEffort`
      - `codex.reasoningEffort`
      - `azure-foundry.reasoningEffort`
-     - `anthropic.thinkingBudgetTokens`
+     - `anthropic.thinkingMode` and `anthropic.thinkingEffort`
+     - `anthropic.thinkingBudgetTokens` for cataloged manual-thinking models
    - Azure Foundry quickstart and wizard must ask for the Azure resource name, endpoint flavor, deployment name, auth mode, and optional underlying model hint
    - Azure Foundry Entra auth uses host credentials via `DefaultAzureCredential`; it must not reuse linked-account storage or `openassist auth start/complete`
    - `openassist auth status` must be able to surface `Entra ID` as the active auth kind for Azure Foundry providers

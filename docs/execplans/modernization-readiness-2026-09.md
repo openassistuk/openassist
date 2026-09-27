@@ -13,7 +13,7 @@ Operators should be able to install OpenAssist on Node 24, select supported curr
 - [x] (2026-09-21) Recorded GitHub state: 71 open dependency alerts; PRs 50/52/53 open; CI, CodeQL, Service Smoke and Lifecycle E2E Smoke disabled for inactivity; branch protection and macOS live check retained. Production audit reported 67 findings (3 critical, 25 high); full audit 85.
 - [x] (2026-09-21) Milestone 1 local implementation: Node 24 launchers dynamically import main only after version checks; bootstrap/CI/docs aligned; full build and 9 targeted runtime/installer tests passed. Hosted workflow re-enabling remains pending authorization.
 - [x] (2026-09-21) Milestone 2 local implementation: modernized target dependencies and built successfully; production/full audits both zero; Baileys/libsignal persisted encryption roundtrip passed; Vitest 327/328 passed before correcting an obsolete package-manager version assertion.
-- [ ] Milestone 3: shared model catalog, refreshed setup/status/validation, provider compatibility, and reviewable commit.
+- [x] (2026-09-27) Milestone 3 implementation: shared catalog, current setup defaults, retired Codex readiness, adaptive/manual thinking, shared CLI/chat status, docs and regression tests. Build passed; existing 328 Vitest tests passed after fixture updates; 10 catalog tests and 19 focused Node setup/docs-truth tests passed. Final combined verification follows in milestone 4.
 - [ ] Milestone 4: full local verification, synchronized docs, historical-plan reconciliation, final review and commit.
 - [ ] External validation: authorize workflow re-enabling/publication, run required hosted checks and smoke jobs, supersede dependency PRs only after replacement evidence.
 - [ ] Live integration certification: designated test credentials and authorization required; do not report mock tests as live certification.
@@ -79,3 +79,5 @@ Baseline verification/audit logs are in the host temporary directory under `open
 Revision note (2026-09-21): Created from the approved modernization plan and verified repository baseline before implementation.
 
 Revision note (2026-09-21): pnpm 12 rejects Baileys' Git subdependency. Registry `libsignal@6.0.0` is published by the same WhiskeySockets repository; use a parent-scoped override and retain blockExoticSubdeps. Real encryption/decryption and disk session reload passed. Zod 4 requires explicit record key schemas and prefault({}) to preserve nested defaults.
+
+Revision note (2026-09-27): Resumed the existing local work. Added exact model capability validation and SDK payload tests, retained custom IDs and saved models, and corrected setup fixtures for current recommendations. First combined run exposed stale installer version assertions and a checkout-cloning test that requires the current config changes committed; these are addressed before the final gate. Hosted and live work remains pending authorization.

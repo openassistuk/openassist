@@ -1,3 +1,4 @@
+import { OPENAI_REASONING_EFFORTS, retiredModelReplacement, providerTuningErrors } from "@openassist/config";
 import { z } from "zod";
 import type {
   ApiKeyAuth,
@@ -48,7 +49,7 @@ const configSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
-  reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional()
+  reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
 });
 
 export interface CodexProviderConfig extends z.infer<typeof configSchema> {}
@@ -839,16 +840,10 @@ export class CodexProviderAdapter implements ProviderAdapter {
       };
     }
 
-    if (!supportsCodexRouteModel(parsed.data.defaultModel)) {
-      return {
-        valid: false,
-        errors: [
-          `defaultModel '${parsed.data.defaultModel}' is not on the Codex route allow-list. Use gpt-5.4 or a Codex-family model.`
-        ]
-      };
-    }
-
-    return { valid: true, errors: [] };
+    const replacement = retiredModelReplacement("codex", parsed.data.defaultModel);
+    const errors = providerTuningErrors({ ...parsed.data, type: "codex" });
+    if (replacement) errors.push(`Codex model '${parsed.data.defaultModel}' has retired. Use '${replacement}' through openassist setup wizard; saved configuration has not been changed.`);
+    return { valid: errors.length === 0, errors };
   }
 
   async chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse> {
@@ -866,8 +861,10 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
 
     const model = req.model || this.config.defaultModel;
+    const replacement = retiredModelReplacement("codex", model);
+    if (replacement) throw new Error(`Codex model '${model}' has retired. Select '${replacement}' using openassist setup wizard.`);
     const { instructions, nonSystemMessages } = buildCodexInstructions(req.messages);
-    const reasoning = reasoningPayload(model, this.config.reasoningEffort);
+    const reasoning = reasoningPayload(model, this.config.reasoningEffort, "codex");
     const response = await postCodexResponses(
       defaultCodexBaseUrl(this.config.baseUrl),
       accessToken,

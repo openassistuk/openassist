@@ -81,7 +81,7 @@ function minimalTelegramAnswers(bindPort: number, extra: string[] = []): string[
     "Keep answers practical",
     "openai",
     "openai-main",
-    "gpt-5.4",
+    "gpt-5.6-terra",
     "",
     "default",
     "openai-key",
@@ -105,7 +105,7 @@ function minimalDiscordCompatAnswers(extra: string[] = []): string[] {
     "Keep answers practical",
     "openai-compatible",
     "compat-main",
-    "gpt-5.4",
+    "gpt-5.6-terra",
     "http://127.0.0.1:11434/v1",
     "compat-key",
     "discord",
@@ -151,7 +151,7 @@ function minimalCodexAnswers(extra: string[] = []): string[] {
     "Keep answers practical",
     "codex",
     "codex-main",
-    "gpt-5.4",
+    "gpt-5.6-terra",
     "default",
     "telegram",
     "telegram-main",
@@ -179,7 +179,7 @@ function minimalAzureFoundryEntraAnswers(bindPort: number, extra: string[] = [])
     "openai-resource",
     "entra",
     "gpt-5-deployment",
-    "gpt-5.4",
+    "gpt-5.6-terra",
     "",
     "high",
     "true",
@@ -258,7 +258,7 @@ describe("setup quickstart flow", () => {
       "Keep answers practical",
       "openai",
       "openai-main",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "",
       "default",
       "openai-key",
@@ -362,7 +362,7 @@ describe("setup quickstart flow", () => {
     expect(result.summary.some((line) => line.includes("Quickstart saved"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Assistant identity: OpenAssist"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Primary provider: openai-main (OpenAI (API Key))"))).toBe(true);
-    expect(result.summary.some((line) => line.includes("Provider model: gpt-5.4"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Provider model: gpt-5.6-terra"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Provider tuning: Reasoning effort: Default (recommended)"))).toBe(true);
     expect(result.summary.some((line) => line.includes("First reply checklist:"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Primary channel: telegram-main"))).toBe(true);
@@ -391,7 +391,7 @@ describe("setup quickstart flow", () => {
       "Keep answers practical",
       "openai",
       "openai-main",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "",
       "high",
       "openai-key",
@@ -456,7 +456,7 @@ describe("setup quickstart flow", () => {
       "Keep answers practical",
       "openai",
       "openai-main",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "",
       "default",
       longApiKey,
@@ -607,7 +607,7 @@ describe("setup quickstart flow", () => {
       resourceName: "demo-resource",
       endpointFlavor: "openai-resource",
       defaultModel: "gpt-5-deployment",
-      underlyingModel: "gpt-5.4",
+      underlyingModel: "gpt-5.6-terra",
       reasoningEffort: "high"
     });
     expect(state.env.AZURE_TENANT_ID).toBe("tenant-id");
@@ -616,7 +616,7 @@ describe("setup quickstart flow", () => {
     expect(result.summary.some((line) => line.includes("Primary provider: azure-foundry-main (Azure Foundry)"))).toBe(true);
     expect(
       result.summary.some((line) =>
-        line.includes("Provider tuning: Auth: Entra ID; Underlying model: gpt-5.4; Reasoning effort: high")
+        line.includes("Provider tuning: Auth: Entra ID; Underlying model: gpt-5.6-terra; Reasoning effort: high")
       )
     ).toBe(true);
   });
@@ -653,7 +653,7 @@ describe("setup quickstart flow", () => {
       {
         id: "codex-main",
         type: "codex",
-        defaultModel: "gpt-5.4"
+        defaultModel: "gpt-5.6-terra"
       }
     ]);
   });
@@ -672,7 +672,7 @@ describe("setup quickstart flow", () => {
     state.config.runtime.providers.push({
       id: "compat-main",
       type: "openai-compatible",
-      defaultModel: "gpt-5.4",
+      defaultModel: "gpt-5.6-terra",
       baseUrl: "http://127.0.0.1:11434/v1"
     });
 
@@ -698,18 +698,18 @@ describe("setup quickstart flow", () => {
         {
           id: "openai-main",
           type: "openai",
-          defaultModel: "gpt-5.4"
+          defaultModel: "gpt-5.6-terra"
         },
         {
           id: "compat-main",
           type: "openai-compatible",
-          defaultModel: "gpt-5.4",
+          defaultModel: "gpt-5.6-terra",
           baseUrl: "http://127.0.0.1:11434/v1"
         },
         {
           id: "codex-main",
           type: "codex",
-          defaultModel: "gpt-5.4"
+          defaultModel: "gpt-5.6-terra"
         }
       ])
     );
@@ -732,7 +732,7 @@ describe("setup quickstart flow", () => {
       "Keep answers practical",
       "openai",
       "openai-main",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "",
       "default",
       "openai-key",
@@ -797,7 +797,7 @@ describe("setup quickstart flow", () => {
       "Keep answers practical",
       "openai",
       "openai-main",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "",
       "default",
       "openai-key",
@@ -855,7 +855,7 @@ describe("setup quickstart flow", () => {
       "Keep answers practical",
       "openai",
       "openai-main",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "",
       "default",
       "openai-key",

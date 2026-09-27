@@ -49,7 +49,7 @@ Linux and macOS are first-class supported operator paths for the installed lifec
 | --- | --- | --- | --- |
 | OpenAI | API key | You want the standard OpenAI API-key path with image support and optional reasoning tuning. | [`docs/providers/openai.md`](docs/providers/openai.md) |
 | Codex | Linked OpenAI account login | You want the separate Codex account-login route, especially on a VPS or remote host via device code. | [`docs/providers/codex.md`](docs/providers/codex.md) |
-| Anthropic | API key | You want Claude-family models with optional thinking budgets. | [`docs/providers/anthropic.md`](docs/providers/anthropic.md) |
+| Anthropic | API key | You want Claude-family models with adaptive thinking and legacy manual budgets. | [`docs/providers/anthropic.md`](docs/providers/anthropic.md) |
 | Azure Foundry | API key or Microsoft Entra host credentials | You want Azure resource-style `/openai/v1/` endpoints with a deployed Azure model and optional reasoning hints. | [`docs/providers/azure-foundry.md`](docs/providers/azure-foundry.md) |
 | OpenAI-compatible | API key or backend token | You are targeting an API-compatible backend and accept text-only image behavior. | [`docs/providers/openai-compatible.md`](docs/providers/openai-compatible.md) |
 
@@ -58,8 +58,9 @@ Provider route rules that matter at a glance:
 - OpenAI remains the public API-key route.
 - Codex remains the separate public account-login route.
 - Codex is intentionally documented as Codex-only in this release.
-- OpenAI and Codex quickstart both expose `Default`, `Low`, `Medium`, `High`, and `XHigh` reasoning effort choices.
-- Anthropic exposes `thinkingBudgetTokens` in wizard for supported thinking-capable models.
+- Fresh OpenAI and Codex setup recommends `gpt-5.6-terra`, with Astra, Sol, and Luna alternatives. Reasoning choices are model-specific and include `none` and `max` where supported; `Default` omits the parameter.
+- Fresh Anthropic setup recommends `claude-sonnet-5`. Wizard exposes adaptive thinking and effort controls, plus manual budgets for compatible older models.
+- Saved model IDs remain unchanged. Retired Codex `gpt-5.4` selections block readiness until you explicitly choose a replacement in `openassist setup wizard`. See [model compatibility](docs/providers/model-compatibility.md).
 - Azure Foundry is the Azure resource-style `/openai/v1/` route, uses the Responses API only, and requires a deployed Azure deployment name plus either API-key or Entra host auth.
 
 ## Pick a Channel

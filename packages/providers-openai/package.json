@@ -18,6 +18,7 @@
     "@openassist/core-types": "workspace:*",
     "@openassist/providers-openai-shared": "workspace:*",
     "openai": "^7.20.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@openassist/config": "workspace:*"
   }
 }

@@ -1,3 +1,4 @@
+import { DEFAULT_OPENAI_MODEL } from "./provider-models.js";
 import fs from "node:fs";
 import path from "node:path";
 import TOML from "@iarna/toml";
@@ -156,7 +157,7 @@ export function writeDefaultConfig(filePath: string): void {
         {
           id: "openai-main",
           type: "openai",
-          defaultModel: "gpt-5.4"
+          defaultModel: DEFAULT_OPENAI_MODEL
         }
       ],
       channels: [],

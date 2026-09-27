@@ -222,6 +222,8 @@ program
           defaultModel: providerConfig.defaultModel,
           baseUrl: providerConfig.baseUrl,
           thinkingBudgetTokens: providerConfig.thinkingBudgetTokens,
+          thinkingMode: providerConfig.thinkingMode,
+          thinkingEffort: providerConfig.thinkingEffort,
           oauth: providerConfig.oauth
         });
       }

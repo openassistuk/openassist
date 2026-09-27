@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { OpenAssistConfig } from "@openassist/config";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, type OpenAssistConfig } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
 import {
   isUntouchedDefaultConfigObject,
@@ -53,7 +53,8 @@ import {
   promptAzureFoundryReasoningEffort,
   promptAzureFoundryUnderlyingModel,
   createInquirerPromptAdapter,
-  promptReasoningEffort
+  promptReasoningEffort,
+  describeModelChoices
 } from "./setup-wizard.js";
 import {
   validateSetupReadiness,
@@ -150,21 +151,21 @@ function defaultProviderForType(type: ProviderType): { id: string; model: string
   if (type === "codex") {
     return {
       id: "codex-main",
-      model: "gpt-5.4"
+      model: DEFAULT_OPENAI_MODEL
     };
   }
 
   if (type === "anthropic") {
     return {
       id: "anthropic-main",
-      model: "claude-sonnet-4-6"
+      model: DEFAULT_ANTHROPIC_MODEL
     };
   }
 
   if (type === "openai-compatible") {
     return {
       id: "compat-main",
-      model: "gpt-5.4",
+      model: DEFAULT_OPENAI_MODEL,
       baseUrl: "http://127.0.0.1:11434/v1"
     };
   }
@@ -178,7 +179,7 @@ function defaultProviderForType(type: ProviderType): { id: string; model: string
 
   return {
     id: "openai-main",
-    model: "gpt-5.4"
+    model: DEFAULT_OPENAI_MODEL
   };
 }
 
@@ -499,7 +500,8 @@ async function promptProvider(
     const baseUrl = baseUrlInput.trim();
     const reasoningEffort = await promptAzureFoundryReasoningEffort(
       prompts,
-      existingAzure?.reasoningEffort
+      existingAzure?.reasoningEffort,
+      underlyingModel ?? ""
     );
 
     return {
@@ -516,10 +518,11 @@ async function promptProvider(
     };
   }
 
+  describeModelChoices(type, existing?.defaultModel);
   const defaultModel = await promptRequiredText(
     prompts,
     "Default model",
-    existing?.defaultModel ?? suggested.model
+    existing?.type === type ? existing.defaultModel : suggested.model
   );
   const baseUrlInput = providerSupportsCustomBaseUrl(type)
     ? await prompts.input("Base URL (blank for default)", existing?.baseUrl ?? suggested.baseUrl ?? "")
@@ -529,9 +532,9 @@ async function promptProvider(
     : existing?.baseUrl?.trim() ?? "";
   const reasoningEffort =
     type === "openai"
-      ? await promptReasoningEffort(prompts, "OpenAI", existing?.type === "openai" ? existing.reasoningEffort : undefined)
+      ? await promptReasoningEffort(prompts, "OpenAI", existing?.type === "openai" ? existing.reasoningEffort : undefined, defaultModel)
       : type === "codex"
-        ? await promptReasoningEffort(prompts, "Codex", existing?.type === "codex" ? existing.reasoningEffort : undefined)
+        ? await promptReasoningEffort(prompts, "Codex", existing?.type === "codex" ? existing.reasoningEffort : undefined, defaultModel)
         : undefined;
 
   return {
@@ -541,6 +544,7 @@ async function promptProvider(
     ...(resolvedBaseUrl.length > 0 ? { baseUrl: resolvedBaseUrl } : {}),
     ...((type === "openai" || type === "codex") && reasoningEffort ? { reasoningEffort } : {}),
     ...(existing && "oauth" in existing && existing.oauth ? { oauth: existing.oauth } : {}),
+    ...(type === "anthropic" && existing?.type === "anthropic" ? { thinkingMode: existing.thinkingMode, thinkingEffort: existing.thinkingEffort, thinkingBudgetTokens: existing.thinkingBudgetTokens } : {}),
     ...(existing?.metadata ? { metadata: existing.metadata } : {})
   };
 }

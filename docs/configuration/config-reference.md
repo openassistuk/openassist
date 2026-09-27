@@ -130,13 +130,13 @@ Common fields for all providers:
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.4"
+defaultModel = "gpt-5.6-terra"
 # reasoningEffort = "medium"
 ```
 
 Additional fields:
 
-- `reasoningEffort`: `low`, `medium`, `high`, `xhigh`
+- `reasoningEffort`: `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
 - optional `oauth` object for advanced provider-managed OAuth configuration
 
 ### Codex
@@ -145,13 +145,13 @@ Additional fields:
 [[runtime.providers]]
 id = "codex-main"
 type = "codex"
-defaultModel = "gpt-5.4"
+defaultModel = "gpt-5.6-terra"
 # reasoningEffort = "medium"
 ```
 
 Additional fields:
 
-- `reasoningEffort`: `low`, `medium`, `high`, `xhigh`
+- `reasoningEffort`: `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
 
 Codex is the separate account-login route. Linked-account auth is managed through `openassist auth ...`, not by storing a normal API key in the TOML.
 
@@ -161,13 +161,16 @@ Codex is the separate account-login route. Linked-account auth is managed throug
 [[runtime.providers]]
 id = "anthropic-main"
 type = "anthropic"
-defaultModel = "claude-sonnet-4-6"
-# thinkingBudgetTokens = 4096
+defaultModel = "claude-sonnet-5"
+# thinkingMode = "adaptive"
+# thinkingEffort = "high"
 ```
 
 Additional fields:
 
-- `thinkingBudgetTokens`: integer `1024..32000`
+- `thinkingMode`: optional `adaptive`, `enabled` (manual), or `disabled`
+- `thinkingEffort`: optional `low`, `medium`, `high`, `xhigh`, or `max`, where supported
+- `thinkingBudgetTokens`: integer `1024..32000`, only for manual-thinking models
 - optional `oauth` object for advanced provider-managed OAuth configuration
 
 ### Azure Foundry
@@ -181,7 +184,7 @@ authMode = "entra"
 resourceName = "your-resource-name"
 endpointFlavor = "openai-resource"
 # Optional but recommended when the deployment name hides the model family:
-# underlyingModel = "gpt-5.4"
+# underlyingModel = "gpt-5.6-terra"
 # Optional for supported Responses-model families:
 # reasoningEffort = "medium"
 # Optional advanced override:
@@ -194,7 +197,7 @@ Additional fields:
 - `resourceName`: Azure resource host prefix used to derive the endpoint
 - `endpointFlavor`: `openai-resource` or `foundry-resource`
 - `underlyingModel`: optional model-family hint used for reasoning and compatibility guidance
-- `reasoningEffort`: optional, `low`, `medium`, `high`, `xhigh`
+- `reasoningEffort`: optional, `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
 
 Azure Foundry sends the deployment name in `defaultModel`. This route uses Azure resource-style `/openai/v1/` endpoints only and the Responses API only. For Entra host auth, the optional service-principal env vars are global process settings: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`.
 
@@ -364,3 +367,7 @@ openassist doctor
 - [Configuration File Guide](config-file-guide.md)
 - [OpenAI Provider](../providers/openai.md)
 - [Telegram Channel](../channels/telegram.md)
+
+## Modernization compatibility
+
+Reasoning options are filtered by the exact cataloged route/model. Astra has no `none` option; Terra/Sol/Luna support `none` through `max`. Sonnet 5 and Opus 5 support adaptive thinking and no manual budgets. Haiku 4.5 supports manual thinking and no effort. Budget-only settings on compatible older models retain their manual meaning. `Default` omits the parameter; it does not turn off provider-default thinking. Unknown models remain accepted without inferred optional capabilities; explicit unsupported Anthropic tuning is rejected.

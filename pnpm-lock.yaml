@@ -406,6 +406,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.127.0
         version: 0.127.0(zod@4.6.5)
+      '@openassist/config':
+        specifier: workspace:*
+        version: link:../config
       '@openassist/core-types':
         specifier: workspace:*
         version: link:../core-types
@@ -418,6 +421,9 @@ importers:
       '@azure/identity':
         specifier: ^4.13.3
         version: 4.13.3(supports-color@7.2.0)
+      '@openassist/config':
+        specifier: workspace:*
+        version: link:../config
       '@openassist/core-types':
         specifier: workspace:*
         version: link:../core-types
@@ -433,6 +439,9 @@ importers:
 
   packages/providers-codex:
     dependencies:
+      '@openassist/config':
+        specifier: workspace:*
+        version: link:../config
       '@openassist/core-types':
         specifier: workspace:*
         version: link:../core-types
@@ -448,6 +457,9 @@ importers:
 
   packages/providers-openai:
     dependencies:
+      '@openassist/config':
+        specifier: workspace:*
+        version: link:../config
       '@openassist/core-types':
         specifier: workspace:*
         version: link:../core-types
@@ -475,6 +487,9 @@ importers:
 
   packages/providers-openai-shared:
     dependencies:
+      '@openassist/config':
+        specifier: workspace:*
+        version: link:../config
       '@openassist/core-types':
         specifier: workspace:*
         version: link:../core-types

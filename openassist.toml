@@ -66,7 +66,7 @@ systemdFilesystemAccess = "hardened"
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.4"
+defaultModel = "gpt-5.6-terra"
 # Optional for supported OpenAI Responses-model families:
 # reasoningEffort = "medium"
 
@@ -74,7 +74,7 @@ defaultModel = "gpt-5.4"
 # [[runtime.providers]]
 # id = "codex-main"
 # type = "codex"
-# defaultModel = "gpt-5.4"
+# defaultModel = "gpt-5.6-terra"
 # Optional for supported Codex Responses-model families:
 # reasoningEffort = "medium"
 # Link later with:
@@ -86,8 +86,9 @@ defaultModel = "gpt-5.4"
 # [[runtime.providers]]
 # id = "anthropic-main"
 # type = "anthropic"
-# defaultModel = "claude-sonnet-4-6"
-# thinkingBudgetTokens = 4096
+# defaultModel = "claude-sonnet-5"
+# thinkingMode = "adaptive"
+# thinkingEffort = "high"
 
 # Legacy compatibility note:
 # existing openai + oauth configs still load, but new account-login installs should use the codex route.

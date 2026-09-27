@@ -108,3 +108,7 @@ Supported first-class scope:
 - Telegram: private chats, groups, forum topics; inbound photos and supported documents; outbound HTML rendering plus staged photo/document delivery; direct-recipient private-chat sends for bounded operator notify
 - Discord: guild text channels, threads, DMs; inbound image and supported document attachments; outbound text-plus-file sends with reply references; direct-recipient DM delivery when `allowedDmUserIds` permits it
 - WhatsApp MD: private chats and groups; inbound image and supported document messages; outbound quoted replies, staged document/image delivery, and exact-JID direct-recipient sends where configured
+
+## Modernization compatibility
+
+Provider-independent `/status` includes route, model, and effective tuning using the shared model catalog. Status stays within the existing channel rendering/chunking path. No channel identity, attachment persistence, or delivery authorization contract changes accompany this dependency/model refresh.

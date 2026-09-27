@@ -108,7 +108,7 @@ describe("setup-wizard branch coverage", () => {
       "anthropic-main",
       "claude-sonnet-4-6",
       "",
-      "",
+      "disabled",
       "true",
       "",
       "back",

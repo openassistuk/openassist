@@ -108,3 +108,7 @@ FROM config_generations
 ORDER BY generation DESC
 LIMIT 5;
 ```
+
+## Modernization compatibility
+
+Model updates are explicit configuration changes. Back up TOML before replacing a retired Codex model or changing Anthropic thinking controls. Existing conversations, credentials, and SQLite schema are retained. Validate the proposed config before restart; restore the previous config with the matching application checkout if rollback is required.

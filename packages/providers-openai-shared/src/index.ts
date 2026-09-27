@@ -1,3 +1,4 @@
+import { modelCapabilities, reasoningEfforts } from "@openassist/config";
 import fs from "node:fs";
 import type { ChatRequest, ChatResponse, OpenAIReasoningEffort } from "@openassist/core-types";
 
@@ -173,15 +174,7 @@ export function mapResponsesTools(
 }
 
 export function shouldPreferResponsesApi(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return (
-    normalized.startsWith("gpt-5") ||
-    normalized.includes("codex") ||
-    normalized.startsWith("o1") ||
-    normalized.startsWith("o2") ||
-    normalized.startsWith("o3") ||
-    normalized.startsWith("o4")
-  );
+  return modelCapabilities(model)?.responses ?? false;
 }
 
 export function supportsOpenAIReasoningEffort(model: string): boolean {
@@ -190,9 +183,10 @@ export function supportsOpenAIReasoningEffort(model: string): boolean {
 
 export function reasoningPayload(
   model: string,
-  effort: OpenAIReasoningEffort | undefined
+  effort: OpenAIReasoningEffort | undefined,
+  route: "openai" | "codex" | "azure-foundry" = "openai"
 ): { effort: OpenAIReasoningEffort } | undefined {
-  if (!effort || !supportsOpenAIReasoningEffort(model)) {
+  if (!effort || !reasoningEfforts(model, route).includes(effort)) {
     return undefined;
   }
   return { effort };

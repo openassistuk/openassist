@@ -6,6 +6,9 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+- Refresh fresh-setup defaults to GPT-5.6 Terra (OpenAI/Codex) and Claude Sonnet 5. Share exact model capabilities across setup, config validation, request mapping, and status; add model-filtered none/max reasoning and Anthropic adaptive thinking/effort. Preserve saved IDs and manual budgets on compatible models; block retired Codex selections with explicit repair guidance. Azure deployment names never imply tuning support. Keep token refresh, thinking replay, bounded tool execution, image gating, and operator state intact.
+
+
 ### Modernization
 
 - Modernize pnpm, TypeScript, Vitest, Zod, provider/channel SDKs, logging and CLI dependencies. Preserve nested config defaults with Zod prefaults. Retain strict supply-chain checks by resolving Baileys libsignal from its maintainer's registry release with a scoped override; verify encryption and persisted-session reload. Both dependency audits now run in the quality gate, retain reports, and fail on high/critical findings or registry errors.

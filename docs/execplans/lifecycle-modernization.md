@@ -8,7 +8,7 @@ Operators install verified prebuilt releases with a private Node runtime, prepar
 
 ## Progress
 
-- [ ] (2026-09-27) Fix the four independent review findings: load dedicated instance credentials, derive running application identity during activation, install owned shell PATH blocks, and validate archive link traversal. Add regressions, synchronize affected docs, and reconcile local/hosted checks before completion.
+- [x] (2026-09-27) Fixed all four independent review findings at c0214a3b9dfb8dd41f96c252ef111a921ce9e8d5: dedicated instance credentials, running application identity during activation, owned shell PATH blocks, and archive link traversal. Regressions/docs, full local verification and every hosted platform gate pass; evidence is reconciled below.
 - [x] (2026-09-27) Implemented all four fixes and reviewed bypass/compatibility cases without delegation. Focused lifecycle, install-context, runtime chat status, bootstrap and docs-truth checks pass. Full local `pnpm verify:all` passes with unchanged thresholds and zero production/full dependency audit findings. Native shell/link extraction and deployed service evidence remain pending hosted checks.
 - [x] (2026-09-27) Replace record-derived update URLs with fixed public discovery, constrain downloader destinations and redirects, preserve release/source tracks, and add request-boundary tests and operator/contributor documentation. Full local `pnpm verify:all` passes; unauthenticated built-client reads resolve main and PR #63 through the fixed refs endpoint.
 - [x] (2026-09-27) Reopened alert #40 and completed full local/hosted verification at 2ddcd830090143e8c051d8a9b83d0c75bc9fa4f4. CodeQL analysis 1848188076 contains zero findings; both #40 and follow-up #41 are fixed with no dismissal or suppression. All platform gates pass and all review threads are resolved.
@@ -61,7 +61,7 @@ The existing upgrade changes the active checkout and rebuilds on rollback. The d
 
 ## Outcomes & Retrospective
 
-The four findings from the independent branch review are being addressed; earlier successful checks did not cover these scenarios. New evidence will be recorded separately below without replacing historical results.
+The four findings from the independent branch review are fixed at c0214a3b9dfb8dd41f96c252ef111a921ce9e8d5. Earlier successful checks did not cover these scenarios; the new regressions and hosted results below supply that evidence without replacing historical results.
 The user requested removal of the underlying file-to-network flow after the initial reviewed dismissal. The catalogue redesign is complete at 2ddcd830090143e8c051d8a9b83d0c75bc9fa4f4. Fixed public discovery requests, local target selection, restricted download destinations and a status-only cache remove the unnecessary data flows. Historical dismissal evidence below is superseded by an actual zero-finding analysis.
 
 The initial catalogue implementation at 01dd6b2 passed 57 focused Vitest tests, seven Node lifecycle integration tests and full local `pnpm verify:all`, including unchanged coverage gates and zero findings in both dependency audits. Node coverage was 81.64% lines/statements, 71.99% branches and 90.12% functions. New discovery adds no runtime dependency and works without Git or a signing key for advisory notices. Actual release preparation continues requiring the signed manifest. Live unauthenticated built-client reads resolve main and PR #63 through the fixed refs endpoint. The subsequent status-cache refinement addresses the additional finding discovered during hosted verification.
@@ -91,6 +91,18 @@ The complete code/docs diff was reviewed against `main`; `git diff --check origi
 [CI run 36346229618](https://github.com/openassistuk/openassist/actions/runs/36346229618) passed Linux/macOS/Windows quality and workflow lint. [CodeQL run 36346229598](https://github.com/openassistuk/openassist/actions/runs/36346229598) and the CodeQL alert gate passed. [macOS live run 36346229621](https://github.com/openassistuk/openassist/actions/runs/36346229621) passed the required LaunchAgent gate. [Release run 36346229745](https://github.com/openassistuk/openassist/actions/runs/36346229745) passed all four native artifacts, live Linux activation/rollback/recovery/source switching and test-key signing; publication was skipped as intended.
 
 The supplemental [Service Smoke run 36346102535](https://github.com/openassistuk/openassist/actions/runs/36346102535) and [Lifecycle E2E run 36346104068](https://github.com/openassistuk/openassist/actions/runs/36346104068) passed Linux/macOS at 48930b8, whose product code is identical to f0f5c81. The only intervening change allocated independent ports in test fixtures and recorded that correction. No merge or live provider/channel certification is inferred from these results.
+
+## Review-fix reconciliation (2026-09-27)
+
+Reviewed implementation commit: `c0214a3b9dfb8dd41f96c252ef111a921ce9e8d5`. The changes fix all four reported defects, with a shared env-file parser, immutable process identity plus committed-track refresh, exact shell-block ownership and pre-extraction link resolution. No dependencies, coverage exemptions, scanner suppressions or automatic update behavior were added. The independent bypass pass also covered relocated hardlink-to-symlink targets and archive-order-independent excessive chains.
+
+Full local `pnpm verify:all` passed: 470 Vitest tests passed with one Unix-only extraction test skipped on Windows; the full Node suite passed 199 tests with three platform skips. Unchanged coverage gates and production/full dependency audits passed. All ten docs-truth checks passed; changed prose and commands were manually reviewed alongside the implementation.
+
+[CI run 36355317923](https://github.com/openassistuk/openassist/actions/runs/36355317923) passed Linux/macOS/Windows quality, coverage and workflow lint. Linux/macOS executed the native internal-link extraction and saved PATH-block tests; macOS also exercised Zsh. [Release run 36355317908](https://github.com/openassistuk/openassist/actions/runs/36355317908) passed all four native artifacts, relocation/media/SQLite smoke, live Linux activation/rollback/source switching and test-key signing. Its deployed candidate check confirms the application identifies its own directory while install-state still describes the previous application. [macOS live run 36355317911](https://github.com/openassistuk/openassist/actions/runs/36355317911) passed the LaunchAgent gate.
+
+[CodeQL run 36355317906](https://github.com/openassistuk/openassist/actions/runs/36355317906) passed. Analysis `1848290680` reports zero findings and no analysis error on merge commit `f2bffec1198fb74ad8de94d0ea28545db23525f5`; its parents are the reviewed base `dc851a5db0d412ae92fc64cd17d1a01fc48fe43e` and implementation `c0214a3b9dfb8dd41f96c252ef111a921ce9e8d5`. GitHub's PR alert query reports zero open alerts.
+
+Publication remains separate: the PR publish job was intentionally skipped. Maintainers still need to provision the production signing key/protected publishing configuration and publish/test a preview before stable. No merge, publication or live provider/channel certification is claimed. This reconciliation changes documentation only after the reviewed implementation.
 
 ## Context and Orientation
 

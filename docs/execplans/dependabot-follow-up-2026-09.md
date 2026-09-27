@@ -13,7 +13,10 @@ After modernization PR #55 merged, Dependabot opened PRs #56–59. Keep provider
 - [x] (2026-09-27) Closed #57 unmerged. Full local `pnpm verify:all` passed: 380 Vitest tests, 185 Node tests with 3 expected skips, all coverage gates, and zero findings in both audits.
 - [x] (2026-09-27) Published prerequisite PR #60. All required hosted checks plus both manual smoke workflows passed for implementation commit `ded579c`.
 - [x] (2026-09-27) Incorporated the prerequisite into #56 (`463b9e4`), #58 (`24d49e8`), and #59 (`7ef3643`); all required hosted checks and Linux/macOS smoke workflows passed on each revision.
-- [ ] Obtain the required approving review for #60, merge it, then update and merge #56, #58, and #59 sequentially with all required checks and reviews satisfied.
+- [x] (2026-09-27) The user merged #60 as `5eb224e` and deleted its remote branch. The prerequisite review blocker is resolved.
+- [x] (2026-09-27) Updated and reviewed #56, then merged it as `044a32a` after all required checks and both smoke workflows passed on `031bb2b`.
+- [x] (2026-09-27) Updated and reviewed #58, then merged it as `a8038a3` after all required checks and both smoke workflows passed on `db220d7`.
+- [x] (2026-09-27) Updated #59 with the merged prerequisites and dependency updates. It is the final delivery PR; its required checks, review, and merge event are tracked directly on GitHub.
 
 ## Surprises & Discoveries
 
@@ -57,8 +60,14 @@ No public interface changes. Preserve `runtime.bind_address_invalid` and `runtim
 
 ## Outcomes & Retrospective
 
-Local implementation and hosted verification are complete; log: `%TEMP%/oa-dependabot-verify.log`. Node types PR #57 is closed unmerged. All three retained updates pass their complete checks and both manual smoke workflows. Merging is pending the required review of prerequisite PR #60. The main branch ruleset requires an approving review and an up-to-date branch with seven required checks; repository auto-merge is disabled. The signed-in account authored #60 and cannot approve itself. An asynchronous request to arrange the required review was presented to the user. Preserve these controls and check current PR heads before continuing; new main commits require branch updates and fresh checks.
+The prerequisite #60 and dependency updates #56/#58 are merged; #57 is closed unmerged. #59 delivers the remaining checkout upgrade and this completion record. Its merge completes the four-PR sequence. GitHub's PR record is authoritative for that final merge event, rather than a prediction in this pre-merge document. No independent review blocker remains from #60. Node types remain on 24.x, and the invalid-address regression is fixed without increasing timeouts or lowering coverage.
+
+Final integrated verification is enforced on #59 after incorporating the SDK and setup-node upgrades: all three quality platforms, CodeQL, workflow lint, and the live macOS LaunchAgent check must pass; dispatch both Linux/macOS smoke workflows on its final head before merging. Retain the normal review and up-to-date-branch requirements. No rule bypasses, force pushes, live provider charges, or production operations were used.
+
+Post-prerequisite evidence: #56 CI 36331218741 and smoke runs 36331229770/36331231625 passed before merging; #58 CI 36331514713 and smoke runs 36331534014/36331535765 passed before merging. GitHub reported zero open Dependabot vulnerability alerts after #56 merged. Local full verification evidence remains `%TEMP%/oa-dependabot-verify.log`.
 
 Revision note (2026-09-27): Created from the approved four-PR management request, with the common macOS failure isolated before updating dependencies.
 
 Revision note (2026-09-27, hosted verification): Recorded successful checks for all four prepared PRs, closure of #57, and the exact independent-review blocker. This evidence-only follow-up does not change the verified implementation.
+
+Revision note (2026-09-27, sequential delivery): Superseded the resolved review blocker with actual merge commits and checks. #59 is the final delivery record and is verified against the already merged SDK and setup-node updates.

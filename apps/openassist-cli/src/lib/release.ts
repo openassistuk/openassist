@@ -81,9 +81,8 @@ export async function download(url: string, limit: number, timeoutMs = 30_000): 
   let response: Response;
   for(let redirects=0;;redirects++) {
     if (parsed.protocol !== "https:") throw new Error("Release downloads require HTTPS.");
-    // Persisted public version/ref selectors are intentionally sent to GitHub; no file
-    // contents, credentials, config values or request bodies are sent by this downloader.
-    // lgtm[js/file-access-to-http]
+    // Callers send validated public version/ref selectors to GitHub. No credentials,
+    // configuration contents or request bodies are included in these update requests.
     response = await fetch(parsed, {redirect:"manual",signal,headers:{accept:"application/octet-stream","user-agent":"OpenAssist"}});
     if(![301,302,303,307,308].includes(response.status)) break;
     const location=response.headers.get("location");

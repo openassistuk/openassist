@@ -17,6 +17,7 @@ import { checkHealth } from "./health-check.js";
 import { detectDefaultDaemonBaseUrl } from "./runtime-context.js";
 import { sourceUpdatePlan } from "./source-update-plan.js";
 import { classifyGitDirtyState } from "./git-dirty.js";
+import { validateSourceRef } from "./update-track.js";
 
 export interface UpdateOptions {
   source?: boolean; release?: boolean; channel?: "stable" | "preview"; version?: string;
@@ -53,7 +54,7 @@ export function resolveUpdateMethod(options: UpdateOptions, state?: InstallState
   if ((source && release) || (options.ref && options.pr)) throw new Error("Choose one source ref/PR or one release target, not conflicting selectors.");
   if (options.channel && !["stable", "preview"].includes(options.channel)) throw new Error("Channel must be stable or preview.");
   if (options.pr && !/^[1-9]\d*$/.test(options.pr)) throw new Error("Invalid pull request number.");
-  if (options.ref && !/^[a-zA-Z0-9][a-zA-Z0-9._/+\-]*$/.test(options.ref)) throw new Error("Invalid source ref.");
+  if (options.ref !== undefined) validateSourceRef(options.ref);
   return source ? "source" : release ? "release" : state?.active?.method ?? (state || options.installDir ? "source" : "release");
 }
 
@@ -61,11 +62,13 @@ export function sourceRef(options: UpdateOptions, state?: InstallState): string 
   if (options.pr) return `refs/pull/${options.pr}/head`;
   if (options.ref) return options.ref;
   const ref = state?.active?.ref ?? state?.trackedRef ?? "main";
+  validateSourceRef(ref);
   if (ref.startsWith("refs/pull/")) throw new Error("PR installations require an explicit --pr or --ref on every update.");
   return ref;
 }
 
 export async function prepareSource(root: string, ref: string, repoUrl = "https://github.com/openassistuk/openassist.git", env?: NodeJS.ProcessEnv): Promise<InstalledApplication> {
+  validateSourceRef(ref);
   const runner = new SpawnCommandRunner();
   const candidate = path.join(root, "releases", `source-${randomUUID()}`);
   fs.mkdirSync(path.dirname(candidate), {recursive: true, mode: 0o700});

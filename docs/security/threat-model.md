@@ -4,6 +4,8 @@ Release downloads are authenticated by RSA/SHA-256 signatures and bounded hash/s
 
 This document covers OpenAssist local-first single-operator deployments.
 
+Update checks send the selected public release version or source ref to fixed OpenAssist GitHub endpoints. They do not send config contents, credentials, unrelated installation metadata or request bodies. Persisted source refs are validated using the same character rules as explicit source selectors before lookup or source preparation; malformed refs fail without network/Git activity. Custom source remotes are excluded from opportunistic checks. CodeQL's generic file-to-network rule also reports legitimate persisted selectors: review that data flow explicitly rather than relying on an inline suppression or a green workflow to establish closure.
+
 ## Scope
 
 In scope:

@@ -56,6 +56,8 @@ First migration retains the original source checkout. Recognized old repo-local 
 
 Interactive setup/doctor checks cache availability for 24 hours. No updates, scheduled shell jobs or restarts happen automatically. Explicit `openassist update check` bypasses cache. Set `openassist update notifications <mode>` to `on` or `off`. Network failures leave the working app untouched.
 
+Checks send only the selected public version/ref to OpenAssist's GitHub endpoints. Malformed saved source refs return unavailable without making a request; source preparation also rejects them before running Git. Repair the recorded track with an explicit valid `--source --ref <ref>` update. Credentials and configuration contents are not included in update requests; custom remotes require an explicit source update dry-run.
+
 ## Node 24 runtime migration
 
 Source installs require Node >=24.21.0 <25 and pnpm 12.5.1. Update shell and service runtimes before using the new source CLI. Back up the service definition, checkout, config, credentials and database. Entrypoint guards reject unsupported Node before provider/storage imports. Packaged releases carry the tested runtime and retain it for rollback.

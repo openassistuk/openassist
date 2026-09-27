@@ -130,6 +130,37 @@ describe("staged lifecycle recovery",()=>{
     setUpdateNotifications(false);expect(await checkForUpdate()).toEqual({disabled:true});
     expect(await checkForUpdate(true)).toMatchObject({updateAvailable:true});
   });
+  it("rejects malformed recorded source refs before sending any request",async()=>{
+    const original=loadInstallState()!;
+    const fetch=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({sha:"b".repeat(40)})));
+    for(const ref of ["", "main\nPRIVATE_TOKEN=example", "main\n", "main?token=example", "https://example.test/private", "main%0Aprivate", "-option"]){
+      for(const active of [undefined,{...original.active!,method:"source" as const,ref}]){
+        atomicWriteJson(defaultInstallStatePath(),{...original,active,trackedRef:ref});
+        expect(await checkForUpdate(true)).toMatchObject({status:"unavailable"});
+      }
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("sends only the selected source ref to the fixed GitHub endpoint",async()=>{
+    const original=loadInstallState()!;
+    const available="b".repeat(40);
+    const fetch=vi.spyOn(globalThis,"fetch").mockImplementation(async()=>new Response(JSON.stringify({sha:available,head:{sha:available}})));
+    for(const ref of ["main","feature/lifecycle+fix","v0.1.0","a".repeat(40),"refs/pull/63/head"]){
+      for(const active of [undefined,{...original.active!,method:"source" as const,ref}]){
+        atomicWriteJson(defaultInstallStatePath(),{...original,active,trackedRef:ref,privateData:"must-not-leave-the-host"});
+        expect(await checkForUpdate(true)).toMatchObject({available,ref,requiresExplicitTarget:ref.startsWith("refs/pull/")});
+        const [url,options]=fetch.mock.calls.at(-1)!;
+        expect(String(url)).toBe(ref.startsWith("refs/pull/") ? "https://api.github.com/repos/openassistuk/openassist/pulls/63" : `https://api.github.com/repos/openassistuk/openassist/commits/${encodeURIComponent(ref)}`);
+        expect(options).toMatchObject({redirect:"manual",headers:{accept:"application/octet-stream","user-agent":"OpenAssist"}});
+        expect(options?.body).toBeUndefined();
+        expect(JSON.stringify([String(url),options])).not.toContain("must-not-leave-the-host");
+      }
+    }
+    fetch.mockClear();
+    atomicWriteJson(defaultInstallStatePath(),{...original,active:{...original.active!,method:"source",ref:"main"},repoUrl:"https://example.test/private.git"});
+    expect(await checkForUpdate(true)).toMatchObject({status:"unavailable"});
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it.each(["preparing","prepared","stopped","backed-up","activating"])("recovers interruption at %s without restoring conversation state",async phase=>{
     const before=loadInstallState();const candidate=app("candidate");
     atomicWriteJson(path.join(defaultManagedInstallDir(),"operation.json"),{version:1,id:randomUUID(),phase,before,candidate,serviceInstalled:true,wasRunning:true});
@@ -194,6 +225,15 @@ describe("staged lifecycle recovery",()=>{
     fs.writeFileSync(path.join(candidate.path,"package.json"),JSON.stringify({packageManager:"pnpm@1.0.0"}));
     await expect(buildSource(candidate.path)).rejects.toThrow("pinned package manager");
     expect(loadInstallState()?.active?.build.id).toBe("old");
+  });
+  it("rejects malformed source build refs before creating files or running Git",async()=>{
+    const releases=path.join(defaultManagedInstallDir(),"releases");
+    const before=fs.readdirSync(releases);
+    for(const ref of ["", "-option", "main\n", "main?token=example"]){
+      await expect(prepareSource(defaultManagedInstallDir(),ref)).rejects.toThrow("Invalid source ref");
+    }
+    expect(controls.events).toEqual([]);
+    expect(fs.readdirSync(releases)).toEqual(before);
   });
   it("retains the newest two backups and any older operation-referenced backup",()=>{
     const state=loadInstallState()!;const backups=path.join(defaultManagedInstallDir(),"backups");

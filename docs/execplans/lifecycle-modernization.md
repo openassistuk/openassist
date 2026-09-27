@@ -8,6 +8,9 @@ Operators install verified prebuilt releases with a private Node runtime, prepar
 
 ## Progress
 
+- [x] (2026-09-27) Security follow-up implementation and local verification: shared validation, request-boundary regressions, suppression removal and docs are complete; 43 focused tests, CLI typecheck, diff review and full `pnpm verify:all` pass with zero dependency findings.
+- [ ] (2026-09-27) Complete hosted verification and record the reviewed disposition of PR #63 alert #40 and its thread.
+
 - [x] (2026-09-27) Inspected installer, upgrade, services, paths, storage, health, diagnostics, workflows and docs-truth tests; user approved the complete plan and both developer workflows.
 - [x] (2026-09-27 19:07Z) Added installation/build contracts, versioned records, isolated state paths, database admission checks and structured build/instance health.
 - [x] (2026-09-27 20:45Z) Native artifact/relocation/media/SQLite smoke passed on Linux x64/arm64 and macOS x64/arm64 at b99091d; live Linux update/rollback/uninstall and macOS LaunchAgent gates passed.
@@ -19,6 +22,8 @@ Operators install verified prebuilt releases with a private Node runtime, prepar
 - [x] (2026-09-27 21:04Z) Final implementation f0f5c8199cce184bf2c14f457878251edab82956 passed full local verification and every hosted PR gate. The final reconciliation below records exact runs, coverage and publication prerequisites.
 
 ## Surprises & Discoveries
+
+2026-09-27 security follow-up: GitHub's latest analysis still contained alert #40 and its unresolved thread despite a passing CodeQL check and the inline lgtm comment. The SARIF traces installation-record version/ref fields to GitHub URLs, not credentials/config bodies. A focused regression reproduced a separate missing validation step: malformed persisted refs were sent to the source lookup endpoint. The new shared validator rejects them before HTTP or Git activity. Other PR findings (29–39) were already fixed.
 
 The existing upgrade changes the active checkout and rebuilds on rollback. The database initializes tables without a schema compatibility version. Install-state parsing currently suppresses malformed input. Readiness assumes a Git checkout, and health checks search a response string. These are concrete boundaries to replace together.
 
@@ -34,11 +39,15 @@ The existing upgrade changes the active checkout and rebuilds on rollback. The d
 
 ## Decision Log
 
+2026-09-27 security follow-up: Reuse one source-ref validator for CLI selectors, recorded tracks, source preparation and update notices. Preserve the supported selector character set, reject newline/query/URL payloads without echoing input, and retain the existing unavailable-notice behavior. Remove the ineffective inline suppression. Treat the remaining intentional public-selector data flow as a reviewed false positive only after request-boundary tests and hosted analysis, rather than claiming its disappearance from a green check.
+
 2026-09-27: Use prebuilt Linux glibc/macOS x64/arm64 artifacts with Node 24.21.0 and pnpm 12.5.1 for builds. Keep Windows quality coverage but do not claim Windows lifecycle parity. Use RSA/SHA-256 signed manifests with pinned release keys and fail closed until keys/releases are provisioned. Never generate a production private key in the repository.
 
 2026-09-27: Preserve normal config/data paths and introduce a separate managed application root. Source selectors remain explicit and backwards compatible. Isolated state is not a sandbox for untrusted code. Never automatically restore databases after a failed upgrade.
 
 ## Outcomes & Retrospective
+
+Security follow-up passes local verification; hosted verification and alert disposition remain pending. Node coverage is 81.44% lines/statements, 70.98% branches and 89.95% functions. The earlier green-check evidence did not establish zero open alerts; it is superseded for alert closure by the explicit API reconciliation recorded below once verification completes.
 
 Implementation, documentation, tests, native packaging and recovery validation are complete in PR #63 on `codex/lifecycle-modernization`. The complete hosted matrix passed at f0f5c81, including actual immutable source preparation and return to a packaged release with live systemd. Final local Node coverage was 81.43% lines/statements, 70.98% branches and 89.93% functions. Vitest measured 83.24% lines, 82.29% statements, 72.14% branches and 85.18% functions. Both dependency audit reports contained zero findings. No release has been published and no live operator installation has been changed.
 
@@ -95,3 +104,5 @@ Revision 2026-09-27 20:45Z: Recorded native and local integration evidence, upda
 Revision 2026-09-27 20:53Z: Reviewed the complete implementation/docs diff and recorded successful CI run 36345718587, release/signing/live-source run 36345718604, CodeQL run 36345718527 and macOS live run 36345718531 at b018104. Supplemental Service Smoke run 36345470771 and Lifecycle E2E run 36345472456 passed on both platforms at 6d8db90. Final review corrected isolated setup to invoke its own candidate CLI/runtime and made legacy PR bootstrap require an explicit target; the 16 targeted lifecycle/docs tests and three bootstrap contracts passed. Default release bootstrap now also explains an unavailable trust anchor without fallback.
 
 Revision 2026-09-27 20:57Z: The final full-suite rerun exposed a collision between a simulated lifecycle test's fixed port 3344 and another suite. The production exclusive-state check correctly refused activation. Lifecycle fixtures now allocate separate ephemeral ports; all 448 Vitest tests pass together. No product safety check or coverage threshold was relaxed.
+
+Revision 2026-09-27 security follow-up: Reopened the verification record after discovering alert #40 remained open. Added regression coverage and shared source-selector validation, and corrected the interpretation of the historical suppression/green CodeQL evidence. All local checks pass; hosted verification and alert disposition are pending.

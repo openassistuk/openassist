@@ -78,6 +78,10 @@ describe("verified lifecycle releases",()=>{
     await expect(resolveRelease({version:"../../main"},[])).rejects.toThrow("Invalid release version");
     expect(()=>resolveUpdateMethod({source:true,channel:"stable"})).toThrow("conflicting");
     expect(()=>resolveUpdateMethod({pr:"0"})).toThrow("Invalid");
+    for(const ref of ["", "main\n", "main?token=example", "-option"]){
+      expect(()=>resolveUpdateMethod({ref})).toThrow("Invalid source ref");
+      expect(()=>sourceRef({}, {trackedRef:ref} as never)).toThrow("Invalid source ref");
+    }
     expect(()=>resolveUpdateMethod({ref:"--upload-pack=bad"})).toThrow("Invalid");
     expect(resolveUpdateMethod({})).toBe("release");
     expect(resolveUpdateMethod({installDir:temp()})).toBe("source");
@@ -117,13 +121,22 @@ describe("verified lifecycle releases",()=>{
     const key=publicKey.export({type:"spki",format:"pem"}).toString();
     const payload=manifest();
     let metadata:unknown={tag_name:"v0.1.0",draft:false};
-    vi.stubGlobal("fetch",vi.fn(async(input:URL)=>{
+    const fetch=vi.fn(async(input:URL)=>{
       const url=input.toString();
       const bytes=Buffer.from(JSON.stringify(payload));
       return new Response(url.endsWith('release.sig') ? sign("RSA-SHA256",bytes,privateKey) : url.endsWith('release.json') ? bytes : JSON.stringify(metadata));
-    }));
+    });
+    vi.stubGlobal("fetch",fetch);
     expect((await resolveRelease({},[key])).manifest.channel).toBe("stable");
     expect((await resolveRelease({version:"0.1.0"},[key])).manifest.build.version).toBe("0.1.0");
+    expect(fetch.mock.calls.slice(0,6).map(([url])=>String(url))).toEqual([
+      "https://api.github.com/repos/openassistuk/openassist/releases/latest",
+      "https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.json",
+      "https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.sig",
+      "https://api.github.com/repos/openassistuk/openassist/releases/tags/v0.1.0",
+      "https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.json",
+      "https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.sig"
+    ]);
     payload.channel="preview"; metadata=[{tag_name:"v0.1.0",prerelease:true}];
     expect((await resolveRelease({channel:"preview"},[key])).manifest.channel).toBe("preview");
     metadata={tag_name:"v0.1.0",draft:false};

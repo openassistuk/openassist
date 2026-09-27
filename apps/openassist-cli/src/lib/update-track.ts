@@ -11,6 +11,13 @@ export interface UpdateTrackInfo {
 
 const PULL_REQUEST_REF_PATTERN = /^refs\/pull\/(\d+)\/head$/;
 
+/** Validate selectors before using either CLI input or persisted metadata externally. */
+export function validateSourceRef(ref: string): void {
+  if (!/^[a-zA-Z0-9]/.test(ref) || /[^a-zA-Z0-9._/+\-]/.test(ref)) {
+    throw new Error("Invalid source ref.");
+  }
+}
+
 export function buildPullRequestRef(prNumber: number | string): string {
   return `refs/pull/${String(prNumber).trim()}/head`;
 }

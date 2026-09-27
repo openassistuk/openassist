@@ -2,6 +2,7 @@ import path from "node:path";
 import { defaultConfigDir, readUpdateCache } from "@openassist/config";
 import { atomicWriteJson, loadInstallState, saveInstallState } from "./install-state.js";
 import { download, resolveRelease } from "./release.js";
+import { validateSourceRef } from "./update-track.js";
 
 export async function checkForUpdate(force = false): Promise<Record<string, unknown>> {
   const state = loadInstallState();
@@ -19,6 +20,7 @@ export async function checkForUpdate(force = false): Promise<Record<string, unkn
     if (!state) return {detail:"No installation record. Install OpenAssist before checking its track."};
     if (!state.active || state.active.method === "source") {
       const ref=state.active?.ref ?? state.trackedRef;
+      validateSourceRef(ref);
       const match=/^refs\/pull\/(\d+)\/head$/.exec(ref);
       const api=match ? `https://api.github.com/repos/openassistuk/openassist/pulls/${match[1]}` : `https://api.github.com/repos/openassistuk/openassist/commits/${encodeURIComponent(ref)}`;
       if (state.repoUrl && !/^https:\/\/github.com\/openassistuk\/openassist(?:\.git)?$/.test(state.repoUrl)) throw new Error("Custom source remotes require an explicit source update dry-run.");

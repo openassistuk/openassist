@@ -265,6 +265,8 @@ When touching channel/runtime/provider attachment behavior:
 
 ## Security Rules
 
+- Validate persisted source selectors before update lookup and source preparation. Keep request-boundary tests proving valid tracks work without transmitting credentials or unrelated state. Check open code-scanning alerts and unresolved review threads separately from CI conclusions; document intentional public selector lookups explicitly when triaging file-to-network findings.
+
 - Keep loopback bind default unless an approved plan changes it.
 - Keep `full-root` activation explicit and auditable.
 - Do not introduce scheduled shell actions without threat-model and policy updates.

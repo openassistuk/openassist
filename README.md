@@ -280,4 +280,6 @@ openassist dev test --pr 123 --name pr-test
 
 `upgrade` remains an alias, existing source installs retain their track, and `update --release --channel stable --yes` explicitly migrates to releases. Updates prepare separately, retain a previous application/runtime, and never silently restore an old database. Notices never install software automatically. Isolated tests keep separate state and ports and do not inherit channel credentials; primary source switching remains available for deliberate real-state testing.
 
+Update checks use public version/ref selectors against OpenAssist's GitHub endpoints, without sending credentials or configuration contents. Malformed saved source selectors are rejected before lookup. See [upgrade and rollback](docs/operations/upgrade-and-rollback.md) for notification controls and track repair.
+
 See [release maintenance](docs/operations/release-maintenance.md), [developer testing](docs/operations/developer-testing.md), [uninstall](docs/operations/uninstall.md), and [upgrade/recovery](docs/operations/upgrade-and-rollback.md). `Release Artifacts` adds four native packaging targets on PR/manual runs; publication requires protected signing configuration and explicit dispatch. A merged PR is not proof of a published or live-certified release.

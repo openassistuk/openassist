@@ -10,7 +10,7 @@ This is the beginner-friendly route for operators who already have an OpenAI API
 - Provider type in config: `openai`
 - Supports tools: yes
 - Supports inbound image understanding: yes
-- Optional tuning: `reasoningEffort` for supported Responses API model families
+- Optional tuning: model-filtered `reasoningEffort` and independent `reasoningMode` for supported Responses models
 
 OpenAssist keeps OpenAI and Codex separate on purpose:
 
@@ -49,14 +49,9 @@ Quickstart will:
 
 - create an `openai` provider entry in `openassist.toml`
 - store the API key in the env file, not in the TOML
-- offer a beginner-facing reasoning-effort choice:
-  - `Default`
-  - `Low`
-  - `Medium`
-  - `High`
-  - `XHigh`
+- offer `Default` plus the reasoning efforts supported by the selected model: GPT-6 Sol/Luna accept `none`, `low`, `medium`, `high`, `xhigh`, `max`; GPT-6 Astra excludes `none`
 
-Leaving quickstart on `Default` keeps `reasoningEffort` unset so OpenAssist sends no provider-specific reasoning parameter.
+Leaving quickstart on `Default` keeps `reasoningEffort` unset and omits the effort parameter. It does not disable reasoning or clear an independently configured execution mode; cataloged reasoning models still request opaque replay content.
 
 ## Manual TOML Setup
 
@@ -91,6 +86,7 @@ Main provider fields accepted by the schema:
 - `defaultModel`
 - `baseUrl` (optional)
 - `reasoningEffort` (optional, `none|low|medium|high|xhigh|max`, filtered by the exact model and route)
+- `reasoningMode` (optional, `standard|pro`, only for cataloged supporting models; wizard exposes this independently of effort)
 - `metadata` (optional)
 
 Advanced provider OAuth fields are also supported in the schema for explicit operator-managed flows, but the public beginner path for OpenAI remains API-key auth.
@@ -123,7 +119,7 @@ What to look for:
 - OpenAI can inspect inbound images when the channel supplies image attachments.
 - OpenAI can receive runtime-owned tool schemas when the current session is allowed to use tools.
 - `reasoningEffort` is only sent on supported Responses-model families.
-- If the selected model does not support reasoning effort, OpenAssist omits the parameter safely.
+- Unknown/custom model IDs receive no inferred optional reasoning effort. A known model with an unsupported explicit effort fails validation; unverified `reasoningMode` also fails validation. Choose Default or a supported value in wizard.
 
 ## Common Problems
 
@@ -145,15 +141,6 @@ If you need a richer troubleshooting path, start with:
 
 - [`docs/operations/common-troubleshooting.md`](../operations/common-troubleshooting.md)
 
-## Related Docs
-
-- [Codex Provider](codex.md)
-- [Anthropic Provider](anthropic.md)
-- [Azure Foundry Provider](azure-foundry.md)
-- [OpenAI-compatible Provider](openai-compatible.md)
-- [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
-- [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
-
 ## Modernization compatibility
 
 Fresh setup recommends `gpt-6-sol`; Astra (`gpt-6-astra`) and Luna (`gpt-6-luna`) are alternatives. Saved API-key model IDs remain unchanged. Capability checks use exact catalog entries, not family-name matching.
@@ -163,3 +150,12 @@ OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP 
 GPT-6 uses Responses for tool calls. Optional `reasoningMode = "standard"` or `"pro"` is independent of effort; leaving it unset omits mode. Pro increases model work, latency and potential cost. Sol/Luna accept none through max; Astra excludes none. Sampling temperature is omitted during reasoning and is sent for Sol/Luna only with explicit none. See [the verified matrix](model-compatibility.md).
 
 Responses output items with opaque reasoning or message phase are now retained in bounded, provider/model-scoped durable metadata. Tool-call audit rows are deduplicated on replay. API-key authentication is unchanged; see [harness/auth readiness](../operations/provider-channel-readiness.md).
+
+## Related Docs
+
+- [Codex Provider](codex.md)
+- [Anthropic Provider](anthropic.md)
+- [Azure Foundry Provider](azure-foundry.md)
+- [OpenAI-compatible Provider](openai-compatible.md)
+- [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
+- [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)

@@ -8,6 +8,7 @@ Operators should be able to install OpenAssist on Node 24, select supported curr
 
 ## Progress
 
+- [x] (2026-09-27 reconciliation) Follow-up delivery is merged through PR #61 (`0ac0921`), including the GPT-6/Claude catalog, bounded Responses replay and auth/channel compatibility work. Exact final hosted evidence is recorded in `current-provider-models-2026-09.md`.
 - [x] (2026-09-21) Inspected clean `main` at `1e17fa219a0c5ac6ec96dd38ac2543ad7e2929b3`; created `codex/modernize-foundation`.
 - [x] (2026-09-21) Recorded baseline: build/lint/typecheck passed; first Vitest run had an Azure import timeout, isolated retry and coverage run passed all 328 tests; Node tests passed 171 with 3 skips; coverage passed (Vitest lines 81.09%, Node lines 80.74%).
 - [x] (2026-09-21) Recorded GitHub state: 71 open dependency alerts; PRs 50/52/53 open; CI, CodeQL, Service Smoke and Lifecycle E2E Smoke disabled for inactivity; branch protection and macOS live check retained. Production audit reported 67 findings (3 critical, 25 high); full audit 85.
@@ -45,6 +46,8 @@ Use Node 24.21.0 as minimum and pnpm 12.5.1 as the initial package-manager targe
 On 2026-09-27, retained full historical evidence rather than marking old certification checkboxes complete merely because a PR merged. Replaced Corepack bootstrap with the pinned native pnpm installer, keeping supply-chain permissions explicit. Added focused auth/config regressions to recover coverage rather than changing measurement scope. These changes preserve storage schema, account/API-key separation and legacy manual thinking semantics.
 
 ## Outcomes & Retrospective
+
+Current reconciliation (2026-09-27): development foundation work is merged through `0ac0921`. The model follow-up is complete, as recorded in [its ExecPlan](current-provider-models-2026-09.md). Historical disabled-workflow, unmerged-PR and authorization notes below remain evidence of earlier stages, not instructions to repeat those actions. Outstanding release evidence is still live provider/channel coverage and an actual existing-install Node migration/rollback; use the [readiness checklist](../operations/provider-channel-readiness.md#verification-and-live-checks) to record beta runs without overstating coverage.
 
 All four local milestones are implemented and verified. Node 24 guards, dependency majors, shared model controls, additive Anthropic configuration, migration guidance and audit automation are ready for review. Config IDs and operator data were not rewritten, and no schema migration was added. The final review checked task scope, secret handling, dependency resolution, service boundaries and documentation truth.
 

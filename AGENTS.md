@@ -297,6 +297,8 @@ When touching channel/runtime/provider attachment behavior:
 
 Every behavior change must update docs in the same change.
 
+Update primary field lists, setup choice descriptions and examples alongside any compatibility appendix. Model controls must be checked against `packages/config/src/provider-models.ts` per route, not generalized from a vendor/model name. Structural docs-truth checks do not replace manual review of prose and command flags. Preserve dated changelog/ExecPlan evidence and add explicit final merge/check reconciliations; never infer live certification from a merged PR.
+
 Docs truth-source checks are required before claiming doc completeness:
 
 - root `README.md` is a mandatory updated surface for operator-facing lifecycle or public-product changes
@@ -466,6 +468,8 @@ Support Node >=24.21.0 <25 only. Keep entrypoint guards, bootstrap checks, CI an
 Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
 
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
+
+## Model and authentication maintenance
 
 Current model maintenance must verify each route independently. GPT-6 API/Azure reasoningMode is separate from effort; do not copy it to Codex account-login. The Azure GPT-6 table permits Astra none while OpenAI does not: preserve the explicit route distinction and source date. Claude Opus 5.5/Fable 5.1/Mythos 5.1 require adaptive thinking and prefix-binding controls during replay. Keep internal stream folding, empty signed blocks, output budgets, setup/status and request tests synchronized. Never enable raw thinking display or vendor beta tools implicitly.
 

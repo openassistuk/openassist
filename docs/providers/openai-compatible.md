@@ -110,13 +110,6 @@ openassist doctor
 
 If the backend accepts chat but tool calls fail, confirm the backend really supports the API-compatible tool-calling shape OpenAssist is using.
 
-## Related Docs
-
-- [OpenAI Provider](openai.md)
-- [Azure Foundry Provider](azure-foundry.md)
-- [Configuration Reference](../configuration/config-reference.md)
-- [Common Troubleshooting](../operations/common-troubleshooting.md)
-
 ## Modernization compatibility
 
 Custom backend model IDs remain operator-supplied. The current-model catalog does not infer optional reasoning or thinking controls for this route; backend authentication and text-only image behavior remain unchanged.
@@ -124,3 +117,10 @@ Custom backend model IDs remain operator-supplied. The current-model catalog doe
 The current-model catalog does not imply optional reasoning support for arbitrary compatible servers. This route retains backend-defined model IDs and its existing Chat Completions contract; GPT-6 reasoning/tool use should use the OpenAI, Codex or Azure Responses route. See [model compatibility](model-compatibility.md).
 
 The current harness refresh does not add Responses replay or vendor-specific workspace auth to this Chat Completions route. Backend-defined credentials and capability boundaries remain unchanged; see [route-specific readiness](../operations/provider-channel-readiness.md).
+
+## Related Docs
+
+- [OpenAI Provider](openai.md)
+- [Azure Foundry Provider](azure-foundry.md)
+- [Configuration Reference](../configuration/config-reference.md)
+- [Common Troubleshooting](../operations/common-troubleshooting.md)

@@ -137,6 +137,7 @@ defaultModel = "gpt-6-sol"
 Additional fields:
 
 - `reasoningEffort`: `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
+- `reasoningMode`: optional `standard` or `pro`, only for cataloged supporting models; independent of effort, with omission preserving the provider default
 - optional `oauth` object for advanced provider-managed OAuth configuration
 
 ### Codex
@@ -171,6 +172,8 @@ Additional fields:
 - `thinkingMode`: optional `adaptive`, `enabled` (manual), or `disabled`
 - `thinkingEffort`: optional `low`, `medium`, `high`, `xhigh`, or `max`, where supported
 - `thinkingBudgetTokens`: integer `1024..32000`, only for manual-thinking models
+- `maxOutputTokens`: optional integer `1..128000`, covering thinking plus visible output; model-specific limits also apply (Haiku 4.5: `64000`). Must exceed a configured manual budget. Default is `16384` for Opus 5.5/Fable 5.1/Mythos 5.1; earlier models use `4096` or manual budget plus `1024`, whichever is larger.
+- `workspaceId`: optional Claude Console ID matching `wrkspc_` followed by letters or numbers; sent as `anthropic-workspace-id` for multi-workspace keys. Omit for workspace-scoped keys. This is an identifier, not a credential.
 - optional `oauth` object for advanced provider-managed OAuth configuration
 
 ### Azure Foundry
@@ -198,6 +201,7 @@ Additional fields:
 - `endpointFlavor`: `openai-resource` or `foundry-resource`
 - `underlyingModel`: optional model-family hint used for reasoning and compatibility guidance
 - `reasoningEffort`: optional, `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
+- `reasoningMode`: optional `standard` or `pro`; requires a cataloged supporting `underlyingModel`. An Azure deployment name never establishes capabilities.
 
 Azure Foundry sends the deployment name in `defaultModel`. This route uses Azure resource-style `/openai/v1/` endpoints only and the Responses API only. For Entra host auth, the optional service-principal env vars are global process settings: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`.
 
@@ -362,18 +366,18 @@ openassist setup show --config "$HOME/.config/openassist/openassist.toml"
 openassist doctor
 ```
 
+## Modernization compatibility
+
+Reasoning options are filtered by the exact cataloged route/model. OpenAI API GPT-6 Sol/Luna accept `none` through `max`; OpenAI Astra excludes `none`. Codex GPT-6 Astra/Sol/Luna all exclude `none`. Azure GPT-6 Astra/Sol/Luna all include `none`, using a verified `underlyingModel`. See the [route-specific matrix](../providers/model-compatibility.md#gpt-6-settings-by-route), including compatibility caveats. `reasoningMode` belongs only to OpenAI API and Azure; Codex rejects it.
+
+Sonnet 5 and Opus 5 support adaptive or disabled thinking and reject manual budgets; Opus 5 requires adaptive thinking at `xhigh`/`max`. Opus 5.5/Fable 5.1/Mythos 5.1 require adaptive thinking at every effort. Haiku 4.5 supports manual thinking and no effort. Budget-only settings on compatible older models retain their manual meaning. `Default` leaves the operator override unset; it does not turn off provider-default thinking or remove required replay/binding controls. Unknown models remain accepted without inferred optional capabilities; explicit unsupported Anthropic tuning and unverified `reasoningMode` are rejected.
+
+Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.
+
+Quickstart and wizard can set or clear Anthropic `workspaceId`; wizard exposes the full reasoning, thinking and output-limit controls listed above. See [authentication readiness](../operations/provider-channel-readiness.md) for credential handling and live checks.
+
 ## Related Docs
 
 - [Configuration File Guide](config-file-guide.md)
 - [OpenAI Provider](../providers/openai.md)
 - [Telegram Channel](../channels/telegram.md)
-
-## Modernization compatibility
-
-Reasoning options are filtered by the exact cataloged route/model. Astra has no `none` option; Terra/Sol/Luna support `none` through `max`. Sonnet 5 and Opus 5 support adaptive thinking and no manual budgets. Haiku 4.5 supports manual thinking and no effort. Budget-only settings on compatible older models retain their manual meaning. `Default` omits the parameter; it does not turn off provider-default thinking. Unknown models remain accepted without inferred optional capabilities; explicit unsupported Anthropic tuning is rejected.
-
-Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.
-
-Optional `reasoningMode = "standard" | "pro"` belongs only to openai and azure-foundry and requires a cataloged supporting model (underlyingModel for Azure). Codex rejects it. Default omission preserves provider standard mode. Anthropic `maxOutputTokens` is an optional integer 1..128000 including thinking and visible text; it must exceed a configured manual budget. Opus 5.5/Fable 5.1/Mythos 5.1 default to 16384 and allow only adaptive thinking. Effort defaults and route-specific accepted values are in [model compatibility](../providers/model-compatibility.md).
-
-Anthropic providers additionally accept optional `workspaceId` in Claude Console `wrkspc_...` form. It sends `anthropic-workspace-id` on requests and is required for multi-workspace keys, but may be omitted for workspace-scoped keys. Quickstart/wizard can set or clear it; it contains no credential. See [authentication readiness](../operations/provider-channel-readiness.md).

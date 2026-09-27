@@ -10,7 +10,7 @@ This route is Responses-only in the current release and expects a model deployme
 - Provider type in config: `azure-foundry`
 - Supports tools: yes
 - Supports inbound image understanding: yes
-- Optional tuning: `reasoningEffort` for supported Responses-model families
+- Optional tuning: `reasoningEffort` and independent `reasoningMode` for cataloged underlying models
 - Optional compatibility hint: `underlyingModel`
 
 ## Choose Azure Foundry When
@@ -116,13 +116,14 @@ Schema-backed provider fields:
 - `endpointFlavor = "openai-resource" | "foundry-resource"`
 - `underlyingModel` (optional)
 - `reasoningEffort` (optional, `none|low|medium|high|xhigh|max`, filtered by the exact model and route)
+- `reasoningMode` (optional, `standard|pro`, requires a cataloged supporting `underlyingModel`; wizard exposes this independently of effort)
 - `baseUrl` (optional advanced override)
 - `metadata` (optional)
 
 Important semantics:
 
 - `defaultModel` is the Azure deployment name sent in the outgoing `model` field
-- `underlyingModel` is optional and only used for reasoning gating plus operator-facing validation hints
+- `underlyingModel` is optional; it controls model-specific tuning, validation, sampling and replay scope without changing the deployment sent to Azure
 - this route uses Azure resource-style endpoints only
 - this route uses the Responses API only
 
@@ -145,7 +146,7 @@ What to look for:
 
 - Azure Foundry can inspect inbound image attachments on this route.
 - `reasoningEffort` is only sent on supported Responses-model families.
-- If the deployment name hides the actual model family, set `underlyingModel` so OpenAssist can warn more accurately about unsupported reasoning or non-Responses-capable models.
+- Set `underlyingModel` to the actual cataloged model to enable supported tuning, even if the deployment name resembles a model ID. Without a verified hint, effort is omitted and explicit `reasoningMode` fails validation.
 - If the deployment does not exist on the selected resource, chat fails as a deployment problem rather than as a generic auth problem.
 
 ## Common Problems
@@ -168,18 +169,11 @@ Deployment or model mismatch:
 - confirm the deployment exists on the selected Azure resource
 - confirm the endpoint flavor matches the real host
 - confirm the deployment supports the Responses API
-- add `underlyingModel` if the deployment name is opaque and validation warnings are too generic
+- set `underlyingModel` to the actual model when enabling model-specific tuning; never use a deployment name as capability evidence
 
 Start with:
 
 - [`docs/operations/common-troubleshooting.md`](../operations/common-troubleshooting.md)
-
-## Related Docs
-
-- [OpenAI Provider](openai.md)
-- [Configuration Reference](../configuration/config-reference.md)
-- [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
-- [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
 
 ## Modernization compatibility
 
@@ -188,3 +182,10 @@ A deployment name never establishes model capabilities, even if it resembles a m
 GPT-6 Astra/Sol/Luna hints are cataloged for this Responses route. Azure documents none through max for all three, including Astra; this differs from the OpenAI API catalog. Optional reasoningMode selects standard/pro, with Default omitting mode and Pro potentially increasing cost. Wizard exposes it only for known hints. No hint means no inferred effort; explicit mode without a verified hint fails validation. Region, deployment version and quota still determine availability. Claude on Microsoft Foundry uses a Messages endpoint and is not supported by this Azure OpenAI Responses adapter.
 
 Azure Identity 4.13.3 and OpenAI SDK 7.23.0 remain current stable. Entra scope stays `https://ai.azure.com/.default`. Responses replay is bounded and scoped to this provider, deployment and underlying-model hint, preserving opaque reasoning alongside tool results. See [authentication/harness readiness](../operations/provider-channel-readiness.md).
+
+## Related Docs
+
+- [OpenAI Provider](openai.md)
+- [Configuration Reference](../configuration/config-reference.md)
+- [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
+- [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)

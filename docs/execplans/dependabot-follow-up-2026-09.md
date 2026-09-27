@@ -8,6 +8,7 @@ After modernization PR #55 merged, Dependabot opened PRs #56–59. Keep provider
 
 ## Progress
 
+- [x] (2026-09-27 reconciliation) Final delivery PR #59 merged at 16:09:21 UTC as `7e42961`. PRs #56, #58, #59 and #60 are merged; #57 remains closed without merging. The sequence is complete.
 - [x] (2026-09-27) Inspected all four diffs, upstream release notes, and hosted failures; confirmed zero open dependency vulnerability alerts after #55 merged.
 - [x] (2026-09-27) Added the invalid-address probe guard, a regression test, and a major-update ignore rule for Node types.
 - [x] (2026-09-27) Closed #57 unmerged. Full local `pnpm verify:all` passed: 380 Vitest tests, 185 Node tests with 3 expected skips, all coverage gates, and zero findings in both audits.
@@ -60,6 +61,8 @@ No public interface changes. Preserve `runtime.bind_address_invalid` and `runtim
 
 ## Outcomes & Retrospective
 
+Final reconciliation: [PR #59](https://github.com/openassistuk/openassist/pull/59) merged as `7e42961759f185b632e38ca3a3674c4cde4d07fb`, completing the delivery described below. Main subsequently incorporated PR #61 as `0ac0921`. The following paragraph is the preserved pre-merge handoff, not a current merge blocker.
+
 The prerequisite #60 and dependency updates #56/#58 are merged; #57 is closed unmerged. #59 delivers the remaining checkout upgrade and this completion record. Its merge completes the four-PR sequence. GitHub's PR record is authoritative for that final merge event, rather than a prediction in this pre-merge document. No independent review blocker remains from #60. Node types remain on 24.x, and the invalid-address regression is fixed without increasing timeouts or lowering coverage.
 
 Final integrated verification is enforced on #59 after incorporating the SDK and setup-node upgrades: all three quality platforms, CodeQL, workflow lint, and the live macOS LaunchAgent check must pass; dispatch both Linux/macOS smoke workflows on its final head before merging. Retain the normal review and up-to-date-branch requirements. No rule bypasses, force pushes, live provider charges, or production operations were used.
@@ -71,3 +74,5 @@ Revision note (2026-09-27): Created from the approved four-PR management request
 Revision note (2026-09-27, hosted verification): Recorded successful checks for all four prepared PRs, closure of #57, and the exact independent-review blocker. This evidence-only follow-up does not change the verified implementation.
 
 Revision note (2026-09-27, sequential delivery): Superseded the resolved review blocker with actual merge commits and checks. #59 is the final delivery record and is verified against the already merged SDK and setup-node updates.
+
+Revision note (2026-09-27, documentation reconciliation): Confirmed #59's completed merge through GitHub and recorded the final sequence outcome without rewriting historical run evidence.

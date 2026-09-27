@@ -1,6 +1,6 @@
 # Provider, authentication and channel readiness
 
-Checked on 2026-09-27 for PR #61. Package versions were compared with npm registry tags and upstream release notes. This records implemented compatibility, not live account certification.
+Checked on 2026-09-27 for [PR #61](https://github.com/openassistuk/openassist/pull/61), merged as `0ac0921`. Package versions were compared with npm registry tags and upstream release notes during that implementation. This is a dated record of implemented compatibility, not live account certification or a claim that registry versions never change.
 
 ## Installed stable dependencies
 
@@ -39,3 +39,32 @@ Each replay record is capped at 1 MiB and 256 items. Malformed, oversized or dif
 Regression tests cover request payloads, persisted metadata after database reopen, duplicate tool-call suppression, replay bounds and scope mismatch, delayed-401 refresh reuse, Anthropic credential isolation/workspace headers and setup save/reload. Full verification includes unchanged coverage gates and both dependency audits. Hosted Linux/macOS/Windows quality, CodeQL and the live macOS LaunchAgent gate must pass on the final revision.
 
 Existing beta testing is useful evidence once the tested commit, OS, route/model, channel and result are recorded. On a designated test installation, check first reply, a permitted tool action, image/document handling, service restart with conversation continuity, token refresh where applicable, and channel reconnect/persisted pairing. API-key expiration cannot be repaired automatically. Real provider access, channel sessions and Node migration/rollback remain explicit release-certification work; mocked tests do not prove them.
+
+Current evidence separates those categories:
+
+| Check | Recorded result |
+| --- | --- |
+| PR #61 local full gate | Passed on `fef5bdf`: 406 Vitest tests, 188 Node passes and 3 platform skips; both coverage gates and zero-finding production/full audits |
+| PR #61 hosted checks | Passed on final head `310142d`: [three-platform CI](https://github.com/openassistuk/openassist/actions/runs/36336356460), [CodeQL](https://github.com/openassistuk/openassist/actions/runs/36336356445), [live macOS LaunchAgent](https://github.com/openassistuk/openassist/actions/runs/36336356428) |
+| Designated live provider/channel matrix | Pending recorded per-route/per-channel evidence; general beta success has been reported |
+| Existing-install Node 22 to Node 24 migration and rollback | Pending real-host evidence; automated runtime guards and temporary-home installation checks cover different scenarios |
+
+To turn a beta run into evidence, record the following in the active release ExecPlan or PR. Include only sanitized output; omit keys, tokens, env-file contents and private conversation data.
+
+```text
+Date and tested commit/build:
+Host OS/architecture and shell/service Node versions:
+Provider route, model (Azure deployment plus underlying-model hint), auth kind:
+Channel and scope (private/group/thread/DM as applicable):
+First reply: pass/fail/not exercised, with a brief observation
+Permitted tool action: pass/fail/not exercised; access profile used
+Image and text-document handling: pass/fail/not exercised
+Restart and conversation continuity: pass/fail/not exercised
+Auth refresh or key rotation: pass/fail/not applicable; method exercised
+Reconnect and persisted channel session: pass/fail/not exercised
+Sanitized evidence location and remaining failures:
+```
+
+Exercise each configured route/channel combination that the release claims to support; one successful combination does not certify the others. Use a designated test host and accounts, with authorization for calls that incur cost. Keep standard mode for normal replies; enable full access only for the approved test identity when exercising tools, then restore the original access settings. Do not invalidate production credentials to force a refresh.
+
+For Node migration, use a disposable copy of an existing Node 22 installation or an authorized test installation and follow [Node 24 runtime migration](upgrade-and-rollback.md#node-24-runtime-migration). Record the original build, backup location, old/new service executable paths and versions, upgrade/health result, state continuity and actual restoration of the old build/runtime/service definition. A documented procedure or upgrade dry-run alone is not rollback evidence. Fresh-install smoke, live migration and live provider checks should remain separate entries.

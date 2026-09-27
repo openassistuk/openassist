@@ -18,6 +18,8 @@ Optional OAuth hooks:
 - `startOAuthLogin(ctx: OAuthStartContext)`
 - `completeOAuthLogin(ctx: OAuthCompleteContext)`
 - `refreshOAuthAuth(auth: ProviderAuthHandle)`
+- `startOAuthDeviceCodeLogin(ctx: OAuthDeviceCodeStartContext)`
+- `completeOAuthDeviceCodeLogin(ctx: OAuthDeviceCodeCompleteContext)`
 
 ## Auth Expectations
 
@@ -54,6 +56,7 @@ Provider OAuth config requirements:
 - normalized message list
 - tool schemas
 - generation parameters
+- optional `maxTokens` (a request-level output limit; takes precedence over Anthropic's configured `maxOutputTokens`) and `temperature` (omitted by adapters when the model catalog forbids it)
 - metadata map
 
 Message semantics now include attachment-aware turns:
@@ -142,7 +145,7 @@ Provider-native reasoning controls:
 OpenAI adapter endpoint behavior:
 
 - Chat-completions remains supported for chat-capable OpenAI models.
-- GPT-5/codex-class models are routed through the OpenAI Responses API.
+- Cataloged Responses models, including GPT-6 and supported GPT-5/Codex entries, are routed through the OpenAI Responses API; custom names do not imply capabilities.
 - If chat-completions returns a model/endpoint mismatch (for example "not a chat model"), adapter falls back to Responses API automatically.
 - `reasoningEffort` is only attached on the supported Responses API path. It is never sent on chat-completions requests.
 
@@ -151,7 +154,7 @@ Azure Foundry adapter endpoint behavior:
 - The route targets Azure resource-style `/openai/v1/` endpoints only.
 - Requests are Responses API only; there is no chat-completions fallback on this route.
 - `defaultModel` is the Azure deployment name sent in the outgoing `model` field.
-- `underlyingModel` is optional operator metadata used for reasoning gating and validation hints when the deployment name does not reveal the model family.
+- `underlyingModel` is the optional catalog key for tuning, validation, sampling and replay scope. Deployment names never establish those capabilities, even if they resemble model IDs.
 - `authMode="entra"` uses `DefaultAzureCredential` plus `getBearerTokenProvider`; it does not use linked-account storage or `openassist auth start/complete`.
 - Error text must stay sanitized and distinguish auth problems from deployment or Responses-compatibility problems.
 
@@ -162,7 +165,7 @@ Codex adapter behavior:
 - The current public route keeps one linked account per provider instance.
 - The Codex route is account-login only in operator-facing setup and docs; it is not the generic OpenAI API-key route.
 - The Codex route blocks known retired model IDs with explicit replacement guidance; custom IDs remain accepted without inferred optional capabilities.
-- The Codex route now exposes the same public `reasoningEffort` control shape as the OpenAI API-key route, but it still omits the field automatically when the model is outside the built-in supported set.
+- Codex uses the same `reasoningEffort` field with route-specific choices. Its GPT-6 models exclude `none`; it has no `reasoningMode`. Unknown model IDs receive no inferred effort, while known incompatible explicit values fail validation.
 - Device code is the recommended Codex headless login path, while browser callback/manual paste remains a supported fallback.
 - New Codex login flows default to `http://localhost:1455/auth/callback` instead of the daemon callback route because that matches the supported public account-login redirect shape.
 - CLI and setup guidance must make the pasted callback path explicit on remote hosts: if the localhost page cannot load after browser approval, operators copy the full URL from the browser address bar and paste it back into OpenAssist.

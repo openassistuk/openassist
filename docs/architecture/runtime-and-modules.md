@@ -56,6 +56,12 @@ During channel config load, string settings in `env:VAR_NAME` form are resolved 
 
 Channel startup is application-wide non-blocking: one connector can be degraded or still connecting without preventing daemon startup, `/v1/health`, or other modules from running.
 
+## Provider capabilities and authentication
+
+`packages/config/src/provider-models.ts` supplies model capabilities to setup, validation, request mapping and status. Saved model IDs are preserved, Azure deployment names do not imply capabilities, and retired Codex IDs require an explicit configuration repair.
+
+Runtime OAuth retry compares the credential that failed with current persisted/in-memory auth before refreshing. Concurrent failures share refresh work, and a delayed failure reuses credentials already refreshed by another request. Explicit unlink or API-key fallback must not revive removed OAuth state. Retry stays bounded to one. Azure Entra token acquisition remains delegated to Azure Identity; Anthropic explicitly selects API-key or bearer auth and optionally sends its workspace identifier. See [provider/channel readiness](../operations/provider-channel-readiness.md).
+
 ## Clock Health Monitor
 
 Implementation: `packages/core-runtime/src/clock-health.ts`.

@@ -186,14 +186,6 @@ Use manual TOML edits when:
 - you need repeatable source-controlled examples
 - you are validating or templating operator configs
 
-## Related Docs
-
-- [Configuration Reference](config-reference.md)
-- [OpenAI Provider](../providers/openai.md)
-- [Azure Foundry Provider](../providers/azure-foundry.md)
-- [Telegram Channel](../channels/telegram.md)
-- [Config Rollout and Rollback](../operations/config-rollout-and-rollback.md)
-
 ## Modernization compatibility
 
 Fresh OpenAI/Codex setup recommends GPT-6 Sol and Anthropic recommends Sonnet 5. Existing TOML model IDs are preserved. Use wizard for an explicit model change; retired Codex IDs block readiness. Optional Anthropic `thinkingMode` and `thinkingEffort` complement legacy manual budgets; unsupported combinations fail validation.
@@ -203,3 +195,11 @@ Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `th
 Use `openassist setup wizard` for API/Azure reasoningMode and new Claude maxOutputTokens. Pro mode is an explicit cost/latency choice. Saved configurations are never automatically moved to a new model; quickstart preserves existing mode/output limits and validation rejects incompatible combinations.
 
 For an Anthropic key covering multiple workspaces, add `workspaceId = "wrkspc_..."` to that provider table, using the ID from Claude Console. Quickstart/wizard also supports this field. Keep the API key in the existing secret environment reference; workspaceId is only the routing identifier.
+
+## Related Docs
+
+- [Configuration Reference](config-reference.md)
+- [OpenAI Provider](../providers/openai.md)
+- [Azure Foundry Provider](../providers/azure-foundry.md)
+- [Telegram Channel](../channels/telegram.md)
+- [Config Rollout and Rollback](../operations/config-rollout-and-rollback.md)

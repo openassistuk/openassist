@@ -218,7 +218,7 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 ## Managed release lifecycle
 
 - [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
-- [v0.2.0-rc.1 release notes](releases/v0.2.0-rc.1.md): first packaged preview, installation, migration and testing limits (publication pending).
+- [v0.2.0-rc.1 release notes](releases/v0.2.0-rc.1.md): the published signed preview, installation, migration and testing limits. Public installation passed on all four supported targets; select `--channel preview` explicitly because no stable release is published yet.
 - [Developer testing](operations/developer-testing.md): main/branch/PR/local isolated tests and explicit primary-install switching.
 - [Uninstall](operations/uninstall.md): owned application removal, retained state and explicit purge.
 

@@ -81,37 +81,21 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-**Current availability:** the packaged-release implementation is merged, but no signed release has been published yet. To install today, use the explicit source command below. The unqualified installer deliberately stops when no verified release is available.
+**Current availability:** [v0.2.0-rc.1](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1) is a published, signed preview. Public installation has passed on Linux and macOS, each on x64 and arm64. Select the preview explicitly; no stable release is published yet, so the unqualified installer still stops.
 
-### Install today from main
-
-Run this in a terminal on Linux or macOS:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main
-```
-
-This downloads the source into `~/openassist`, builds it, and starts guided setup when run from an interactive terminal. Source builds use Git, Node `>=24.21.0 <25` and pnpm `12.5.1`; bootstrap checks for these and can install missing prerequisites. It may request elevated permission for that step. Use your normal login account unless you deliberately want a system-level Linux service.
-
-### Install a packaged release once published
+### Install the packaged preview
 
 Packaged releases contain OpenAssist, its dependencies and a private Node runtime. You do **not** need to install Node, Git or pnpm, or obtain a signing key: verification is automatic. The installer itself needs Bash, curl, OpenSSL, gzip and standard Unix utilities.
 
 Supported packaged targets are Linux x64/arm64 with glibc 2.28+ and kernel 4.18+, and macOS 13.5+ on Intel or Apple Silicon. Alpine/musl and Windows operator installations are not supported. See the [Linux](docs/operations/install-linux.md) and [macOS](docs/operations/install-macos.md) guides for platform details.
 
-Latest stable release, after the first stable publication:
-
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
-```
-
-The first release will be tested as a preview. Once a preview appears on the [Releases page](https://github.com/openassistuk/openassist/releases), explicitly select it:
+Run this in a terminal on Linux or macOS, using your normal login account unless you deliberately want a system-level Linux service:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview
 ```
 
-For an exact published version, use `--version <version>` without the leading `v`; that installation stays pinned until you explicitly change its track. A preview does not make the default stable installer available.
+To pin this release, replace `--channel preview` with `--version 0.2.0-rc.1`. Exact-version installations stay pinned until you explicitly change their track. Preview releases are for testing; see the [release notes](docs/releases/v0.2.0-rc.1.md) for limits and migration guidance.
 
 For unattended packaged installation without setup prompts or service installation:
 
@@ -120,6 +104,22 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 ```
 
 These commands are for a fresh installation. If OpenAssist is already installed, use its update command instead of rerunning the packaged installer; see [Updates and switching installation method](#updates-and-switching-installation-method).
+
+After the first stable publication, this command will install the latest stable release:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
+```
+
+### Build from main instead
+
+For source development or testing the latest main revision:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main
+```
+
+This downloads source into `~/openassist`, builds it, and starts guided setup on an interactive terminal. Source builds use Git, Node `>=24.21.0 <25` and pnpm `12.5.1`; bootstrap checks for these and can install missing prerequisites, which may require elevated permission. For branches, PRs and isolated local changes, see [developer testing](docs/operations/developer-testing.md).
 
 ### Finish setup and send a message
 
@@ -284,7 +284,7 @@ Default install path is `Standard mode (recommended)`.
 - `macOS Live Launchd` runs on pull requests to `main` and manual dispatch. Its `launchd-live-smoke (macos-latest)` job is the required hosted live LaunchAgent gate on `main`.
 - `Service Smoke` runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`) for dry-run service checks, source upgrade routing and portable release smoke tests.
 - `Lifecycle E2E Smoke` runs on manual dispatch and schedule (`Tue`/`Sat` at `07:00 UTC`) for source bootstrap/home-state checks, doctor/update output, portable release smoke and live Linux update/rollback/uninstall.
-- `Release Artifacts` runs on PRs and manual dispatch for all four supported native targets, live Linux lifecycle checks and signing tests using ephemeral keys. Only explicit publication dispatch can access the protected production signing key. After publication, a separate four-target check exercises the public installer; PRs skip publishing and those dependent public-install jobs.
+- `Release Artifacts` runs on PRs and manual dispatch for all four supported native targets, live Linux lifecycle checks and signing tests using ephemeral keys. Only explicit publication dispatch can access the protected production signing key. After publication, a separate four-target check exercises the public installer; PRs skip publishing and those dependent public-install jobs. Maintainers can rerun public installation with `verify_published=true` without rebuilding or republishing assets.
 - the two smoke workflows are supplemental manual or scheduled signals, not normal per-push or per-PR gates
 
 ## Local Verification
@@ -318,7 +318,7 @@ Automated regression and hosted workflow results establish development readiness
 
 ## Packaged releases and developer testing
 
-See [Install and First Reply](#install-and-first-reply) for current availability and copy-and-paste installation commands. The first packaged preview is `v0.2.0-rc.1`; its [release notes](docs/releases/v0.2.0-rc.1.md) describe the candidate and testing limits. It is not available until published on GitHub Releases. During preparation, explicitly use `--source --ref main` to install development code.
+See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.0-rc.1 preview](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1) is published and its public installer has passed on all four supported targets. Its [release notes](docs/releases/v0.2.0-rc.1.md) describe testing limits. Use `--channel preview` for packaged installation or `--source --ref main` for development code; stable publication remains a later step.
 
 ```bash
 openassist update check

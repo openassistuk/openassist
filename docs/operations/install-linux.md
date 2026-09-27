@@ -1,16 +1,16 @@
 # Install on Linux
 
-**Release availability:** the first signed preview is being prepared. For installation today, use `--source --ref main`; once a preview is published, select `--channel preview`. The default installer needs a published stable release. Full commands are in the [README](../../README.md#install-and-first-reply). Signing keys are managed by maintainers and are never an operator prerequisite.
+**Release availability:** the signed [v0.2.0-rc.1 preview](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1) is published and public installation passed on all four supported targets. Select `--channel preview` or pin `--version 0.2.0-rc.1`. No stable release is published yet, so the unqualified installer still stops. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys.
 
 Packaged bootstrap adds a marked `~/.local/bin` PATH block to Bash's `.bashrc` and `.profile`, or Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`). Open a new shell after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved; other shells receive `.profile` guidance. Uninstall removes only an unchanged block whose ownership was recorded.
 
-Normal Linux installation downloads a signed release with private Node into `~/.local/share/openassist/install`. Git/pnpm/system-Node prerequisites and package-manager remediation below apply only to explicit source bootstrap (`--source --ref main`, `--ref`, or `--pr`). Release bootstrap requires curl, gzip and OpenSSL. Until signing/publication is provisioned, it fails closed. See [release maintenance](release-maintenance.md) and [developer testing](developer-testing.md).
+Normal Linux installation downloads a signed release with private Node into `~/.local/share/openassist/install`. Git/pnpm/system-Node prerequisites and package-manager remediation below apply only to explicit source bootstrap (`--source --ref main`, `--ref`, or `--pr`). Release bootstrap requires curl, gzip and OpenSSL. Unavailable releases and failed verification stop installation. See [release maintenance](release-maintenance.md) and [developer testing](developer-testing.md).
 
 This page covers Linux-specific installation details. For the end-to-end operator flow, start with `docs/operations/quickstart-linux-macos.md` and keep `docs/operations/common-troubleshooting.md` nearby for repair commands.
 
 ## Platform Behavior
 
-Linux is a first-class OpenAssist operator path.
+Linux is a first-class OpenAssist operator path. Packaged releases support x64 and arm64 with glibc 2.28+ and kernel 4.18+. Alpine/musl is unsupported.
 
 Explicit source bootstrap can install missing development prerequisites automatically unless you disable it:
 
@@ -27,19 +27,19 @@ Common Linux notes:
 
 ## Install Commands
 
-GitHub install:
+Install the packaged preview:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview
 ```
 
 Non-interactive example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --non-interactive --skip-service
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview --non-interactive --skip-service
 ```
 
-Local checkout:
+Source build from a local checkout:
 
 ```bash
 bash scripts/install/bootstrap.sh --source --ref main

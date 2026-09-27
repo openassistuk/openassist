@@ -649,6 +649,9 @@ describe("docs truth", () => {
     assert.match(workflow, /--notes-file "docs\/releases\/\$RELEASE_TAG\.md"/);
     assert.match(workflow, /public-install:\s+needs: publish/);
     assert.match(workflow, /public-install-smoke\.sh/);
+    assert.match(workflow, /if: github.event_name != 'workflow_dispatch' \|\| !inputs.verify_published/);
+    assert.match(workflow, /inputs.publish && !inputs.verify_published/);
+    assert.match(workflow, /needs.publish.result == 'success' \|\| \(github.event_name == 'workflow_dispatch' && inputs.verify_published/);
     assert.match(readText("docs/testing/test-matrix.md"), /post-publication `public-install`/);
     const [buildJobs, publication] = workflow.split(/\r?\n  publish:/);
     assert(!buildJobs.includes("secrets.OPENASSIST_RELEASE_SIGNING_KEY"));

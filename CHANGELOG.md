@@ -6,6 +6,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+- Publish the signed `v0.2.0-rc.1` preview on 2026-09-27 and verify public channel/exact-version installation plus data-preserving uninstall on Linux/macOS x64/arm64. Put the working preview command first in README, quickstart and platform guides; keep source development explicit and state that stable publication is still pending.
+
+- Add release-workflow verification of already published artifacts without rebuilding, signing or uploading them. Public-install failures now identify the stage and report bounded unauthenticated endpoint diagnostics; signature verification remains mandatory.
+
 - Clarify README installation with an executable source path while the first signed release is pending, separate preview/stable commands, packaged prerequisites, setup and health checks, existing-install migration and application/data locations. Release signing is a maintainer responsibility, not an operator prerequisite.
 
 - Prepare `v0.2.0-rc.1`: align root/CLI/daemon versions, pin the production RSA-4096 public key, add reviewed preview release notes and use per-tag notes in the publication workflow. Source CLI/daemon version output follows the workspace version when no immutable build metadata exists. Protected signing-secret configuration, publication approval and public-installer validation remain separate rollout steps; no private key is committed.

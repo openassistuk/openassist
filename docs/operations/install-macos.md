@@ -196,6 +196,8 @@ openassist upgrade --install-dir "$HOME/openassist" --ref main
 
 Shared installed-command lifecycle guidance stays aligned across Linux and macOS. Linux-only `systemd` notes remain explicitly Linux-specific.
 
+Setup readiness rejects invalid bind addresses before network probing. If this blocks setup or repair, correct the address using the [invalid-bind-address guidance](common-troubleshooting.md#invalid-bind-address) and retry; valid addresses still receive normal port checks.
+
 ## Node 24 runtime migration
 
 OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.

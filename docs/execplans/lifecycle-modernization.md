@@ -9,7 +9,7 @@ Operators install verified prebuilt releases with a private Node runtime, prepar
 ## Progress
 
 - [x] (2026-09-27) Security follow-up implementation and local verification: shared validation, request-boundary regressions, suppression removal and docs are complete; 43 focused tests, CLI typecheck, diff review and full `pnpm verify:all` pass with zero dependency findings.
-- [ ] (2026-09-27) Complete hosted verification and record the reviewed disposition of PR #63 alert #40 and its thread.
+- [x] (2026-09-27) Implementation commit 1e2ab77b8f956f8f384798d5aa208d71c6d2bd78 passes all hosted gates. Alert #40 is explicitly dismissed as a reviewed false positive and its thread is resolved; API checks report zero open PR alerts and zero unresolved threads.
 
 - [x] (2026-09-27) Inspected installer, upgrade, services, paths, storage, health, diagnostics, workflows and docs-truth tests; user approved the complete plan and both developer workflows.
 - [x] (2026-09-27 19:07Z) Added installation/build contracts, versioned records, isolated state paths, database admission checks and structured build/instance health.
@@ -47,13 +47,17 @@ The existing upgrade changes the active checkout and rebuilds on rollback. The d
 
 ## Outcomes & Retrospective
 
-Security follow-up passes local verification; hosted verification and alert disposition remain pending. Node coverage is 81.44% lines/statements, 70.98% branches and 89.95% functions. The earlier green-check evidence did not establish zero open alerts; it is superseded for alert closure by the explicit API reconciliation recorded below once verification completes.
+Security follow-up is complete at implementation commit 1e2ab77b8f956f8f384798d5aa208d71c6d2bd78. Node coverage is 81.44% lines/statements, 70.98% branches and 89.95% functions; Vitest coverage is 83.30% lines, 82.36% statements, 72.31% branches and 85.20% functions. All 451 Vitest tests and the Node suites pass, with zero findings in either dependency audit. The malformed-ref regression fails before the patch and passes afterwards without calling HTTP or Git; valid source and release lookups still pass. The earlier green-check evidence did not establish zero open alerts; the API reconciliation below now records their actual disposition.
 
 Implementation, documentation, tests, native packaging and recovery validation are complete in PR #63 on `codex/lifecycle-modernization`. The complete hosted matrix passed at f0f5c81, including actual immutable source preparation and return to a packaged release with live systemd. Final local Node coverage was 81.43% lines/statements, 70.98% branches and 89.93% functions. Vitest measured 83.24% lines, 82.29% statements, 72.14% branches and 85.18% functions. Both dependency audit reports contained zero findings. No release has been published and no live operator installation has been changed.
 
 Publication readiness is separate from implementation readiness. The production trust anchor remains deliberately unprovisioned. Maintainers must commit the RSA public key, configure the protected signing secret/environment and publishing controls, prepare matching version/tag metadata, and validate a preview before stable publication. Until then, normal release bootstrap fails closed and explicit source installation remains available. Windows results certify development/CI behavior only.
 
 ## Final Merge and Check Reconciliation
+
+Security follow-up supersedes the earlier implementation reconciliation below. The exact reviewed code commit is 1e2ab77b8f956f8f384798d5aa208d71c6d2bd78. `pnpm verify:all`, CLI typecheck, 43 focused lifecycle tests and diff review pass locally. [CI 36350135733](https://github.com/openassistuk/openassist/actions/runs/36350135733) passes Linux/macOS/Windows quality and workflow lint. [CodeQL 36350135755](https://github.com/openassistuk/openassist/actions/runs/36350135755), [live LaunchAgent 36350135736](https://github.com/openassistuk/openassist/actions/runs/36350135736), and [four-target artifacts/signing 36350135748](https://github.com/openassistuk/openassist/actions/runs/36350135748) pass. Publication is intentionally skipped. This evidence records the code commit; the following reconciliation edit is documentation only.
+
+CodeQL analysis 1848105659 (PR merge commit 30bf5546fca0e9e4d9820aa3fc9a002aca75dd34) reports only the intentional installation-record selector flow to GitHub. [Alert #40](https://github.com/openassistuk/openassist/security/code-scanning/40) was dismissed with reason `false positive`, with the reviewed commit and tests in the dismissal record; its review thread is resolved. Alerts 29–39 remain fixed. Explicit API reads after dismissal report zero open alerts on `refs/pull/63/merge` and zero unresolved PR review threads. This is an explicit disposition, not a claim that the generic static warning was code-remediated. No scanner rule or threshold was disabled. Release signing-key provisioning and publication remain the separate maintainer prerequisites described above.
 
 The complete code/docs diff was reviewed against `main`; `git diff --check origin/main` passed and no unrelated edits, embedded credentials or production private keys were found. The exact final implementation reviewed and tested is f0f5c8199cce184bf2c14f457878251edab82956. This reconciliation is a documentation-only follow-up; the PR has not been merged.
 
@@ -105,4 +109,4 @@ Revision 2026-09-27 20:53Z: Reviewed the complete implementation/docs diff and r
 
 Revision 2026-09-27 20:57Z: The final full-suite rerun exposed a collision between a simulated lifecycle test's fixed port 3344 and another suite. The production exclusive-state check correctly refused activation. Lifecycle fixtures now allocate separate ephemeral ports; all 448 Vitest tests pass together. No product safety check or coverage threshold was relaxed.
 
-Revision 2026-09-27 security follow-up: Reopened the verification record after discovering alert #40 remained open. Added regression coverage and shared source-selector validation, and corrected the interpretation of the historical suppression/green CodeQL evidence. All local checks pass; hosted verification and alert disposition are pending.
+Revision 2026-09-27 security follow-up: Reopened the verification record after discovering alert #40 remained open. Added regression coverage and shared source-selector validation, and corrected the interpretation of the historical suppression/green CodeQL evidence. All local/hosted checks pass at 1e2ab77. Recorded the false-positive disposition separately from the fixed validation gap and verified zero remaining open PR alerts or review threads.

@@ -1,5 +1,7 @@
 # Common Troubleshooting
 
+For an unavailable update check, retry `openassist update check` after checking GitHub/network availability. Discovery uses bounded public catalogues and local target selection; a missing entry, ambiguous ref, catalogue limit or blocked redirect never means the app is current and never selects a different target. Use a fully qualified source ref for branch/tag ambiguity. See [upgrade and rollback](upgrade-and-rollback.md) for the exact limits and signed-preparation boundary; do not disable destination or signature checks to bypass a failure.
+
 For packaged installation failures, verify release availability and production signing provisioning; never bypass signatures. Use `openassist update --dry-run`, `openassist update recover --dry-run`, and `openassist rollback --dry-run` before mutation. Unverified activation requires expected-build health before completion. See [release maintenance](release-maintenance.md), [upgrade/recovery](upgrade-and-rollback.md), and [uninstall](uninstall.md).
 
 Use this page when install, setup, service, or upgrade behavior feels unclear and you want one place to start.

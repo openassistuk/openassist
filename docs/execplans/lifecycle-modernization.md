@@ -8,6 +8,9 @@ Operators install verified prebuilt releases with a private Node runtime, prepar
 
 ## Progress
 
+- [x] (2026-09-27) Replace record-derived update URLs with fixed public discovery, constrain downloader destinations and redirects, preserve release/source tracks, and add request-boundary tests and operator/contributor documentation. Full local `pnpm verify:all` passes; unauthenticated built-client reads resolve main and PR #63 through the fixed refs endpoint.
+- [ ] (2026-09-27) Reopen alert #40, run full local and hosted verification, and require an actual fixed analysis result without a dismissal or suppression.
+
 - [x] (2026-09-27) Security follow-up implementation and local verification: shared validation, request-boundary regressions, suppression removal and docs are complete; 43 focused tests, CLI typecheck, diff review and full `pnpm verify:all` pass with zero dependency findings.
 - [x] (2026-09-27) Implementation commit 1e2ab77b8f956f8f384798d5aa208d71c6d2bd78 passes all hosted gates. Alert #40 is explicitly dismissed as a reviewed false positive and its thread is resolved; API checks report zero open PR alerts and zero unresolved threads.
 
@@ -22,6 +25,8 @@ Operators install verified prebuilt releases with a private Node runtime, prepar
 - [x] (2026-09-27 21:04Z) Final implementation f0f5c8199cce184bf2c14f457878251edab82956 passed full local verification and every hosted PR gate. The final reconciliation below records exact runs, coverage and publication prerequisites.
 
 ## Surprises & Discoveries
+
+2026-09-27 catalogue redesign: GitHub's documented `/git/matching-refs/` endpoint returns all reference namespaces without a selector; a live read returned 65 refs, including main and PR heads. This avoids adding a service, Git subprocess or bespoke protocol parser for discovery. The existing downloader only enforced HTTPS, so redirect destinations also need a shared enforcement boundary. Annotated tags require commit resolution from GitHub's paginated tags catalogue, rather than confusing a tag-object hash with a commit.
 
 2026-09-27 security follow-up: GitHub's latest analysis still contained alert #40 and its unresolved thread despite a passing CodeQL check and the inline lgtm comment. The SARIF traces installation-record version/ref fields to GitHub URLs, not credentials/config bodies. A focused regression reproduced a separate missing validation step: malformed persisted refs were sent to the source lookup endpoint. The new shared validator rejects them before HTTP or Git activity. Other PR findings (29–39) were already fixed.
 
@@ -39,6 +44,8 @@ The existing upgrade changes the active checkout and rebuilds on rollback. The d
 
 ## Decision Log
 
+2026-09-27 catalogue redesign supersedes the dismissal approach: separate bounded HTTPS transport (`lifecycle-download.ts`), public metadata discovery/local target selection (`update-discovery.ts`), and signed preparation (`release.ts`). Discovery never interpolates a local version/ref into a request. Use a fixed latest-stable endpoint, bounded release pages for previews/pins, the fixed complete refs endpoint for source, and bounded tag pages when annotated tags need peeling. Already-installed immutable commit tracks are compared locally. Only explicit preparation downloads the selected signed manifest/application. Notices are advisory public metadata; compatibility remains checked during signed preparation. Enforce exact GitHub repository routes, approved artifact CDN hosts, HTTPS, no URL credentials/nondefault ports/fragments, and per-hop redirect checks. No new dependencies, service, scanner customization or silent target fallback.
+
 2026-09-27 security follow-up: Reuse one source-ref validator for CLI selectors, recorded tracks, source preparation and update notices. Preserve the supported selector character set, reject newline/query/URL payloads without echoing input, and retain the existing unavailable-notice behavior. Remove the ineffective inline suppression. Treat the remaining intentional public-selector data flow as a reviewed false positive only after request-boundary tests and hosted analysis, rather than claiming its disappearance from a green check.
 
 2026-09-27: Use prebuilt Linux glibc/macOS x64/arm64 artifacts with Node 24.21.0 and pnpm 12.5.1 for builds. Keep Windows quality coverage but do not claim Windows lifecycle parity. Use RSA/SHA-256 signed manifests with pinned release keys and fail closed until keys/releases are provisioned. Never generate a production private key in the repository.
@@ -46,6 +53,10 @@ The existing upgrade changes the active checkout and rebuilds on rollback. The d
 2026-09-27: Preserve normal config/data paths and introduce a separate managed application root. Source selectors remain explicit and backwards compatible. Isolated state is not a sandbox for untrusted code. Never automatically restore databases after a failed upgrade.
 
 ## Outcomes & Retrospective
+
+The user requested removal of the underlying file-to-network flow after the initial reviewed dismissal. Catalogue redesign is now in progress; historical dismissal evidence below does not establish completion of this new work.
+
+The implementation passes 57 focused Vitest tests, seven Node lifecycle integration tests and full local `pnpm verify:all`, including unchanged coverage gates and zero findings in both dependency audits. Node coverage is 81.64% lines/statements, 71.99% branches and 90.12% functions. New discovery adds no runtime dependency and works without Git or a signing key for advisory notices. Actual release preparation continues requiring the signed manifest. Live unauthenticated built-client reads resolve main and PR #63 through the fixed refs endpoint. Hosted scanner evidence remains pending; alert #40 and its thread have been reopened, with the dismissal removed.
 
 Security follow-up is complete at implementation commit 1e2ab77b8f956f8f384798d5aa208d71c6d2bd78. Node coverage is 81.44% lines/statements, 70.98% branches and 89.95% functions; Vitest coverage is 83.30% lines, 82.36% statements, 72.31% branches and 85.20% functions. All 451 Vitest tests and the Node suites pass, with zero findings in either dependency audit. The malformed-ref regression fails before the patch and passes afterwards without calling HTTP or Git; valid source and release lookups still pass. The earlier green-check evidence did not establish zero open alerts; the API reconciliation below now records their actual disposition.
 
@@ -72,6 +83,8 @@ The supplemental [Service Smoke run 36346102535](https://github.com/openassistuk
 `apps/openassist-cli/src/commands` owns commands; its `lib` directory owns lifecycle orchestration. `packages/config/src/operator-paths.ts` centralizes state locations. `packages/core-types` holds contracts only. `packages/storage-sqlite` owns database compatibility. `apps/openassistd` serves health and passes install context to runtime self-knowledge. `scripts/install/bootstrap.sh` currently implements source bootstrap. Services are generated by the CLI service-manager library. Tests use Vitest for library behavior and Node integration tests for command paths, shell contracts, and docs truth.
 
 ## Plan of Work
+
+For the catalogue redesign, first extract the existing bounded downloader into `apps/openassist-cli/src/lib/lifecycle-download.ts`, keep its re-export from `release.ts` for compatibility, and enforce destinations on the initial request and every redirect. Add `update-discovery.ts` for fixed GitHub release/ref/tag catalogue fetching with local selection, a shared ten-second discovery deadline, ten pages of 100 release/tag entries with at most 2 MiB per page, and a complete refs response limited to 4 MiB/10,000 entries. Missing, malformed, ambiguous or truncated results must not imply a healthy/up-to-date installation. Resolve only metadata received from GitHub into later download paths; saved selectors remain local comparison inputs. Preserve the latest-stable definition and exact pins. Use the existing installed commit to identify pinned source revisions; resolve mutable branch/PR/lightweight/annotated-tag tracks from public catalogues. Test request URLs, privacy, bounds, missing/old selections, and redirect escapes, update lifecycle/security/architecture/test docs, then reopen and verify alert #40 through hosted CodeQL.
 
 First add shared build/release/installation contracts, application-state-root paths, strict versioned install records, build identity and storage compatibility. Build portable CLI and daemon deployments with production dependencies, runtime assets and private Node, then sign manifests only in protected release jobs. Verify portable startup independently of checkout and package caches.
 

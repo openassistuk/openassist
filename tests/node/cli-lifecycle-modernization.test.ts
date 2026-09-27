@@ -16,8 +16,60 @@ import { checkForUpdate, setUpdateNotifications } from "../../apps/openassist-cl
 import { uninstallApplication } from "../../apps/openassist-cli/src/lib/lifecycle-uninstall.js";
 import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, writeDefaultConfig, loadConfig } from "../../packages/config/dist/index.js";
 import { randomUUID } from "node:crypto";
+import { discoverRelease, discoverSource } from "../../apps/openassist-cli/src/lib/update-discovery.js";
 
 describe("managed lifecycle command contracts", () => {
+  it("checks recorded tracks through public catalogues without sending saved selectors", async () => {
+    const root=fs.mkdtempSync(path.join(os.tmpdir(),"oa-catalogue-"));
+    const previousRoot=process.env.OPENASSIST_STATE_ROOT;
+    process.env.OPENASSIST_STATE_ROOT=root;
+    const fetchOriginal=globalThis.fetch;
+    const requests:string[]=[];
+    const commit="a".repeat(40);const available="b".repeat(40);
+    const api="https://api.github.com/repos/openassistuk/openassist";
+    let metadata:unknown={tag_name:"v2.0.0",draft:false,prerelease:false};
+    try {
+      globalThis.fetch=async input=>{requests.push(String(input));return new Response(JSON.stringify(metadata));};
+      const active={method:"release" as const,path:root,nodePath:process.execPath,verified:true,channel:"stable" as const,build:{id:"active",version:"1.0.0",commit,nodeVersion:"24.21.0",configVersion:1,databaseVersion:1}};
+      saveInstallState({installDir:root,active});
+      assert.equal((await checkForUpdate(true)).available,"2.0.0");
+      metadata=[{tag_name:"v1.0.0",draft:false,prerelease:false}];
+      saveInstallState({active:{...active,pinnedVersion:"1.0.0"}});
+      assert.equal((await checkForUpdate(true)).updateAvailable,false);
+      assert.deepEqual(requests,[`${api}/releases/latest`,`${api}/releases?per_page=100&page=1`]);
+      metadata=[{tag_name:"v2.0.0-beta",draft:false,prerelease:true}];
+      assert.equal((await discoverRelease({channel:"preview"})).version,"2.0.0-beta");
+      metadata=Array.from({length:100},()=>({tag_name:"v2.0.0",draft:false,prerelease:false}));
+      await assert.rejects(discoverRelease({version:"9.0.0"}),/catalogue limit/);
+      metadata=[];await assert.rejects(discoverRelease({version:"9.0.0"}),/No matching/);
+      metadata={};await assert.rejects(discoverRelease({version:"9.0.0"}),/Invalid/);
+      metadata=[null];await assert.rejects(discoverRelease({version:"9.0.0"}),/Invalid/);
+      await assert.rejects(discoverRelease({version:"bad"}),/Invalid/);
+      await assert.rejects(discoverRelease({channel:"bad" as never}),/Invalid/);
+      metadata=[{ref:"refs/heads/private-selector",object:{type:"commit",sha:available}}];requests.length=0;
+      saveInstallState({active:{...active,method:"source",ref:"private-selector"}});
+      assert.equal((await checkForUpdate(true)).available,available);
+      assert.deepEqual(requests,[`${api}/git/matching-refs/`]);
+      const before=requests.length;
+      saveInstallState({active:{...active,method:"source",ref:commit}});
+      assert.equal((await checkForUpdate(true)).pinned,true);
+      assert.equal(requests.length,before);
+      saveInstallState({active:{...active,method:"source",ref:"missing"}});
+      assert.equal((await checkForUpdate(true)).status,"unavailable");
+      metadata=[];assert.equal((await discoverSource(commit.slice(0,8),commit)).pinned,true);
+      for(const value of [{},[null],[{ref:"refs/heads/main",object:{type:"commit",sha:"bad"}}],[{ref:"refs/heads/main",object:{type:"blob",sha:commit}}]]){
+        metadata=value;await assert.rejects(discoverSource("main",commit));
+      }
+      globalThis.fetch=async input=>new Response(JSON.stringify(String(input).includes("matching-refs") ? [{ref:"refs/tags/v1",object:{type:"tag",sha:available}}] : [{name:"v1",commit:{sha:commit}}]));
+      assert.equal((await discoverSource("v1",commit)).commit,commit);
+      globalThis.fetch=async input=>new Response(JSON.stringify(String(input).includes("matching-refs") ? [{ref:"refs/heads/main",object:{type:"commit",sha:available}}] : {default_branch:"main"}));
+      assert.equal((await discoverSource("HEAD",commit)).commit,available);
+    } finally {
+      globalThis.fetch=fetchOriginal;
+      if(previousRoot===undefined)delete process.env.OPENASSIST_STATE_ROOT;else process.env.OPENASSIST_STATE_ROOT=previousRoot;
+      fs.rmSync(root,{recursive:true,force:true});
+    }
+  });
   it("keeps developer previews, cleanup and lifecycle errors machine-readable without touching primary state", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "oa-cli-isolated-"));
     const env = {...process.env, OPENASSIST_STATE_ROOT: root, HOME:root, USERPROFILE:root};
@@ -60,12 +112,12 @@ describe("managed lifecycle command contracts", () => {
     const fetchOriginal=globalThis.fetch;
     try {
       globalThis.fetch=async()=>new Response("ok");
-      assert.equal((await download("https://example.test/release",5)).toString(),"ok");
+      assert.equal((await download("https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.json",5)).toString(),"ok");
       await assert.rejects(download("http://example.test/release",5),/HTTPS/);
       globalThis.fetch=async()=>new Response("too large");
-      await assert.rejects(download("https://example.test/release",5),/size limit/);
+      await assert.rejects(download("https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.json",5),/size limit/);
       globalThis.fetch=async()=>new Response("no",{status:404});
-      await assert.rejects(download("https://example.test/release",5),/404/);
+      await assert.rejects(download("https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.json",5),/404/);
     } finally {globalThis.fetch=fetchOriginal;}
   });
 

@@ -6,8 +6,11 @@ import { gunzipSync } from "node:zlib";
 import * as tar from "tar";
 import { fileURLToPath } from "node:url";
 import type { BuildIdentity, ReleaseManifest, ReleaseArtifact } from "@openassist/core-types";
+import { download } from "./lifecycle-download.js";
+import { discoverRelease } from "./update-discovery.js";
 
-export const RELEASE_REPOSITORY = "https://api.github.com/repos/openassistuk/openassist/releases";
+export { download } from "./lifecycle-download.js";
+
 export const MAX_ARCHIVE_BYTES = 512 * 1024 * 1024;
 export const MAX_UNPACKED_BYTES = 1024 * 1024 * 1024;
 export const sha256 = (data: Buffer | string): string => createHash("sha256").update(data).digest("hex");
@@ -75,43 +78,12 @@ export function platformArtifact(manifest: ReleaseManifest): ReleaseArtifact {
   return artifact;
 }
 
-export async function download(url: string, limit: number, timeoutMs = 30_000): Promise<Buffer> {
-  let parsed = new URL(url);
-  const signal=AbortSignal.timeout(timeoutMs);
-  let response: Response;
-  for(let redirects=0;;redirects++) {
-    if (parsed.protocol !== "https:") throw new Error("Release downloads require HTTPS.");
-    // Callers send validated public version/ref selectors to GitHub. No credentials,
-    // configuration contents or request bodies are included in these update requests.
-    response = await fetch(parsed, {redirect:"manual",signal,headers:{accept:"application/octet-stream","user-agent":"OpenAssist"}});
-    if(![301,302,303,307,308].includes(response.status)) break;
-    const location=response.headers.get("location");
-    await response.body?.cancel();
-    if(!location || redirects>=5) throw new Error("Release redirect limit exceeded or redirect location missing.");
-    parsed=new URL(location,parsed);
-  }
-  if (!response.ok || !response.body) throw new Error(`Release download failed (HTTP ${response.status}). No installation was changed.`);
-  if (Number(response.headers.get("content-length")) > limit) throw new Error("Release download exceeds its size limit.");
-  const chunks: Buffer[] = [];
-  let bytes = 0;
-  for await (const chunk of response.body) {
-    bytes += chunk.length;
-    if (bytes > limit) throw new Error("Release download exceeds its size limit.");
-    chunks.push(Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
-}
-
 export async function resolveRelease(options: {channel?: "stable" | "preview"; version?: string}, keys = trustedReleaseKeys()): Promise<{manifest: ReleaseManifest; baseUrl: string}> {
-  if (options.version && !/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(options.version)) throw new Error("Invalid release version; use a semantic version without a leading v.");
-  const url = options.version ? `${RELEASE_REPOSITORY}/tags/v${encodeURIComponent(options.version)}` : options.channel === "preview" ? `${RELEASE_REPOSITORY}?per_page=30` : `${RELEASE_REPOSITORY}/latest`;
-  const metadata = JSON.parse((await download(url, 2 * 1024 * 1024, 10_000)).toString("utf8"));
-  const release = Array.isArray(metadata) ? metadata.find(r => r.prerelease && !r.draft) : metadata;
-  if (!release || release.draft || !/^v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(release.tag_name)) throw new Error("No matching published release is available. Use an explicit source installation if needed.");
-  const baseUrl = `https://github.com/openassistuk/openassist/releases/download/${release.tag_name}`;
+  const release = await discoverRelease(options);
+  const baseUrl = `https://github.com/openassistuk/openassist/releases/download/${release.tag}`;
   const [bytes, signature] = await Promise.all([download(`${baseUrl}/release.json`, 1024 * 1024, 5000), download(`${baseUrl}/release.sig`, 8192, 5000)]);
   const manifest = verifyManifest(bytes, signature, keys);
-  if (`v${manifest.build.version}` !== release.tag_name || (!options.version && manifest.channel !== (options.channel ?? "stable"))) throw new Error("Release identity does not match the requested track.");
+  if (`v${manifest.build.version}` !== release.tag || manifest.channel !== release.channel) throw new Error("Release identity does not match the requested track.");
   return {manifest, baseUrl};
 }
 

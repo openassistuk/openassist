@@ -100,7 +100,7 @@ Useful config commands:
 - Restart and recovery: [`docs/operations/restart-recovery.md`](operations/restart-recovery.md)
 - End-to-end autonomy validation: [`docs/operations/e2e-autonomy-validation.md`](operations/e2e-autonomy-validation.md)
 
-The upgrade guide also covers update-check privacy and repair of malformed saved source tracks. Security review distinguishes fixed defects from reviewed intentional public version/ref requests.
+The upgrade guide also covers fixed public catalogue discovery, local version/ref selection, bounded failures and repair of saved source tracks. The architecture and security guides explain discovery versus authenticated preparation and installed-client download destination restrictions.
 
 Lifecycle surfaces now share one readiness model instead of each inventing their own wording. Human-readable lifecycle output is always rendered as:
 

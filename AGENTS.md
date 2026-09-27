@@ -265,7 +265,7 @@ When touching channel/runtime/provider attachment behavior:
 
 ## Security Rules
 
-- Validate persisted source selectors before update lookup and source preparation. Keep request-boundary tests proving valid tracks work without transmitting credentials or unrelated state. Check open code-scanning alerts and unresolved review threads separately from CI conclusions; document intentional public selector lookups explicitly when triaging file-to-network findings.
+- Keep update discovery on fixed public catalogue routes; compare saved versions/refs locally rather than placing them in request URLs. Validate source selectors before preparation. Test catalogue bounds, old pins, missing/ambiguous refs, annotated tags and every download redirect against the approved destinations. Discovery is advisory; release preparation still requires a signed manifest. Check open code-scanning alerts and unresolved review threads separately from CI conclusions; do not substitute a suppression or dismissal for removing an unwanted data flow.
 
 - Keep loopback bind default unless an approved plan changes it.
 - Keep `full-root` activation explicit and auditable.

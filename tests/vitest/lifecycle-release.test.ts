@@ -57,13 +57,13 @@ describe("verified lifecycle releases",()=>{
   it("bounds downloads, rejects HTTP, status errors and oversized streams",async()=>{
     await expect(download("http://example.test/file",10)).rejects.toThrow("HTTPS");
     vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response("no",{status:404})));
-    await expect(download("https://example.test/file",10)).rejects.toThrow("404");
+    await expect(download("https://github.com/openassistuk/openassist/releases/download/v0.1.0/file",10)).rejects.toThrow("404");
     vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response("too large",{headers:{"content-length":"999"}})));
-    await expect(download("https://example.test/file",10)).rejects.toThrow("size limit");
+    await expect(download("https://github.com/openassistuk/openassist/releases/download/v0.1.0/file",10)).rejects.toThrow("size limit");
     vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response("oversized")));
-    await expect(download("https://example.test/file",2)).rejects.toThrow("size limit");
+    await expect(download("https://github.com/openassistuk/openassist/releases/download/v0.1.0/file",2)).rejects.toThrow("size limit");
     vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response("ok")));
-    expect((await download("https://example.test/file",10)).toString()).toBe("ok");
+    expect((await download("https://github.com/openassistuk/openassist/releases/download/v0.1.0/file",10)).toString()).toBe("ok");
     expect(sha256("ok")).toHaveLength(64);
   });
   it("rejects unsupported build identities and unprovisioned signing keys",()=>{
@@ -120,11 +120,11 @@ describe("verified lifecycle releases",()=>{
     const {privateKey,publicKey}=generateKeyPairSync("rsa",{modulusLength:2048});
     const key=publicKey.export({type:"spki",format:"pem"}).toString();
     const payload=manifest();
-    let metadata:unknown={tag_name:"v0.1.0",draft:false};
+    let metadata:unknown={tag_name:"v0.1.0",draft:false,prerelease:false};
     const fetch=vi.fn(async(input:URL)=>{
       const url=input.toString();
       const bytes=Buffer.from(JSON.stringify(payload));
-      return new Response(url.endsWith('release.sig') ? sign("RSA-SHA256",bytes,privateKey) : url.endsWith('release.json') ? bytes : JSON.stringify(metadata));
+      return new Response(url.endsWith('release.sig') ? sign("RSA-SHA256",bytes,privateKey) : url.endsWith('release.json') ? bytes : JSON.stringify(url.includes("?per_page=") && !Array.isArray(metadata) ? [metadata] : metadata));
     });
     vi.stubGlobal("fetch",fetch);
     expect((await resolveRelease({},[key])).manifest.channel).toBe("stable");
@@ -133,15 +133,15 @@ describe("verified lifecycle releases",()=>{
       "https://api.github.com/repos/openassistuk/openassist/releases/latest",
       "https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.json",
       "https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.sig",
-      "https://api.github.com/repos/openassistuk/openassist/releases/tags/v0.1.0",
+      "https://api.github.com/repos/openassistuk/openassist/releases?per_page=100&page=1",
       "https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.json",
       "https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.sig"
     ]);
-    payload.channel="preview"; metadata=[{tag_name:"v0.1.0",prerelease:true}];
+    payload.channel="preview"; metadata=[{tag_name:"v0.1.0",draft:false,prerelease:true}];
     expect((await resolveRelease({channel:"preview"},[key])).manifest.channel).toBe("preview");
-    metadata={tag_name:"v0.1.0",draft:false};
+    metadata={tag_name:"v0.1.0",draft:false,prerelease:false};
     await expect(resolveRelease({},[key])).rejects.toThrow("requested track");
-    metadata={tag_name:"bad"};await expect(resolveRelease({},[key])).rejects.toThrow("No matching");
+    metadata={tag_name:"bad",draft:false,prerelease:false};await expect(resolveRelease({},[key])).rejects.toThrow("No matching");
     metadata=[];await expect(resolveRelease({channel:"preview"},[key])).rejects.toThrow("No matching");
   });
 
@@ -196,9 +196,9 @@ describe("verified lifecycle releases",()=>{
   it("bounds redirects and refuses HTTPS downgrade before requesting it",async()=>{
     const fetch=vi.fn(async()=>new Response(null,{status:302,headers:{location:"http://example.test/insecure"}}));
     vi.stubGlobal("fetch",fetch);
-    await expect(download("https://example.test/release",100)).rejects.toThrow("HTTPS");expect(fetch).toHaveBeenCalledTimes(1);
-    fetch.mockImplementation(async()=>new Response(null,{status:302,headers:{location:"/again"}}));
-    await expect(download("https://example.test/release",100)).rejects.toThrow("redirect limit");
+    await expect(download("https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.json",100)).rejects.toThrow("HTTPS");expect(fetch).toHaveBeenCalledTimes(1);
+    fetch.mockImplementation(async()=>new Response(null,{status:302,headers:{location:"/openassistuk/openassist/releases/download/v0.1.0/release.json"}}));
+    await expect(download("https://github.com/openassistuk/openassist/releases/download/v0.1.0/release.json",100)).rejects.toThrow("redirect limit");
   });
   it("renders concise shared summaries for availability, deletion and unverified activation",()=>{
     expect(renderOperationSummary({}).join('\n')).toContain("Ready now\n- Operation completed.\nNeeds action\n- None.");

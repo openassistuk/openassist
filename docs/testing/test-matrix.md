@@ -142,6 +142,7 @@ Current suite files under `tests/vitest/`:
 - `tool-loop-runtime.test.ts`
 - `upgrade-state-machine.test.ts`
 - `update-track.test.ts`
+- `update-discovery.test.ts`
 - `web-tool.test.ts`
 
 ## Integration Suites (Node test runner)
@@ -363,3 +364,5 @@ The release `signing-contract` job validates all four real archives with an ephe
 Live Linux lifecycle checks also build the immutable tested commit from the public source repository, activate it using the managed runtime, return to a prepared release, and verify identities plus retained state. Production signing and public release publication are separate maintainer rollout steps.
 
 New lifecycle suites exercise manifest signatures, download/archive bounds, target selection, compatibility, exclusive locks, preserved state, staged activation failure, offline application rollback, unverified restart skips, uninstall ownership, isolated credentials and update notices. Production signing keys and live channel credentials are not test fixtures. Hosted native results are separate from local Windows quality evidence.
+
+`update-discovery.test.ts` checks fixed public request routes with locally selected versions/refs, pagination and byte/deadline bounds, old pins, missing/ambiguous refs, annotated tags, immutable commits and HEAD. It verifies initial and redirected destinations, approved artifact CDNs, URL credential/port rejection and no per-selector fallback. `cli-lifecycle-modernization.test.ts` exercises the same discovery through real installation records and notification state. CodeQL closure requires the reopened original alert to become fixed on a fresh analysis, without a rule exclusion or dismissal.

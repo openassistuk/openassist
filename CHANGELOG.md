@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+- Replace saved-selector update requests with bounded public release/ref catalogues and local selection. Preserve stable/preview/exact-release and branch/PR/tag/commit workflows, with explicit unavailable results for missing or over-limit catalogues. Notices remain advisory; signed preparation is unchanged. Restrict installed-client download routes, credentials, ports and every redirect, including approved GitHub artifact CDNs. This redesign supersedes the earlier reviewed file-to-network dismissal.
+
 - Validate saved source update refs before network lookup or source preparation, rejecting malformed selectors without sending them to GitHub or running Git. Add request-boundary regressions and remove an ineffective CodeQL suppression; intentional public version/ref lookups are reviewed explicitly rather than described as a fixed vulnerability.
 
 - 2026-09-27: Introduce signed packaged releases with private Node, staged update/upgrade, retained application rollback, durable recovery and version-aware health/state. Retain explicit main/branch/PR source installs and add foreground isolated developer instances. Add ownership-checked uninstall with data preservation by default, explicit purge and cached opt-out update notices. Release keys/publication remain maintainer rollout prerequisites; signature failures never bypass verification or silently select source. Synchronize lifecycle/configuration/security/test guidance and add four-target artifact validation.

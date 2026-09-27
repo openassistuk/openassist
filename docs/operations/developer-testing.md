@@ -29,6 +29,8 @@ openassist update --release --channel stable --yes
 
 Candidates build separately and record the exact commit. Primary testing uses real config, channels and conversations, with backup and compatibility checks. Dirty original checkouts are preserved and block migration. PR updates require an explicit target every time. Incompatible data/config versions block returning to an older application.
 
+Update notices compare saved refs locally against GitHub's public refs catalogue. Branches, PR heads and lightweight/annotated tags remain supported; installed immutable commit tracks stay pinned. Missing or ambiguous refs report unavailable: use a fully qualified ref when a branch and tag share a name. Catalogue limits do not change the ability to explicitly build a source target; no check silently falls back to main. See [update discovery limits](upgrade-and-rollback.md) for privacy and failure handling.
+
 Existing installer flags remain supported:
 
 ```bash

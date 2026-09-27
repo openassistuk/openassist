@@ -1,8 +1,7 @@
 import path from "node:path";
 import { defaultConfigDir, readUpdateCache } from "@openassist/config";
 import { atomicWriteJson, loadInstallState, saveInstallState } from "./install-state.js";
-import { download, resolveRelease } from "./release.js";
-import { validateSourceRef } from "./update-track.js";
+import { discoverRelease, discoverSource } from "./update-discovery.js";
 
 export async function checkForUpdate(force = false): Promise<Record<string, unknown>> {
   const state = loadInstallState();
@@ -20,18 +19,13 @@ export async function checkForUpdate(force = false): Promise<Record<string, unkn
     if (!state) return {detail:"No installation record. Install OpenAssist before checking its track."};
     if (!state.active || state.active.method === "source") {
       const ref=state.active?.ref ?? state.trackedRef;
-      validateSourceRef(ref);
-      const match=/^refs\/pull\/(\d+)\/head$/.exec(ref);
-      const api=match ? `https://api.github.com/repos/openassistuk/openassist/pulls/${match[1]}` : `https://api.github.com/repos/openassistuk/openassist/commits/${encodeURIComponent(ref)}`;
       if (state.repoUrl && !/^https:\/\/github.com\/openassistuk\/openassist(?:\.git)?$/.test(state.repoUrl)) throw new Error("Custom source remotes require an explicit source update dry-run.");
-      const metadata=JSON.parse((await download(api,1024*1024,5000)).toString("utf8"));
-      const available=match ? metadata.head?.sha : metadata.sha;
-      if (!/^[a-f0-9]{40}$/.test(available)) throw new Error("Invalid source revision response.");
       const current=state.active?.build.commit ?? state.lastKnownGoodCommit;
-      result={checkedAt:Date.now(),method:"source",ref,current,available,updateAvailable:current!==available,requiresExplicitTarget:Boolean(match),compatibility:"Checked during staged preparation before service stop."};
+      const {commit:available,pinned}=await discoverSource(ref,current);
+      result={checkedAt:Date.now(),method:"source",ref,current,available,pinned,updateAvailable:current!==available,requiresExplicitTarget:/^refs\/pull\/\d+\/head$/.test(ref),compatibility:"Checked during staged preparation before service stop."};
     } else {
-      const {manifest} = await resolveRelease({channel: state.active.channel, version: state.active.pinnedVersion});
-      result = {checkedAt: Date.now(), method:"release", current: state.active.build.version, available: manifest.build.version, updateAvailable: state.active.build.id !== manifest.build.id, pinned: Boolean(state.active.pinnedVersion),compatibility:{config:manifest.build.configVersion,database:manifest.build.databaseVersion}};
+      const release = await discoverRelease({channel: state.active.channel, version: state.active.pinnedVersion});
+      result = {checkedAt: Date.now(), method:"release", current: state.active.build.version, available: release.version, updateAvailable: state.active.build.version !== release.version, pinned: Boolean(state.active.pinnedVersion),compatibility:"Checked against the signed manifest during preparation before service stop."};
     }
   } catch {
     result = {checkedAt: Date.now(), status: "unavailable", detail: "Update information is unavailable; the installed application is unchanged."};

@@ -48,6 +48,7 @@ beforeEach(async()=>{
   fs.mkdirSync(path.dirname(defaultConfigPath()),{recursive:true});writeDefaultConfig(defaultConfigPath());fs.writeFileSync(defaultEnvFilePath(),"# private env\n");
   const port=await new Promise<number>((resolve,reject)=>{const server=net.createServer();server.once("error",reject);server.listen(0,"127.0.0.1",()=>{const selected=(server.address() as net.AddressInfo).port;server.close(error=>error?reject(error):resolve(selected));});});
   fs.writeFileSync(defaultConfigPath(),fs.readFileSync(defaultConfigPath(),"utf8").replace(/bindPort\s*=\s*[\d_]+/,`bindPort = ${port}`));
+  vi.spyOn(globalThis,"fetch").mockImplementation(async()=>new Response(JSON.stringify({tag_name:"v0.2.0",draft:false,prerelease:false})));
   const active=app("old");
   saveInstallState({installDir:active.path,managedRoot:defaultManagedInstallDir(),configPath:defaultConfigPath(),envFilePath:defaultEnvFilePath(),active});
 });
@@ -141,17 +142,17 @@ describe("staged lifecycle recovery",()=>{
     }
     expect(fetch).not.toHaveBeenCalled();
   });
-  it("sends only the selected source ref to the fixed GitHub endpoint",async()=>{
+  it("keeps saved source selectors local while reading the fixed public catalogue",async()=>{
     const original=loadInstallState()!;
     const available="b".repeat(40);
-    const fetch=vi.spyOn(globalThis,"fetch").mockImplementation(async()=>new Response(JSON.stringify({sha:available,head:{sha:available}})));
-    for(const ref of ["main","feature/lifecycle+fix","v0.1.0","a".repeat(40),"refs/pull/63/head"]){
+    const fetch=vi.spyOn(globalThis,"fetch").mockImplementation(async()=>new Response(JSON.stringify(["refs/heads/main","refs/heads/feature/lifecycle+fix","refs/tags/v0.1.0","refs/heads/"+"a".repeat(40),"refs/pull/63/head"].map(ref=>({ref,object:{type:"commit",sha:available}})))));
+    for(const ref of ["main","feature/lifecycle+fix","v0.1.0","refs/pull/63/head"]){
       for(const active of [undefined,{...original.active!,method:"source" as const,ref}]){
         atomicWriteJson(defaultInstallStatePath(),{...original,active,trackedRef:ref,privateData:"must-not-leave-the-host"});
         expect(await checkForUpdate(true)).toMatchObject({available,ref,requiresExplicitTarget:ref.startsWith("refs/pull/")});
         const [url,options]=fetch.mock.calls.at(-1)!;
-        expect(String(url)).toBe(ref.startsWith("refs/pull/") ? "https://api.github.com/repos/openassistuk/openassist/pulls/63" : `https://api.github.com/repos/openassistuk/openassist/commits/${encodeURIComponent(ref)}`);
-        expect(options).toMatchObject({redirect:"manual",headers:{accept:"application/octet-stream","user-agent":"OpenAssist"}});
+        expect(String(url)).toBe("https://api.github.com/repos/openassistuk/openassist/git/matching-refs/");
+        expect(options).toMatchObject({redirect:"manual",headers:{accept:"application/vnd.github+json","user-agent":"OpenAssist"}});
         expect(options?.body).toBeUndefined();
         expect(JSON.stringify([String(url),options])).not.toContain("must-not-leave-the-host");
       }

@@ -113,17 +113,22 @@ export function loadInstallState(statePath = defaultInstallStatePath()): Install
       throw new Error("invalid installation record");
     }
     for (const app of [raw.active, raw.previous]) {
+      if (app === null) throw new Error("invalid application record");
       if (app && (!path.isAbsolute(app.path) || !path.isAbsolute(app.nodePath) ||
           !["source", "release"].includes(app.method) || !app.build ||
           typeof app.build.id !== "string" || !/^[a-zA-Z0-9._-]{1,160}$/.test(app.build.id) ||
           typeof app.build.version !== "string" || typeof app.build.nodeVersion !== "string" ||
           !/^[a-f0-9]{40,64}$/.test(app.build.commit) ||
           !Number.isInteger(app.build.configVersion) || !Number.isInteger(app.build.databaseVersion) ||
-          typeof app.verified !== "boolean" || (app.channel !== undefined && !["stable","preview"].includes(app.channel)))) {
+          typeof app.verified !== "boolean" || (app.channel !== undefined && !["stable","preview"].includes(app.channel)) ||
+          (app.ref !== undefined && typeof app.ref !== "string") ||
+          (app.pinnedVersion !== undefined && (typeof app.pinnedVersion !== "string" || !/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(app.pinnedVersion))))) {
         throw new Error("invalid application record");
       }
     }
     for (const file of [raw.configPath,raw.envFilePath,raw.managedRoot]) if(file!==undefined && (typeof file!=="string" || !path.isAbsolute(file))) throw new Error("invalid recorded path");
+    for (const value of [raw.repoUrl,raw.trackedRef,raw.instanceId,raw.lastKnownGoodCommit,raw.updatedAt]) if(value!==undefined && typeof value!=="string") throw new Error("invalid recorded metadata");
+    if(raw.serviceManager!==undefined && !["systemd-user","systemd-system","launchd"].includes(raw.serviceManager)) throw new Error("invalid service ownership");
     if(raw.notifications!==undefined && typeof raw.notifications!=="boolean") throw new Error("invalid notice preference");
     if(raw.ownedFiles!==undefined && (!Array.isArray(raw.ownedFiles) || raw.ownedFiles.length>32 || raw.ownedFiles.some(file=>!file || !path.isAbsolute(file.path) || !/^[a-f0-9]{64}$/.test(file.sha256)))) throw new Error("invalid ownership record");
     if(raw.active && raw.installDir !== raw.active.path) throw new Error("active application does not match install directory");

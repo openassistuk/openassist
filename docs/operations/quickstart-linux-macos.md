@@ -283,7 +283,7 @@ Text output is grouped as:
 - `Needs action`
 - `Next command`
 
-`openassist doctor --json` keeps the grouped lifecycle structure for automation and now uses `version: 3` with per-item `stage` metadata plus the shared service-boundary context.
+`openassist doctor --json` keeps the grouped lifecycle structure for automation and now uses `version: 4` with per-item `stage` metadata, installation/activation details and the shared service-boundary context.
 
 ## 5. Send the first reply
 

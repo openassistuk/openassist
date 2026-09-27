@@ -22,6 +22,7 @@ try {
   fs.mkdirSync(env.PATH);
   fs.mkdirSync(path.join(state,'config'),{recursive:true});
   run([cli,'--help']); run([daemon,'--help']);
+  if(run([cli,'--version']).trim()!==record.build.version || run([daemon,'--version']).trim()!==record.build.version) throw new Error('Packaged command versions differ from release metadata.');
   run([cli,'init']);
   const file=path.join(state,'config/openassist.toml');
   let config=fs.readFileSync(file,'utf8');

@@ -144,7 +144,7 @@ const program = new Command();
 program
   .name("openassistd")
   .description("OpenAssist daemon")
-  .version("0.1.0");
+  .version(getBuildIdentity().version);
 
 program
   .command("run")

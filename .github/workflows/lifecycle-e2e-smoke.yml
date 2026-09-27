@@ -139,5 +139,5 @@ jobs:
           node scripts/release/package.mjs coverage/scheduled-release
           node scripts/release/smoke.mjs "coverage/scheduled-release/stage-$(node -p 'process.platform + "-" + process.arch')"
           if [ "$(uname -s)" = Linux ]; then
-            sudo env GITHUB_ACTIONS=true "$(command -v node)" scripts/release/lifecycle-smoke.mjs coverage/scheduled-release/stage-linux-x64
+            sudo env GITHUB_ACTIONS=true PATH="$PATH" "$(command -v node)" scripts/release/lifecycle-smoke.mjs coverage/scheduled-release/stage-linux-x64
           fi

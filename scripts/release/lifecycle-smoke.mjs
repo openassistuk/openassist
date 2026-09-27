@@ -51,6 +51,8 @@ try {
     throw new Error(`Expected live identity ${id} was not ready.`);
   };
   await health('smoke-a');
+  assert.equal((await recoverUpdate()).phase,'complete');
+  assert.equal(loadInstallState().active.verified,true);
   fs.writeFileSync(path.join(parsed.runtime.paths.dataDir,'retained-state.txt'),'preserve through update, rollback and uninstall');
   const second=prepare('smoke-b');
   assert.equal((await executeUpdate({prepared:second})).verified,true);
@@ -61,13 +63,23 @@ try {
   assert.equal(loadInstallState().active.verified,false);
   await service.start();await health('smoke-b');
   assert.equal((await recoverUpdate()).phase,'complete');
+  const commit=JSON.parse(fs.readFileSync(path.join(source,'build-identity.json'),'utf8')).commit;
+  assert.equal((await executeUpdate({source:true,ref:commit,yes:true})).verified,true);
+  assert.equal(loadInstallState().active.method,'source');
+  assert.equal(loadInstallState().active.build.commit,commit);
+  await health(`source-${commit}`);
+  const returned=prepare('smoke-return-to-release');
+  assert.equal((await executeUpdate({prepared:returned,release:true,channel:'stable',yes:true})).verified,true);
+  assert.equal(loadInstallState().active.method,'release');
+  assert.equal(loadInstallState().previous.method,'source');
+  await health('smoke-return-to-release');
   await uninstallApplication({});
   assert.equal(await service.isInstalled(),false);
   assert.equal(fs.readFileSync(path.join(parsed.runtime.paths.dataDir,'retained-state.txt'),'utf8'),'preserve through update, rollback and uninstall');
   assert.equal(fs.existsSync(first),false);
   assert.equal(fs.existsSync(second),false);
   await uninstallApplication({});
-  console.log('Live systemd activation, private runtime, identity, rollback, skip-restart recovery and data-preserving uninstall passed.');
+  console.log('Live systemd activation, private runtime, identity, rollback, skip-restart recovery, immutable source build, return to release and data-preserving uninstall passed.');
 } catch(error) {
   spawnSync('journalctl',['-u','openassistd.service','--no-pager','-n','80'],{stdio:'inherit'});
   throw error;

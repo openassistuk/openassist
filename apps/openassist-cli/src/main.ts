@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { getBuildIdentity } from "@openassist/config";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -217,7 +218,7 @@ function commandAvailable(command: string): boolean {
 }
 
 const program = new Command();
-program.name("openassist").description("OpenAssist CLI").version("0.1.0");
+program.name("openassist").description("OpenAssist CLI").version(getBuildIdentity().version);
 registerSetupCommands(program);
 registerServiceCommands(program);
 registerUpgradeCommand(program);

@@ -161,8 +161,8 @@ describe("staged lifecycle recovery",()=>{
   });
   it("fails closed on malformed installation records rather than selecting another installation",()=>{
     const original=loadInstallState()!;
-    for(const patch of [{schemaVersion:99},{configPath:"relative"},{envFilePath:"relative"},{managedRoot:"relative"},{notifications:"yes"},{ownedFiles:{}},{ownedFiles:[{path:"relative",sha256:"bad"}]},{installDir:path.join(home,"different")},...[
-      {method:"unknown"},{nodePath:"relative"},{verified:"yes"},{channel:"unknown"},{build:{...original.active!.build,commit:"invalid"}},{build:{...original.active!.build,configVersion:1.5}},{build:{...original.active!.build,nodeVersion:24}}
+    for(const patch of [{schemaVersion:99},{active:null},{serviceManager:"unknown"},{trackedRef:{}},{repoUrl:12},{configPath:"relative"},{envFilePath:"relative"},{managedRoot:"relative"},{notifications:"yes"},{ownedFiles:{}},{ownedFiles:[{path:"relative",sha256:"bad"}]},{installDir:path.join(home,"different")},...[
+      {method:"unknown"},{nodePath:"relative"},{verified:"yes"},{channel:"unknown"},{ref:12},{pinnedVersion:"invalid"},{build:{...original.active!.build,commit:"invalid"}},{build:{...original.active!.build,configVersion:1.5}},{build:{...original.active!.build,nodeVersion:24}}
     ].map(active=>({active:{...original.active,...active}}))]){
       atomicWriteJson(defaultInstallStatePath(),{...original,...patch});
       expect(()=>loadInstallState()).toThrow("Invalid install-state");

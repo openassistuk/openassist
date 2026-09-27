@@ -223,12 +223,13 @@ if (statePath && fs.existsSync(statePath)) {
   try {
     existing = JSON.parse(fs.readFileSync(statePath, "utf8"));
   } catch {
-    existing = {};
+    throw new Error("Malformed install-state; preserve and repair it before source installation.");
   }
 }
 
 const merged = {
   ...existing,
+  schemaVersion: 2,
   installDir: process.env.OPENASSIST_INSTALL_DIR,
   repoUrl: process.env.OPENASSIST_REPO_URL || existing.repoUrl || "",
   trackedRef: process.env.OPENASSIST_TRACKED_REF || existing.trackedRef || "main",
@@ -240,7 +241,9 @@ const merged = {
 };
 
 fs.mkdirSync(path.dirname(statePath), { recursive: true });
-fs.writeFileSync(statePath, JSON.stringify(merged, null, 2), "utf8");
+const temporary = `${statePath}.${process.pid}.tmp`;
+fs.writeFileSync(temporary, JSON.stringify(merged, null, 2), {mode:0o600,flag:"wx"});
+fs.renameSync(temporary,statePath);
 EOF
 }
 
@@ -1021,6 +1024,20 @@ ensure_prereqs() {
 }
 
 ensure_prereqs
+
+# Source bootstrap remains the compatibility entrypoint for a developer checkout.
+# A managed primary must use the staged engine, never update its checkout in place.
+OPENASSIST_EXISTING_STATE="${HOME}/.config/openassist/install-state.json" node <<'NODE'
+const fs=require('node:fs');
+const path=require('node:path');
+const file=process.env.OPENASSIST_EXISTING_STATE;
+if(fs.existsSync(file)) {
+  let state;
+  try {state=JSON.parse(fs.readFileSync(file,'utf8'));} catch {throw new Error('Malformed install-state; preserve and repair it before source installation.');}
+  if(!state || typeof state.installDir!=='string' || !path.isAbsolute(state.installDir) || (state.schemaVersion!==undefined && state.schemaVersion!==2)) throw new Error('Invalid installation record; source bootstrap will not overwrite it.');
+  if(state.active) throw new Error('A managed primary installation already exists. Use openassist update --source --ref <ref> (or --pr <number>), with --yes for unattended method changes.');
+}
+NODE
 
 if [[ -z "${REPO_URL}" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

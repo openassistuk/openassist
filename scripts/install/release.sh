@@ -5,7 +5,6 @@ channel=stable
 version=""
 interactive=auto
 skip_service=0
-forbidden=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --channel) channel="${2:?Missing channel}"; shift 2 ;;
@@ -43,7 +42,7 @@ else
   [[ "$preview_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[A-Za-z0-9.-]+$ ]] || { echo 'No published preview release is available.' >&2; exit 1; }
   base="https://github.com/openassistuk/openassist/releases/download/$preview_tag"
 fi
-fetch "$base/release-index.txt" "$tmp/index"
+fetch "$base/release-index.txt" "$tmp/index" || { echo 'No verified release is available at the requested target. Installation stopped; source builds require explicit --source --ref main.' >&2; exit 1; }
 fetch "$base/release-index.sig" "$tmp/index.sig"
 openssl dgst -sha256 -verify "$tmp/public.pem" -signature "$tmp/index.sig" "$tmp/index" >/dev/null || { echo 'Release signature failed.' >&2; exit 1; }
 signed_version="$(awk '$1 == "version" {print $2; count++} END {if(count != 1) exit 1}' "$tmp/index")"

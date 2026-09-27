@@ -28,6 +28,14 @@ export interface LifecycleJournal {
   before?: InstallState; candidate?: InstalledApplication; backup?: string; serviceInstalled?: boolean; wasRunning?: boolean;
 }
 
+/** Host effects are injectable for deterministic interruption tests; the CLI uses native adapters. */
+export interface LifecycleHost {
+  platform: NodeJS.Platform;
+  service: ServiceManagerAdapter;
+  checkHealth: typeof checkHealth;
+  switchCurrent: typeof switchCurrent;
+}
+
 export function readLifecycleJournal(root: string): LifecycleJournal {
   const raw=fs.readFileSync(path.join(root,"operation.json"));
   if(raw.length>1024*1024) throw new Error("Lifecycle journal exceeds its size limit; preserve it for manual recovery.");
@@ -184,10 +192,10 @@ function writeWrappers(app: InstalledApplication): string[] {
   return files;
 }
 
-async function expectedHealth(app: InstalledApplication, configPath: string): Promise<boolean> {
+async function expectedHealth(app: InstalledApplication, configPath: string, probe = checkHealth): Promise<boolean> {
   const deadline = Date.now() + 60_000;
   do {
-    if ((await checkHealth(detectDefaultDaemonBaseUrl(configPath), app.build.id === "development" ? undefined : {buildId: app.build.id, instanceId: runtimeInstanceId(configPath)}).catch(() => ({ok: false}))).ok) return true;
+    if ((await probe(detectDefaultDaemonBaseUrl(configPath), app.build.id === "development" ? undefined : {buildId: app.build.id, instanceId: runtimeInstanceId(configPath)}).catch(() => ({ok: false}))).ok) return true;
     await new Promise(resolve => setTimeout(resolve, 1000));
   } while (Date.now() < deadline);
   return false;
@@ -202,17 +210,17 @@ export async function assertDaemonStopped(configPath: string): Promise<void> {
   });
 }
 
-async function activate(app: InstalledApplication, state: InstallState, installed: boolean, start: boolean): Promise<string[]> {
-  switchCurrent(state.managedRoot!, app.path);
+async function activate(app: InstalledApplication, state: InstallState, installed: boolean, start: boolean, host?: LifecycleHost): Promise<string[]> {
+  (host?.switchCurrent ?? switchCurrent)(state.managedRoot!, app.path);
   const wrappers = writeWrappers(app);
   if (installed) {
     const {config} = loadConfig({baseFile: state.configPath, overlaysDir: resolveConfigOverlaysDir(state.configPath)});
-    await createServiceManager(new SpawnCommandRunner()).install({installDir: app.path, repoRoot: app.path, nodePath: app.nodePath, configPath: state.configPath, envFilePath: state.envFilePath, start, systemdFilesystemAccess: config.service.systemdFilesystemAccess});
+    await (host?.service ?? createServiceManager(new SpawnCommandRunner())).install({installDir: app.path, repoRoot: app.path, nodePath: app.nodePath, configPath: state.configPath, envFilePath: state.envFilePath, start, systemdFilesystemAccess: config.service.systemdFilesystemAccess});
   }
   return [...wrappers, ...(installed ? serviceOwnedFiles() : [])];
 }
 
-export async function executeUpdate(options: UpdateOptions, rollback = false): Promise<Record<string, unknown>> {
+export async function executeUpdate(options: UpdateOptions, rollback = false, host?: LifecycleHost): Promise<Record<string, unknown>> {
   let old = loadInstallState();
   const method = resolveUpdateMethod(options, old);
   const ref = method === "source" && !rollback ? sourceRef(options, old) : undefined;
@@ -228,9 +236,21 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
   if(!old && !options.prepared && !options.dryRun) throw new Error("No installation record exists. Use the installer or repair the recorded source installation first.");
   if (options.dryRun) {
     const release = method === "release" && !rollback ? await resolveRelease({channel: options.channel ?? old?.active?.channel, version: options.version ?? (!options.channel ? old?.active?.pinnedVersion : undefined)}) : undefined;
-    return {action: rollback ? "rollback" : "update", method, ref, target: release?.manifest.build ?? old?.previous?.build, root, restart: !options.skipRestart, current: old?.active?.build, statePreserved: true};
+    const artifact = release ? platformArtifact(release.manifest) : undefined;
+    const target = rollback ? old!.previous! : release ? {...old?.active, build:release.manifest.build} as InstalledApplication : undefined;
+    if (target && fs.existsSync(configPath)) assertApplicationCompatible(target, configPath, old?.installDir ?? root);
+    if (artifact && fs.existsSync(root)) {
+      const space = fs.statfsSync(root);
+      if (Number(space.bavail) * Number(space.bsize) < artifact.bytes * 5) throw new Error("Insufficient free space to prepare and retain this release.");
+    }
+    const pending = fs.existsSync(path.join(root,"operation.json")) ? readLifecycleJournal(root) : undefined;
+    return {action: rollback ? "rollback" : "update", method, ref, target: target?.build, root,
+      restart: !options.skipRestart, restartBehavior: options.skipRestart ? "Leave the service stopped; activation remains unverified." : "Restart only if the managed service was running before this operation.",
+      prerequisites: method === "release" ? ["Verified signed manifest", "Compatible platform and state", "Writable application and backup paths"] : ["Git", "Checkout-pinned pnpm", "Compatible Node runtime"],
+      recoveryAvailable: Boolean(old?.active), recoveryRequired: Boolean(pending && !["complete","rolled-back"].includes(pending.phase)),
+      current: old?.active?.build, statePreserved: true};
   }
-  if (process.platform === "win32") throw new Error("Managed lifecycle activation is supported on Linux and macOS. Windows retains development/CI support.");
+  if ((host?.platform ?? process.platform) === "win32") throw new Error("Managed lifecycle activation is supported on Linux and macOS. Windows retains development/CI support.");
   if (method === "source" && old && !old.active) {
     const preflight = sourceUpdatePlan({...options,dryRun:true});
     if (!preflight.ok) throw new Error(preflight.lines.join("\n"));
@@ -279,10 +299,10 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
     if(Number(space.bavail)*Number(space.bsize)<backupBytes+64*1024*1024) throw new Error("Insufficient free space for a consistent recovery backup.");
     journal.candidate = app;
     journal.phase = "prepared";
-    const service = createServiceManager(new SpawnCommandRunner());
+    const service = host?.service ?? createServiceManager(new SpawnCommandRunner());
     journal.serviceInstalled = await service.isInstalled();
     if(journal.serviceInstalled && !old) throw new Error("An existing service has no installation record. Import or repair its ownership before installation.");
-    const healthWasOk = (await checkHealth(detectDefaultDaemonBaseUrl(configPath)).catch(() => ({ok: false}))).ok;
+    const healthWasOk = (await (host?.checkHealth ?? checkHealth)(detectDefaultDaemonBaseUrl(configPath)).catch(() => ({ok: false}))).ok;
     journal.wasRunning = service.isRunning ? await service.isRunning() : healthWasOk;
     if (healthWasOk && !journal.serviceInstalled) throw new Error("Stop the manually running daemon before activation.");
     if (!journal.wasRunning) await assertDaemonStopped(configPath);
@@ -290,7 +310,7 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
     journal.phase = "stopped";
     atomicWriteJson(journalPath, journal);
     if (journal.serviceInstalled) await stopManagedService(service);
-    if ((await checkHealth(detectDefaultDaemonBaseUrl(configPath)).catch(() => ({ok: false}))).ok) throw new Error("A daemon still answers after service stop; refusing state backup.");
+    if ((await (host?.checkHealth ?? checkHealth)(detectDefaultDaemonBaseUrl(configPath)).catch(() => ({ok: false}))).ok) throw new Error("A daemon still answers after service stop; refusing state backup.");
     await assertDaemonStopped(configPath);
     const backup = path.join(root, "backups", journal.id);
     fs.mkdirSync(backup, {recursive: true, mode: 0o700});
@@ -305,8 +325,8 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
     journal.phase = "activating";
     atomicWriteJson(journalPath, journal);
     const start = Boolean(journal.wasRunning && !options.skipRestart);
-    const files = await activate(app, next, Boolean(journal.serviceInstalled), start);
-    if (start && !await expectedHealth(app, configPath)) throw new Error("Candidate failed expected-build health verification.");
+    const files = await activate(app, next, Boolean(journal.serviceInstalled), start,host);
+    if (start && !await expectedHealth(app, configPath,host?.checkHealth)) throw new Error("Candidate failed expected-build health verification.");
     app.verified = start;
     next.ownedFiles = files.filter(file => fs.existsSync(file)).map(file => ({path: file, sha256: sha256(fs.readFileSync(file))}));
     saveInstallState({...next, lastKnownGoodCommit: start ? app.build.commit : old?.lastKnownGoodCommit ?? ""});
@@ -322,10 +342,10 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
   } catch (error) {
     if (journal && ["stopped","backed-up","activating"].includes(journal.phase) && old?.active) {
       assertApplicationCompatible(old.active, old.configPath, old.installDir);
-      if (journal.serviceInstalled) await stopManagedService(createServiceManager(new SpawnCommandRunner()));
+      if (journal.serviceInstalled) await stopManagedService(host?.service ?? createServiceManager(new SpawnCommandRunner()));
       await assertDaemonStopped(configPath);
-      await activate(old.active, {...old, managedRoot: root}, Boolean(journal.serviceInstalled), Boolean(journal.wasRunning));
-      if (journal.wasRunning && !await expectedHealth(old.active, old.configPath)) throw new Error("Update and rollback health failed; preserve the operation journal and run openassist update recover.");
+      await activate(old.active, {...old, managedRoot: root}, Boolean(journal.serviceInstalled), Boolean(journal.wasRunning),host);
+      if (journal.wasRunning && !await expectedHealth(old.active, old.configPath,host?.checkHealth)) throw new Error("Update and rollback health failed; preserve the operation journal and run openassist update recover.");
       saveInstallState(old);
       journal.phase = "rolled-back";
       atomicWriteJson(journalPath, journal);
@@ -337,27 +357,30 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
   } finally { releaseLock(); }
 }
 
-export async function recoverUpdate(dryRun = false): Promise<Record<string, unknown>> {
+export async function recoverUpdate(dryRun = false,host?: LifecycleHost): Promise<Record<string, unknown>> {
   const state = loadInstallState();
   const root = state?.managedRoot ?? defaultManagedInstallDir();
   const journalPath = path.join(root,"operation.json");
   if (!fs.existsSync(journalPath)) return {action: "recover", detail: "No interrupted operation."};
   const journal = readLifecycleJournal(root);
-  if (dryRun || ["complete","rolled-back"].includes(journal.phase)) return {action: "recover", operation: journal};
+  const firstStartUnverified = journal.phase === "complete" && state?.active?.verified === false && state.active.path === journal.candidate?.path;
+  if (dryRun || (journal.phase === "complete" && !firstStartUnverified) || journal.phase === "rolled-back") return {action: "recover", operation: journal};
   if (fs.existsSync(path.join(root,"operation.lock"))) throw new Error("An operation lock remains. Verify no lifecycle process is running, preserve owner.json, then remove only that lock directory and retry recovery. PID alone is not sufficient proof.");
   const release = acquireLifecycleLock(root);
   try {
-    if (journal.phase === "unverified" && journal.candidate && state && await expectedHealth(journal.candidate, state.configPath)) {
+    if ((journal.phase === "unverified" || firstStartUnverified) && journal.candidate && state && await expectedHealth(journal.candidate, state.configPath,host?.checkHealth)) {
       journal.candidate.verified = true;
       saveInstallState({...state, active: journal.candidate, lastKnownGoodCommit: journal.candidate.build.commit});
       journal.phase = "complete";
+    } else if (firstStartUnverified) {
+      return {action:"recover", verified:false, detail:"Application is installed but expected health is not available. Start it before confirming activation."};
     } else if (["preparing","prepared"].includes(journal.phase)) journal.phase = "rolled-back";
     else if (journal.before?.active) {
       assertApplicationCompatible(journal.before.active, journal.before.configPath, journal.before.installDir);
-      if (journal.serviceInstalled) await stopManagedService(createServiceManager(new SpawnCommandRunner()));
+      if (journal.serviceInstalled) await stopManagedService(host?.service ?? createServiceManager(new SpawnCommandRunner()));
       await assertDaemonStopped(journal.before.configPath);
-      await activate(journal.before.active, {...journal.before, managedRoot: root}, Boolean(journal.serviceInstalled), Boolean(journal.wasRunning));
-      if (journal.wasRunning && !await expectedHealth(journal.before.active, journal.before.configPath)) throw new Error("Previous application did not recover health.");
+      await activate(journal.before.active, {...journal.before, managedRoot: root}, Boolean(journal.serviceInstalled), Boolean(journal.wasRunning),host);
+      if (journal.wasRunning && !await expectedHealth(journal.before.active, journal.before.configPath,host?.checkHealth)) throw new Error("Previous application did not recover health.");
       saveInstallState(journal.before);
       journal.phase = "rolled-back";
     } else if(journal.candidate && !journal.serviceInstalled && journal.phase==="activating") {
@@ -367,7 +390,7 @@ export async function recoverUpdate(dryRun = false): Promise<Record<string, unkn
       assertApplicationCompatible(app,configPath,app.path);
       await assertDaemonStopped(configPath);
       const first={installDir:app.path,managedRoot:root,configPath,envFilePath:defaultEnvFilePath(),active:app,trackedRef:app.ref??app.channel??"stable"} as InstallState;
-      const files=await activate(app,first,false,false);
+      const files=await activate(app,first,false,false,host);
       first.ownedFiles=files.map(file=>({path:file,sha256:sha256(fs.readFileSync(file))}));
       saveInstallState(first);
       journal.phase="complete";

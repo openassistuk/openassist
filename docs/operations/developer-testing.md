@@ -38,3 +38,5 @@ bash scripts/install/bootstrap.sh --pr 123
 ```
 
 Use `openassist update` for subsequent managed updates; `openassist upgrade` remains an alias. See [release maintenance](release-maintenance.md) and [common troubleshooting](common-troubleshooting.md).
+
+The compatibility source bootstrap creates the initial checkout using the existing build flow. It refuses to overwrite a managed release/source installation; use staged `openassist update` for those installations. The first update imports a legacy checkout's config/service facts and retains that checkout for recovery. For advanced edits to an isolated instance, run `OPENASSIST_STATE_ROOT="<printed instance root>" openassist setup wizard --skip-post-checks`; service installation is deliberately unavailable for isolated instances.

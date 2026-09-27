@@ -7,6 +7,7 @@ The format follows Keep a Changelog conventions and this project currently track
 ## [Unreleased]
 
 - 2026-09-27: Introduce signed packaged releases with private Node, staged update/upgrade, retained application rollback, durable recovery and version-aware health/state. Retain explicit main/branch/PR source installs and add foreground isolated developer instances. Add ownership-checked uninstall with data preservation by default, explicit purge and cached opt-out update notices. Release keys/publication remain maintainer rollout prerequisites; signature failures never bypass verification or silently select source. Synchronize lifecycle/configuration/security/test guidance and add four-target artifact validation.
+- 2026-09-27: Preserve Linux service hardening while explicitly permitting the configured config/data/logs/skills directories, including paths with spaces. Keep unstarted candidates visibly unverified until expected-build health is confirmed. Add real-artifact signing checks with disposable keys, WAL-preservation and isolated-local-build integration tests, and release coverage in the supplemental smoke workflows.
 
 This section records the development milestones since 0.1.0, including intermediate report-version and coverage transitions. The current operator defaults and controls are defined in the [configuration reference](docs/configuration/config-reference.md) and [model compatibility guide](docs/providers/model-compatibility.md); historical transitions below are not migration commands.
 

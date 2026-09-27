@@ -208,7 +208,13 @@ Current behavior:
 - `setup quickstart`: strict staged onboarding with validation gates and optional service/health execution.
 - `setup wizard`: section-based configuration editor for post-onboarding maintenance.
 - `service *`: managed runtime lifecycle operations (`install/start/stop/restart/status/logs`).
-- `upgrade`: health-gated in-place update with rollback.
+- `update` (`upgrade` alias): staged release/source preparation, identity-checked activation, recovery and compatible application rollback.
 - `skills *`: managed skill install and listing against the runtime-owned skills directory.
 - `growth *`: managed helper registration and growth-policy inspection.
 - `memory status`: host-side inspection of rolling session summaries and actor-scoped durable memory.
+
+### Application identity and state compatibility
+
+`GET /v1/health` retains its existing readiness fields and adds `build` and `instanceId`. Build metadata identifies the immutable commit, application version, private Node version and configuration/database compatibility versions. The instance ID is derived from the absolute configuration path. Lifecycle activation requires both expected identities; another process on the same port cannot certify a candidate. Channel connection failures remain separate from core process health.
+
+Install records use schema version 2. Lifecycle JSON uses version 4 while retaining readiness summaries and stage fields. Setup, doctor and update output identify the installation method; an activation without an observed expected health response remains explicitly unverified. After the first service start, `openassist update recover` can confirm a previously unstarted application. Database version 1 is the baseline; unknown databases and transitions requiring schema migration are rejected before activation. Application rollback never restores an older database automatically.

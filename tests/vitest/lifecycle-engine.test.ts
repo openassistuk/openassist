@@ -10,6 +10,8 @@ import { randomUUID } from "node:crypto";
 import { uninstallApplication } from "../../apps/openassist-cli/src/lib/lifecycle-uninstall.js";
 import { checkForUpdate, setUpdateNotifications } from "../../apps/openassist-cli/src/lib/update-notifications.js";
 import type { InstalledApplication } from "../../packages/core-types/src/index.js";
+import { installationSummary, installationSummaryText } from "../../apps/openassist-cli/src/lib/installation-summary.js";
+import { buildLifecycleReport } from "../../apps/openassist-cli/src/lib/lifecycle-readiness.js";
 
 const controls=vi.hoisted(()=>({running:true,installed:true,failCandidate:false,badStartup:false,active:"old",events:[] as string[]}));
 vi.mock("../../apps/openassist-cli/src/lib/command-runner.js",async importOriginal=>({...await importOriginal<object>(),SpawnCommandRunner:class {
@@ -27,7 +29,7 @@ vi.mock("node:child_process",()=>({spawnSync:vi.fn(()=>({status:controls.badStar
 vi.mock("../../apps/openassist-cli/src/lib/lifecycle-files.js",async importOriginal=>({...await importOriginal<object>(),switchCurrent:vi.fn((_root:string,target:string)=>{controls.active=path.basename(target);controls.events.push(`activate:${controls.active}`);})}));
 vi.mock("../../apps/openassist-cli/src/lib/service-manager.js",()=>({createServiceManager:()=>({kind:"systemd-user",isInstalled:async()=>controls.installed,stop:async()=>{controls.running=false;controls.events.push("stop");},install:async(options:{installDir:string;start:boolean})=>{controls.events.push(`install:${path.basename(options.installDir)}`);if(controls.failCandidate&&path.basename(options.installDir)==="candidate")throw new Error("injected service activation failure");controls.running=options.start;},uninstall:async()=>{controls.installed=false;controls.events.push("uninstall");}})}));
 vi.mock("../../apps/openassist-cli/src/lib/health-check.js",()=>({checkHealth:async(_url:string,expected?:{buildId:string})=>({ok:controls.running&&(!expected||expected.buildId===controls.active)}),preferredLocalHealthBaseUrl:()=>"http://127.0.0.1:3344"}));
-vi.mock("../../apps/openassist-cli/src/lib/release.js",async importOriginal=>({...await importOriginal<object>(),resolveRelease:vi.fn(async()=>({manifest:{build:{id:"candidate",version:"0.2.0"},channel:"stable",artifacts:[]},baseUrl:"https://example.test"}))}));
+vi.mock("../../apps/openassist-cli/src/lib/release.js",async importOriginal=>({...await importOriginal<object>(),platformArtifact:vi.fn(()=>({bytes:1024})),resolveRelease:vi.fn(async()=>({manifest:{build:{id:"candidate",version:"0.2.0",configVersion:1,databaseVersion:1},channel:"stable",artifacts:[]},baseUrl:"https://example.test"}))}));
 
 let home:string;
 let originalPlatform:string;
@@ -74,6 +76,27 @@ describe("staged lifecycle recovery",()=>{
     expect((await recoverUpdate(true)).operation).toMatchObject({phase:"unverified"});
     controls.running=true;expect(await recoverUpdate()).toMatchObject({phase:"complete"});
     expect(loadInstallState()?.active?.verified).toBe(true);
+  });
+  it("confirms the first service start without losing the retained application",async()=>{
+    controls.installed=false;controls.running=false;
+    const candidate=app("candidate");await executeUpdate({prepared:candidate.path});
+    expect(loadInstallState()?.active?.verified).toBe(false);
+    expect((await recoverUpdate(true)).operation).toMatchObject({phase:"complete"});
+    controls.running=true;
+    expect(await recoverUpdate()).toMatchObject({phase:"complete"});
+    expect(loadInstallState()?.active?.verified).toBe(true);
+    expect(loadInstallState()?.previous?.build.id).toBe("old");
+  });
+  it("reports the matched release and unverified activation in setup and doctor",()=>{
+    const state=loadInstallState()!;saveInstallState({active:{...state.active!,verified:false,pinnedVersion:"0.1.0"}});
+    const info=installationSummary(state.installDir,state.configPath);
+    expect(info).toMatchObject({installationMethod:"release",activationVerified:false,trackedRef:"0.1.0"});
+    expect(installationSummaryText(state.installDir,state.configPath)).toContain("release 0.1.0 (activation unverified");
+    expect(installationSummary(path.join(home,"other"),state.configPath).installStatePresent).toBe(false);
+    const report=buildLifecycleReport({...info,installDir:state.installDir,configPath:state.configPath,envFilePath:state.envFilePath,repoBacked:false,configExists:true,envExists:true});
+    expect(report.context.activationVerified).toBe(false);
+    expect(report.sections.needsActionBeforeFirstReply.some(item=>item.id==="install.unverified")).toBe(true);
+    expect(report.context.updateTrackKind).toBe("release");
   });
   it("blocks concurrent operations and incompatible candidates before stopping",async()=>{
     const candidate=app("candidate");fs.mkdirSync(path.join(defaultManagedInstallDir(),"operation.lock"));

@@ -69,9 +69,28 @@ jobs:
             coverage/release/*.json
             coverage/release/*.gz
             coverage/release/*.mjs
+  signing-contract:
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release-output
+      - name: Verify signing with isolated test keys
+        run: node scripts/release/test-signing.mjs release-output
   publish:
     if: github.event_name == 'workflow_dispatch' && inputs.publish && inputs.tag != ''
-    needs: package
+    needs: [package, signing-contract]
     runs-on: ubuntu-24.04
     environment: release
     permissions:

@@ -14,7 +14,9 @@ The HTTPS shell entrypoint is the initial trust boundary. Bootstrap downloads th
 
 On each native target, install the pinned toolchain, run `pnpm verify:all`, then `node scripts/release/package.mjs coverage/release`. Packaging refuses an existing stage and produces the artifact plus commit/hash metadata. Run `node scripts/release/smoke.mjs coverage/release/stage-<platform>-<arch>` to verify relocated startup without system Node, Git or pnpm in PATH.
 
-The `Release Artifacts` workflow runs on PRs and manual dispatch. Publication is manual, requires an existing version tag matching `package.json`, waits for all four builds, portable media/SQLite checks and live Linux service activation, and uses the protected environment. All artifacts must have the same immutable commit. Stable releases are the normal target; previews require explicit selection.
+The `Release Artifacts` workflow runs on PRs and manual dispatch. Publication is manual, requires an existing version tag matching `package.json`, waits for all four builds, portable media/SQLite checks, live Linux service activation and the signing contract job, and uses the protected environment. All artifacts must have the same immutable commit. Stable releases are the normal target; previews require explicit selection.
+
+The signing contract job downloads all four artifacts and runs `scripts/release/test-signing.mjs`. It generates an ephemeral RSA key outside the checkout, exercises the production signing script, verifies both signed formats with OpenSSL and the JSON manifest with the packaged Node client, and proves the production trust anchor rejects its test signature. Test private keys are never uploaded or used for publication. The supplemental scheduled/manual service and lifecycle workflows also exercise packaged artifacts while retaining source-bootstrap coverage.
 
 Before publication, reconcile the exact commit, dependency audits, coverage, Linux/macOS lifecycle evidence and changelog. Publish a preview first and validate fresh installation and release/source transitions on test hosts before stable. A merged PR or Windows quality run is not live operator-platform certification.
 

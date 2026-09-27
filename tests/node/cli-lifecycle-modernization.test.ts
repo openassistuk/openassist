@@ -4,15 +4,17 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { generateKeyPairSync, sign } from "node:crypto";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
+import net from "node:net";
+import { DatabaseSync } from "node:sqlite";
 import { verifyManifest, download, readBuildIdentity } from "../../apps/openassist-cli/src/lib/release.js";
 import { acquireLifecycleLock, containedPath, copyPrivateTree, removeManagedPath } from "../../apps/openassist-cli/src/lib/lifecycle-files.js";
-import { normalizeConfigPaths, resolveUpdateMethod, sourceRef, recoverUpdate, pruneLifecycleHistory } from "../../apps/openassist-cli/src/lib/lifecycle-engine.js";
+import { normalizeConfigPaths, resolveUpdateMethod, sourceRef, recoverUpdate, pruneLifecycleHistory, executeUpdate, type LifecycleHost } from "../../apps/openassist-cli/src/lib/lifecycle-engine.js";
 import { renderOperationSummary } from "../../apps/openassist-cli/src/lib/lifecycle-readiness.js";
 import { saveInstallState, loadInstallState, atomicWriteJson } from "../../apps/openassist-cli/src/lib/install-state.js";
 import { checkForUpdate, setUpdateNotifications } from "../../apps/openassist-cli/src/lib/update-notifications.js";
 import { uninstallApplication } from "../../apps/openassist-cli/src/lib/lifecycle-uninstall.js";
-import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath } from "../../packages/config/dist/index.js";
+import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, writeDefaultConfig, loadConfig } from "../../packages/config/dist/index.js";
 import { randomUUID } from "node:crypto";
 
 describe("managed lifecycle command contracts", () => {
@@ -20,7 +22,7 @@ describe("managed lifecycle command contracts", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "oa-cli-isolated-"));
     const env = {...process.env, OPENASSIST_STATE_ROOT: root, HOME:root, USERPROFILE:root};
     const run = (...args: string[]) => {
-      const result = spawnSync(process.execPath,["apps/openassist-cli/dist/index.js",...args,"--json"],{env,encoding:"utf8"});
+      const result = spawnSync(process.execPath,["node_modules/tsx/dist/cli.mjs","apps/openassist-cli/src/index.ts",...args,"--json"],{env,encoding:"utf8"});
       assert.equal(result.error,undefined);
       return {code:result.status,body:JSON.parse(result.stdout)};
     };
@@ -114,5 +116,86 @@ describe("managed lifecycle command contracts", () => {
       const result=renderOperationSummary({operation:journal,available:"0.2.0",current:"0.1.0",notifications:"on",ref:"main",build:active.build,verified:true});
       assert.ok(result.some(line=>line.includes("Operation phase: prepared")));
     }finally{if(previousRoot===undefined)delete process.env.OPENASSIST_STATE_ROOT;else process.env.OPENASSIST_STATE_ROOT=previousRoot;fs.rmSync(root,{recursive:true,force:true});}
+  });
+
+  it("executes activation, WAL backup, interrupted recovery and offline rollback against a simulated service host",async()=>{
+    const home=fs.mkdtempSync(path.join(os.tmpdir(),"oa-cli-engine-"));
+    const homeMock=mock.method(os,"homedir",()=>home);
+    const savedRoot=process.env.OPENASSIST_STATE_ROOT;delete process.env.OPENASSIST_STATE_ROOT;
+    let db:DatabaseSync|undefined;
+    try{
+      const root=defaultManagedInstallDir();
+      fs.mkdirSync(path.dirname(defaultConfigPath()),{recursive:true});writeDefaultConfig(defaultConfigPath());
+      const port=await new Promise<number>(resolve=>{const server=net.createServer();server.listen(0,"127.0.0.1",()=>{const port=(server.address() as net.AddressInfo).port;server.close(()=>resolve(port));});});
+      fs.writeFileSync(defaultConfigPath(),fs.readFileSync(defaultConfigPath(),"utf8").replace(/bindPort\s*=\s*[\d_]+/,`bindPort = ${port}`));
+      fs.writeFileSync(defaultEnvFilePath(),"# test credentials retained\n");
+      const data=path.join(home,".local","share","openassist","data");fs.mkdirSync(data,{recursive:true});
+      db=new DatabaseSync(path.join(data,"openassist.db"));db.exec("PRAGMA journal_mode=WAL; PRAGMA user_version=1; CREATE TABLE sentinel(content TEXT); INSERT INTO sentinel VALUES ('retained conversation')");
+      const application=(name:string)=>{
+        const directory=path.join(root,"releases",name);
+        for(const entry of ["openassist-cli","openassistd"]){const file=path.join(directory,"apps",entry,"dist","index.js");fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,"process.exit(0)\n");}
+        const build={id:name,version:"0.1.0",commit:"a".repeat(40),nodeVersion:"24.21.0",configVersion:1,databaseVersion:1};
+        atomicWriteJson(path.join(directory,"build-identity.json"),build);
+        return{method:"release" as const,path:directory,nodePath:process.execPath,build,verified:true,channel:"stable" as const};
+      };
+      const old=application("old");const candidate=application("candidate");
+      saveInstallState({installDir:old.path,managedRoot:root,active:old,previous:candidate});
+      let running=true;let active="old";let fail=false;const events:string[]=[];
+      const host:LifecycleHost={platform:"linux",switchCurrent:(_root,target)=>{active=path.basename(target);events.push(`activate:${active}`);},
+        checkHealth:async(_url,expected)=>({ok:running&&(!expected||expected.buildId===active),status:200,bodyText:"test host"}),
+        service:{kind:"systemd-user",isInstalled:async()=>true,isRunning:async()=>running,
+          stop:async()=>{events.push("stop");running=false;},install:async options=>{events.push(`install:${active}`);if(fail&&active==="candidate")throw new Error("injected activation failure");running=options.start!==false;},
+          uninstall:async()=>{},start:async()=>{running=true;},restart:async()=>{running=true;},status:async()=>{},logs:async()=>{},enable:async()=>{},disable:async()=>{running=false;}}
+      };
+      const result=await executeUpdate({},true,host);assert.equal(result.verified,true);
+      assert.deepEqual(events,["stop","activate:candidate","install:candidate"]);
+      const backup=new DatabaseSync(path.join(String(result.backup),"data","openassist.db"),{readOnly:true});
+      try{assert.equal((backup.prepare("SELECT content FROM sentinel").get() as {content:string}).content,"retained conversation");}finally{backup.close();}
+      await executeUpdate({skipRestart:true},true,host);assert.equal(loadInstallState()?.active?.verified,false);
+      running=true;assert.equal((await recoverUpdate(false,host)).phase,"complete");
+      fail=true;await assert.rejects(executeUpdate({},true,host),/injected activation failure/);
+      assert.equal(loadInstallState()?.active?.build.id,"old");assert.equal(running,true);
+      assert.equal((db.prepare("SELECT content FROM sentinel").get() as {content:string}).content,"retained conversation");
+      const journalFile=path.join(root,"operation.json");
+      atomicWriteJson(journalFile,{version:1,id:randomUUID(),phase:"activating",before:loadInstallState(),candidate,serviceInstalled:true,wasRunning:true});
+      assert.equal((await recoverUpdate(false,host)).phase,"rolled-back");
+    }finally{db?.close();homeMock.mock.restore();if(savedRoot!==undefined)process.env.OPENASSIST_STATE_ROOT=savedRoot;fs.rmSync(home,{recursive:true,force:true});}
+  });
+
+  it("runs local working-tree instances with dedicated state and credentials, then removes only the selected instance",()=>{
+    const root=fs.mkdtempSync(path.join(os.tmpdir(),"oa-cli-dev-"));
+    const local=path.join(root,"local worktree");const bin=path.join(root,"bin");
+    fs.mkdirSync(path.join(local,"apps","openassistd","dist"),{recursive:true});fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(local,"package.json"),JSON.stringify({name:"fixture",version:"0.1.0",packageManager:"pnpm@12.5.1"}));
+    fs.writeFileSync(path.join(local,"pnpm-workspace.yaml"),"packages: []\n");
+    fs.writeFileSync(path.join(local,"local-changes.txt"),"uncommitted content stays intact");
+    fs.writeFileSync(path.join(local,"apps","openassistd","dist","index.js"),`const fs=require('node:fs'); const path=require('node:path'); fs.writeFileSync(path.join(process.env.OPENASSIST_STATE_ROOT,'child-check.json'),JSON.stringify({secretPresent:'OPENASSIST_FIXTURE_SECRET' in process.env,stateRoot:process.env.OPENASSIST_STATE_ROOT,envFile:process.env.OPENASSIST_ENV_FILE}));`);
+    const stub=path.join(bin,"pnpm-stub.cjs");
+    fs.writeFileSync(stub,"if(process.argv.includes('--version')) process.stdout.write('12.5.1');\n");
+    const quote=(value:string)=>`'${value.replaceAll("'","'\\''")}'`;
+    if(process.platform==="win32")fs.writeFileSync(path.join(bin,"pnpm.cmd"),`@"${process.execPath}" "${stub}" %*\r\n`);
+    else fs.writeFileSync(path.join(bin,"pnpm"),`#!/bin/sh\nexec ${quote(process.execPath)} ${quote(stub)} "$@"\n`,{mode:0o755});
+    const env={...process.env,HOME:root,USERPROFILE:root,PATH:bin+path.delimiter+process.env.PATH,OPENASSIST_STATE_ROOT:root,OPENASSIST_FIXTURE_SECRET:"test-only-value"};
+    const run=(...args:string[])=>{
+      const result=spawnSync(process.execPath,["node_modules/tsx/dist/cli.mjs","apps/openassist-cli/src/index.ts","dev",...args,"--json"],{env,encoding:"utf8",timeout:30_000});
+      assert.equal(result.error,undefined);assert.ok(result.stdout,result.stderr);return {code:result.status,body:JSON.parse(result.stdout)};
+    };
+    try{
+      const first=run("test","--local",local,"--name","local-test");assert.equal(first.code,0,JSON.stringify(first.body));
+      const instance=path.join(root,".local","share","openassist","dev","local-test");
+      const child=JSON.parse(fs.readFileSync(path.join(instance,"child-check.json"),"utf8"));assert.equal(child.secretPresent,false);assert.equal(child.stateRoot,instance);
+      const config=loadConfig({baseFile:path.join(instance,"config","openassist.toml")}).config;
+      assert.deepEqual(config.runtime.channels,[]);assert.equal(config.runtime.scheduler.enabled,false);assert.equal(config.runtime.bindAddress,"127.0.0.1");
+      fs.writeFileSync(path.join(instance,"keep-state.txt"),"reuse me");
+      assert.equal(run("test","--local",local,"--name","local-test").code,0);
+      assert.equal(fs.readFileSync(path.join(instance,"keep-state.txt"),"utf8"),"reuse me");
+      assert.equal(fs.readFileSync(path.join(local,"local-changes.txt"),"utf8"),"uncommitted content stays intact");
+      assert.equal(fs.existsSync(path.join(root,".local","bin","openassist")),false);
+      assert.ok(run("list").body.instances.some((item:{name:string})=>item.name==="local-test"));
+      fs.mkdirSync(path.join(instance,"operation.lock"));assert.equal(run("remove","local-test","--yes").code,1);fs.rmdirSync(path.join(instance,"operation.lock"));
+      assert.equal(run("remove","local-test","--dry-run").code,0);assert.equal(fs.existsSync(instance),true);
+      assert.equal(run("remove","local-test","--yes").code,0);assert.equal(fs.existsSync(instance),false);
+      assert.equal(fs.existsSync(local),true);
+    }finally{fs.rmSync(root,{recursive:true,force:true});}
   });
 });

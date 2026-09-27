@@ -1,6 +1,5 @@
-import fs from "node:fs";
 import path from "node:path";
-import { defaultConfigDir } from "@openassist/config";
+import { defaultConfigDir, readUpdateCache } from "@openassist/config";
 import { atomicWriteJson, loadInstallState, saveInstallState } from "./install-state.js";
 import { download, resolveRelease } from "./release.js";
 
@@ -8,13 +7,12 @@ export async function checkForUpdate(force = false): Promise<Record<string, unkn
   const state = loadInstallState();
   const file = path.join(defaultConfigDir(),"update-check.json");
   if (!force && state?.notifications === false) return {disabled: true};
-  if (!force && fs.existsSync(file)) {
-    try {
-      if(fs.statSync(file).size>16_384) throw new Error("Oversized notice cache");
-      const cached = JSON.parse(fs.readFileSync(file,"utf8"));
+  if (!force) {
+    const cached=readUpdateCache();
+    if(cached) {
       const age=Date.now()-cached.checkedAt;
       if(Number.isFinite(age) && age>=0 && age<86_400_000) return cached;
-    } catch { /* Refresh damaged cache. */ }
+    }
   }
   let result: Record<string, unknown>;
   try {

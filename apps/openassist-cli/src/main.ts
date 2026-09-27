@@ -351,6 +351,8 @@ program
 
     const report = buildLifecycleReport({
       installationMethod: installState?.active?.method,
+      activationVerified: installState?.active?.verified,
+      isolated: Boolean(process.env.OPENASSIST_STATE_ROOT),
       installedVersion: installState?.active?.build.version,
       installDir,
       configPath,

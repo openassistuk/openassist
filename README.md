@@ -231,8 +231,9 @@ Default install path is `Standard mode (recommended)`.
 - `CI` runs on pushes to `main`, pull requests, manual dispatch, and a daily `04:30 UTC` schedule for workflow lint plus the `quality-and-coverage` matrix on `ubuntu-latest`, `macos-latest`, and `windows-latest`. The workflow lint leg also enforces the tracked action-version floors for `actions/checkout@v6`, `actions/setup-node@v6`, `actions/upload-artifact@v7`, and `github/codeql-action/*@v4`.
 - `CodeQL` runs on pushes to `main`, pull requests to `main`, manual dispatch, and a weekly `Mon` at `05:15 UTC` schedule. In this public repo it runs `CodeQL preflight` plus `analyze (javascript-typescript)`.
 - `macOS Live Launchd` runs on pull requests to `main` and manual dispatch. Its `launchd-live-smoke (macos-latest)` job is the required hosted live LaunchAgent gate on `main`.
-- `Service Smoke` runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`) for dry-run service checks plus unconfigured-checkout upgrade routing assertions.
-- `Lifecycle E2E Smoke` runs on manual dispatch and schedule (`Tue`/`Sat` at `07:00 UTC`) for stronger bootstrap, home-state, doctor, and upgrade dry-run verification.
+- `Service Smoke` runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`) for dry-run service checks, source upgrade routing and portable release smoke tests.
+- `Lifecycle E2E Smoke` runs on manual dispatch and schedule (`Tue`/`Sat` at `07:00 UTC`) for source bootstrap/home-state checks, doctor/update output, portable release smoke and live Linux update/rollback/uninstall.
+- `Release Artifacts` runs on PRs and manual dispatch for all four supported native targets, live Linux lifecycle checks and signing tests using ephemeral keys. Only explicit publication dispatch can access the protected production signing key.
 - the two smoke workflows are supplemental manual or scheduled signals, not normal per-push or per-PR gates
 
 ## Local Verification

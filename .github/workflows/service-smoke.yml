@@ -43,6 +43,11 @@ jobs:
       - name: Build
         run: pnpm -r build
 
+      - name: Packaged release smoke
+        run: |
+          node scripts/release/package.mjs coverage/scheduled-release
+          node scripts/release/smoke.mjs "coverage/scheduled-release/stage-$(node -p 'process.platform + "-" + process.arch')"
+
       - name: Service and upgrade dry-run smoke
         run: |
           pnpm --filter @openassist/openassist-cli exec node dist/index.js service install --dry-run --install-dir "$PWD" --config "$PWD/openassist.toml"

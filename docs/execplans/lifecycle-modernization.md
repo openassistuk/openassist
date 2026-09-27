@@ -10,11 +10,12 @@ Operators install verified prebuilt releases with a private Node runtime, prepar
 
 - [x] (2026-09-27) Inspected installer, upgrade, services, paths, storage, health, diagnostics, workflows and docs-truth tests; user approved the complete plan and both developer workflows.
 - [x] (2026-09-27 19:07Z) Added installation/build contracts, versioned records, isolated state paths, database admission checks and structured build/instance health.
-- [ ] Portable artifacts and signed release workflows implemented; native hosted smoke evidence remains pending.
-- [ ] Staged operations, recovery, rollback and migration implemented; remaining fault-injection and live service validation in progress.
-- [ ] Isolated developer instances and primary source switching implemented; foreground/local-build integration validation pending.
-- [ ] Uninstall, notices and installation-aware diagnostics implemented; cached status and source-check refinements in progress.
-- [ ] Synchronize documentation, add regression coverage, run required checks and open PR.
+- [x] (2026-09-27 20:45Z) Native artifact/relocation/media/SQLite smoke passed on Linux x64/arm64 and macOS x64/arm64 at b99091d; live Linux update/rollback/uninstall and macOS LaunchAgent gates passed.
+- [x] (2026-09-27 20:45Z) Staged operations, compatible rollback, conservative recovery and migration implemented. Phase interruption tests and real WAL-backed state-preservation integration tests pass locally.
+- [x] (2026-09-27 20:45Z) Both developer workflows implemented. Source preparation records immutable revisions; foreground local-build integration checks preserve local changes, reuse isolated state, remove inherited credentials and enforce cleanup locks.
+- [x] (2026-09-27 20:45Z) Ownership-aware uninstall, cached notices, source checks and release/source/isolation diagnostics implemented. Setup reports matched installation metadata; first service startup can be explicitly health-confirmed.
+- [x] (2026-09-27 20:45Z) Documentation synchronized and draft PR #63 opened. Full local verification passed before final reporting refinements, with zero dependency audit findings and unchanged coverage gates.
+- [ ] Final signing-contract job, supplemental workflow dispatches, complete diff review and exact-commit local/hosted reconciliation.
 
 ## Surprises & Discoveries
 
@@ -38,7 +39,7 @@ The existing upgrade changes the active checkout and rebuilds on rollback. The d
 
 ## Outcomes & Retrospective
 
-Implementation in progress. No release has been published and no live operator installation has been changed. Hosted platform evidence and signing provisioning must be reported separately from local verification.
+The implementation is available in draft PR #63 on `codex/lifecycle-modernization`. Native artifacts and live service tests have passed at b99091d; final reporting/signing refinements require a fresh hosted reconciliation. No release has been published and no live operator installation has been changed. The production trust anchor remains deliberately unprovisioned, so publication readiness requires maintainer signing-key/protected-environment setup and a tested preview rollout.
 
 ## Context and Orientation
 
@@ -75,3 +76,5 @@ Initial evidence: clean `main` checkout; authenticated GitHub CLI; existing tool
 Public interfaces are `update [check|recover|notifications]`, compatible `upgrade`, `rollback`, `uninstall`, and `dev [test|list|remove]`. Release selectors are `--release`, `--channel stable|preview`, `--version`; source selectors are `--source`, `--ref`, `--pr`. Lifecycle operations accept dry-run/JSON; destructive or method-changing unattended operations require explicit selection and `--yes`. Install records become versioned; lifecycle report becomes version 4. Health adds build and instance identity. Use Node built-ins, tar for bounded archive validation, and esbuild for the standalone bootstrap verifier. Bootstrap uses curl, gzip and OpenSSL.
 
 Revision 2026-09-27: Created the execution record from the user-approved plan before implementation.
+
+Revision 2026-09-27 20:45Z: Recorded native and local integration evidence, updated completed milestones, and added real-artifact test-key signing plus final setup/health reporting checks. The legacy source bootstrap remains an explicit compatibility entrypoint for the first checkout; it refuses managed installations, whose later updates all use the staged engine. CodeQL identified cache stat/read races, now replaced with bounded descriptor reads. Its downloader finding concerns intentional nonsecret version/ref selectors; the narrow suppression documents that no credentials or file contents are transmitted.

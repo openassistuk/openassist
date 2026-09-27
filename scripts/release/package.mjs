@@ -14,7 +14,11 @@ if (!['linux-x64','linux-arm64','darwin-x64','darwin-arm64'].includes(target)) t
 if (process.versions.node !== '24.21.0') throw new Error('Release packaging requires the pinned Node 24.21.0 runtime.');
 const run = (cmd,args) => { const r = spawnSync(cmd,args,{cwd:root,stdio:'inherit'}); if(r.status !== 0) throw new Error(`${cmd} failed`); };
 const commit = spawnSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).stdout.trim();
+if (!/^[a-f0-9]{40,64}$/.test(commit)) throw new Error('Packaging requires an immutable Git commit.');
+const dirty = spawnSync('git',['status','--porcelain','--untracked-files=no'],{cwd:root,encoding:'utf8'});
+if (dirty.status !== 0 || dirty.stdout.trim()) throw new Error('Commit tracked changes before packaging an immutable release.');
 const version = JSON.parse(fs.readFileSync('package.json','utf8')).version;
+for (const app of ['openassist-cli','openassistd']) if (JSON.parse(fs.readFileSync(`apps/${app}/package.json`,'utf8')).version !== version) throw new Error('Application and release versions must match.');
 if (process.env.RELEASE_TAG && process.env.RELEASE_TAG !== `v${version}`) throw new Error('Release tag must match package.json version.');
 const stage = path.join(output,`stage-${target}`);
 if(fs.existsSync(stage)) throw new Error('Packaging stage already exists; use a new output directory.');

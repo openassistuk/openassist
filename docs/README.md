@@ -106,7 +106,7 @@ Lifecycle surfaces now share one readiness model instead of each inventing their
 - `Needs action`
 - `Next command`
 
-`openassist doctor --json` keeps the grouped lifecycle report for automation and is now `version: 3` with per-item `stage` metadata plus shared service-boundary context.
+`openassist doctor --json` keeps the grouped lifecycle report for automation and is now `version: 4` with per-item `stage` metadata, installation method/version, activation verification, isolation and shared service-boundary context.
 
 Recognized older installs that still use repo-local operator state (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) are migrated into the home-state layout automatically when a setup flow runs and the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/` before it changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and route the operator back to setup instead of migrating it in place.
 
@@ -218,3 +218,5 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 - [Uninstall](operations/uninstall.md): owned application removal, retained state and explicit purge.
 
 Normal installation uses verified releases; source builds require explicit selection. Install-state version 2 and lifecycle JSON version 4 distinguish the installation method. `.github/workflows/release.yml` runs on pull requests and manual dispatch, with protected publication only on explicit dispatch. Existing scheduled/manual smoke workflows and the required live macOS gate retain their trigger semantics.
+
+Native release jobs include a separate signing contract check using ephemeral test keys. Scheduled/manual smoke workflows cover both source installation and packaged artifacts, including live Linux update/rollback/uninstall in lifecycle E2E.

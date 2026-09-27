@@ -19,7 +19,7 @@ const models: ModelCapabilities[] = [
   ...["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini"].map(id => ({ id, routes: ["azure-foundry"] as const, responses: true, reasoningEfforts: [] })),
   ...["claude-sonnet-5", "claude-opus-5"].map(id => ({ id, routes: ["anthropic"] as const, responses: false, reasoningEfforts: [], thinkingModes: ["adaptive", "disabled"] as const, thinkingEfforts: ANTHROPIC_THINKING_EFFORTS, supportsTemperature: false, defaultThinking: "adaptive" as const })),
   ...["claude-sonnet-4-6", "claude-opus-4-6"].map(id => ({ id, routes: ["anthropic"] as const, responses: false, reasoningEfforts: [], thinkingModes: ["adaptive", "enabled", "disabled"] as const, thinkingEfforts: ["low", "medium", "high", "max"] as const, defaultThinking: "disabled" as const })),
-  ...["claude-3-7-sonnet-latest", "claude-3-7-sonnet-20250219", "claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-sonnet-4-5", "claude-sonnet-4-5-20250929", "claude-opus-4-5-20251101", "claude-haiku-4-5-20251001"].map(id => ({ id, routes: ["anthropic"] as const, responses: false, reasoningEfforts: [], thinkingModes: ["enabled", "disabled"] as const, defaultThinking: "disabled" as const }))
+  ...["claude-3-7-sonnet-latest", "claude-3-7-sonnet-20250219", "claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-sonnet-4-5", "claude-sonnet-4-5-20250929", "claude-opus-4-5", "claude-opus-4-5-20251101", "claude-haiku-4-5-20251001"].map(id => ({ id, routes: ["anthropic"] as const, responses: false, reasoningEfforts: [], thinkingModes: ["enabled", "disabled"] as const, defaultThinking: "disabled" as const }))
 ];
 
 // Explicit, bounded entries. Never infer capabilities from a custom model's name.

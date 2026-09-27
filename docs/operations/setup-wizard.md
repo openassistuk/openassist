@@ -306,3 +306,5 @@ OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must upda
 ## Modernization compatibility
 
 The provider editor prints current recommendations without overwriting saved IDs. It filters reasoning choices by exact model and route, supports adaptive Anthropic thinking/effort, and preserves the legacy budget editing path. Retired Codex selections must be explicitly replaced before readiness succeeds.
+
+Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.

@@ -11,6 +11,8 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Modernization
 
+- Preserve manual thinking for saved `claude-opus-4-5` aliases. Quickstart now detects incompatible Anthropic thinking settings after a model change and offers an explicit reset or another model, avoiding an unrecoverable validation loop.
+
 - Sanitize OpenAI/Anthropic OAuth exchange failures and validate token response fields so upstream echoed credentials cannot leak into operator errors. Add login/PKCE and config rejection regression coverage.
 - Install native pnpm 12 through npm with a scoped script permission in bootstrap and CI; audit invocation supports native binaries on every quality-matrix platform.
 

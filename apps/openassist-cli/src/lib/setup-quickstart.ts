@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, type OpenAssistConfig } from "@openassist/config";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, providerTuningErrors, type OpenAssistConfig } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
 import {
   isUntouchedDefaultConfigObject,
@@ -519,11 +519,26 @@ async function promptProvider(
   }
 
   describeModelChoices(type, existing?.defaultModel);
-  const defaultModel = await promptRequiredText(
+  let defaultModel = await promptRequiredText(
     prompts,
     "Default model",
     existing?.type === type ? existing.defaultModel : suggested.model
   );
+  let anthropicTuning = type === "anthropic" && existing?.type === "anthropic"
+    ? { thinkingMode: existing.thinkingMode, thinkingEffort: existing.thinkingEffort, thinkingBudgetTokens: existing.thinkingBudgetTokens }
+    : {};
+  if (type === "anthropic") {
+    while (true) {
+      const errors = providerTuningErrors({ id: providerId, type, defaultModel, ...anthropicTuning });
+      if (errors.length === 0) break;
+      console.log(`Saved thinking settings are incompatible with ${defaultModel}: ${errors.join(" ")}`);
+      if (await prompts.confirm("Reset thinking settings to provider defaults for this model?", false)) {
+        anthropicTuning = {};
+        break;
+      }
+      defaultModel = await promptRequiredText(prompts, "Choose another model to preserve the saved thinking settings", existing?.defaultModel);
+    }
+  }
   const baseUrlInput = providerSupportsCustomBaseUrl(type)
     ? await prompts.input("Base URL (blank for default)", existing?.baseUrl ?? suggested.baseUrl ?? "")
     : "";
@@ -544,7 +559,7 @@ async function promptProvider(
     ...(resolvedBaseUrl.length > 0 ? { baseUrl: resolvedBaseUrl } : {}),
     ...((type === "openai" || type === "codex") && reasoningEffort ? { reasoningEffort } : {}),
     ...(existing && "oauth" in existing && existing.oauth ? { oauth: existing.oauth } : {}),
-    ...(type === "anthropic" && existing?.type === "anthropic" ? { thinkingMode: existing.thinkingMode, thinkingEffort: existing.thinkingEffort, thinkingBudgetTokens: existing.thinkingBudgetTokens } : {}),
+    ...anthropicTuning,
     ...(existing?.metadata ? { metadata: existing.metadata } : {})
   };
 }

@@ -338,3 +338,5 @@ pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm w
 `tests/vitest/provider-auth-contracts.test.ts` covers OpenAI/Anthropic callback and PKCE exchange, token metadata, missing credentials, malformed responses and error redaction, plus compatible-endpoint auth boundaries. `config-security-schema.test.ts` checks Zod 4 channel secret arrays, operator IDs, rejection paths and nested security defaults.
 
 `dependency-security-overrides.test.ts` enforces patched floors for all 17 packages in the 2026-09-27 snapshot of 72 Dependabot alerts (including removal of UUID), and matching Vitest/coverage-v8 resolutions. The live production/full audits continue to detect advisories beyond that recorded snapshot.
+
+The model-catalog suite covers saved Opus 4.5 alias validation and manual request mapping. Quickstart flow tests save and reload configurations for unchanged models, compatible model changes, accepted thinking resets, and declined resets followed by another model.

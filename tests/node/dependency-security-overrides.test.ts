@@ -54,5 +54,5 @@ test("dependency policy rejects the previously vulnerable dependency floors", ()
     assert.ok(!lock.includes(spec + ":"), "Vulnerable version remains: " + spec);
   }
   assert.match(policy, /'@whiskeysockets\/baileys>libsignal': '6.0.0'/);
-  assert.doesNotMatch(lock, /codeload\.github\.com\/whiskeysockets\/libsignal-node/);
+  assert.ok(!lock.includes("libsignal-node"), "Baileys must use registry libsignal rather than a Git snapshot");
 });

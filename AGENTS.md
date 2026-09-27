@@ -34,7 +34,7 @@ For non-trivial changes, follow `.agents/PLANS.md`.
   - `Outcomes & Retrospective`
 - Record concrete evidence before marking milestones complete.
 
-Model compatibility lives in `packages/config/src/provider-models.ts`, with contracts in core-types. Setup, validation, request mapping, and status must use these definitions. Preserve saved model IDs and require explicit repair for retired Codex selections. Do not infer optional capabilities from model-name substrings or Azure deployment names. Preserve manual budget semantics on compatible Anthropic models and reject unsupported/conflicting tuning.
+Model compatibility lives in `packages/config/src/provider-models.ts`, with contracts in core-types. Setup, validation, request mapping, and status must use these definitions. Preserve saved model IDs and require explicit repair for retired Codex selections. Do not infer optional capabilities from model-name substrings or Azure deployment names. Preserve manual budget semantics on compatible Anthropic models and verified aliases, and reject unsupported/conflicting tuning. Quickstart must offer an explicit reset or another model when saved thinking settings conflict with a model change; compatible settings must remain intact.
 
 ## Module Boundaries
 

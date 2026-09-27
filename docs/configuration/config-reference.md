@@ -371,3 +371,5 @@ openassist doctor
 ## Modernization compatibility
 
 Reasoning options are filtered by the exact cataloged route/model. Astra has no `none` option; Terra/Sol/Luna support `none` through `max`. Sonnet 5 and Opus 5 support adaptive thinking and no manual budgets. Haiku 4.5 supports manual thinking and no effort. Budget-only settings on compatible older models retain their manual meaning. `Default` omits the parameter; it does not turn off provider-default thinking. Unknown models remain accepted without inferred optional capabilities; explicit unsupported Anthropic tuning is rejected.
+
+Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.

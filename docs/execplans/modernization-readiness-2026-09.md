@@ -24,6 +24,8 @@ Operators should be able to install OpenAssist on Node 24, select supported curr
 
 - [x] (2026-09-27) Reconciled all 72 current GitHub Dependabot alerts and PRs #53/#54 into this branch. Every affected package is patched or removed; strengthened lockfile floor tests and confirmed both audits remain zero.
 
+- [x] (2026-09-27) Review fixes: restore the verified Opus 4.5 alias and add explicit quickstart recovery for incompatible saved thinking. Both focused suites passed (29 tests); full `pnpm verify:all` also passed after the fixes.
+
 ## Surprises & Discoveries
 
 Baseline coverage documentation requires 81% functions but Vitest configured 80%; docs-truth only compared the lines value. The baseline installer accepts every Node major >=22 despite requiring built-in SQLite unavailable in early Node 22. Codex validation only accepts gpt-5.4 or names containing codex; the account-login service retired gpt-5.4 on 2026-08-31. Baileys latest is a prerelease; the supported legacy tag resolves to 6.7.24. Existing dependency-floor tests assert exact old overrides and must migrate with the dependency tree.
@@ -135,3 +137,13 @@ These fixes are consolidated locally; GitHub still reports the unmerged default-
 Revision note (2026-09-27, consolidation): Added the exact current alert inventory and both dependency PR dispositions, so the cleanup PR has explicit evidence covering every open alert rather than relying only on an aggregate audit count. No additional dependency changes were necessary; the existing modernization resolutions already cover all 72 alerts.
 
 Consolidation verification: 11 targeted dependency-policy/docs-truth tests passed; both audits again reported zero findings. No product or lockfile change was needed after the previously passing full verification, so the full suite was not repeated for this evidence/test-only follow-up.
+
+## Review follow-up: saved Anthropic compatibility
+
+Review found that `claude-opus-4-5` was omitted while its dated model was cataloged, rejecting previously valid manual-budget configurations at startup. The official Opus 4.5 specification confirms the alias and extended thinking. Added that exact alias without changing saved IDs or inferring name-based capabilities.
+
+Quickstart also copied thinking settings after a model change without offering a repair surface. It now validates the retained tuning against the selected model and asks explicitly before resetting to provider defaults; No is the default and reopens model selection. Compatible tuning is preserved even across a model change. The reset only affects the pending in-memory configuration until normal validated save. Tests exercise complete save/reload paths for preservation, reset acceptance and refusal.
+
+Decision (2026-09-27): keep detailed thinking editing in wizard; use an explicit reset-or-change-model prompt in quickstart to preserve its beginner-facing scope. No new dependencies or storage changes. Focused verification: 29 tests passed across the catalog and quickstart-flow suites. Full verification passed: 379 Vitest tests, 185 Node tests (3 expected skips); Vitest lines 83.20%, statements 83.02%, functions 86.46%, branches 71.29%; Node lines/statements 80.66%, functions 91.43%, branches 72.41%. Both dependency audits remain zero. Log: `%TEMP%/oa-review-fixes-verify.log`.
+
+Review follow-up verification also identified a CodeQL URL-regex warning in the dependency contract test. This test rejects a Git dependency name rather than validating a URL, so it now checks the dependency name directly with `includes`. Both dependency contract tests pass; the assertion remains active without a URL-shaped regex. Hosted CodeQL must rerun after the update to PR #55; no alert suppression was added.

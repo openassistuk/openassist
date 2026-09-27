@@ -190,7 +190,7 @@ Current lifecycle ExecPlans:
 - [`docs/execplans/setup-wizard-full-access-prompt.md`](execplans/setup-wizard-full-access-prompt.md)
 - [`docs/execplans/status-tool-loop-followups.md`](execplans/status-tool-loop-followups.md)
 
-See the [model compatibility catalog](providers/model-compatibility.md) for current recommendations, route-specific controls and explicit repair of retired selections.
+See the [model compatibility catalog](providers/model-compatibility.md) for current recommendations, route-specific controls, preserved Anthropic aliases, and explicit repair of retired or incompatible selections.
 
 ## Node 24 runtime migration
 

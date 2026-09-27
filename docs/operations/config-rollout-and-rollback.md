@@ -112,3 +112,5 @@ LIMIT 5;
 ## Modernization compatibility
 
 Model updates are explicit configuration changes. Back up TOML before replacing a retired Codex model or changing Anthropic thinking controls. Existing conversations, credentials, and SQLite schema are retained. Validate the proposed config before restart; restore the previous config with the matching application checkout if rollback is required.
+
+Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.

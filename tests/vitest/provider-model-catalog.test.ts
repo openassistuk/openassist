@@ -92,6 +92,17 @@ describe("shared model capabilities", () => {
     expect(providerTuningErrors({ ...anthropic, defaultModel: "custom-claude" })).toEqual([]);
   });
 
+  it("loads the saved Opus 4.5 alias and retains its manual thinking request", () => {
+    const provider = { ...anthropic, defaultModel: "claude-opus-4-5", thinkingBudgetTokens: 4096 };
+    const config = createDefaultConfigObject();
+    config.runtime.providers = [provider];
+    expect(parseConfig(config).runtime.providers[0]).toEqual(provider);
+    expect(modelCapabilities(provider.defaultModel, "anthropic")?.thinkingModes).toEqual(
+      modelCapabilities("claude-opus-4-5-20251101", "anthropic")?.thinkingModes
+    );
+    expect(anthropicThinking(provider)).toEqual({ thinking: { type: "enabled", budget_tokens: 4096 } });
+  });
+
   it("offers only verified reasoning choices and omits default", async () => {
     const select = vi.fn().mockResolvedValueOnce("none").mockResolvedValueOnce("default");
     const prompts = { select } as unknown as PromptAdapter;

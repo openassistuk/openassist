@@ -199,6 +199,39 @@ function minimalAzureFoundryEntraAnswers(bindPort: number, extra: string[] = [])
 }
 
 describe("setup quickstart flow", () => {
+  it.each([
+    { name: "unchanged model", selected: "claude-sonnet-4-6", repair: [], expected: "claude-sonnet-4-6", budget: 4096 },
+    { name: "compatible model change", selected: "claude-opus-4-5", repair: [], expected: "claude-opus-4-5", budget: 4096 },
+    { name: "explicit reset for Sonnet 5", selected: "claude-sonnet-5", repair: ["true"], expected: "claude-sonnet-5", budget: undefined },
+    { name: "declined reset and another model", selected: "claude-sonnet-5", repair: ["false", "claude-sonnet-4-6"], expected: "claude-sonnet-4-6", budget: 4096 }
+  ])("saves existing Anthropic settings through $name", async ({ selected, repair, expected, budget }) => {
+    const root = tempDir("openassist-quickstart-thinking-");
+    try {
+      const configPath = path.join(root, "openassist.toml");
+      const envPath = path.join(root, "openassistd.env");
+      const state = loadSetupQuickstartState(configPath, envPath, root);
+      state.config.runtime.providers = [{ id: "anthropic-main", type: "anthropic", defaultModel: "claude-sonnet-4-6", thinkingBudgetTokens: 4096 }];
+      state.config.runtime.defaultProviderId = "anthropic-main";
+      state.config.runtime.time.requireTimezoneConfirmation = false;
+      state.config.runtime.bindPort = await getFreePort();
+      const answers = minimalWhatsAppAnthropicAnswers();
+      answers.splice(6, 1, selected, ...repair);
+      const result = await runSetupQuickstart(state, {
+        configPath, envFilePath: envPath, installDir: root, allowIncomplete: false,
+        skipService: true, requireTty: false, preflightCommandChecks: false
+      }, new ScriptedPromptAdapter(answers));
+      expect(result.saved).toBe(true);
+      const saved = loadSetupQuickstartState(configPath, envPath, root);
+      expect(saved.config.runtime.providers[0]).toMatchObject({ id: "anthropic-main", type: "anthropic", defaultModel: expected });
+      const provider = saved.config.runtime.providers[0];
+      expect(provider.type === "anthropic" && provider.thinkingBudgetTokens).toBe(budget);
+      expect(provider.type === "anthropic" && provider.thinkingMode).toBeUndefined();
+      expect(provider.type === "anthropic" && provider.thinkingEffort).toBeUndefined();
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("requires TTY by default for interactive quickstart", async () => {
     const root = tempDir("openassist-quickstart-flow-tty-required-");
     const configPath = path.join(root, "openassist.toml");

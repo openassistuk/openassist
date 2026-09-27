@@ -404,8 +404,8 @@ importers:
   packages/providers-anthropic:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: ^0.127.0
-        version: 0.127.0(zod@4.6.5)
+        specifier: ^0.128.0
+        version: 0.128.0(zod@4.6.5)
       '@openassist/config':
         specifier: workspace:*
         version: link:../config
@@ -431,8 +431,8 @@ importers:
         specifier: workspace:*
         version: link:../providers-openai-shared
       openai:
-        specifier: ^7.20.0
-        version: 7.20.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5)
+        specifier: ^7.23.0
+        version: 7.23.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5)
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -449,8 +449,8 @@ importers:
         specifier: workspace:*
         version: link:../providers-openai-shared
       openai:
-        specifier: ^7.20.0
-        version: 7.20.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5)
+        specifier: ^7.23.0
+        version: 7.23.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5)
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -467,8 +467,8 @@ importers:
         specifier: workspace:*
         version: link:../providers-openai-shared
       openai:
-        specifier: ^7.20.0
-        version: 7.20.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5)
+        specifier: ^7.23.0
+        version: 7.23.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5)
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -479,8 +479,8 @@ importers:
         specifier: workspace:*
         version: link:../core-types
       openai:
-        specifier: ^7.20.0
-        version: 7.20.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5)
+        specifier: ^7.23.0
+        version: 7.23.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5)
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -562,8 +562,8 @@ importers:
 
 packages:
 
-  '@anthropic-ai/sdk@0.127.0':
-    resolution: {integrity: sha512-OKiVbG9LHCxjn4fBJZJFy/Bz3hqE1RYpwaeSEDNheQnvz0XNKmGT/Lhkz2Sf1a27Ldt3vVv+BkU81I0U/8EpoQ==}
+  '@anthropic-ai/sdk@0.128.0':
+    resolution: {integrity: sha512-tl5cBFZC1jVFrTuQyvQObA4WmuNgcYVeXfriqOumgtLAHUm4gPUj18YnszBW60v0PrjDB8nBDOC6wd9CmHQFlA==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -2238,8 +2238,8 @@ packages:
     resolution: {integrity: sha512-YgBpdJHPyQ2UE5x+hlSXcnejzAvD0b22U2OuAP+8OnlJT+PjWPxtgmGqKKc+RgTM63U9gN0YzrYc71R2WT/hTA==}
     engines: {node: '>=18'}
 
-  openai@7.20.0:
-    resolution: {integrity: sha512-5x5ru4cKEvEqHqYZbdIbT57OE7KqmP9YYxZiUKuKng016grOHXqom1vmu34MTPPW30q+lcP9RhxAbaRse+Xlcw==}
+  openai@7.23.0:
+    resolution: {integrity: sha512-0ecOXnFSMNWZq6cUBcTV6Lf93y+fm8BH/+QzFvpoP1UGNOE5pnytRa6HAPGCw+3IS9SIAW7rc1M8yyzN1PiBAQ==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
       '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
@@ -2674,7 +2674,7 @@ packages:
 
 snapshots:
 
-  '@anthropic-ai/sdk@0.127.0(zod@4.6.5)':
+  '@anthropic-ai/sdk@0.128.0(zod@4.6.5)':
     dependencies:
       json-schema-to-ts: 3.1.1
       standardwebhooks: 1.1.1
@@ -4162,7 +4162,7 @@ snapshots:
       is-inside-container: 1.0.0
       wsl-utils: 0.1.0
 
-  openai@7.20.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5):
+  openai@7.23.0(undici@6.28.0)(ws@8.21.0)(zod@4.6.5):
     optionalDependencies:
       undici: 6.28.0
       ws: 8.21.0

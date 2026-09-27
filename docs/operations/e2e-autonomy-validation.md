@@ -256,4 +256,8 @@ Optional targeted notify check for approved operators only:
 
 ## Modernization compatibility
 
-For the modernized provider set, certify Terra and Sonnet 5 first replies, sequential tools, images/files, auth refresh, reconnect, and durable sessions using designated test accounts. Mock transport tests are not live certification. Record missing credentials or paid-test authorization as pending.
+For the current provider set, certify GPT-6 Sol and Sonnet 5 first replies, sequential tools, images/files, auth refresh, reconnect, and durable sessions using designated test accounts. Also exercise the new Claude Opus 5.5/Fable 5.1 thinking replay and Azure GPT-6 controls described below. Mock transport tests are not live certification. Record missing credentials or paid-test authorization as pending.
+
+For current-model beta evidence, record commit, OS/Node, route/model/effort/mode, channel and date. Exercise a first reply, two tool rounds, an image/file, restart with retained history, reconnect and auth refresh where applicable. With new Claude models, include a history trim or changed tool availability and verify replay remains successful without visible thinking. Record untested combinations explicitly.
+
+Follow-up harness checks must also cover persisted Responses reasoning plus tool results after restart, delayed concurrent 401 recovery, and Anthropic multi-workspace key selection. Record the actual route/account/channel and commit; see [the readiness audit](provider-channel-readiness.md).

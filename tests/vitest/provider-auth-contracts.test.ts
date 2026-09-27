@@ -100,3 +100,29 @@ it("keeps custom endpoints text-only and validates endpoint/auth boundaries", as
   expect((await adapter.validateConfig({ ...config, baseUrl: "invalid" })).errors[0]).toContain("baseUrl");
   await expect(adapter.chat(request, { providerId: "custom", kind: "entra" })).rejects.toThrow("requires an API key or access token");
 });
+
+describe("Anthropic workspace and credential selection", () => {
+  it("sends the configured workspace and isolates API keys from ambient bearer credentials", async () => {
+    vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "ambient-token-must-not-be-used");
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "reply", content: [{ type: "text", text: "ok" }], usage: {} }), { headers: { "content-type": "application/json" } }));
+    const adapter = new AnthropicProviderAdapter({ id: "test", defaultModel: "claude-sonnet-5", workspaceId: "wrkspc_test123" });
+    await adapter.chat({ ...request, model: "claude-sonnet-5" }, { providerId: "test", apiKey: "explicit-key" });
+    const headers = new Headers(fetch.mock.calls[0][1]?.headers);
+    expect(headers.get("anthropic-workspace-id")).toBe("wrkspc_test123");
+    expect(headers.get("x-api-key")).toBe("explicit-key");
+    expect(headers.has("authorization")).toBe(false);
+    expect((await adapter.validateConfig({ id: "test", defaultModel: "claude-sonnet-5", workspaceId: "bad\r\nheader" })).valid).toBe(false);
+  });
+
+  it("sends supplied OAuth access tokens as bearer tokens without an ambient API key", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "ambient-key-must-not-be-used");
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "reply", content: [{ type: "text", text: "ok" }], usage: {} }), { headers: { "content-type": "application/json" } }));
+    await new AnthropicProviderAdapter({ id: "test", defaultModel: "claude-sonnet-5" }).chat(
+      { ...request, model: "claude-sonnet-5" }, { providerId: "test", accountId: "test", accessToken: "explicit-access-token" }
+    );
+    const headers = new Headers(fetch.mock.calls[0][1]?.headers);
+    expect(headers.get("authorization")).toBe("Bearer explicit-access-token");
+    expect(headers.has("x-api-key")).toBe(false);
+    expect(headers.has("anthropic-workspace-id")).toBe(false);
+  });
+});

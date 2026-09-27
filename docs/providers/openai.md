@@ -66,7 +66,7 @@ Provider entry:
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.6-terra"
+defaultModel = "gpt-6-sol"
 # Optional for supported Responses-model families:
 # reasoningEffort = "medium"
 ```
@@ -156,6 +156,10 @@ If you need a richer troubleshooting path, start with:
 
 ## Modernization compatibility
 
-Fresh setup recommends `gpt-5.6-terra`; Astra (`gpt-6-astra`), Sol (`gpt-5.6-sol`), and Luna (`gpt-5.6-luna`) are alternatives. Saved API-key model IDs remain unchanged. Capability checks use exact catalog entries, not family-name matching.
+Fresh setup recommends `gpt-6-sol`; Astra (`gpt-6-astra`) and Luna (`gpt-6-luna`) are alternatives. Saved API-key model IDs remain unchanged. Capability checks use exact catalog entries, not family-name matching.
 
 OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.
+
+GPT-6 uses Responses for tool calls. Optional `reasoningMode = "standard"` or `"pro"` is independent of effort; leaving it unset omits mode. Pro increases model work, latency and potential cost. Sol/Luna accept none through max; Astra excludes none. Sampling temperature is omitted during reasoning and is sent for Sol/Luna only with explicit none. See [the verified matrix](model-compatibility.md).
+
+Responses output items with opaque reasoning or message phase are now retained in bounded, provider/model-scoped durable metadata. Tool-call audit rows are deduplicated on replay. API-key authentication is unchanged; see [harness/auth readiness](../operations/provider-channel-readiness.md).

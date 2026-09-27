@@ -120,3 +120,7 @@ If the backend accepts chat but tool calls fail, confirm the backend really supp
 ## Modernization compatibility
 
 Custom backend model IDs remain operator-supplied. The current-model catalog does not infer optional reasoning or thinking controls for this route; backend authentication and text-only image behavior remain unchanged.
+
+The current-model catalog does not imply optional reasoning support for arbitrary compatible servers. This route retains backend-defined model IDs and its existing Chat Completions contract; GPT-6 reasoning/tool use should use the OpenAI, Codex or Azure Responses route. See [model compatibility](model-compatibility.md).
+
+The current harness refresh does not add Responses replay or vendor-specific workspace auth to this Chat Completions route. Backend-defined credentials and capability boundaries remain unchanged; see [route-specific readiness](../operations/provider-channel-readiness.md).

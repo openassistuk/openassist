@@ -83,6 +83,7 @@ export interface ProviderCapabilities {
 }
 
 export type OpenAIReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
+export type OpenAIReasoningMode = "standard" | "pro";
 
 export interface ChatRequest {
   sessionId: string;
@@ -137,6 +138,7 @@ interface OAuthCapableProviderConfig extends CommonProviderConfig {
 export interface OpenAIProviderRuntimeConfig extends OAuthCapableProviderConfig {
   type: "openai";
   reasoningEffort?: OpenAIReasoningEffort;
+  reasoningMode?: OpenAIReasoningMode;
 }
 
 export interface CodexProviderRuntimeConfig extends CommonProviderConfig {
@@ -146,9 +148,11 @@ export interface CodexProviderRuntimeConfig extends CommonProviderConfig {
 
 export interface AnthropicProviderRuntimeConfig extends OAuthCapableProviderConfig {
   type: "anthropic";
+  workspaceId?: string;
   thinkingBudgetTokens?: number;
   thinkingMode?: AnthropicThinkingMode;
   thinkingEffort?: AnthropicThinkingEffort;
+  maxOutputTokens?: number;
 }
 
 export interface OpenAICompatibleProviderRuntimeConfig extends CommonProviderConfig {
@@ -165,6 +169,7 @@ export interface AzureFoundryProviderRuntimeConfig extends CommonProviderConfig 
   endpointFlavor: AzureFoundryEndpointFlavor;
   underlyingModel?: string;
   reasoningEffort?: OpenAIReasoningEffort;
+  reasoningMode?: OpenAIReasoningMode;
 }
 
 export type ProviderConfig =
@@ -181,8 +186,14 @@ export interface ModelCapabilities {
   routes: readonly ProviderConfig["type"][];
   responses: boolean;
   reasoningEfforts: readonly OpenAIReasoningEffort[];
+  reasoningModes?: readonly OpenAIReasoningMode[];
+  temperatureRequiresNoReasoning?: boolean;
   thinkingModes?: readonly AnthropicThinkingMode[];
   thinkingEfforts?: readonly AnthropicThinkingEffort[];
   supportsTemperature?: boolean;
   defaultThinking?: "adaptive" | "disabled";
+  defaultThinkingEffort?: AnthropicThinkingEffort;
+  thinkingPrefixBinding?: boolean;
+  defaultMaxOutputTokens?: number;
+  maxOutputTokens?: number;
 }

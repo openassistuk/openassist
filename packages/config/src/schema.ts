@@ -1,4 +1,4 @@
-import { OPENAI_REASONING_EFFORTS, ANTHROPIC_THINKING_MODES, ANTHROPIC_THINKING_EFFORTS, providerTuningErrors } from "./provider-models.js";
+import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, ANTHROPIC_THINKING_MODES, ANTHROPIC_THINKING_EFFORTS, providerTuningErrors } from "./provider-models.js";
 import { z } from "zod";
 import type { ChannelConfig, ProviderConfig, RuntimeConfig } from "@openassist/core-types";
 
@@ -75,16 +75,20 @@ const oauthProviderSchema = commonProviderSchema.extend({
 const providerSchema: z.ZodType<ProviderConfig, unknown> = z.discriminatedUnion("type", [
   oauthProviderSchema.extend({
     type: z.literal("openai"),
+    reasoningMode: z.enum(OPENAI_REASONING_MODES).optional(),
     reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
   }),
   commonProviderSchema.extend({
     type: z.literal("codex"),
+    reasoningMode: z.never().optional(),
     reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
   }),
   oauthProviderSchema.extend({
     type: z.literal("anthropic"),
+    workspaceId: z.string().trim().regex(/^wrkspc_[A-Za-z0-9]+$/, "workspaceId must be a Claude workspace ID (wrkspc_...)").optional(),
     thinkingBudgetTokens: z.number().int().min(1024).max(32_000).optional(),
     thinkingMode: z.enum(ANTHROPIC_THINKING_MODES).optional(),
+    maxOutputTokens: z.number().int().min(1).max(128_000).optional(),
     thinkingEffort: z.enum(ANTHROPIC_THINKING_EFFORTS).optional()
   }),
   commonProviderSchema.extend({
@@ -102,6 +106,7 @@ const providerSchema: z.ZodType<ProviderConfig, unknown> = z.discriminatedUnion(
       ),
     endpointFlavor: z.enum(["openai-resource", "foundry-resource"]),
     underlyingModel: z.string().min(1).optional(),
+    reasoningMode: z.enum(OPENAI_REASONING_MODES).optional(),
     reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
   })
 ]).superRefine((provider, ctx) => {

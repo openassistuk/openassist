@@ -1,4 +1,4 @@
-import { OPENAI_REASONING_EFFORTS, modelCapabilities, providerTuningErrors } from "@openassist/config";
+import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, reasoningEfforts, modelCapabilities, providerTuningErrors } from "@openassist/config";
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 import OpenAI from "openai";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import {
   mapResponsesApiResponse,
   mapResponsesInput,
   mapResponsesTools,
+  temperatureForModel,
   reasoningPayload
 } from "@openassist/providers-openai-shared";
 
@@ -35,6 +36,7 @@ const configSchema = z.object({
     .regex(RESOURCE_NAME_PATTERN, "resourceName must use letters, numbers, or hyphen"),
   endpointFlavor: z.enum(["openai-resource", "foundry-resource"]),
   underlyingModel: z.string().min(1).optional(),
+  reasoningMode: z.enum(OPENAI_REASONING_MODES).optional(),
   reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
 });
 
@@ -232,15 +234,16 @@ export class AzureFoundryProviderAdapter implements ProviderAdapter {
     try {
       const response = await client.responses.create({
         model,
-        temperature: req.temperature,
+        temperature: temperatureForModel(reasoningModel, this.config.reasoningEffort, req.temperature, "azure-foundry"),
         max_output_tokens: req.maxTokens,
-        reasoning: reasoningPayload(reasoningModel, this.config.reasoningEffort as OpenAIReasoningEffort | undefined, "azure-foundry"),
-        input: await mapResponsesInput(req.messages) as any,
+        include: reasoningEfforts(reasoningModel, "azure-foundry").length ? ["reasoning.encrypted_content"] : undefined,
+        reasoning: reasoningPayload(reasoningModel, this.config.reasoningEffort as OpenAIReasoningEffort | undefined, "azure-foundry", this.config.reasoningMode),
+        input: await mapResponsesInput(req.messages, `azure-foundry:${this.config.id}:${model}:${reasoningModel}`) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
       } as any);
 
-      return mapResponsesApiResponse(response);
+      return mapResponsesApiResponse(response, `azure-foundry:${this.config.id}:${model}:${reasoningModel}`);
     } catch (error) {
       throw sanitizeProviderError(error, this.config, model);
     }

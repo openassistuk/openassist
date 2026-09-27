@@ -231,6 +231,7 @@ describe("setup wizard runtime flow", () => {
       "gpt-5.6-terra",
       "   ",
       "medium",
+      "pro",
       "true",
       "tenant-id",
       "client-id",
@@ -255,7 +256,8 @@ describe("setup wizard runtime flow", () => {
       endpointFlavor: "foundry-resource",
       defaultModel: "gpt-5-deployment",
       underlyingModel: "gpt-5.6-terra",
-      reasoningEffort: "medium"
+      reasoningEffort: "medium",
+      reasoningMode: "pro"
     });
     expect(state.env.AZURE_TENANT_ID).toBe("tenant-id");
     expect(state.env.AZURE_CLIENT_ID).toBe("client-id");
@@ -390,6 +392,7 @@ describe("setup wizard runtime flow", () => {
       "gpt-5.6-terra",
       "",
       "default",
+      "default",
       "true",
       longApiKey,
       "back",
@@ -403,6 +406,22 @@ describe("setup wizard runtime flow", () => {
     expect(result.saved).toBe(true);
     expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY).toBe(longApiKey);
     expect(state.env.OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY.length).toBe(longApiKey.length);
+  });
+
+  it("saves and reloads current Claude effort and output budget", async () => {
+    const root = tempDir("openassist-current-claude-wizard-");
+    const configPath = path.join(root, "openassist.toml");
+    const envPath = path.join(root, "openassistd.env");
+    const state = loadSetupWizardState(configPath, envPath);
+    const prompts = new ScriptedPromptAdapter([
+      "providers", "add", "claude-modern", "anthropic", "claude-opus-5-5", "", "wrkspc_test123",
+      "adaptive", "max", "32000", "false", "back", "save"
+    ]);
+    expect((await runSetupWizard(state, prompts, { requireTty: false })).saved).toBe(true);
+    const reloaded = loadSetupWizardState(configPath, envPath);
+    expect(reloaded.config.runtime.providers.find(provider => provider.id === "claude-modern")).toMatchObject({
+      defaultModel: "claude-opus-5-5", thinkingMode: "adaptive", thinkingEffort: "max", maxOutputTokens: 32000, workspaceId: "wrkspc_test123"
+    });
   });
 
   it("supports custom advanced access settings without normalizing them away", async () => {
@@ -459,6 +478,7 @@ describe("setup wizard runtime flow", () => {
       "gpt-5.6-terra",
       "",
       "high",
+      "pro",
       "false",
       "add",
       "codex-main",
@@ -469,6 +489,7 @@ describe("setup wizard runtime flow", () => {
       "anthropic-main",
       "anthropic",
       "claude-sonnet-4-6",
+      "",
       "",
       "enabled",
       "4096",
@@ -483,7 +504,8 @@ describe("setup wizard runtime flow", () => {
 
     expect(result.saved).toBe(true);
     expect(state.config.runtime.providers.find((provider) => provider.id === "openai-main")).toMatchObject({
-      reasoningEffort: "high"
+      reasoningEffort: "high",
+      reasoningMode: "pro"
     });
     expect(
       state.config.runtime.providers.find((provider) => provider.id === "codex-main")

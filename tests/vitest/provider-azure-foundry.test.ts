@@ -73,6 +73,30 @@ async function loadAzureFoundryModule() {
 describe("azure foundry provider", () => {
   // Load the Azure SDK once outside the five-second behavioral assertions.
   beforeAll(async () => { await loadAzureFoundryModule(); }, 20_000);
+  it.each(["api-key", "entra"] as const)("maps current GPT-6 controls without changing deployment or %s authentication", async authMode => {
+    const { AzureFoundryProviderAdapter } = await loadAzureFoundryModule();
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ id: "r", output: [], usage: { input_tokens: 1, output_tokens: 1 } }), { headers: { "content-type": "application/json" } }));
+    try {
+      const createTokenProvider = vi.fn().mockReturnValue(async () => "dummy-entra-token");
+      for (const underlyingModel of ["gpt-6-sol", "gpt-6-luna", "gpt-6-astra"]) {
+        const adapter = new AzureFoundryProviderAdapter({ id: "test", defaultModel: "operator-deployment", resourceName: "test-resource", endpointFlavor: "foundry-resource", authMode, underlyingModel, reasoningEffort: "max", reasoningMode: "pro" }, { createTokenProvider });
+        await adapter.chat({ ...baseRequest(), model: "operator-deployment", temperature: 0.4 }, authMode === "entra" ? { providerId: "test", kind: "entra" } : { providerId: "test", apiKey: "dummy-api-key" });
+        const [url, options] = fetch.mock.calls.at(-1)!;
+        expect(String(url)).toContain("test-resource.services.ai.azure.com/openai/v1/responses");
+        const body = JSON.parse(options?.body as string);
+        expect(body.model).toBe("operator-deployment");
+        expect(body.reasoning).toEqual({ effort: "max", mode: "pro" });
+        expect(body).not.toHaveProperty("temperature");
+        expect(body.tools[0].type).toBe("function");
+      }
+      expect(createTokenProvider).toHaveBeenCalledTimes(authMode === "entra" ? 3 : 0);
+      const unknown = new AzureFoundryProviderAdapter({ id: "test", defaultModel: "gpt-6-sol", resourceName: "test-resource", endpointFlavor: "openai-resource", authMode: "api-key", reasoningMode: "pro" });
+      expect((await unknown.validateConfig({ id: "test", defaultModel: "gpt-6-sol", resourceName: "test-resource", endpointFlavor: "openai-resource", authMode: "api-key", reasoningMode: "pro" })).valid).toBe(false);
+      const count = fetch.mock.calls.length;
+      await expect(unknown.chat(baseRequest(), { providerId: "test", apiKey: "dummy" })).rejects.toThrow();
+      expect(fetch).toHaveBeenCalledTimes(count);
+    } finally { fetch.mockRestore(); }
+  });
   it("derives Azure resource-style base URLs", async () => {
     const { deriveBaseUrl } = await loadAzureFoundryModule();
     expect(

@@ -37,7 +37,7 @@ Built-in public provider-route expectations:
 - `azure-foundry`: Azure resource-style `/openai/v1/` route with API-key or Entra host auth
 - `openai-compatible`: API-compatible route
 
-`codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: fresh setup recommends `gpt-5.6-terra`; saved retired models require explicit operator replacement.
+`codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: fresh setup recommends `gpt-6-sol`; saved retired models require explicit operator replacement.
 
 Provider OAuth config requirements:
 
@@ -203,3 +203,7 @@ Changes to provider contract require synchronized updates across:
 - this document
 
 OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.
+
+Current GPT-6 models use Responses; API/Azure optional reasoningMode is independently validated and mapped. Claude always-thinking models stream internally to the existing ChatResponse contract and replay complete signed blocks with the binding-controls beta header. A larger configured maxOutputTokens also enables internal streaming on older Claude models. This does not expose streaming or thinking to channels.
+
+Responses adapters preserve output items in `providerReplayKind=openai-responses-items`, `providerReplayScope` and `providerReplayJson`; scope includes route/provider/model (plus Azure model hint). Records are limited to 1 MiB/256 items. Replaying skips duplicate tool audit messages and falls back to normalized history for invalid/oversized/mismatched metadata. Explicit Anthropic auth selects exactly one SDK credential type and optionally sends workspaceId as a header.

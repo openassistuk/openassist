@@ -65,7 +65,7 @@ Provider entry:
 [[runtime.providers]]
 id = "codex-main"
 type = "codex"
-defaultModel = "gpt-5.6-terra"
+defaultModel = "gpt-6-sol"
 # Optional for supported Codex Responses-model families:
 # reasoningEffort = "medium"
 ```
@@ -193,4 +193,8 @@ Start with:
 
 ## Modernization compatibility
 
-Fresh setup recommends `gpt-5.6-terra`; Astra, Sol, and Luna are alternatives. Saved `gpt-5.4` and `gpt-5.4-mini` selections are preserved but block readiness with explicit replacement guidance. Use `openassist setup wizard` to choose Terra or Luna respectively. Login and token refresh do not repair a retired model selection.
+Fresh setup recommends `gpt-6-sol`; Astra and Luna are alternatives. Saved `gpt-5.4` and `gpt-5.4-mini` selections are preserved but block readiness with explicit replacement guidance. Use `openassist setup wizard` to choose GPT-6 Sol or Luna respectively. Login and token refresh do not repair a retired model selection.
+
+GPT-6 Astra/Sol/Luna expose the documented account-login efforts low, medium, high, xhigh and max. API/Azure reasoningMode and API-only none are not exposed for these Codex selections. Ultra is client orchestration, not a supported wire effort here. Existing account headers, streaming, token refresh and bounded sequential tools remain unchanged. Availability depends on the signed-in account.
+
+Default effort also requests opaque reasoning for cataloged Codex models. Bounded Responses replay preserves reasoning, message phase and tool items through local persistence. A delayed 401 reuses credentials already refreshed by a concurrent turn. Browser/device authentication remains unchanged; new enterprise access-token flows are not enabled. See [harness/auth readiness](../operations/provider-channel-readiness.md).

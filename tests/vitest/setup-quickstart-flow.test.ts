@@ -132,6 +132,7 @@ function minimalWhatsAppAnthropicAnswers(extra: string[] = []): string[] {
     "anthropic-main",
     "claude-sonnet-4-6",
     "",
+    "",
     "anthropic-key",
     "whatsapp-md",
     "whatsapp-main",
@@ -572,7 +573,9 @@ describe("setup quickstart flow", () => {
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
     state.config.runtime.time.requireTimezoneConfirmation = false;
     state.config.runtime.bindPort = await getFreePort();
-    const prompts = new ScriptedPromptAdapter(minimalWhatsAppAnthropicAnswers());
+    const answers = minimalWhatsAppAnthropicAnswers();
+    answers[8] = "wrkspc_quickstart123";
+    const prompts = new ScriptedPromptAdapter(answers);
 
     const result = await runSetupQuickstart(
       state,
@@ -592,6 +595,7 @@ describe("setup quickstart flow", () => {
     expect(result.saved).toBe(true);
     expect(state.config.runtime.defaultProviderId).toBe("anthropic-main");
     expect(provider?.type).toBe("anthropic");
+    expect(provider).toMatchObject({ workspaceId: "wrkspc_quickstart123" });
     expect(state.config.runtime.channels[0]?.type).toBe("whatsapp-md");
     expect(state.config.runtime.channels[0]?.settings).toMatchObject({
       mode: "production",
@@ -731,7 +735,7 @@ describe("setup quickstart flow", () => {
         {
           id: "openai-main",
           type: "openai",
-          defaultModel: "gpt-5.6-terra"
+          defaultModel: "gpt-6-sol"
         },
         {
           id: "compat-main",

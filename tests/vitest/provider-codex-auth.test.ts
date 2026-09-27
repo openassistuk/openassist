@@ -347,7 +347,7 @@ describe("codex provider auth", () => {
       store: false,
       stream: true,
       prompt_cache_key: "telegram-main:27328245",
-      include: []
+      include: ["reasoning.encrypted_content"]
     });
     expect(body.instructions).toContain(CODEX_BASELINE_INSTRUCTIONS);
     expect(body.instructions).toContain("OpenAssist runtime guidance");

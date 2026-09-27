@@ -850,7 +850,8 @@ export class OpenAssistRuntime {
 
   private async resolveProviderAuth(
     provider: ProviderAdapter,
-    forceRefresh = false
+    forceRefresh = false,
+    failedAuth?: ProviderAuthHandle
   ): Promise<ProviderAuth> {
     const current = this.auth.get(provider.id());
     if (!current) {
@@ -859,7 +860,7 @@ export class OpenAssistRuntime {
     if (!this.isOAuthAuthHandle(current)) {
       return current;
     }
-    return this.maybeRefreshOAuthAuth(provider, current, forceRefresh);
+    return this.maybeRefreshOAuthAuth(provider, failedAuth ?? current, forceRefresh);
   }
 
   private async chatWithProvider(
@@ -877,7 +878,9 @@ export class OpenAssistRuntime {
       ) {
         throw error;
       }
-      const refreshed = await this.resolveProviderAuth(provider, true);
+      // Compare against the credential that actually failed. A concurrent turn
+      // may already have refreshed it while this request was waiting upstream.
+      const refreshed = await this.resolveProviderAuth(provider, true, auth);
       return provider.chat(request, refreshed);
     }
   }

@@ -89,6 +89,7 @@ describe("cli setup wizard", () => {
       "anthropic",
       "claude-sonnet-4-6",
       "",
+      "",
       "default",
       "default",
       "true",
@@ -370,6 +371,7 @@ describe("cli setup wizard", () => {
         "gpt-5.6-terra",
         "",
         "high",
+        "pro",
         "false",
         "add",
         "codex-main",
@@ -380,6 +382,7 @@ describe("cli setup wizard", () => {
         "anthropic-main",
         "anthropic",
         "claude-sonnet-4-6",
+        "",
         "",
         "enabled",
         "4096",
@@ -397,7 +400,8 @@ describe("cli setup wizard", () => {
         id: "openai-main",
         type: "openai",
         defaultModel: "gpt-5.6-terra",
-        reasoningEffort: "high"
+        reasoningEffort: "high",
+        reasoningMode: "pro"
       }
     );
     assert.deepEqual(
@@ -441,6 +445,7 @@ describe("cli setup wizard", () => {
         "gpt-5.6-terra",
         "",
         "high",
+        "default",
         "true",
         "azure-key",
         "edit",

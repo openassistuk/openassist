@@ -6,7 +6,14 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
-- Refresh fresh-setup defaults to GPT-5.6 Terra (OpenAI/Codex) and Claude Sonnet 5. Share exact model capabilities across setup, config validation, request mapping, and status; add model-filtered none/max reasoning and Anthropic adaptive thinking/effort. Preserve saved IDs and manual budgets on compatible models; block retired Codex selections with explicit repair guidance. Azure deployment names never imply tuning support. Keep token refresh, thinking replay, bounded tool execution, image gating, and operator state intact.
+- Preserve bounded, provider/model-scoped opaque Responses reasoning and message phases across tool turns/restarts for OpenAI, Codex and Azure, without duplicate tool calls or new tool privileges. Reuse concurrently refreshed OAuth credentials after delayed 401 responses.
+- Support Anthropic multi-workspace keys through optional workspaceId in config/quickstart/wizard; select explicit API-key versus bearer auth without ambient credential mixing. Retain current stable channel SDKs, switch Discord readiness to clientReady, and update Vitest/coverage-v8 to 5.0.2.
+
+- Refresh GPT-6 Sol/Luna/Astra across OpenAI, Codex and Azure OpenAI, with route-specific effort choices and explicit API/Azure Standard/Pro mode (Pro can increase cost). Fresh setup recommends GPT-6 Sol; saved models and deployment names remain unchanged.
+- Add Claude Opus 5.5, Fable 5.1 and invitation-only Mythos 5.1 with mandatory adaptive thinking, correct default efforts, configurable output limits and internal streaming. Preserve signed thinking/tool results durably; opt into Anthropic binding controls to drop stale thinking after bounded-history or policy changes without exposing raw thinking or granting tools.
+
+
+- Share exact model capabilities across setup, config validation, request mapping, and status; add model-filtered none/max reasoning and Anthropic adaptive thinking/effort. Preserve saved IDs and manual budgets on compatible models; block retired Codex selections with explicit repair guidance. Azure deployment names never imply tuning support. Keep token refresh, thinking replay, bounded tool execution, image gating, and operator state intact.
 
 
 ### Modernization

@@ -459,6 +459,8 @@ A change is done only when all are true:
 
 ## Node runtime discipline
 
+Keep `@types/node` on 24.x; Dependabot must ignore its major version updates while allowing minor/patch updates. Setup readiness must reject invalid bind addresses before network availability probes; test this without relying on host DNS timing.
+
 Support Node >=24.21.0 <25 only. Keep entrypoint guards, bootstrap checks, CI and service guidance synchronized. CLI command registration lives in `apps/openassist-cli/src/main.ts`; `src/index.ts` is the early runtime guard and dynamic launcher. Daemon startup uses the same separation. Reject unsupported runtimes before loading provider or storage modules.
 
 Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.

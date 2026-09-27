@@ -145,3 +145,5 @@ openassist doctor
 ## Modernization compatibility
 
 The dependency baseline uses stable Baileys 6.7.24 and a parent-scoped registry libsignal 6.0.0 security override. Encryption, decryption, and persisted session reload have local contract coverage; real reconnect/persisted-account certification remains a release requirement. `/status` reports the active route/model/tuning locally.
+
+Dependency readiness (2026-09-27): Baileys 6.7.24 remains the current stable legacy release. The latest tag is 7.0.0-rc14; this update deliberately preserves the stable protocol/session track. Existing session files and pairing are retained. See [readiness audit](../operations/provider-channel-readiness.md).

@@ -1,4 +1,4 @@
-import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, providerTuningErrors } from "@openassist/config";
+import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, reasoningEfforts, providerTuningErrors } from "@openassist/config";
 import OpenAI from "openai";
 import { z } from "zod";
 import type {
@@ -214,13 +214,14 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
         model,
         temperature: temperatureForModel(model, this.config.reasoningEffort, req.temperature),
         max_output_tokens: req.maxTokens,
+        include: reasoningEfforts(model, "openai").length ? ["reasoning.encrypted_content"] : undefined,
         reasoning: reasoningPayload(model, this.config.reasoningEffort, "openai", this.config.reasoningMode),
-        input: await mapResponsesInput(req.messages) as any,
+        input: await mapResponsesInput(req.messages, `openai:${this.config.id}:${model}`) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
       } as any);
 
-      return mapResponsesApiResponse(response);
+      return mapResponsesApiResponse(response, `openai:${this.config.id}:${model}`);
     }
 
     try {
@@ -242,13 +243,14 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
         model,
         temperature: temperatureForModel(model, this.config.reasoningEffort, req.temperature),
         max_output_tokens: req.maxTokens,
+        include: reasoningEfforts(model, "openai").length ? ["reasoning.encrypted_content"] : undefined,
         reasoning: reasoningPayload(model, this.config.reasoningEffort, "openai", this.config.reasoningMode),
-        input: await mapResponsesInput(req.messages) as any,
+        input: await mapResponsesInput(req.messages, `openai:${this.config.id}:${model}`) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
       } as any);
 
-      return mapResponsesApiResponse(response);
+      return mapResponsesApiResponse(response, `openai:${this.config.id}:${model}`);
     }
   }
 }

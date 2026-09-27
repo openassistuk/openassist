@@ -345,3 +345,5 @@ pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm w
 The model-catalog suite covers saved Opus 4.5 alias validation and manual request mapping. Quickstart flow tests save and reload configurations for unchanged models, compatible model changes, accepted thinking resets, and declined resets followed by another model.
 
 `tests/vitest/current-provider-models.test.ts` verifies GPT-6 Responses/Codex payloads, route-specific mode rejection, Claude mandatory thinking, internal stream folding, output limits and durable replay metadata after context changes. Azure provider tests exercise all three GPT-6 hints under API-key and Entra auth while retaining deployment names. These are fake-transport checks, not live account certification.
+
+PR #61 harness follow-up updates Vitest and coverage-v8 together to 5.0.2. Existing suites add bounded/scoped Responses replay, duplicate-call suppression, database-reopen metadata, delayed-401 credential reuse, Anthropic workspace/bearer isolation and setup persistence cases. Coverage scope and thresholds remain unchanged.

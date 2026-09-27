@@ -148,6 +148,7 @@ export interface CodexProviderRuntimeConfig extends CommonProviderConfig {
 
 export interface AnthropicProviderRuntimeConfig extends OAuthCapableProviderConfig {
   type: "anthropic";
+  workspaceId?: string;
   thinkingBudgetTokens?: number;
   thinkingMode?: AnthropicThinkingMode;
   thinkingEffort?: AnthropicThinkingEffort;

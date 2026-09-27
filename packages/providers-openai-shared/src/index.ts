@@ -4,6 +4,34 @@ import type { ChatRequest, ChatResponse, OpenAIReasoningEffort, OpenAIReasoningM
 
 const TOOL_NAME_SAFE_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const TOOL_NAME_ENCODING_PREFIX = "oa__";
+const RESPONSES_REPLAY_KIND = "openai-responses-items";
+const MAX_REPLAY_BYTES = 1_048_576;
+const MAX_REPLAY_ITEMS = 256;
+
+function replayItems(raw: unknown): Array<Record<string, unknown>> | undefined {
+  if (typeof raw !== "string" || Buffer.byteLength(raw, "utf8") > MAX_REPLAY_BYTES) return undefined;
+  try {
+    const items: unknown = JSON.parse(raw);
+    if (!Array.isArray(items) || !items.length || items.length > MAX_REPLAY_ITEMS) return undefined;
+    if (!items.every(item => item && typeof item === "object" && (
+      (item.type === "reasoning" && typeof item.encrypted_content === "string" && Array.isArray(item.summary)) ||
+      (item.type === "message" && item.role === "assistant" && Array.isArray(item.content)) ||
+      (item.type === "function_call" && typeof item.call_id === "string" && typeof item.name === "string" && typeof item.arguments === "string")
+    ))) return undefined;
+    return items;
+  } catch {
+    return undefined;
+  }
+}
+
+function responsesReplayMetadata(output: unknown, scope?: string): Record<string, string> | undefined {
+  if (!scope || !Array.isArray(output) || output.length > MAX_REPLAY_ITEMS) return undefined;
+  if (!output.some(item => (item?.type === "reasoning" && typeof item.encrypted_content === "string") ||
+    (item?.type === "message" && (item.phase === "commentary" || item.phase === "final_answer")))) return undefined;
+  const raw = JSON.stringify(output);
+  if (!replayItems(raw)) return undefined;
+  return { providerReplayKind: RESPONSES_REPLAY_KIND, providerReplayScope: scope, providerReplayJson: raw };
+}
 
 export function encodeToolName(name: string): string {
   if (TOOL_NAME_SAFE_PATTERN.test(name)) {
@@ -94,11 +122,24 @@ export function mapTools(tools: ChatRequest["tools"]): Array<Record<string, unkn
 }
 
 export async function mapResponsesInput(
-  messages: ChatRequest["messages"]
+  messages: ChatRequest["messages"],
+  replayScope?: string
 ): Promise<Array<Record<string, unknown>>> {
-  return Promise.all(
+  const replayedToolCalls = new Set<string>();
+  const mapped = await Promise.all(
     messages.map(async (message) => {
+      const items = replayScope && message.role === "assistant" &&
+        message.metadata?.providerReplayKind === RESPONSES_REPLAY_KIND &&
+        message.metadata.providerReplayScope === replayScope
+        ? replayItems(message.metadata.providerReplayJson) : undefined;
+      if (items) {
+        for (const item of items) {
+          if (item.type === "function_call") replayedToolCalls.add(item.call_id as string);
+        }
+        return items;
+      }
       if (message.role === "assistant" && message.toolCallId && message.toolName) {
+        if (replayedToolCalls.has(message.toolCallId)) return [];
         return {
           type: "function_call",
           call_id: message.toolCallId,
@@ -152,6 +193,7 @@ export async function mapResponsesInput(
       };
     })
   );
+  return mapped.flat();
 }
 
 export function hasImageInputs(messages: ChatRequest["messages"]): boolean {
@@ -265,9 +307,10 @@ export function mapChatCompletionResponse(completion: any): ChatResponse {
   };
 }
 
-export function mapResponsesApiResponse(response: any): ChatResponse {
+export function mapResponsesApiResponse(response: any, replayScope?: string): ChatResponse {
   const output = extractResponsesText(response);
   const usage = response?.usage;
+  const replayMetadata = responsesReplayMetadata(response?.output, replayScope);
   const rawToolCalls = (response?.output as Array<any> | undefined) ?? [];
   const toolCalls = rawToolCalls
     .filter((item) => item?.type === "function_call" && typeof item?.name === "string")
@@ -280,7 +323,8 @@ export function mapResponsesApiResponse(response: any): ChatResponse {
   return {
     output: {
       role: "assistant",
-      content: output
+      content: output,
+      ...(replayMetadata ? { metadata: replayMetadata } : {})
     },
     usage: {
       inputTokens: usage?.input_tokens ?? 0,

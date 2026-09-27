@@ -414,13 +414,13 @@ describe("setup wizard runtime flow", () => {
     const envPath = path.join(root, "openassistd.env");
     const state = loadSetupWizardState(configPath, envPath);
     const prompts = new ScriptedPromptAdapter([
-      "providers", "add", "claude-modern", "anthropic", "claude-opus-5-5", "",
+      "providers", "add", "claude-modern", "anthropic", "claude-opus-5-5", "", "wrkspc_test123",
       "adaptive", "max", "32000", "false", "back", "save"
     ]);
     expect((await runSetupWizard(state, prompts, { requireTty: false })).saved).toBe(true);
     const reloaded = loadSetupWizardState(configPath, envPath);
     expect(reloaded.config.runtime.providers.find(provider => provider.id === "claude-modern")).toMatchObject({
-      defaultModel: "claude-opus-5-5", thinkingMode: "adaptive", thinkingEffort: "max", maxOutputTokens: 32000
+      defaultModel: "claude-opus-5-5", thinkingMode: "adaptive", thinkingEffort: "max", maxOutputTokens: 32000, workspaceId: "wrkspc_test123"
     });
   });
 
@@ -489,6 +489,7 @@ describe("setup wizard runtime flow", () => {
       "anthropic-main",
       "anthropic",
       "claude-sonnet-4-6",
+      "",
       "",
       "enabled",
       "4096",

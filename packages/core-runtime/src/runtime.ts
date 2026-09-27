@@ -877,7 +877,9 @@ export class OpenAssistRuntime {
       ) {
         throw error;
       }
-      const refreshed = await this.resolveProviderAuth(provider, true);
+      // Compare against the credential that actually failed. A concurrent turn
+      // may already have refreshed it while this request was waiting upstream.
+      const refreshed = await this.maybeRefreshOAuthAuth(provider, auth, true);
       return provider.chat(request, refreshed);
     }
   }

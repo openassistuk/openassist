@@ -24,6 +24,7 @@ const configSchema = z.object({
   thinkingMode: z.enum(ANTHROPIC_THINKING_MODES).optional(),
   thinkingEffort: z.enum(ANTHROPIC_THINKING_EFFORTS).optional(),
   maxOutputTokens: z.number().int().min(1).max(128_000).optional(),
+  workspaceId: z.string().trim().regex(/^wrkspc_[A-Za-z0-9]+$/, "workspaceId must be a Claude workspace ID (wrkspc_...)").optional(),
   oauth: z
     .object({
       authorizeUrl: z.string().url(),
@@ -374,8 +375,10 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
     }
 
     const client = new Anthropic({
-      apiKey,
-      baseURL: this.config.baseUrl
+      apiKey: "apiKey" in auth ? apiKey : null,
+      authToken: "apiKey" in auth ? null : apiKey,
+      baseURL: this.config.baseUrl,
+      defaultHeaders: this.config.workspaceId ? { "anthropic-workspace-id": this.config.workspaceId } : undefined
     });
 
     const mapped = await mapMessages(req.messages);

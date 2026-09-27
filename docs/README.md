@@ -201,3 +201,5 @@ OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must upda
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 
 Current provider choices, route-specific reasoning modes, Claude output budgets and verified source dates are documented in [model compatibility](providers/model-compatibility.md). The [current-model ExecPlan](execplans/current-provider-models-2026-09.md) records the implementation and verification evidence.
+
+Provider/authentication/channel maintenance: [current dependency and harness readiness](operations/provider-channel-readiness.md) records stable versions, auth compatibility, bounded reasoning replay and remaining live checks.

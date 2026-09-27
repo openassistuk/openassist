@@ -1,4 +1,4 @@
-import { OPENAI_REASONING_EFFORTS, retiredModelReplacement, providerTuningErrors } from "@openassist/config";
+import { OPENAI_REASONING_EFFORTS, reasoningEfforts, retiredModelReplacement, providerTuningErrors } from "@openassist/config";
 import { z } from "zod";
 import type {
   ApiKeyAuth,
@@ -598,19 +598,20 @@ async function buildCodexResponsesPayload(
   model: string,
   instructions: string,
   nonSystemMessages: ChatRequest["messages"],
-  reasoning: ReturnType<typeof reasoningPayload>
+  reasoning: ReturnType<typeof reasoningPayload>,
+  replayScope: string
 ): Promise<Record<string, unknown>> {
   return {
     model,
     instructions,
-    input: await mapResponsesInput(nonSystemMessages),
+    input: await mapResponsesInput(nonSystemMessages, replayScope),
     tools: mapResponsesTools(req.tools) ?? [],
     tool_choice: "auto",
     parallel_tool_calls: true,
     reasoning,
     store: false,
     stream: true,
-    include: reasoning ? ["reasoning.encrypted_content"] : [],
+    include: reasoningEfforts(model, "codex").length ? ["reasoning.encrypted_content"] : [],
     prompt_cache_key: req.sessionId
   };
 }
@@ -864,9 +865,9 @@ export class CodexProviderAdapter implements ProviderAdapter {
       defaultCodexBaseUrl(this.config.baseUrl),
       accessToken,
       defaultHeaders,
-      await buildCodexResponsesPayload(req, model, instructions, nonSystemMessages, reasoning)
+      await buildCodexResponsesPayload(req, model, instructions, nonSystemMessages, reasoning, `codex:${this.config.id}:${model}`)
     );
 
-    return mapResponsesApiResponse(response);
+    return mapResponsesApiResponse(response, `codex:${this.config.id}:${model}`);
   }
 }

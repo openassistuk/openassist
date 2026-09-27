@@ -54,6 +54,7 @@ import {
   promptAzureFoundryUnderlyingModel,
   createInquirerPromptAdapter,
   promptReasoningEffort,
+  promptAnthropicWorkspaceId,
   describeModelChoices
 } from "./setup-wizard.js";
 import {
@@ -568,6 +569,10 @@ async function promptProvider(
         ? await promptReasoningEffort(prompts, "Codex", existing?.type === "codex" ? existing.reasoningEffort : undefined, defaultModel)
         : undefined;
 
+  const workspaceId = type === "anthropic"
+    ? await promptAnthropicWorkspaceId(prompts, existing?.type === "anthropic" ? existing.workspaceId : undefined)
+    : undefined;
+
   return {
     id: providerId,
     type,
@@ -576,6 +581,7 @@ async function promptProvider(
     ...((type === "openai" || type === "codex") && reasoningEffort ? { reasoningEffort } : {}),
     ...(existing && "oauth" in existing && existing.oauth ? { oauth: existing.oauth } : {}),
     ...anthropicTuning,
+    ...(workspaceId ? { workspaceId } : {}),
     ...(type === "anthropic" && existing?.type === "anthropic" && existing.maxOutputTokens ? { maxOutputTokens: existing.maxOutputTokens } : {}),
     ...(type === "openai" && modeSelection.reasoningMode ? { reasoningMode: modeSelection.reasoningMode } : {}),
     ...(existing?.metadata ? { metadata: existing.metadata } : {})

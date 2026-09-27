@@ -312,6 +312,14 @@ async function promptAnthropicThinkingBudget(
 }
 
 type AnthropicProvider = Extract<ProviderConfig, { type: "anthropic" }>;
+export async function promptAnthropicWorkspaceId(prompts: PromptAdapter, initial?: string): Promise<string | undefined> {
+  while (true) {
+    const value = (await prompts.input("Claude workspace ID (wrkspc_...; required for multi-workspace keys, otherwise blank)", initial ?? "")).trim();
+    if (!value) return undefined;
+    if (/^wrkspc_[A-Za-z0-9]+$/.test(value)) return value;
+    console.log("Enter the workspace ID from Claude Console (wrkspc_...), or leave blank for a workspace-scoped key.");
+  }
+}
 type AnthropicTuning = Pick<AnthropicProvider, "thinkingMode" | "thinkingEffort" | "thinkingBudgetTokens">;
 export async function promptAnthropicOutputLimit(prompts: PromptAdapter, model: string, initial?: number): Promise<number | undefined> {
   if (!modelCapabilities(model, "anthropic")?.thinkingPrefixBinding && initial === undefined) return undefined;
@@ -678,6 +686,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       ...(reasoningEffort ? { reasoningEffort } : {})
     });
   } else if (providerType === "anthropic") {
+    const workspaceId = await promptAnthropicWorkspaceId(prompts);
     const thinking = await promptAnthropicThinking(prompts, defaultModel);
     const maxOutputTokens = await promptAnthropicOutputLimit(prompts, defaultModel);
     state.config.runtime.providers.push({
@@ -686,6 +695,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       defaultModel,
       ...(baseUrl ? { baseUrl } : {}),
       ...thinking,
+      ...(workspaceId ? { workspaceId } : {}),
       ...(maxOutputTokens ? { maxOutputTokens } : {})
     });
   } else {
@@ -839,6 +849,9 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
   }
 
   if (provider.type === "anthropic") {
+    const workspaceId = await promptAnthropicWorkspaceId(prompts, provider.workspaceId);
+    if (workspaceId) provider.workspaceId = workspaceId;
+    else delete provider.workspaceId;
     const thinking = await promptAnthropicThinking(prompts, provider.defaultModel, provider);
     const maxOutputTokens = await promptAnthropicOutputLimit(prompts, provider.defaultModel, provider.maxOutputTokens);
     if (maxOutputTokens) provider.maxOutputTokens = maxOutputTokens;

@@ -226,6 +226,7 @@ program
           thinkingMode: providerConfig.thinkingMode,
           thinkingEffort: providerConfig.thinkingEffort,
           maxOutputTokens: providerConfig.maxOutputTokens,
+          workspaceId: providerConfig.workspaceId,
           oauth: providerConfig.oauth
         });
       }

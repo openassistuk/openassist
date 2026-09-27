@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseConfig } from "../../packages/config/src/schema.js";
 import { anthropicThinking, modelCapabilities, providerTuningErrors, providerTuningLabel, reasoningEfforts } from "../../packages/config/src/provider-models.js";
-import { reasoningPayload, temperatureForModel } from "../../packages/providers-openai-shared/src/index.js";
+import { mapResponsesApiResponse, mapResponsesInput, reasoningPayload, temperatureForModel } from "../../packages/providers-openai-shared/src/index.js";
 import { OpenAIProviderAdapter } from "../../packages/providers-openai/src/index.js";
 import { AnthropicProviderAdapter } from "../../packages/providers-anthropic/src/index.js";
 import { CodexProviderAdapter } from "../../packages/providers-codex/src/index.js";
+import { AzureFoundryProviderAdapter } from "../../packages/providers-azure-foundry/src/index.js";
 import { createDefaultConfigObject } from "../../apps/openassist-cli/src/lib/config-edit.js";
 import { preserveReasoningMode } from "../../apps/openassist-cli/src/lib/setup-quickstart.js";
-import { promptAnthropicOutputLimit, promptAnthropicThinking, promptReasoningMode, type PromptAdapter } from "../../apps/openassist-cli/src/lib/setup-wizard.js";
+import { promptAnthropicWorkspaceId, promptAnthropicOutputLimit, promptAnthropicThinking, promptReasoningMode, type PromptAdapter } from "../../apps/openassist-cli/src/lib/setup-wizard.js";
 import type { ChatRequest } from "../../packages/core-types/src/provider.js";
 
 const request: ChatRequest = { sessionId: "telegram:test", model: "gpt-6-sol", messages: [{ role: "system", content: "runtime guidance" }, { role: "user", content: "hello" }], tools: [{ name: "fs.read", description: "read", inputSchema: { type: "object", properties: {} } }], metadata: {}, temperature: 0.5 };
@@ -23,6 +24,46 @@ const openaiReply = { id: "r", output: [{ type: "message", role: "assistant", co
 afterEach(() => vi.restoreAllMocks());
 
 describe("current GPT-6 routes", () => {
+  it.each(["openai", "codex", "azure-foundry"])("persists opaque reasoning across a tool turn for %s with default effort", async route => {
+    const output = [
+      { type: "reasoning", id: "rs_1", summary: [], encrypted_content: "opaque-ciphertext" },
+      { type: "message", id: "msg_1", role: "assistant", phase: "commentary", content: [{ type: "output_text", text: "Reading a file", annotations: [] }] },
+      { type: "function_call", id: "fc_1", call_id: "tool-1", name: "read", arguments: "{}" }
+    ];
+    const response = { ...openaiReply, output };
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => route === "codex"
+      ? new Response(`event: response.completed\ndata: ${JSON.stringify({ type: "response.completed", response })}\n\n`)
+      : json(response));
+    const makeAdapter = () => route === "codex" ? new CodexProviderAdapter({ id: "test", defaultModel: "gpt-6-sol" })
+      : route === "openai" ? new OpenAIProviderAdapter({ id: "test", defaultModel: "gpt-6-sol" })
+      : new AzureFoundryProviderAdapter({ id: "test", defaultModel: "deployment", underlyingModel: "gpt-6-sol", resourceName: "test", endpointFlavor: "foundry-resource", authMode: "api-key" });
+    const req = { ...request, model: route === "azure-foundry" ? "deployment" : "gpt-6-sol" };
+    const first = await makeAdapter().chat(req, auth);
+    expect(first.output.content).not.toContain("opaque-ciphertext");
+    const persisted = JSON.parse(JSON.stringify(first.output));
+    // Runtime persists replay metadata on the first tool-call audit message.
+    await makeAdapter().chat({ ...req, messages: [
+      { ...persisted, toolCallId: "tool-1", toolName: "read", metadata: { ...persisted.metadata, toolArgumentsJson: "{}" } },
+      { role: "assistant", content: "", toolCallId: "tool-1", toolName: "read" },
+      { role: "tool", content: "file text", toolCallId: "tool-1" }
+    ] }, auth);
+    const body = JSON.parse(fetch.mock.calls[1][1]?.body as string);
+    expect(body.include).toEqual(["reasoning.encrypted_content"]);
+    expect(body.input).toEqual([...output, { type: "function_call_output", call_id: "tool-1", output: "file text" }]);
+    expect(body.reasoning).toBeUndefined();
+  });
+
+  it("bounds and scopes reasoning replay while retaining normal tool history on fallback", async () => {
+    const item = { type: "reasoning", summary: [], encrypted_content: "opaque" };
+    const output = mapResponsesApiResponse({ output: [item] }, "openai:a:gpt-6-sol").output;
+    expect(await mapResponsesInput([output], "openai:b:gpt-6-sol")).toEqual([{ type: "message", role: "assistant", content: "" }]);
+    for (const raw of ["invalid", "[]", JSON.stringify([{ type: "unknown" }]), JSON.stringify(Array(257).fill(item)), JSON.stringify([{ ...item, encrypted_content: "x".repeat(1_048_576) }])]) {
+      const message = { ...output, toolCallId: "tool-1", toolName: "read", metadata: { ...output.metadata, providerReplayJson: raw } };
+      expect(await mapResponsesInput([message], "openai:a:gpt-6-sol")).toEqual([{ type: "function_call", call_id: "tool-1", name: "read", arguments: "{}" }]);
+    }
+    expect(mapResponsesApiResponse({ output: [{ ...item, encrypted_content: "x".repeat(1_048_576) }] }, "scope").output.metadata).toBeUndefined();
+    expect(await mapResponsesInput([{ role: "user", content: "hello", metadata: output.metadata }], "openai:a:gpt-6-sol")).toEqual([{ type: "message", role: "user", content: "hello" }]);
+  });
   it("preserves saved pro mode and requires an explicit reset or compatible model", async () => {
     const confirm = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     const input = vi.fn().mockResolvedValue("gpt-6-luna");
@@ -96,6 +137,16 @@ describe("current GPT-6 routes", () => {
 });
 
 describe("current Claude thinking", () => {
+  it("validates workspace IDs and supports explicit clearing in setup", async () => {
+    const input = vi.fn().mockResolvedValueOnce("invalid workspace").mockResolvedValueOnce(" wrkspc_test123 ").mockResolvedValueOnce("");
+    const prompts = { input } as unknown as PromptAdapter;
+    expect(await promptAnthropicWorkspaceId(prompts)).toBe("wrkspc_test123");
+    expect(await promptAnthropicWorkspaceId(prompts, "wrkspc_test123")).toBeUndefined();
+    const config = createDefaultConfigObject();
+    const withProvider = (workspaceId: string) => ({ ...config, runtime: { ...config.runtime, providers: [{ id: "test", type: "anthropic", defaultModel: "claude-sonnet-5", workspaceId }] } });
+    expect(parseConfig(withProvider("wrkspc_test123")).runtime.providers[0]).toMatchObject({ workspaceId: "wrkspc_test123" });
+    expect(() => parseConfig(withProvider("bad\r\nheader"))).toThrow();
+  });
   it.each(["claude-opus-5-5", "claude-fable-5-1", "claude-mythos-5-1"])("validates all efforts and mandatory adaptive thinking for %s", async model => {
     const provider = { id: "test", type: "anthropic" as const, defaultModel: model };
     for (const thinkingEffort of ["low", "medium", "high", "xhigh", "max"] as const) {

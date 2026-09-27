@@ -112,3 +112,5 @@ Supported first-class scope:
 ## Modernization compatibility
 
 Provider-independent `/status` includes route, model, and effective tuning using the shared model catalog. Status stays within the existing channel rendering/chunking path. No channel identity, attachment persistence, or delivery authorization contract changes accompany this dependency/model refresh.
+
+The dependency audit retains Discord.js 14.27.0, grammY 1.46.0 and Baileys 6.7.24. Discord readiness uses clientReady. Model/harness changes do not change channel identity, allowlists, message delivery or pairing contracts.

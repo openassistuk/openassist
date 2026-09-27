@@ -256,3 +256,5 @@ pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm w
 Quickstart preserves compatible Anthropic thinking settings when changing models. If saved settings conflict with the selected model, it asks before resetting them to provider defaults; declining lets you choose another model. Saved `claude-opus-4-5` aliases retain their manual thinking budgets.
 
 Current models include GPT-6 Astra/Sol/Luna and Claude Opus 5.5/Fable 5.1, alongside Sonnet 5 and Haiku 4.5. Azure keeps your deployment name and requires a known underlying model for tuning. Wizard exposes API/Azure Standard/Pro execution and the new Claude output budgets. [Model compatibility](docs/providers/model-compatibility.md) lists exact controls, availability limits and preserved-thinking behavior.
+
+Authentication and channel readiness: current stable provider/channel SDKs are recorded in [the readiness audit](docs/operations/provider-channel-readiness.md). Anthropic quickstart/wizard supports optional `workspaceId` for multi-workspace keys. Responses reasoning replay is bounded and durable; delayed concurrent authentication failures reuse refreshed credentials.

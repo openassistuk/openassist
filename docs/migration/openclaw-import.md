@@ -86,3 +86,5 @@ Importer:
 ## Modernization compatibility
 
 Imported model IDs remain unchanged; only absent-model defaults now use `gpt-6-sol` (or `claude-sonnet-5` for Anthropic). Review imported providers in setup wizard, then run doctor. Known retired Codex IDs block readiness until explicitly replaced. Do not copy a manual Anthropic budget onto Sonnet 5 or Opus 5.
+
+After importing an Anthropic multi-workspace key, explicitly set workspaceId in OpenAssist setup/TOML; importing a credential does not infer its workspace. Existing workspace-scoped keys remain compatible. Provider replay uses additive local metadata and needs no database migration.

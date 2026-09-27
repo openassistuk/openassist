@@ -202,7 +202,7 @@ export class DiscordChannelAdapter implements ChannelAdapter {
       partials: [Partials.Channel]
     });
 
-    client.on("ready", () => {
+    client.on("clientReady", () => {
       this.status = "healthy";
     });
 

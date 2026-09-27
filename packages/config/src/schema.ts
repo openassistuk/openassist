@@ -85,6 +85,7 @@ const providerSchema: z.ZodType<ProviderConfig, unknown> = z.discriminatedUnion(
   }),
   oauthProviderSchema.extend({
     type: z.literal("anthropic"),
+    workspaceId: z.string().trim().regex(/^wrkspc_[A-Za-z0-9]+$/, "workspaceId must be a Claude workspace ID (wrkspc_...)").optional(),
     thinkingBudgetTokens: z.number().int().min(1024).max(32_000).optional(),
     thinkingMode: z.enum(ANTHROPIC_THINKING_MODES).optional(),
     maxOutputTokens: z.number().int().min(1).max(128_000).optional(),

@@ -1,4 +1,4 @@
-import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, modelCapabilities, providerTuningErrors } from "@openassist/config";
+import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, reasoningEfforts, modelCapabilities, providerTuningErrors } from "@openassist/config";
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 import OpenAI from "openai";
 import { z } from "zod";
@@ -236,13 +236,14 @@ export class AzureFoundryProviderAdapter implements ProviderAdapter {
         model,
         temperature: temperatureForModel(reasoningModel, this.config.reasoningEffort, req.temperature, "azure-foundry"),
         max_output_tokens: req.maxTokens,
+        include: reasoningEfforts(reasoningModel, "azure-foundry").length ? ["reasoning.encrypted_content"] : undefined,
         reasoning: reasoningPayload(reasoningModel, this.config.reasoningEffort as OpenAIReasoningEffort | undefined, "azure-foundry", this.config.reasoningMode),
-        input: await mapResponsesInput(req.messages) as any,
+        input: await mapResponsesInput(req.messages, `azure-foundry:${this.config.id}:${model}:${reasoningModel}`) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
       } as any);
 
-      return mapResponsesApiResponse(response);
+      return mapResponsesApiResponse(response, `azure-foundry:${this.config.id}:${model}:${reasoningModel}`);
     } catch (error) {
       throw sanitizeProviderError(error, this.config, model);
     }

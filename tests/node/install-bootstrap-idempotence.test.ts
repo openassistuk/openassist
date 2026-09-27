@@ -20,6 +20,18 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(release.indexOf("profiles.installShellPath()")<release.indexOf('export PATH="$HOME/.local/bin:$PATH"'));
     assert.ok(release.includes("Open a new shell for the saved PATH change"));
   });
+  it("keeps public download failures fatal when diagnostic probes also fail", (t) => {
+    const result = spawnSync("bash", ["-c", 'curl() { return 22; }; export -f curl; bash "$1" 0.2.0-rc.1 preview', "test", "scripts/release/public-install-smoke.sh"], {
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_ACTIONS: "true" },
+      timeout: 10_000
+    });
+    if (result.error && "code" in result.error && result.error.code === "ENOENT") { t.skip("Bash unavailable"); return; }
+    assert.equal(result.status, 22, result.stderr);
+    assert.match(result.stderr, /Public installation failed/);
+    assert.equal((result.stderr.match(/https:\/\//g) ?? []).length, 5);
+    assert.doesNotMatch(result.stdout, /Installing public|passed/);
+  });
   it("contains update-in-place and dirty-worktree guard logic", () => {
     const scriptPath = path.resolve("scripts/install/bootstrap.sh");
     assert.equal(fs.existsSync(scriptPath), true);

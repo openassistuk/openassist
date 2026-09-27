@@ -12,7 +12,8 @@ Operators can select the current GPT-6 and Claude models with controls that matc
 - [x] (2026-09-27) Verified official GPT-6 Sol/Luna specifications, Claude Opus 5.5/Fable 5.1 specifications and migration contracts, and Azure reasoning documentation.
 - [x] (2026-09-27) Implemented shared current models, route-specific efforts/modes, schema/daemon/setup/status mapping, output budgets and Claude stream folding.
 - [x] (2026-09-27) Added payload, thinking replay, output validation and wizard tests; updated required documentation and exact test inventory.
-- [ ] Run full verification, review the changes, publish the PR and inspect hosted checks.
+- [x] (2026-09-27) Reviewed the final implementation and passed `pnpm verify:all` on f000816 with documentation-only follow-ups. Both dependency audits report zero findings.
+- [ ] Publish the PR and inspect hosted checks.
 
 ## Surprises & Discoveries
 
@@ -22,6 +23,8 @@ OpenAI and Azure document Standard/Pro execution independently of reasoning effo
 
 The SDK rejected a 32000-token non-streaming request before transport. New always-thinking models and all larger Claude budgets now use SDK streaming folded back into the completed-message contract. Regression tests cover empty signed blocks, tools/results and restart-equivalent replay metadata.
 
+Full verification caught the source sample still naming Terra while the fresh-config seed used Sol; lifecycle detection consequently treated a clean clone as customized legacy state. Updating the tracked sample restored the existing upgrade test without weakening it. Existing adapter behavior that omits unsupported reasoning effort is preserved; saved configuration still receives strict validation.
+
 ## Decision Log
 
 Preserve the existing workload tiers: fresh OpenAI/Codex setup moves from Terra to GPT-6 Sol, with Astra and Luna alternatives. Keep Sonnet 5 as the balanced Anthropic default and refresh its alternatives to Opus 5.5, Fable 5.1 and Haiku 4.5. Add verified current models rather than every historical or specialized vendor product. Preserve saved IDs and legacy budget settings.
@@ -30,7 +33,9 @@ Retain the existing Responses-only Azure OpenAI route; Claude deployments on Mic
 
 ## Outcomes & Retrospective
 
-Implementation is complete; final verification is in progress. Live account availability is not certified by mocked request tests. The user's existing beta testing counts once the actual build, host, route, model, channel and exercised behaviors are recorded.
+Implementation and local verification are complete. `pnpm verify:all` passed on Windows with Node 24.21.0 and pnpm 12.5.1: workflow lint, all package builds/lint/types, 399 Vitest tests, and 185 Node integration tests (3 platform-specific skips). Vitest coverage: statements 83.04%, branches 71.53%, functions 86.54%, lines 83.24%. Node coverage: statements/lines 80.63%, branches 72.03%, functions 91.5% (107 passing coverage tests, 2 platform-specific skips). All thresholds and coverage scope remain unchanged. Production and full audits both report zero findings at every severity; reports are under ignored `coverage/audit`.
+
+Live account availability is not certified by mocked request tests. The user's existing beta testing counts once the actual build, host, route, model, channel and exercised behaviors are recorded. Actual Node migration/rollback evidence remains in the original readiness plan's release-certification scope.
 
 ## Context and Orientation
 

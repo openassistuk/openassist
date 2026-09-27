@@ -10,7 +10,7 @@ The format follows Keep a Changelog conventions and this project currently track
 - Add Claude Opus 5.5, Fable 5.1 and invitation-only Mythos 5.1 with mandatory adaptive thinking, correct default efforts, configurable output limits and internal streaming. Preserve signed thinking/tool results durably; opt into Anthropic binding controls to drop stale thinking after bounded-history or policy changes without exposing raw thinking or granting tools.
 
 
-- Refresh fresh-setup defaults to GPT-5.6 Terra (OpenAI/Codex) and Claude Sonnet 5. Share exact model capabilities across setup, config validation, request mapping, and status; add model-filtered none/max reasoning and Anthropic adaptive thinking/effort. Preserve saved IDs and manual budgets on compatible models; block retired Codex selections with explicit repair guidance. Azure deployment names never imply tuning support. Keep token refresh, thinking replay, bounded tool execution, image gating, and operator state intact.
+- Share exact model capabilities across setup, config validation, request mapping, and status; add model-filtered none/max reasoning and Anthropic adaptive thinking/effort. Preserve saved IDs and manual budgets on compatible models; block retired Codex selections with explicit repair guidance. Azure deployment names never imply tuning support. Keep token refresh, thinking replay, bounded tool execution, image gating, and operator state intact.
 
 
 ### Modernization

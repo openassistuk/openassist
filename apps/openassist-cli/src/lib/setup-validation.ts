@@ -594,7 +594,8 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
   validateWebToolRequirements(input.config, input.env, errors, warnings);
   validateTimezoneConfirmation(input.config, input.timezoneConfirmed, errors);
   validatePaths(input.config, input.configPath, input.envFilePath, input.installDir, errors);
-  if (!isValidBindAddress(input.config.runtime.bindAddress)) {
+  const bindAddressValid = isValidBindAddress(input.config.runtime.bindAddress);
+  if (!bindAddressValid) {
     pushIssue(
       errors,
       "runtime.bind_address_invalid",
@@ -603,7 +604,7 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
     );
   }
 
-  if (!input.skipBindAvailabilityCheck) {
+  if (bindAddressValid && !input.skipBindAvailabilityCheck) {
     const portIssue = await checkPortAvailability(input.config.runtime.bindAddress, input.config.runtime.bindPort);
     if (portIssue) {
       pushIssue(

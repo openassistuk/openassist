@@ -118,7 +118,7 @@ jobs:
           grep -F "Ready now" "$RUNNER_TEMP/doctor.txt"
           grep -F "Needs action" "$RUNNER_TEMP/doctor.txt"
           grep -F "Next command" "$RUNNER_TEMP/doctor.txt"
-          node -e "const fs=require('node:fs'); const report=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (report.version !== 3 || report.summary?.firstReplyReadiness !== 'needs-action' || report.summary?.upgradeReadiness !== 'safe-to-continue') process.exit(1);" "$RUNNER_TEMP/doctor.json"
+          node -e "const fs=require('node:fs'); const report=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (report.version !== 4 || report.summary?.firstReplyReadiness !== 'needs-action' || report.summary?.upgradeReadiness !== 'safe-to-continue') process.exit(1);" "$RUNNER_TEMP/doctor.json"
           grep -F "Ready now" "$RUNNER_TEMP/upgrade.txt"
           grep -F "Needs action" "$RUNNER_TEMP/upgrade.txt"
           grep -F "Next command" "$RUNNER_TEMP/upgrade.txt"
@@ -130,3 +130,14 @@ jobs:
           OPENASSIST_SMOKE_INSTALL_DIR: ${{ runner.temp }}/openassist-install
         run: |
           test -z "$(git -C "$OPENASSIST_SMOKE_INSTALL_DIR" status --porcelain)"
+
+      - name: Packaged release lifecycle smoke
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          node scripts/release/package.mjs coverage/scheduled-release
+          node scripts/release/smoke.mjs "coverage/scheduled-release/stage-$(node -p 'process.platform + "-" + process.arch')"
+          if [ "$(uname -s)" = Linux ]; then
+            sudo env GITHUB_ACTIONS=true PATH="$PATH" "$(command -v node)" scripts/release/lifecycle-smoke.mjs coverage/scheduled-release/stage-linux-x64
+          fi

@@ -139,14 +139,7 @@ function runNodeActionlint() {
     runDockerActionlint();
     return;
   }
-  const cliPath = path.join(
-    repoRoot,
-    "node_modules",
-    "@tktco",
-    "node-actionlint",
-    "bin",
-    "node-actionlint.js"
-  );
+  const cliPath = path.join(repoRoot, "scripts", "dev", "lint-workflows-node.mjs");
   finishLint(run(process.execPath, [cliPath, target]));
 }
 

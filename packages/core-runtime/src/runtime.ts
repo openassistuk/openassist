@@ -1,4 +1,4 @@
-import { providerTuningLabel } from "@openassist/config";
+import { providerTuningLabel, cachedUpdateStatus } from "@openassist/config";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -95,7 +95,7 @@ import {
 export interface RuntimeDependencies {
   db: OpenAssistDatabase;
   logger: OpenAssistLogger;
-  installContext?: RuntimeInstallContext;
+  installContext?: RuntimeInstallContext | (() => RuntimeInstallContext);
 }
 
 export interface RuntimeAdapterSet {
@@ -518,7 +518,11 @@ export class OpenAssistRuntime {
   private startedAt: string | null = null;
   private startupEpoch = 0;
   private readonly hostSystemProfile: Record<string, unknown>;
-  private readonly installContext: RuntimeInstallContext;
+  private readonly readInstallContext: () => RuntimeInstallContext;
+
+  private get installContext(): RuntimeInstallContext {
+    return this.readInstallContext();
+  }
 
   constructor(config: RuntimeConfig, deps: RuntimeDependencies, adapters: RuntimeAdapterSet) {
     const configuredSecretsBackend =
@@ -567,10 +571,10 @@ export class OpenAssistRuntime {
         // Best-effort helper-tools directory hardening.
       }
     }
-    this.installContext = {
-      repoBackedInstall: false,
-      ...(deps.installContext ?? {})
-    };
+    const installContext = deps.installContext;
+    this.readInstallContext = typeof installContext === "function"
+      ? installContext
+      : () => ({ repoBackedInstall: false, ...installContext });
     this.effectiveTimezone = config.time.defaultTimezone ?? detectSystemTimezoneCandidate();
     this.hostSystemProfile = {
       platform: os.platform(),
@@ -3267,7 +3271,7 @@ export class OpenAssistRuntime {
         skillsDirectory: this.config.paths.skillsDir,
         helperToolsDirectory: this.managedHelperToolsDir()
       },
-      installContext: this.installContext
+      installContext: {...this.installContext,updateStatus:cachedUpdateStatus()}
     });
   }
 
@@ -3665,10 +3669,14 @@ export class OpenAssistRuntime {
     const canManageAccess = this.policyEngine.isApprovedOperator(sessionId, senderId);
     const operatorsConfigured = this.policyEngine.hasApprovedOperators(sessionId);
     const docRefs = awareness.documentation.refs.map((ref) => ref.path).join(", ") || "none";
-    const installSummary = awareness.maintenance.repoBackedInstall
+    const installSummary = awareness.maintenance.installationMethod
+      ? `${awareness.maintenance.installationMethod} installation ${awareness.maintenance.installedVersion ?? ""} at ${awareness.maintenance.installDir ?? "(not known)"}`
+      : awareness.maintenance.repoBackedInstall
       ? `repo-backed install at ${awareness.maintenance.installDir ?? "(not known)"}`
       : "install metadata not recorded as a repo-backed install";
-    const publicInstallSummary = awareness.maintenance.repoBackedInstall
+    const publicInstallSummary = awareness.maintenance.installationMethod
+      ? `${awareness.maintenance.installationMethod} installation ${awareness.maintenance.installedVersion ?? ""}`
+      : awareness.maintenance.repoBackedInstall
       ? "repo-backed install metadata recorded"
       : "install metadata not recorded as a repo-backed install";
     const maintenanceSummary = awareness.capabilities.canEditConfig ||
@@ -3681,11 +3689,13 @@ export class OpenAssistRuntime {
           `config path: ${awareness.maintenance.configPath ?? "(not known)"}`,
           `env file path: ${awareness.maintenance.envFilePath ?? "(not known)"}`,
           `install/update: ${installSummary}; trackedRef=${awareness.maintenance.trackedRef ?? "(not known)"}; lastKnownGood=${awareness.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
+          `update notice: ${awareness.maintenance.updateStatus ?? "not checked"}`,
           `protected paths: ${awareness.maintenance.protectedPaths.join(", ") || "none"}`,
           `protected surfaces: ${awareness.maintenance.protectedSurfaces.join(", ") || "none"}`
         ]
       : [
           `install/update: ${publicInstallSummary}`,
+          `update notice: ${awareness.maintenance.updateStatus ?? "not checked"}`,
           "config/env/install detail: hidden in chat for this sender; approved operators can see full lifecycle paths here, and 'openassist doctor' shows them on the host.",
           "protected lifecycle detail: hidden in chat for this sender."
         ];

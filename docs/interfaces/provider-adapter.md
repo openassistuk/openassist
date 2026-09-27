@@ -1,5 +1,7 @@
 # Provider Adapter Interface
 
+Packaged releases include the production provider dependency graph and are smoke-tested without a checkout or system package manager. Lifecycle health verifies local build identity without requiring live provider credentials. Provider auth, model controls and tool contracts remain unchanged.
+
 Source of truth: `packages/core-types/src/provider.ts`.
 
 Provider adapters convert normalized runtime chat requests into provider-specific API calls, including tool-call turns.

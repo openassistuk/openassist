@@ -144,3 +144,5 @@ openassist tools status --session <channelId>:<conversationKey> --sender-id <sen
 Provider modernization retains inline replies and memory defaults. Channel `/status` reports the configured provider route, model, and effective tuning from the shared catalog; known retired Codex models show explicit repair guidance without making a provider call.
 
 Dependency readiness (2026-09-27): grammY 1.46.0 is current stable and supports Bot API 10.3. Bot-token auth, chat/thread defaults and bounded file handling are unchanged. See [readiness audit](../operations/provider-channel-readiness.md).
+
+Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).

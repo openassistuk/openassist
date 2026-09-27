@@ -7,6 +7,7 @@ import { type PromptAdapter, createInquirerPromptAdapter, loadSetupWizardState, 
 import { autoMigrateLegacyDefaultLayoutIfNeeded } from "./operator-layout.js";
 import { loadSetupQuickstartState, runSetupQuickstart } from "./setup-quickstart.js";
 import { runSetupWizardPostSaveChecks } from "./setup-post-save.js";
+import { showUpdateNotice } from "./update-notifications.js";
 
 export interface SetupHubOptions {
   installDir: string;
@@ -55,6 +56,10 @@ const hubActions = [
   { label: "Advanced configuration", value: "advanced" },
   { label: "Service and health actions", value: "service" },
   { label: "Safe update planning", value: "upgrade" },
+  { label: "Apply update", value: "apply-update" },
+  { label: "Roll back application", value: "rollback" },
+  { label: "Recover interrupted update", value: "recover" },
+  { label: "Uninstall application (keep data)", value: "uninstall" },
   { label: "Show file locations and lifecycle status", value: "status" },
   { label: "Exit", value: "exit" }
 ] as const;
@@ -95,6 +100,7 @@ export async function runSetupHub(
   rawOptions: Partial<SetupHubOptions>,
   prompts: PromptAdapter = createInquirerPromptAdapter()
 ): Promise<void> {
+  await showUpdateNotice();
   const installDir = path.resolve(rawOptions.installDir ?? defaultInstallDir());
   let configPath = path.resolve(rawOptions.configPath ?? defaultConfigPath());
   let envFilePath = path.resolve(rawOptions.envFilePath ?? defaultEnvFilePath());
@@ -155,6 +161,11 @@ export async function runSetupHub(
 
     if (action === "upgrade") {
       await runCurrentCli(["upgrade", "--dry-run", "--install-dir", installDir]);
+      continue;
+    }
+
+    if (["apply-update", "rollback", "recover", "uninstall"].includes(action)) {
+      await runCurrentCli(action === "apply-update" ? ["update"] : action === "recover" ? ["update", "recover"] : [action]);
       continue;
     }
 

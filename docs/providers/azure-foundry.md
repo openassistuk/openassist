@@ -189,3 +189,5 @@ Azure Identity 4.13.3 and OpenAI SDK 7.23.0 remain current stable. Entra scope s
 - [Configuration Reference](../configuration/config-reference.md)
 - [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
+
+Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).

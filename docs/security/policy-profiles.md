@@ -1,5 +1,9 @@
 # Policy Profiles
 
+Managed release services use their private Node runtime. Linux hardened units retain `NoNewPrivileges`, `PrivateTmp` and `ProtectSystem=strict` while explicitly allowing configured operator data/logs/skills and config directories. Changing those paths requires service reinstallation. This service boundary remains separate from the in-chat access profile; installing an update never grants a new tool profile.
+
+Lifecycle modernization does not grant new model permissions. Update, rollback, recovery and uninstall remain explicit host-side operations; update notices never execute shell jobs. Managed release paths and service definitions stay protected. Isolated developer state does not create a privilege boundary for source code.
+
 Source:
 
 - `packages/core-types/src/policy.ts`

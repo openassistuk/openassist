@@ -208,6 +208,7 @@ describe("runtime access mode", () => {
     const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
     const provider = new QuietProvider();
     const channel = new MockChannel();
+    let trackedRef = "main";
     const runtime = new OpenAssistRuntime(
       buildConfig(root, {
         operatorAccessProfile: "full-root",
@@ -216,16 +217,16 @@ describe("runtime access mode", () => {
       {
         db,
         logger,
-        installContext: {
+        installContext: () => ({
           repoBackedInstall: true,
-        installDir: root,
-        configPath: path.join(root, "openassist.toml"),
-        envFilePath: path.join(root, "openassistd.env"),
-        trackedRef: "main",
-        lastKnownGoodCommit: "abc123",
-        serviceManager: "systemd-system",
-        systemdFilesystemAccessEffective: "hardened"
-      }
+          installDir: root,
+          configPath: path.join(root, "openassist.toml"),
+          envFilePath: path.join(root, "openassistd.env"),
+          trackedRef,
+          lastKnownGoodCommit: "abc123",
+          serviceManager: "systemd-system",
+          systemdFilesystemAccessEffective: "hardened"
+        })
       },
       { providers: [provider], channels: [channel] }
     );
@@ -279,6 +280,13 @@ describe("runtime access mode", () => {
     assert.doesNotMatch(standardStatusText, /config path:/i);
     assert.doesNotMatch(standardStatusText, /trackedRef=main/i);
     assert.doesNotMatch(standardStatusText, /protected paths:/i);
+
+    trackedRef = "stable";
+    const previousMessages = channel.sent.length;
+    await channel.emit(inbound("123456789", "/status", "status-after-commit"));
+    const refreshedStatus = channel.sent.slice(previousMessages).map(item => item.text ?? "").join("\n");
+    assert.match(refreshedStatus, /trackedRef=stable/i);
+    assert.doesNotMatch(refreshedStatus, /trackedRef=main/i);
 
     await runtime.stop();
     db.close();

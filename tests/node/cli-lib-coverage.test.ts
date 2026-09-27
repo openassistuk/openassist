@@ -160,7 +160,7 @@ describe("cli lib coverage helpers", () => {
     assert.deepEqual(loaded, saved);
 
     fs.writeFileSync(statePath, "{not-json", "utf8");
-    assert.equal(loadInstallState(statePath), undefined);
+    assert.throws(() => loadInstallState(statePath), /Invalid install-state/);
   });
 
   it("covers health-check success and retry/failure paths", async () => {

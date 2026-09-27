@@ -1,5 +1,9 @@
 # Setup Quickstart and Setup Wizard
 
+For a named developer instance, use the setup command printed by `openassist dev test`. Setup saves credentials to that instance's env file; stop and rerun the foreground instance to load changes. These credentials are passed only to its daemon, never to Git/pnpm builds or the primary service. See [developer testing](developer-testing.md).
+
+Setup resolves the recorded active application for both packaged and source installations. Packaged services use private Node. The hub also exposes update, rollback, interrupted-operation recovery and data-preserving uninstall, all using the shared lifecycle commands. Developer tracks remain outside beginner choices; see [developer testing](developer-testing.md).
+
 OpenAssist has one primary setup hub and two stable subpaths.
 
 - `openassist setup`: interactive lifecycle hub and beginner entrypoint
@@ -32,7 +36,6 @@ Command:
 
 ```bash
 openassist setup quickstart \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```

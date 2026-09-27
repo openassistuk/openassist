@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { getBuildIdentity, runtimeInstanceId } from "@openassist/config";
 import http from "node:http";
 import path from "node:path";
 import { Command } from "commander";
@@ -15,7 +16,7 @@ import { AzureFoundryProviderAdapter } from "@openassist/providers-azure-foundry
 import { TelegramChannelAdapter } from "@openassist/channels-telegram";
 import { DiscordChannelAdapter } from "@openassist/channels-discord";
 import { WhatsAppMdChannelAdapter } from "@openassist/channels-whatsapp-md";
-import { loadRuntimeInstallContext } from "./install-context.js";
+import { createRuntimeInstallContextReader } from "./install-context.js";
 import { resolveChannelSettings } from "./channel-settings.js";
 import { resolveDefaultOAuthRedirectUri } from "./oauth-redirect.js";
 
@@ -143,7 +144,7 @@ const program = new Command();
 program
   .name("openassistd")
   .description("OpenAssist daemon")
-  .version("0.1.0");
+  .version(getBuildIdentity().version);
 
 program
   .command("run")
@@ -329,7 +330,7 @@ program
       {
         db,
         logger,
-        installContext: loadRuntimeInstallContext(configPath, logger)
+        installContext: createRuntimeInstallContextReader(configPath, logger)
       },
       { providers, channels }
     );
@@ -363,6 +364,8 @@ program
         if (method === "GET" && requestUrl.pathname === "/v1/health") {
           sendJson(res, 200, {
             status: "ok",
+            build: getBuildIdentity(),
+            instanceId: runtimeInstanceId(configPath),
             runtime: runtime.getStatus()
           });
           return;

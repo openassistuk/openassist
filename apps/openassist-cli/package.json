@@ -14,18 +14,22 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "@inquirer/prompts": "^8.7.2",
-    "@openassist/core-types": "workspace:*",
-    "@openassist/observability": "workspace:*",
-    "@openassist/core-runtime": "workspace:*",
     "@openassist/config": "workspace:*",
-    "commander": "^15.0.0",
+    "@openassist/core-runtime": "workspace:*",
+    "@openassist/core-types": "workspace:*",
     "@openassist/migration-openclaw": "workspace:*",
-    "@openassist/storage-sqlite": "workspace:*"
+    "@openassist/observability": "workspace:*",
+    "@openassist/storage-sqlite": "workspace:*",
+    "commander": "^15.0.0",
+    "tar": "^7.5.22"
   },
   "bin": {
     "openassist": "dist/index.js"
   },
   "engines": {
     "node": ">=24.21.0 <25"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

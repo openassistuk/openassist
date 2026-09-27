@@ -1,5 +1,7 @@
 # E2E Autonomy Validation
 
+Validate release/source identity and protected lifecycle paths in awareness without changing tool privileges. An isolated dev instance starts with channels/scheduled tasks disabled; configure dedicated test accounts before autonomy checks. Packaged artifact readiness and live provider/channel certification must be recorded separately.
+
 Use this runbook to validate full chat-driven autonomous tool behavior end-to-end.
 
 This runbook assumes you already completed quickstart or wizard setup and understand the difference between:

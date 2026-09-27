@@ -1,12 +1,16 @@
 # Install on Linux
 
+Packaged bootstrap adds a marked `~/.local/bin` PATH block to Bash's `.bashrc` and `.profile`, or Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`). Open a new shell after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved; other shells receive `.profile` guidance. Uninstall removes only an unchanged block whose ownership was recorded.
+
+Normal Linux installation downloads a signed release with private Node into `~/.local/share/openassist/install`. Git/pnpm/system-Node prerequisites and package-manager remediation below apply only to explicit source bootstrap (`--source --ref main`, `--ref`, or `--pr`). Release bootstrap requires curl, gzip and OpenSSL. Until signing/publication is provisioned, it fails closed. See [release maintenance](release-maintenance.md) and [developer testing](developer-testing.md).
+
 This page covers Linux-specific installation details. For the end-to-end operator flow, start with `docs/operations/quickstart-linux-macos.md` and keep `docs/operations/common-troubleshooting.md` nearby for repair commands.
 
 ## Platform Behavior
 
 Linux is a first-class OpenAssist operator path.
 
-Bootstrap can install missing prerequisites automatically unless you disable it:
+Explicit source bootstrap can install missing development prerequisites automatically unless you disable it:
 
 - Git
 - Node `>=24.21.0 <25`
@@ -36,7 +40,7 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 Local checkout:
 
 ```bash
-bash scripts/install/bootstrap.sh
+bash scripts/install/bootstrap.sh --source --ref main
 ```
 
 Useful bootstrap flags:
@@ -47,7 +51,7 @@ bash scripts/install/bootstrap.sh --non-interactive --skip-service
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref main
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref feature/my-branch
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --pr 123
-bash scripts/install/bootstrap.sh --no-auto-install-prereqs
+bash scripts/install/bootstrap.sh --source --ref main --no-auto-install-prereqs
 ```
 
 Advanced developer GitHub entrypoint examples:
@@ -59,7 +63,7 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 
 Those branch and PR flags are for developer testing only. They stay command-line only and are intentionally not shown in the beginner setup hub, quickstart, or wizard.
 
-Interactive bootstrap on Linux runs bare `openassist setup` after build. Non-interactive bootstrap does not run onboarding, but it still installs the service unless `--skip-service` is set.
+Interactive bootstrap on Linux runs bare `openassist setup` after installation. Non-interactive bootstrap does not run onboarding, but it still installs the service unless `--skip-service` is set.
 
 Bootstrap now ends with three fixed operator sections so the stopping point is obvious:
 
@@ -75,7 +79,7 @@ Quickstart now captures the main assistant identity during onboarding:
 
 When quickstart succeeds, it writes those values into the same global assistant profile that `/profile` edits later and disables the later first-chat identity reminder by default.
 
-Expected installer note:
+Source-build notes (packaged releases already include production dependencies):
 
 - OpenAssist pins a tested `pnpm` release for consistent installs, so a newer `pnpm` update notice does not block setup
 - Telegram and Discord installs do not need extra build-script approval
@@ -94,11 +98,12 @@ Linux service filesystem access is configured separately under `[service]` in `o
 - `systemdFilesystemAccess = "unrestricted"` removes OpenAssist-added Linux systemd hardening for the daemon service
 - `openassist service install` reads that setting from config every time it renders the Linux unit
 
+Hardened units explicitly allow the configured data, logs and skills directories plus configuration state. These writable paths are created before service start, independently of the application directory, and paths with spaces are quoted. `PrivateTmp` remains enabled; place persistent operator state outside `/tmp` and `/var/tmp`. Reinstall the service after changing runtime paths so its filesystem boundary matches the saved config.
+
 Install or reinstall the service explicitly:
 
 ```bash
 openassist service install \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
@@ -116,7 +121,9 @@ openassist service health
 
 Bootstrap writes or maintains:
 
-- repo-backed checkout: `$HOME/openassist`
+- managed release applications and private runtimes: `~/.local/share/openassist/install/releases`
+- active pointer: `~/.local/share/openassist/install/current`
+- explicit legacy source bootstrap checkout: `$HOME/openassist`
 - config: `~/.config/openassist/openassist.toml`
 - overlays: `~/.config/openassist/config.d`
 - env file: `~/.config/openassist/openassistd.env`
@@ -135,7 +142,9 @@ If you install with `--ref <git-ref>` or `--pr <number>`, that track is also rec
 
 Track behavior:
 
-- default install with no track flag follows `main`
+- default installation follows stable packaged releases
+- exact `--version` installations stay pinned
+- fresh explicit `--source` bootstrap uses the repository default branch; existing legacy branch checkouts keep their branch when no ref is supplied
 - branch installs continue following the selected branch normally
 - PR installs record `refs/pull/<n>/head`, but later `openassist upgrade` requires an explicit `--pr <n>` or `--ref <target>`
 
@@ -180,11 +189,10 @@ openassist service restart
 openassist service status
 ```
 
-If a systemd unit still has older hardening that breaks Node startup, reinstall the service from the current checkout:
+If a systemd unit still has older hardening that breaks Node startup, reinstall the service from the active installation:
 
 ```bash
 openassist service install \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 openassist service restart

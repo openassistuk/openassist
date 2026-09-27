@@ -45,6 +45,7 @@ import {
   type ProviderAuthReadinessMap
 } from "./provider-auth-readiness.js";
 import { buildSetupSummary } from "./setup-summary.js";
+import { installationSummary, installationSummaryText } from "./installation-summary.js";
 import {
   type PromptAdapter,
   maybePromptAzureServicePrincipalEnv,
@@ -992,17 +993,17 @@ async function runQuickstartReviewStep(
       installDir: state.installDir,
       configPath: state.configPath,
       envFilePath: state.envFilePath,
-      installStatePresent: false,
+      ...installationSummary(state.installDir, state.configPath),
       repoBacked: fs.existsSync(path.join(state.installDir, ".git")),
       configExists: true,
       envExists: true,
       config: state.config,
-      trackedRef: "main",
       serviceWasSkipped: options.skipService,
       daemonBuildExists: fs.existsSync(path.join(state.installDir, "apps", "openassistd", "dist", "index.js")),
       hasNode: true
     });
 
+    console.log(`Installation: ${installationSummaryText(state.installDir, state.configPath)}`);
     console.log(`First reply destination: ${reviewReport.context.firstReplyDestination}`);
     console.log(`Access mode: ${reviewReport.context.accessMode}`);
     if (isLinuxSystemdFilesystemAccessConfigurable()) {

@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source flags retain the developer installer. Normal installs use verified releases.
+OPENASSIST_SOURCE_REQUESTED=0
+for OPENASSIST_BOOTSTRAP_ARG in "$@"; do
+  case "$OPENASSIST_BOOTSTRAP_ARG" in --source|--ref|--pr|--repo-url|--allow-dirty) OPENASSIST_SOURCE_REQUESTED=1 ;; esac
+done
+if [[ "$OPENASSIST_SOURCE_REQUESTED" -eq 0 ]]; then
+  OPENASSIST_RELEASE_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/release.sh"
+  if [[ -f "$OPENASSIST_RELEASE_SCRIPT" ]]; then
+    exec bash "$OPENASSIST_RELEASE_SCRIPT" "$@"
+  fi
+  OPENASSIST_RELEASE_TEMP="$(mktemp -d)"
+  trap 'rm -rf "$OPENASSIST_RELEASE_TEMP"' EXIT
+  curl --proto '=https' --tlsv1.2 -fsSL 'https://raw.githubusercontent.com/openassistuk/openassist/main/scripts/install/release.sh' -o "$OPENASSIST_RELEASE_TEMP/release.sh"
+  bash "$OPENASSIST_RELEASE_TEMP/release.sh" "$@"
+  exit $?
+fi
+
 INSTALL_DIR="${HOME}/openassist"
 REPO_URL=""
 REF=""
@@ -48,6 +65,9 @@ EOF
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --source)
+      shift
+      ;;
     --install-dir)
       INSTALL_DIR="$2"
       shift 2
@@ -203,12 +223,13 @@ if (statePath && fs.existsSync(statePath)) {
   try {
     existing = JSON.parse(fs.readFileSync(statePath, "utf8"));
   } catch {
-    existing = {};
+    throw new Error("Malformed install-state; preserve and repair it before source installation.");
   }
 }
 
 const merged = {
   ...existing,
+  schemaVersion: 2,
   installDir: process.env.OPENASSIST_INSTALL_DIR,
   repoUrl: process.env.OPENASSIST_REPO_URL || existing.repoUrl || "",
   trackedRef: process.env.OPENASSIST_TRACKED_REF || existing.trackedRef || "main",
@@ -220,7 +241,9 @@ const merged = {
 };
 
 fs.mkdirSync(path.dirname(statePath), { recursive: true });
-fs.writeFileSync(statePath, JSON.stringify(merged, null, 2), "utf8");
+const temporary = `${statePath}.${process.pid}.tmp`;
+fs.writeFileSync(temporary, JSON.stringify(merged, null, 2), {mode:0o600,flag:"wx"});
+fs.renameSync(temporary,statePath);
 EOF
 }
 
@@ -1001,6 +1024,21 @@ ensure_prereqs() {
 }
 
 ensure_prereqs
+
+# Source bootstrap remains the compatibility entrypoint for a developer checkout.
+# A managed primary must use the staged engine, never update its checkout in place.
+OPENASSIST_EXISTING_STATE="${HOME}/.config/openassist/install-state.json" OPENASSIST_EXPLICIT_SOURCE_TARGET="${REF}${PR_NUMBER}" node <<'NODE'
+const fs=require('node:fs');
+const path=require('node:path');
+const file=process.env.OPENASSIST_EXISTING_STATE;
+if(fs.existsSync(file)) {
+  let state;
+  try {state=JSON.parse(fs.readFileSync(file,'utf8'));} catch {throw new Error('Malformed install-state; preserve and repair it before source installation.');}
+  if(!state || typeof state.installDir!=='string' || !path.isAbsolute(state.installDir) || (state.schemaVersion!==undefined && state.schemaVersion!==2)) throw new Error('Invalid installation record; source bootstrap will not overwrite it.');
+  if(state.active) throw new Error('A managed primary installation already exists. Use openassist update --source --ref <ref> (or --pr <number>), with --yes for unattended method changes.');
+  if(typeof state.trackedRef==='string' && state.trackedRef.startsWith('refs/pull/') && !process.env.OPENASSIST_EXPLICIT_SOURCE_TARGET) throw new Error('PR installations require an explicit --pr or --ref; source bootstrap will not fall back to main.');
+}
+NODE
 
 if [[ -z "${REPO_URL}" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

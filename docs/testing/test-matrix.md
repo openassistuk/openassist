@@ -1,5 +1,7 @@
 # Test Matrix
 
+Lifecycle regressions cover dedicated daemon credentials without build-time inheritance, running-build identity before record commit and track refresh afterward, owned shell-profile installation/removal, and archive link traversal through intermediate aliases. The existing lifecycle release/engine, install-context, CLI lifecycle and runtime access-mode suites contain these cases. Native Linux/macOS tests additionally extract legitimate internal symlinks/hardlinks and execute saved PATH blocks in Bash (and Zsh on macOS); Windows does not certify those Unix behaviors. The live Linux lifecycle smoke also checks the deployed candidate's own module-root discovery before activation.
+
 This document defines local and CI validation expectations.
 
 The normal Node integration gate now includes docs-truth validation, so stale live-doc links or anchors, incomplete docs indexing, mismatched workflow statements, stale threshold references, and stale test inventories are expected to fail before merge instead of waiting for release review.
@@ -91,6 +93,8 @@ Current suite files under `tests/vitest/`:
 - `health-check.test.ts`
 - `install-context.test.ts`
 - `install-state.test.ts`
+- `lifecycle-release.test.ts`
+- `lifecycle-engine.test.ts`
 - `lifecycle-readiness.test.ts`
 - `memory.test.ts`
 - `migration.test.ts`
@@ -140,6 +144,7 @@ Current suite files under `tests/vitest/`:
 - `tool-loop-runtime.test.ts`
 - `upgrade-state-machine.test.ts`
 - `update-track.test.ts`
+- `update-discovery.test.ts`
 - `web-tool.test.ts`
 
 ## Integration Suites (Node test runner)
@@ -154,6 +159,7 @@ Current suite files under `tests/node/`:
 - `dependency-security-overrides.test.ts`
 - `dependency-audit.test.ts`
 - `cli-docs-truth.test.ts`
+- `cli-lifecycle-modernization.test.ts`
 - `cli-growth-status-coverage.test.ts`
 - `cli-lib-coverage.test.ts`
 - `cli-lifecycle-home-state-blackbox.test.ts`
@@ -350,3 +356,17 @@ The model-catalog suite covers saved Opus 4.5 alias validation and manual reques
 `tests/vitest/current-provider-models.test.ts` verifies GPT-6 Responses/Codex payloads, route-specific mode rejection, Claude mandatory thinking, internal stream folding, output limits and durable replay metadata after context changes. Azure provider tests exercise all three GPT-6 hints under API-key and Entra auth while retaining deployment names. These are fake-transport checks, not live account certification.
 
 PR #61 harness follow-up updates Vitest and coverage-v8 together to 5.0.2. Existing suites add bounded/scoped Responses replay, duplicate-call suppression, database-reopen metadata, delayed-401 credential reuse, Anthropic workspace/bearer isolation and setup persistence cases. Coverage scope and thresholds remain unchanged.
+
+## Release artifacts and lifecycle modernization
+
+`.github/workflows/release.yml` runs native package/relocation smoke tests on Linux glibc x64/arm64 and macOS x64/arm64 for PRs and manual dispatch. Only explicit publication dispatch uses the protected release environment and signing secret. Existing scheduled/manual service and lifecycle smoke workflows retain their trigger semantics. The public runner label macos-15-intel is explicitly declared for the bundled actionlint version.
+
+The release `signing-contract` job validates all four real archives with an ephemeral test key through the production signing script, OpenSSL and the packaged Node verifier; production trust must reject the test signature. Scheduled/manual service and lifecycle workflows also build and smoke packaged releases; lifecycle E2E additionally runs live Linux service activation, update, rollback and data-preserving uninstall. Deterministic integration tests exercise WAL-backed conversation preservation across activation failure and rollback, isolated local builds with credentials removed, locks, and explicit instance cleanup. Hosted native jobs remain necessary even when Windows quality and simulated host tests pass.
+
+Live Linux lifecycle checks also build the immutable tested commit from the public source repository, activate it using the managed runtime, return to a prepared release, and verify identities plus retained state. Production signing and public release publication are separate maintainer rollout steps.
+
+New lifecycle suites exercise manifest signatures, download/archive bounds, target selection, compatibility, exclusive locks, preserved state, staged activation failure, offline application rollback, unverified restart skips, uninstall ownership, isolated credentials and update notices. Production signing keys and live channel credentials are not test fixtures. Hosted native results are separate from local Windows quality evidence.
+
+`update-discovery.test.ts` checks fixed public request routes with locally selected versions/refs, pagination and byte/deadline bounds, old pins, missing/ambiguous refs, annotated tags, immutable commits and HEAD. It verifies initial and redirected destinations, approved artifact CDNs, URL credential/port rejection and no per-selector fallback. `cli-lifecycle-modernization.test.ts` exercises the same discovery through real installation records and notification state. CodeQL closure requires the reopened original alert to become fixed on a fresh analysis, without a rule exclusion or dismissal.
+
+Lifecycle engine and Node integration tests inspect actual cache files to prove only local status fields are persisted. They cover legacy/malformed/future caches, omission of server-supplied version strings, cached PR guidance, notification opt-out and fresh explicit-check details.

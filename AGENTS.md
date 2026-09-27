@@ -167,7 +167,7 @@ When changing installer/setup/service behavior:
    - `install.sh`, `scripts/install/bootstrap.sh`, and `openassist upgrade` may expose branch/PR track flags
    - setup hub, quickstart, and wizard must not advertise branch/PR install tracks as normal operator choices
    - PR installs must keep later upgrades explicit (`--pr` or `--ref`) instead of silently falling back to `main`
-   - lifecycle output and docs must label branch and PR update tracks clearly so operators can distinguish standard `main` installs from advanced developer test installs
+   - lifecycle output and docs must label branch and PR update tracks clearly so operators can distinguish standard packaged releases from advanced `main`/branch/PR source test installs
 22. preserve Linux/macOS first-class operator platform semantics:
    - shared operator docs and lifecycle messaging must treat Linux and macOS as first-class supported operator paths
    - Linux-only service-manager and filesystem-boundary behavior must stay explicitly Linux-specific
@@ -264,6 +264,10 @@ When touching channel/runtime/provider attachment behavior:
    - Unix owner-only permissions remain required where the host supports them
 
 ## Security Rules
+
+- Keep update discovery on fixed public catalogue routes; compare saved versions/refs locally rather than placing them in request URLs. Validate source selectors before preparation. Test catalogue bounds, old pins, missing/ambiguous refs, annotated tags and every download redirect against the approved destinations. Discovery is advisory; release preparation still requires a signed manifest. Check open code-scanning alerts and unresolved review threads separately from CI conclusions; do not substitute a suppression or dismissal for removing an unwanted data flow.
+
+- Persist only the versioned `UpdateCheckCache` status contract for notices. Do not cache server-supplied version/commit strings or raw catalogue responses; explicit checks may return those transient details. Keep cache validation and status/notice rendering synchronized.
 
 - Keep loopback bind default unless an approved plan changes it.
 - Keep `full-root` activation explicit and auditable.
@@ -474,3 +478,15 @@ pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm w
 Current model maintenance must verify each route independently. GPT-6 API/Azure reasoningMode is separate from effort; do not copy it to Codex account-login. The Azure GPT-6 table permits Astra none while OpenAI does not: preserve the explicit route distinction and source date. Claude Opus 5.5/Fable 5.1/Mythos 5.1 require adaptive thinking and prefix-binding controls during replay. Keep internal stream folding, empty signed blocks, output budgets, setup/status and request tests synchronized. Never enable raw thinking display or vendor beta tools implicitly.
 
 Responses replay metadata must stay provider/model-scoped, bounded to 1 MiB and 256 items per record, and deduplicated against tool audit rows. Never expose opaque reasoning in visible output or infer new tool privileges. Anthropic workspace selection must round-trip through schema, setup and daemon wiring; explicit credentials must not inherit the other SDK credential type from the environment. OAuth retry must compare the failed credential with current state before refreshing again.
+
+## Managed lifecycle discipline
+
+Validate daemon installation facts against the executing application during activation and rollback, before install-state commit. Isolated env-file credentials belong only to the daemon environment, never builds; preserve forced instance routing and private-runtime variables. Packaged bootstrap owns only the exact shell PATH blocks it inserts, and uninstall must preserve surrounding text, edited blocks and unknown profiles. Archive admission must resolve complete link chains before interpreting parent traversal; test forward references, cycles and ordinary internal package links before extraction.
+
+Packaged stable releases are the normal installer route; explicit main/branch/PR/local source workflows remain supported. Maintain install-state version 2, lifecycle JSON version 4, signed release manifests, private runtime paths, and expected-build health checks together. Do not reintroduce in-place builds or network-dependent managed rollback. Rollback never automatically restores operator databases; incompatible schemas require explicit recovery.
+
+The release signing contract must exercise real artifacts with ephemeral test keys and demonstrate that the production trust anchor rejects those signatures. Preserve the scheduled/manual service and lifecycle workflows' source and release smoke coverage. Setup and doctor must report unverified activation truthfully, including after initial installation; health confirmation requires the expected build and instance.
+
+Keep `release-public.pem` public-only and fail closed while unprovisioned. Production signing secrets belong only in the protected release environment, never PR jobs or fixtures. The Release Artifacts workflow covers Linux glibc/macOS x64/arm64; keep its workflow, platform tests, published assets and release-maintenance docs synchronized. The actionlint WASM adapter honors explicitly configured additional runner labels without suppressing other diagnostics.
+
+Isolated developer instances use OPENASSIST_STATE_ROOT, dedicated state and ports, and no inherited primary credentials or service management. Source code is not sandboxed. Uninstall must prove ownership/containment; default removal preserves operator data, purge is explicit, and unknown custom/shared paths remain untouched. Always update the release-maintenance, developer-testing and uninstall guides alongside lifecycle changes. Record local checks, hosted results and actual publication as separate evidence in the living ExecPlan.

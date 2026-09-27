@@ -167,7 +167,7 @@ describe("lifecycle readiness", () => {
     const report = buildLifecycleReport(createInput());
     const lines = renderLifecycleReport(report);
 
-    expect(report.version).toBe(3);
+    expect(report.version).toBe(4);
     expect(report.summary.firstReplyReadiness).toBe("ready");
     expect(report.summary.upgradeReadiness).toBe("safe-to-continue");
     expect(report.context.primaryProviderId).toBe("openai-main");

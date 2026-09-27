@@ -1,5 +1,9 @@
 # Quickstart on Linux and macOS
 
+After packaged installation, open a new shell so its saved PATH block takes effect. If `openassist` is not yet found, run `~/.local/bin/openassist setup`; the installer also prints this fallback. Existing or edited shell-profile blocks are preserved rather than overwritten.
+
+Normal bootstrap now installs a verified packaged release and private Node; the Git/pnpm prerequisites below apply to explicit developer source installs. State paths and strict provider/channel onboarding remain unchanged. Signing/publication must be provisioned first; an unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
+
 This is the canonical operator runbook for a public OpenAssist install.
 
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
@@ -22,7 +26,7 @@ If you hit trouble on any of those steps, keep `docs/operations/common-troublesh
 
 ## Before You Start
 
-Supported runtime baseline:
+Source-development prerequisites (packaged releases include Node):
 
 - Node `>=24.21.0 <25`
 - pnpm `12.5.1` (the repository-pinned version)
@@ -51,7 +55,7 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 
 Bootstrap behavior:
 
-- uses a repo-backed checkout at `$HOME/openassist` by default
+- uses a verified release under `~/.local/share/openassist/install` by default; explicit source installs default to `$HOME/openassist`
 - is interactive on a TTY and non-interactive otherwise
 - prints a lifecycle plan before it mutates anything
 - writes install state to `~/.config/openassist/install-state.json`
@@ -62,7 +66,7 @@ Bootstrap behavior:
   - `Ready now`
   - `Needs action`
   - `Next command`
-- interactive bootstrap runs bare `openassist setup` after the build
+- interactive bootstrap runs bare `openassist setup` after preparing the application
 - non-interactive bootstrap does not run quickstart for you
 - non-interactive bootstrap still installs the service unless you pass `--skip-service`
 - OpenAssist pins a tested `pnpm` release for consistent installs, so a newer `pnpm` update notice does not block setup
@@ -72,7 +76,7 @@ Bootstrap behavior:
 If you are installing from a local checkout instead of GitHub:
 
 ```bash
-bash scripts/install/bootstrap.sh
+bash scripts/install/bootstrap.sh --source --ref main
 ```
 
 ## 2. Verify the wrappers
@@ -113,7 +117,6 @@ If you want the direct scripted first-reply path instead, run:
 
 ```bash
 openassist setup quickstart \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
@@ -282,7 +285,7 @@ Text output is grouped as:
 - `Needs action`
 - `Next command`
 
-`openassist doctor --json` keeps the grouped lifecycle structure for automation and now uses `version: 3` with per-item `stage` metadata plus the shared service-boundary context.
+`openassist doctor --json` keeps the grouped lifecycle structure for automation and now uses `version: 4` with per-item `stage` metadata, installation/activation details and the shared service-boundary context.
 
 ## 5. Send the first reply
 
@@ -368,32 +371,21 @@ Wizard sections are labeled by operator task:
 
 Wizard runs post-save service and health checks by default. Use `--skip-post-checks` only when you intentionally want to defer validation.
 
-## 7. Upgrade safely
+## 7. Update safely
 
-Always start with dry-run:
-
-```bash
-openassist upgrade --dry-run --install-dir "$HOME/openassist"
-```
-
-Then run the live upgrade:
+Start with a preview, then explicitly apply the update:
 
 ```bash
-openassist upgrade --install-dir "$HOME/openassist"
+openassist update check
+openassist update --dry-run
+openassist update
 ```
 
-Dry-run tells you:
+The recorded installation method and track are preserved. Packaged installations use verified releases and their private runtimes; source installations build a separate candidate. An exact version stays pinned until explicitly changed. Source PR tracks require an explicit target on every update.
 
-- current commit
-- tracked ref
-- resolved target ref
-- update mode (`git pull` on the current branch versus checkout or detached update)
-- restart behavior
-- rollback target
+Preparation leaves the active service running. Activation stops the owned service, backs up config and persistent state, switches the application, and verifies build and instance identity. `--skip-restart` leaves activation unverified. Use `openassist update recover --dry-run` after interruption and `openassist rollback --dry-run` to inspect a compatible previous application. Rollback never restores an older conversation database automatically.
 
-If dry-run shows `Current branch: HEAD`, the checkout is detached. Prefer `openassist upgrade --ref <branch-or-tag> --install-dir "$HOME/openassist"` so the update target is explicit instead of inheriting the detached default behavior.
-
-If the checkout is damaged, missing `.git`, missing build output under `apps/openassist-cli/dist` or `apps/openassistd/dist`, or no longer trustworthy, rerun bootstrap instead of forcing `openassist upgrade`.
+`openassist upgrade` remains a compatible alias. See [upgrade and rollback](upgrade-and-rollback.md) for recovery and [developer testing](developer-testing.md) for main, branch, PR and local workflows.
 
 ## Troubleshooting
 

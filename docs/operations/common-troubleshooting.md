@@ -1,5 +1,13 @@
 # Common Troubleshooting
 
+If a fresh packaged install reports `openassist: command not found`, open a new terminal or run `~/.local/bin/openassist setup`. The installer adds marked PATH blocks for Bash/Zsh, but preserves existing markers and symlinked profiles; inspect its printed profile guidance when a block was preserved.
+
+If a named developer instance cannot see newly configured credentials, stop it and rerun the printed `openassist dev test` command. Only its dedicated env file is loaded for the foreground daemon. Host credentials are not inherited and build subprocesses do not receive the instance's credentials.
+
+For an unavailable update check, retry `openassist update check` after checking GitHub/network availability. Discovery uses bounded public catalogues and local target selection; a missing entry, ambiguous ref, catalogue limit or blocked redirect never means the app is current and never selects a different target. Use a fully qualified source ref for branch/tag ambiguity. See [upgrade and rollback](upgrade-and-rollback.md) for the exact limits and signed-preparation boundary; do not disable destination or signature checks to bypass a failure.
+
+For packaged installation failures, verify release availability and production signing provisioning; never bypass signatures. Use `openassist update --dry-run`, `openassist update recover --dry-run`, and `openassist rollback --dry-run` before mutation. Unverified activation requires expected-build health before completion. See [release maintenance](release-maintenance.md), [upgrade/recovery](upgrade-and-rollback.md), and [uninstall](uninstall.md).
+
 Use this page when install, setup, service, or upgrade behavior feels unclear and you want one place to start.
 
 The quickest repair command is:
@@ -73,7 +81,6 @@ If you want the direct strict first-reply path instead:
 
 ```bash
 openassist setup quickstart \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
@@ -350,7 +357,6 @@ and update the channel's approved operator IDs or access mode. If you add approv
 
 ```bash
 openassist service install \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 openassist service restart
@@ -401,7 +407,7 @@ If your old layout used custom paths, keep using explicit `--config` and `--env-
 What it usually means:
 
 - the checkout has real local code changes
-- the install is damaged or no longer repo-backed
+- a source installation is damaged or missing its Git metadata (packaged releases do not require Git)
 - the install still needs legacy-layout migration first
 - required build output or helper binaries are missing
 
@@ -409,7 +415,7 @@ Start with:
 
 ```bash
 openassist doctor
-openassist upgrade --dry-run --install-dir "$HOME/openassist"
+openassist update --dry-run
 ```
 
 Interpret the result like this:
@@ -432,14 +438,14 @@ What to run:
 
 ```bash
 openassist doctor
-openassist upgrade --dry-run --install-dir "$HOME/openassist" --pr 123
+openassist update --dry-run --pr 123
 openassist upgrade --install-dir "$HOME/openassist" --pr 123
 ```
 
 If you are done testing that PR and want to move the install back to the normal release track:
 
 ```bash
-openassist upgrade --dry-run --install-dir "$HOME/openassist" --ref main
+openassist update --dry-run --ref main
 openassist upgrade --install-dir "$HOME/openassist" --ref main
 ```
 

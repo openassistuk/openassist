@@ -1,5 +1,7 @@
 # Runtime and Modules
 
+Release/source/isolated installation identity flows through daemon install context into bounded runtime awareness. Packaged installs do not require Git probing. Lifecycle operations remain host-side CLI work; they do not introduce new model tool privileges or scheduled shell actions. Database compatibility is checked before initialization and activation.
+
 Primary orchestrator: `OpenAssistRuntime` in `packages/core-runtime/src/runtime.ts`.
 
 ## Runtime Composition
@@ -206,7 +208,19 @@ Current behavior:
 - `setup quickstart`: strict staged onboarding with validation gates and optional service/health execution.
 - `setup wizard`: section-based configuration editor for post-onboarding maintenance.
 - `service *`: managed runtime lifecycle operations (`install/start/stop/restart/status/logs`).
-- `upgrade`: health-gated in-place update with rollback.
+- `update` (`upgrade` alias): staged release/source preparation, identity-checked activation, recovery and compatible application rollback.
 - `skills *`: managed skill install and listing against the runtime-owned skills directory.
 - `growth *`: managed helper registration and growth-policy inspection.
 - `memory status`: host-side inspection of rolling session summaries and actor-scoped durable memory.
+
+### Application identity and state compatibility
+
+The daemon derives its installed version, method, commit and application directory from the executing deployment's build metadata, independently of the previous committed install-state during activation. Source build metadata also records `sourceRef`. The install-context reader keeps that process identity fixed and refreshes the track from a matching committed record for each awareness snapshot, without repeating Git probes. Until that record matches, it omits an unknown release track rather than guessing a channel or exact pin. Configuration/env paths continue coming from the matching operator record. This avoids publishing successful activation early just to populate runtime self-knowledge.
+
+Update discovery and preparation have separate trust boundaries. `apps/openassist-cli/src/lib/update-discovery.ts` fetches bounded public release/ref/tag catalogues, then matches saved selectors locally; no selector is interpolated into a request. `update-notifications.ts` handles the existing 24-hour cache and returns advisory availability, with compatibility explicitly deferred to preparation. `release.ts` uses the selected public release identity to fetch and verify the signed manifest; the operation engine retains its platform/state and health checks. `lifecycle-download.ts` owns the shared HTTPS, destination, redirect, byte and time limits. This uses existing GitHub APIs with no additional service or production dependency. See [upgrade and rollback](../operations/upgrade-and-rollback.md) for operational limits and [threat model](../security/threat-model.md) for trust boundaries.
+
+`UpdateCheckCache` is a core-types contract, validated by config's bounded descriptor reader. It persists a timestamp, a closed status value and a boolean only. Fresh discovery details remain transient; cached status never stores or renders server-provided version/commit strings. Legacy cache records are disposable and ignored rather than migrated into the new schema. The installation record and lifecycle JSON version remain unchanged.
+
+`GET /v1/health` retains its existing readiness fields and adds `build` and `instanceId`. Build metadata identifies the immutable commit, application version, private Node version and configuration/database compatibility versions. The instance ID is derived from the absolute configuration path. Lifecycle activation requires both expected identities; another process on the same port cannot certify a candidate. Channel connection failures remain separate from core process health.
+
+Install records use schema version 2. Lifecycle JSON uses version 4 while retaining readiness summaries and stage fields. Setup, doctor and update output identify the installation method; an activation without an observed expected health response remains explicitly unverified. After the first service start, `openassist update recover` can confirm a previously unstarted application. Database version 1 is the baseline; unknown databases and transitions requiring schema migration are rejected before activation. Application rollback never restores an older database automatically.

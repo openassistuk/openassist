@@ -1,5 +1,7 @@
 # OpenClaw Import
 
+Imported configuration and conversations remain operator state independent of packaged/source applications. Use explicit lifecycle migration to switch installation method; do not copy imported credentials into isolated developer instances automatically. See [upgrade/recovery](../operations/upgrade-and-rollback.md).
+
 Implementation: `packages/migration-openclaw/src/index.ts`.
 
 ## Command

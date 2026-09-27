@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { OpenAssistConfig } from "@openassist/config";
 import { buildLifecycleReport } from "./lifecycle-readiness.js";
+import { installationSummary, installationSummaryText } from "./installation-summary.js";
 import {
   describeSystemdFilesystemAccess,
   isLinuxSystemdFilesystemAccessConfigurable
@@ -28,12 +29,11 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
     installDir: input.installDir,
     configPath: input.configPath,
     envFilePath: input.envFilePath,
-    installStatePresent: true,
+    ...installationSummary(input.installDir, input.configPath),
     repoBacked: fs.existsSync(path.join(input.installDir, ".git")),
     configExists: true,
     envExists: true,
     config: input.config,
-    trackedRef: "main",
     serviceWasSkipped: input.skippedService,
     serviceHealthOk: input.healthOk,
     serviceHealthDetail: input.postSaveError,
@@ -57,6 +57,7 @@ export function buildSetupSummary(input: SetupSummaryInput): string[] {
   const lines: string[] = [];
   lines.push("Quickstart saved");
   lines.push("Ready now");
+  lines.push(`- Installation: ${installationSummaryText(input.installDir, input.configPath)}`);
   lines.push(`- First reply destination: ${report.context.firstReplyDestination}`);
   lines.push(`- Access mode: ${report.context.accessMode}`);
   lines.push(`- Linux systemd filesystem access: ${serviceFilesystemAccess}`);

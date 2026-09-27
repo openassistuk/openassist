@@ -1,18 +1,22 @@
 # Install on macOS
 
+Packaged bootstrap adds a marked `~/.local/bin` PATH block to Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`), or Bash's `.bashrc` and `.profile`. Open a new terminal after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved. Uninstall removes only an unchanged block whose ownership was recorded.
+
+Normal macOS installation downloads a signed release with private Node into `~/.local/share/openassist/install`. Git/pnpm/system-Node prerequisite guidance below applies only to explicit source bootstrap (`--source --ref main`, `--ref`, or `--pr`). Release bootstrap requires curl, gzip and OpenSSL. Until signing/publication is provisioned, it fails closed. See [release maintenance](release-maintenance.md) and [developer testing](developer-testing.md).
+
 This page covers macOS-specific installation details. For the full install-to-first-reply path, start with `docs/operations/quickstart-linux-macos.md` and keep `docs/operations/common-troubleshooting.md` nearby for repair commands.
 
 ## Platform Behavior
 
 macOS is a first-class OpenAssist operator path and uses `launchd` service management.
 
-Bootstrap can install missing prerequisites automatically with Homebrew unless you disable it:
+Explicit source bootstrap can install missing prerequisites automatically with Homebrew unless you disable it:
 
 - Git
 - Node `>=24.21.0 <25`
 - pnpm `12.5.1` (the repository-pinned version)
 
-If Homebrew is not already available, install it first from `https://brew.sh`.
+For source builds, if Homebrew is not already available, install it first from `https://brew.sh`.
 
 ## Install Commands
 
@@ -31,7 +35,7 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 Local checkout:
 
 ```bash
-bash scripts/install/bootstrap.sh
+bash scripts/install/bootstrap.sh --source --ref main
 ```
 
 Useful bootstrap flags:
@@ -42,7 +46,7 @@ bash scripts/install/bootstrap.sh --non-interactive --skip-service
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref main
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref feature/my-branch
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --pr 123
-bash scripts/install/bootstrap.sh --no-auto-install-prereqs
+bash scripts/install/bootstrap.sh --source --ref main --no-auto-install-prereqs
 ```
 
 Advanced developer GitHub entrypoint examples:
@@ -54,7 +58,7 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 
 Those branch and PR flags are for developer testing only. They stay command-line only and are intentionally not shown in the beginner setup hub, quickstart, or wizard.
 
-Interactive bootstrap on macOS runs bare `openassist setup` after build. Non-interactive bootstrap does not run onboarding, but it still installs the `launchd` service unless `--skip-service` is set.
+Interactive bootstrap on macOS runs bare `openassist setup` after installation. Non-interactive bootstrap does not run onboarding, but it still installs the `launchd` service unless `--skip-service` is set.
 
 Bootstrap now ends with three fixed operator sections so the stopping point is obvious:
 
@@ -70,7 +74,7 @@ Quickstart now captures the main assistant identity during onboarding:
 
 When quickstart succeeds, it saves those values into the same global assistant profile that `/profile` edits later and disables the later first-chat identity reminder by default.
 
-Expected installer note:
+Source-build notes (packaged releases already include production dependencies):
 
 - OpenAssist pins a tested `pnpm` release for consistent installs, so a newer `pnpm` update notice does not block setup
 - Telegram and Discord installs do not need extra build-script approval
@@ -84,7 +88,6 @@ Install or reinstall the service explicitly:
 
 ```bash
 openassist service install \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
@@ -102,7 +105,9 @@ openassist service health
 
 Bootstrap writes or maintains:
 
-- repo-backed checkout: `$HOME/openassist`
+- managed release applications and private runtimes: `~/.local/share/openassist/install/releases`
+- active pointer: `~/.local/share/openassist/install/current`
+- explicit legacy source bootstrap checkout: `$HOME/openassist`
 - config: `~/.config/openassist/openassist.toml`
 - overlays: `~/.config/openassist/config.d`
 - env file: `~/.config/openassist/openassistd.env`
@@ -125,7 +130,9 @@ If you install with `--ref <git-ref>` or `--pr <number>`, that track is also rec
 
 Track behavior:
 
-- default install with no track flag follows `main`
+- default installation follows stable packaged releases
+- exact `--version` installations stay pinned
+- fresh explicit `--source` bootstrap uses the repository default branch; existing legacy branch checkouts keep their branch when no ref is supplied
 - branch installs continue following the selected branch normally
 - PR installs record `refs/pull/<n>/head`, but later `openassist upgrade` requires an explicit `--pr <n>` or `--ref <target>`
 

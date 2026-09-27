@@ -1,5 +1,6 @@
 import os from "node:os";
 import path from "node:path";
+import fs from "node:fs";
 
 export interface OpenAssistOperatorPaths {
   installDir: string;
@@ -18,10 +19,18 @@ export interface OpenAssistOperatorPaths {
 }
 
 export function defaultInstallDir(homeDir = os.homedir()): string {
+  const statePath = path.join(defaultConfigDir(homeDir), "install-state.json");
+  if (fs.existsSync(statePath)) {
+    try {
+      const state = JSON.parse(fs.readFileSync(statePath,"utf8"));
+      if (typeof state.installDir === "string" && path.isAbsolute(state.installDir)) return state.installDir;
+    } catch { /* Mutating lifecycle commands validate the record separately. */ }
+  }
   return path.join(homeDir, "openassist");
 }
 
 export function defaultConfigDir(homeDir = os.homedir()): string {
+  if (process.env.OPENASSIST_STATE_ROOT) return path.join(path.resolve(process.env.OPENASSIST_STATE_ROOT), "config");
   return path.join(homeDir, ".config", "openassist");
 }
 
@@ -50,7 +59,16 @@ export function defaultInstallStatePath(homeDir = os.homedir()): string {
 }
 
 export function defaultShareDir(homeDir = os.homedir()): string {
+  if (process.env.OPENASSIST_STATE_ROOT) return path.join(path.resolve(process.env.OPENASSIST_STATE_ROOT), "share");
   return path.join(homeDir, ".local", "share", "openassist");
+}
+
+export function defaultManagedInstallDir(): string {
+  return path.join(defaultShareDir(), "install");
+}
+
+export function defaultDevInstancesDir(): string {
+  return path.join(os.homedir(), ".local", "share", "openassist", "dev");
 }
 
 export function defaultDataDir(homeDir = os.homedir()): string {

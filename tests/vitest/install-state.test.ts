@@ -30,13 +30,13 @@ describe("install-state", () => {
     expect(loaded).toEqual(saved);
   });
 
-  it("returns undefined on malformed json", () => {
+  it("blocks mutation on malformed json", () => {
     const root = tempDir("openassist-install-state-bad-");
     const statePath = path.join(root, "install-state.json");
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
     fs.writeFileSync(statePath, "{ not-json", "utf8");
 
-    expect(loadInstallState(statePath)).toBeUndefined();
+    expect(() => loadInstallState(statePath)).toThrow("Invalid install-state");
   });
 
   it("preserves existing fields when saving a partial update", () => {

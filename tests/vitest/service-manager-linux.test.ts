@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { renderSystemdUnit } from "../../apps/openassist-cli/src/lib/service-manager.js";
+import { renderSystemdUnit, renderLinuxSystemdUnit } from "../../apps/openassist-cli/src/lib/service-manager.js";
 
 describe("service-manager linux rendering", () => {
+  it("allows configured operator state while quoting application paths with spaces",()=>{
+    const rendered=renderLinuxSystemdUnit("systemd-system",{installDir:"/srv/app folder",configPath:"/srv/config folder/openassist.toml",envFilePath:"/srv/config folder/openassistd.env",nodeBin:"/srv/app folder/runtime/bin/node",writablePaths:["/srv/state folder/data","/srv/state/logs"]});
+    expect(rendered).toContain('WorkingDirectory="/srv/app folder"');
+    expect(rendered).toContain('ExecStart="/srv/app folder/runtime/bin/node" "/srv/app folder/apps/openassistd/dist/index.js"');
+    expect(rendered).toContain('ReadWritePaths="/srv/state folder/data" /srv/state/logs');
+    expect(rendered).toContain('Environment="OPENASSIST_ENV_FILE=/srv/config folder/openassistd.env"');
+    expect(rendered).toContain("ProtectSystem=strict");
+  });
   it("renders hardened systemd unit placeholders", () => {
     const template = [
       "WorkingDirectory=__OPENASSIST_INSTALL_DIR__",

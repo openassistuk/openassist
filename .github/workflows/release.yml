@@ -1,0 +1,124 @@
+name: Release Artifacts
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing immutable release tag matching package.json (empty builds only)'
+        type: string
+        default: ''
+      channel:
+        description: Release channel
+        type: choice
+        options: [stable, preview]
+        default: preview
+      publish:
+        description: Publish signed artifacts after protected environment approval
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: linux-x64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+          - os: macos-15-intel
+            target: darwin-x64
+          - os: macos-15
+            target: darwin-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - name: Install build toolchain
+        run: npm install --global --force --allow-scripts=pnpm pnpm@12.5.1
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Package exact build
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/release/package.mjs coverage/release
+      - name: Portable artifact smoke
+        run: node scripts/release/smoke.mjs coverage/release/stage-${{ matrix.target }}
+      - name: Live Linux service activation
+        if: matrix.target == 'linux-x64'
+        run: sudo env GITHUB_ACTIONS=true PATH="$PATH" "$(command -v node)" scripts/release/lifecycle-smoke.mjs coverage/release/stage-linux-x64
+      - name: Verify publication candidate
+        if: github.event_name == 'workflow_dispatch' && inputs.publish && matrix.target == 'linux-x64'
+        run: pnpm verify:all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.target }}
+          path: |
+            coverage/release/*.tar.gz
+            coverage/release/*.json
+            coverage/release/*.gz
+            coverage/release/*.mjs
+  signing-contract:
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release-output
+      - name: Verify signing with isolated test keys
+        run: node scripts/release/test-signing.mjs release-output
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && inputs.tag != ''
+    needs: [package, signing-contract]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release-output
+      - name: Validate and sign
+        env:
+          OPENASSIST_RELEASE_SIGNING_KEY: ${{ secrets.OPENASSIST_RELEASE_SIGNING_KEY }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: node scripts/release/sign.mjs release-output "$RELEASE_CHANNEL"
+      - name: Publish approved release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: |
+          args=()
+          if [ "$RELEASE_CHANNEL" = preview ]; then args+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" --verify-tag --generate-notes "${args[@]}" release-output/*.gz release-output/*.mjs release-output/release.json release-output/release.sig release-output/release-index.txt release-output/release-index.sig

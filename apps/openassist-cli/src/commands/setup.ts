@@ -19,6 +19,7 @@ import {
   resolveFromWorkspace
 } from "../lib/runtime-context.js";
 import { loadEnvFile, saveEnvFile } from "../lib/env-file.js";
+import { installationSummaryText } from "../lib/installation-summary.js";
 
 function readCommandOptions<T extends Record<string, unknown>>(options: T, command?: Command): T {
   if (!command?.parent || typeof command.parent.opts !== "function") {
@@ -107,7 +108,7 @@ export function registerSetupCommands(program: Command): void {
           console.log("Setup wizard exited without saving.");
           return;
         }
-        const readyNow = [`- Config saved: ${configPath}`];
+        const readyNow = [`- Config saved: ${configPath}`, `- Installation: ${installationSummaryText(installDir, configPath)}`];
         if (result.backupPath) {
           readyNow.push(`- Backup created: ${result.backupPath}`);
         }

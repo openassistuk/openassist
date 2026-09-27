@@ -121,7 +121,7 @@ describe("cli service-manager coverage", () => {
     assert.equal(fs.existsSync(unitPath), true);
     const unitText = fs.readFileSync(unitPath, "utf8");
     assert.equal(unitText.includes("WorkingDirectory="), true);
-    assert.equal(unitText.includes(path.dirname(envFilePath)), true);
+    assert.equal(unitText.includes(JSON.stringify(path.dirname(envFilePath)).slice(1,-1)), true);
 
     await manager.start();
     await manager.status();

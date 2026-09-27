@@ -30,6 +30,9 @@ function yesNo(value: boolean): string {
 }
 
 export interface RuntimeInstallKnowledgeInput {
+  installationMethod?: "source" | "release" | "isolated";
+  updateStatus?: string;
+  installedVersion?: string;
   repoBackedInstall: boolean;
   installDir?: string;
   configPath?: string;
@@ -493,6 +496,9 @@ function buildMaintenance(
   ];
 
   return {
+    installationMethod: input.installContext?.installationMethod,
+    updateStatus: input.installContext?.updateStatus,
+    installedVersion: input.installContext?.installedVersion,
     repoBackedInstall: input.installContext?.repoBackedInstall === true,
     installDir: input.installContext?.installDir,
     configPath: input.installContext?.configPath,
@@ -633,7 +639,8 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
     `- capabilities now: inspectFiles=${yesNo(snapshot.capabilities.canInspectLocalFiles)}, runCommands=${yesNo(snapshot.capabilities.canRunLocalCommands)}, editConfig=${yesNo(snapshot.capabilities.canEditConfig)}, editDocs=${yesNo(snapshot.capabilities.canEditDocs)}, editCode=${yesNo(snapshot.capabilities.canEditCode)}, serviceControl=${yesNo(snapshot.capabilities.canControlService)}, nativeWeb=${yesNo(snapshot.capabilities.nativeWebAvailable)}`,
     "- capability domains:",
     ...capabilityDomainLines,
-    `- install context: repoBacked=${yesNo(snapshot.maintenance.repoBackedInstall)}, installDir=${snapshot.maintenance.installDir ?? "(not known)"}, config=${snapshot.maintenance.configPath ?? "(not known)"}, envFile=${snapshot.maintenance.envFilePath ?? "(not known)"}, trackedRef=${snapshot.maintenance.trackedRef ?? "(not known)"}, lastKnownGood=${snapshot.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
+    `- install context: method=${snapshot.maintenance.installationMethod ?? "unknown"}, version=${snapshot.maintenance.installedVersion ?? "unknown"}, repoBacked=${yesNo(snapshot.maintenance.repoBackedInstall)}, installDir=${snapshot.maintenance.installDir ?? "(not known)"}, config=${snapshot.maintenance.configPath ?? "(not known)"}, envFile=${snapshot.maintenance.envFilePath ?? "(not known)"}, trackedRef=${snapshot.maintenance.trackedRef ?? "(not known)"}, lastKnownGood=${snapshot.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
+    `- update status: ${snapshot.maintenance.updateStatus ?? "not checked"}; updates are operator-initiated`,
     `- growth: mode=${snapshot.growth.defaultMode}, fullRootCanGrowNow=${yesNo(snapshot.growth.fullRootCanGrowNow)}, skills=${snapshot.growth.installedSkillCount}, helpers=${snapshot.growth.managedHelperCount}, skillsDir=${snapshot.growth.skillsDirectory}, helperToolsDir=${snapshot.growth.helperToolsDirectory}`,
     `- update-safe growth note: ${snapshot.growth.updateSafetyNote}`,
     "- docs map:",

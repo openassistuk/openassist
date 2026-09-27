@@ -1,12 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createHash } from "node:crypto";
+import { loadConfig, resolveConfigOverlaysDir } from "@openassist/config";
 import type { RuntimeSystemdFilesystemAccess } from "@openassist/core-types";
 import { CommandRunner, runOrThrow } from "./command-runner.js";
 import { enforceEnvFileSecurity } from "./env-file.js";
-import type { ServiceManagerKind } from "./install-state.js";
+import { loadInstallState, saveInstallState, type ServiceManagerKind } from "./install-state.js";
 
 export interface ServiceInstallOptions {
+  nodePath?: string;
+  start?: boolean;
   installDir: string;
   configPath: string;
   envFilePath: string;
@@ -27,6 +31,26 @@ export interface ServiceManagerAdapter {
   enable(): Promise<void>;
   disable(): Promise<void>;
   isInstalled(): Promise<boolean>;
+  isRunning?(): Promise<boolean>;
+}
+
+function recordServiceFiles(options: ServiceInstallOptions, files: string[]): void {
+  const state = loadInstallState();
+  if (!state?.active || state.installDir !== options.installDir) return;
+  const ownedFiles = [...(state.ownedFiles ?? []).filter(item => !files.includes(item.path)),
+    ...files.map(file => ({path:file,sha256:createHash("sha256").update(fs.readFileSync(file)).digest("hex")}))];
+  saveInstallState({...state,ownedFiles});
+}
+
+function serviceWritablePaths(options: ServiceInstallOptions): string[] {
+  if(!fs.existsSync(options.configPath)) return [];
+  const {config}=loadConfig({baseFile:options.configPath,overlaysDir:resolveConfigOverlaysDir(options.configPath)});
+  return [...new Set([path.dirname(options.configPath),...Object.values(config.runtime.paths).map(value=>path.resolve(options.installDir,value))])];
+}
+
+function systemdPath(value: string, commandArgument = false): string {
+  const escaped=value.replaceAll('%','%%').replaceAll('$',commandArgument ? '$$' : '$');
+  return /[\s"\\]/.test(escaped) ? JSON.stringify(escaped) : escaped;
 }
 
 function shellQuote(value: string): string {
@@ -90,22 +114,26 @@ export function renderSystemdUnit(
     nodeBin: string;
     serviceManagerKind: Extract<ServiceManagerKind, "systemd-user" | "systemd-system">;
     systemdFilesystemAccess: RuntimeSystemdFilesystemAccess;
+    writablePaths?: string[];
   }
 ): string {
   const rwConfigDir = path.dirname(values.envFilePath);
   const hardening = systemdHardeningLines(values.serviceManagerKind, values.systemdFilesystemAccess)
     .map((line) =>
       line
-        .replaceAll("__OPENASSIST_INSTALL_DIR__", values.installDir)
-        .replaceAll("__OPENASSIST_RW_CONFIG_DIR__", rwConfigDir)
+        .replaceAll("__OPENASSIST_INSTALL_DIR__", systemdPath(values.installDir))
+        .replaceAll("__OPENASSIST_RW_CONFIG_DIR__", systemdPath(rwConfigDir))
     )
+    .concat(values.systemdFilesystemAccess === "hardened" && values.writablePaths?.length ? [`ReadWritePaths=${values.writablePaths.map(value=>systemdPath(value)).join(" ")}`] : [])
     .join("\n");
   const rendered = template
-    .replaceAll("__OPENASSIST_INSTALL_DIR__", values.installDir)
-    .replaceAll("__OPENASSIST_CONFIG_PATH__", values.configPath)
-    .replaceAll("__OPENASSIST_ENV_FILE__", values.envFilePath)
-    .replaceAll("__OPENASSIST_RW_CONFIG_DIR__", rwConfigDir)
-    .replaceAll("__OPENASSIST_NODE_BIN__", values.nodeBin)
+    .replaceAll("__OPENASSIST_INSTALL_DIR__/apps/openassistd/dist/index.js",systemdPath(path.posix.join(toPosixPath(values.installDir),"apps","openassistd","dist","index.js"),true))
+    .replaceAll("Environment=OPENASSIST_ENV_FILE=__OPENASSIST_ENV_FILE__",`Environment=${systemdPath(`OPENASSIST_ENV_FILE=${values.envFilePath}`)}`)
+    .replaceAll("__OPENASSIST_INSTALL_DIR__", systemdPath(values.installDir))
+    .replaceAll("__OPENASSIST_CONFIG_PATH__", systemdPath(values.configPath,true))
+    .replaceAll("__OPENASSIST_ENV_FILE__", systemdPath(values.envFilePath))
+    .replaceAll("__OPENASSIST_RW_CONFIG_DIR__", systemdPath(rwConfigDir))
+    .replaceAll("__OPENASSIST_NODE_BIN__", systemdPath(values.nodeBin,true))
     .replaceAll("__OPENASSIST_SERVICE_MANAGER_KIND__", values.serviceManagerKind)
     .replaceAll("__OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS__", values.systemdFilesystemAccess)
     .replaceAll("__OPENASSIST_SYSTEMD_HARDENING__", hardening);
@@ -121,6 +149,7 @@ export function renderLinuxSystemdUnit(
     nodeBin: string;
     systemdFilesystemAccess?: RuntimeSystemdFilesystemAccess;
     template?: string;
+    writablePaths?: string[];
   }
 ): string {
   const fallbackTemplate =
@@ -180,7 +209,8 @@ export function renderLinuxSystemdUnit(
     envFilePath: options.envFilePath,
     nodeBin: options.nodeBin,
     serviceManagerKind: kind,
-    systemdFilesystemAccess: normalizeSystemdFilesystemAccess(options.systemdFilesystemAccess)
+    systemdFilesystemAccess: normalizeSystemdFilesystemAccess(options.systemdFilesystemAccess),
+    writablePaths: options.writablePaths
   });
 }
 
@@ -222,11 +252,12 @@ export function renderLaunchdPlist(
     stderrLogPath: string;
   }
 ): string {
+  const xml=(value:string)=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&apos;');
   return template
-    .replaceAll("__OPENASSIST_REPO__", values.installDir)
-    .replaceAll("__OPENASSIST_WRAPPER__", values.wrapperPath)
-    .replaceAll("__OPENASSIST_STDOUT__", values.stdoutLogPath)
-    .replaceAll("__OPENASSIST_STDERR__", values.stderrLogPath);
+    .replaceAll("__OPENASSIST_REPO__", xml(values.installDir))
+    .replaceAll("__OPENASSIST_WRAPPER__", xml(values.wrapperPath))
+    .replaceAll("__OPENASSIST_STDOUT__", xml(values.stdoutLogPath))
+    .replaceAll("__OPENASSIST_STDERR__", xml(values.stderrLogPath));
 }
 
 class SystemdUserServiceManager implements ServiceManagerAdapter {
@@ -245,6 +276,7 @@ class SystemdUserServiceManager implements ServiceManagerAdapter {
       throw new Error("systemd user service is only available on Linux");
     }
 
+    const writablePaths = serviceWritablePaths(options);
     const templatePath = path.join(options.repoRoot, "deploy", "systemd", "openassistd.service");
     const template = loadTemplate(
       templatePath,
@@ -260,8 +292,9 @@ class SystemdUserServiceManager implements ServiceManagerAdapter {
       installDir: options.installDir,
       configPath: options.configPath,
       envFilePath: options.envFilePath,
-      nodeBin: process.execPath,
+      nodeBin: options.nodePath ?? process.execPath,
       systemdFilesystemAccess: options.systemdFilesystemAccess,
+      writablePaths,
       template
     });
 
@@ -270,15 +303,17 @@ class SystemdUserServiceManager implements ServiceManagerAdapter {
     }
 
     const userStateDir = path.join(os.homedir(), ".local", "state", "openassist");
+    for(const directory of writablePaths) fs.mkdirSync(directory,{recursive:true,mode:0o700});
     fs.mkdirSync(path.dirname(this.unitPath), { recursive: true });
     fs.mkdirSync(path.dirname(options.envFilePath), { recursive: true, mode: 0o700 });
     fs.chmodSync(path.dirname(options.envFilePath), 0o700);
     fs.mkdirSync(userStateDir, { recursive: true });
     enforceEnvFileSecurity(options.envFilePath, { allowMissing: true });
     fs.writeFileSync(this.unitPath, rendered, "utf8");
+    recordServiceFiles(options, [this.unitPath]);
 
     await runOrThrow(this.runner, "systemctl", ["--user", "daemon-reload"]);
-    await runOrThrow(this.runner, "systemctl", ["--user", "enable", "--now", this.unitName]);
+    await runOrThrow(this.runner, "systemctl", ["--user", "enable", ...(options.start === false ? [] : ["--now"]), this.unitName]);
   }
 
   async uninstall(): Promise<void> {
@@ -332,6 +367,10 @@ class SystemdUserServiceManager implements ServiceManagerAdapter {
   async isInstalled(): Promise<boolean> {
     return fs.existsSync(this.unitPath);
   }
+
+  async isRunning(): Promise<boolean> {
+    return (await this.runner.run("systemctl", ["--user", "is-active", this.unitName])).code === 0;
+  }
 }
 
 class SystemdSystemServiceManager implements ServiceManagerAdapter {
@@ -349,12 +388,14 @@ class SystemdSystemServiceManager implements ServiceManagerAdapter {
       throw new Error("systemd system service is only available on Linux");
     }
 
+    const writablePaths = serviceWritablePaths(options);
     const rendered = renderLinuxSystemdUnit("systemd-system", {
       installDir: options.installDir,
       configPath: options.configPath,
       envFilePath: options.envFilePath,
-      nodeBin: process.execPath,
-      systemdFilesystemAccess: options.systemdFilesystemAccess
+      nodeBin: options.nodePath ?? process.execPath,
+      systemdFilesystemAccess: options.systemdFilesystemAccess,
+      writablePaths
     });
 
     if (options.dryRun) {
@@ -364,12 +405,14 @@ class SystemdSystemServiceManager implements ServiceManagerAdapter {
     fs.mkdirSync(path.dirname(options.envFilePath), { recursive: true, mode: 0o700 });
     fs.chmodSync(path.dirname(options.envFilePath), 0o700);
     fs.mkdirSync("/var/lib/openassist", { recursive: true });
+    for(const directory of writablePaths) fs.mkdirSync(directory,{recursive:true,mode:0o700});
     fs.mkdirSync("/var/log/openassist", { recursive: true });
     enforceEnvFileSecurity(options.envFilePath, { allowMissing: true });
     fs.writeFileSync(this.unitPath, rendered, "utf8");
+    recordServiceFiles(options, [this.unitPath]);
 
     await runOrThrow(this.runner, "systemctl", ["daemon-reload"]);
-    await runOrThrow(this.runner, "systemctl", ["enable", "--now", this.unitName]);
+    await runOrThrow(this.runner, "systemctl", ["enable", ...(options.start === false ? [] : ["--now"]), this.unitName]);
   }
 
   async uninstall(): Promise<void> {
@@ -422,6 +465,10 @@ class SystemdSystemServiceManager implements ServiceManagerAdapter {
 
   async isInstalled(): Promise<boolean> {
     return fs.existsSync(this.unitPath);
+  }
+
+  async isRunning(): Promise<boolean> {
+    return (await this.runner.run("systemctl", ["is-active", this.unitName])).code === 0;
   }
 }
 
@@ -546,7 +593,7 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
       installDir: options.installDir,
       configPath: options.configPath,
       envFilePath: options.envFilePath,
-      nodeBin: process.execPath
+      nodeBin: options.nodePath ?? process.execPath
     });
 
     const rendered = renderLaunchdPlist(template, {
@@ -570,11 +617,14 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
     fs.chmodSync(this.wrapperPath, 0o700);
     fs.writeFileSync(this.plistPath, rendered, "utf8");
     fs.chmodSync(this.plistPath, 0o600);
+    recordServiceFiles(options, [this.plistPath, this.wrapperPath]);
 
     await this.bootoutIfLoaded();
-    await this.bootstrap();
-    await this.enableLoadedService();
-    await this.kickstartService();
+    if (options.start !== false) {
+      await this.bootstrap();
+      await this.enableLoadedService();
+      await this.kickstartService();
+    }
   }
 
   async uninstall(): Promise<void> {
@@ -647,6 +697,10 @@ class LaunchdServiceManager implements ServiceManagerAdapter {
   async isInstalled(): Promise<boolean> {
     return fs.existsSync(this.plistPath);
   }
+
+  async isRunning(): Promise<boolean> {
+    return this.isBootstrapped();
+  }
 }
 
 /* c8 ignore start -- platform-specific routing is exercised on Linux/macOS CI */
@@ -662,6 +716,7 @@ export function detectServiceManagerKind(): ServiceManagerKind {
 /* c8 ignore stop */
 
 export function createServiceManager(runner: CommandRunner): ServiceManagerAdapter {
+  if (process.env.OPENASSIST_STATE_ROOT) throw new Error("Isolated instances run in the foreground and cannot manage the primary service.");
   if (process.platform === "darwin") {
     return new LaunchdServiceManager(runner);
   }

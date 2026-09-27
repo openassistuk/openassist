@@ -2,6 +2,8 @@
 
 Use this index by task, lifecycle stage, provider, channel, or config area.
 
+For packaged shell PATH setup, see the platform installation guides. For dedicated instance credentials, use [developer testing](operations/developer-testing.md); for conservative shell-profile cleanup, use [uninstall](operations/uninstall.md).
+
 ## Start Here
 
 Recommended operator flow:
@@ -100,13 +102,15 @@ Useful config commands:
 - Restart and recovery: [`docs/operations/restart-recovery.md`](operations/restart-recovery.md)
 - End-to-end autonomy validation: [`docs/operations/e2e-autonomy-validation.md`](operations/e2e-autonomy-validation.md)
 
+The upgrade guide also covers fixed public catalogue discovery, local version/ref selection, bounded failures and repair of saved source tracks. The architecture and security guides explain discovery versus authenticated preparation and installed-client download destination restrictions.
+
 Lifecycle surfaces now share one readiness model instead of each inventing their own wording. Human-readable lifecycle output is always rendered as:
 
 - `Ready now`
 - `Needs action`
 - `Next command`
 
-`openassist doctor --json` keeps the grouped lifecycle report for automation and is now `version: 3` with per-item `stage` metadata plus shared service-boundary context.
+`openassist doctor --json` keeps the grouped lifecycle report for automation and is now `version: 4` with per-item `stage` metadata, installation method/version, activation verification, isolation and shared service-boundary context.
 
 Recognized older installs that still use repo-local operator state (`openassist.toml`, `config.d`, and `.openassist` inside the install directory) are migrated into the home-state layout automatically when a setup flow runs and the target home paths are empty or compatible. The migration routine writes a timestamped backup bundle under `~/.local/share/openassist/migration-backups/` before it changes anything. `openassist doctor` and `openassist upgrade --dry-run` detect the same legacy layout and route the operator back to setup instead of migrating it in place.
 
@@ -210,3 +214,13 @@ pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm w
 Current provider choices, route-specific reasoning modes, Claude output budgets and verified source dates are documented in [model compatibility](providers/model-compatibility.md). The [current-model ExecPlan](execplans/current-provider-models-2026-09.md) records the implementation and verification evidence.
 
 Provider/authentication/channel maintenance: [current dependency and harness readiness](operations/provider-channel-readiness.md) records stable versions, auth compatibility, bounded reasoning replay and remaining live checks.
+
+## Managed release lifecycle
+
+- [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
+- [Developer testing](operations/developer-testing.md): main/branch/PR/local isolated tests and explicit primary-install switching.
+- [Uninstall](operations/uninstall.md): owned application removal, retained state and explicit purge.
+
+Normal installation uses verified releases; source builds require explicit selection. Install-state version 2 and lifecycle JSON version 4 distinguish the installation method. `.github/workflows/release.yml` runs on pull requests and manual dispatch, with protected publication only on explicit dispatch. Existing scheduled/manual smoke workflows and the required live macOS gate retain their trigger semantics.
+
+Native release jobs include a separate signing contract check using ephemeral test keys. Scheduled/manual smoke workflows cover both source installation and packaged artifacts, including live Linux update/rollback/uninstall in lifecycle E2E.

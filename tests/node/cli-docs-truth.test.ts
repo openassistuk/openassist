@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { execFileSync } from "node:child_process";
 
 function repoRoot(): string {
   return path.resolve(".");
@@ -94,7 +95,7 @@ function extractRegisteredCommands(filePath: string): string[] {
   const supported = new Set<string>(["openassist", "openassistd"]);
   const varPaths = new Map<string, string[]>([["program", []]]);
   const source = readText(filePath);
-  const assignmentPattern = /const\s+(\w+)\s*=\s*(\w+)\s*\.\s*command\("([^"]+)"\)/g;
+  const assignmentPattern = /const\s+(\w+)\s*=\s*(?:options\()?\s*(\w+)\s*\.\s*command\("([^"]+)"\)/g;
   const callPattern = /(\w+)\s*\.\s*command\("([^"]+)"\)/g;
   const chainedCommandPattern = /(\w+)\s*\.\s*command\("([^"]+)"\)([\s\S]*?)\.\s*command\("([^"]+)"\)/g;
 
@@ -140,7 +141,9 @@ function collectSupportedCommands(): Set<string> {
     "apps/openassist-cli/src/main.ts",
     "apps/openassist-cli/src/commands/setup.ts",
     "apps/openassist-cli/src/commands/service.ts",
-    "apps/openassist-cli/src/commands/upgrade.ts"
+    "apps/openassist-cli/src/commands/upgrade.ts",
+    "apps/openassist-cli/src/commands/lifecycle.ts",
+    "apps/openassist-cli/src/commands/dev.ts"
   ]) {
     for (const command of extractRegisteredCommands(filePath)) {
       if (command === "openassist" || command === "openassistd") {
@@ -149,6 +152,7 @@ function collectSupportedCommands(): Set<string> {
       supported.add(command);
     }
   }
+  supported.add("openassist upgrade");
   return supported;
 }
 
@@ -625,5 +629,28 @@ describe("docs truth", () => {
 
     assert.deepEqual(documentedVitest, actualVitest);
     assert.deepEqual(documentedNode, actualNode);
+  });
+
+  it("keeps lifecycle flags, release gates and trust boundaries aligned with the executable CLI", () => {
+    const cli = path.join(repoRoot(), "apps/openassist-cli/dist/index.js");
+    for (const [command, flags] of [
+      [["update"], ["--source", "--release", "--channel", "--version", "--ref", "--pr", "--install-dir", "--skip-restart", "--json", "--dry-run", "--yes"]],
+      [["upgrade"], ["--ref", "--pr", "--install-dir", "--skip-restart"]],
+      [["uninstall"], ["--purge", "--dry-run", "--yes"]],
+      [["dev", "test"], ["--local", "--ref", "--pr", "--name", "--port", "--json", "--dry-run"]],
+      [["dev", "remove"], ["--dry-run", "--yes"]]
+    ]) {
+      const help = execFileSync(process.execPath, [cli, ...command, "--help"], {encoding:"utf8"});
+      for (const flag of flags) assert(help.includes(flag), `${command.join(" ")} must register ${flag}`);
+    }
+    const workflow = readText(".github/workflows/release.yml");
+    for (const target of ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64"]) assert(workflow.includes(`target: ${target}`));
+    assert.match(workflow, /needs: \[package, signing-contract\]/);
+    const [buildJobs, publication] = workflow.split(/\r?\n  publish:/);
+    assert(!buildJobs.includes("secrets.OPENASSIST_RELEASE_SIGNING_KEY"));
+    assert.match(publication, /github.event_name == 'workflow_dispatch' && inputs.publish/);
+    assert.match(publication, /environment: release/);
+    for (const file of ["README.md", "AGENTS.md", "docs/operations/release-maintenance.md", "docs/testing/test-matrix.md"]) assert.match(readText(file), /ephemeral (?:test |RSA )?keys?/);
+    assert.match(readText("docs/README.md"), /version: 4/);
   });
 });

@@ -62,17 +62,22 @@ export function deriveHealthProbeBaseUrls(baseUrl: string): string[] {
   return urls;
 }
 
-export async function checkHealth(baseUrl: string): Promise<HealthResult> {
+export async function checkHealth(baseUrl: string, expected?: {buildId: string; instanceId: string}): Promise<HealthResult> {
   const normalized = normalizeBaseUrl(baseUrl);
   const url = `${normalized}/v1/health`;
   const response = await fetch(url, {
     method: "GET",
+    signal: AbortSignal.timeout(5_000),
     headers: {
       accept: "application/json"
     }
   });
   const bodyText = await response.text();
-  const ok = response.status < 400 && bodyText.includes("\"status\":\"ok\"");
+  let ok = false;
+  try {
+    const body = JSON.parse(bodyText);
+    ok = response.ok && body.status === "ok" && (!expected || (body.build?.id === expected.buildId && body.instanceId === expected.instanceId));
+  } catch { /* Malformed health is unhealthy. */ }
   return {
     ok,
     status: response.status,

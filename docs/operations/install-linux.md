@@ -96,6 +96,8 @@ Linux service filesystem access is configured separately under `[service]` in `o
 - `systemdFilesystemAccess = "unrestricted"` removes OpenAssist-added Linux systemd hardening for the daemon service
 - `openassist service install` reads that setting from config every time it renders the Linux unit
 
+Hardened units explicitly allow the configured data, logs and skills directories plus configuration state. These writable paths are created before service start, independently of the application directory, and paths with spaces are quoted. `PrivateTmp` remains enabled; place persistent operator state outside `/tmp` and `/var/tmp`. Reinstall the service after changing runtime paths so its filesystem boundary matches the saved config.
+
 Install or reinstall the service explicitly:
 
 ```bash

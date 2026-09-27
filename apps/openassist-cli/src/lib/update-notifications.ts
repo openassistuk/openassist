@@ -9,7 +9,12 @@ export async function checkForUpdate(force = false): Promise<Record<string, unkn
   const file = path.join(defaultConfigDir(),"update-check.json");
   if (!force && state?.notifications === false) return {disabled: true};
   if (!force && fs.existsSync(file)) {
-    try { const cached = JSON.parse(fs.readFileSync(file,"utf8")); if (Date.now() - cached.checkedAt < 86_400_000) return cached; } catch { /* Refresh damaged cache. */ }
+    try {
+      if(fs.statSync(file).size>16_384) throw new Error("Oversized notice cache");
+      const cached = JSON.parse(fs.readFileSync(file,"utf8"));
+      const age=Date.now()-cached.checkedAt;
+      if(Number.isFinite(age) && age>=0 && age<86_400_000) return cached;
+    } catch { /* Refresh damaged cache. */ }
   }
   let result: Record<string, unknown>;
   try {

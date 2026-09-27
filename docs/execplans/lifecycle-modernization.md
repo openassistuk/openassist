@@ -24,6 +24,12 @@ The existing upgrade changes the active checkout and rebuilds on rollback. The d
 
 2026-09-27: Shell filename listing cannot validate archive link topology. Bootstrap now authenticates a separately compressed private runtime and a bundled verifier, then uses the same bounded archive validator as installed updates. No application archive is extracted by system tar. The verifier is bundled at build time with esbuild; tar remains the production parser.
 
+2026-09-27 19:28Z: Native portable artifacts now pass on Linux arm64 and both macOS architectures, and the existing live LaunchAgent gate passes. Linux x64 portable startup passed, but the new live systemd test exposed that PrivateTmp hides test state under `/tmp` and that hardened units need explicit access to the configured home-state directories. The test now uses a real root-owned home layout; units retain hardening and add the configured data/logs/skills paths. These changes await hosted reconciliation.
+
+2026-09-27: The dependency security regression gate rejected esbuild 0.25.12; the explicit build dependency now uses the repository's patched floor 0.28.1. No security override or coverage threshold was relaxed. Source-level config fixture imports also unintentionally widened the Node coverage report; fixtures now use the built config package, matching the CLI's package boundary and documented Node coverage scope.
+
+2026-09-27: CLI tests caught parent/subcommand flag inheritance for `update recover --dry-run --json`; subcommands now use Commander's combined options. Source main/PR dry-run compatibility, signed metadata, unsafe archives, identity mismatches, interrupted phases, private backups, ownership changes, notice caching and immutable source preparation have targeted regression coverage.
+
 ## Decision Log
 
 2026-09-27: Use prebuilt Linux glibc/macOS x64/arm64 artifacts with Node 24.21.0 and pnpm 12.5.1 for builds. Keep Windows quality coverage but do not claim Windows lifecycle parity. Use RSA/SHA-256 signed manifests with pinned release keys and fail closed until keys/releases are provisioned. Never generate a production private key in the repository.

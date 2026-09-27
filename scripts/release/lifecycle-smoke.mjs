@@ -1,16 +1,17 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import net from 'node:net';
+import {spawnSync} from 'node:child_process';
 
 // Run only on a disposable root-owned Linux hosted runner, never an operator host.
 if (process.platform !== 'linux' || process.getuid() !== 0 || process.env.GITHUB_ACTIONS !== 'true') throw new Error('Live lifecycle smoke requires a disposable hosted Linux root context.');
 if(fs.existsSync('/etc/systemd/system/openassistd.service')) throw new Error('Refusing to replace an existing OpenAssist service.');
 const source=path.resolve(process.argv[2]);
-const home=fs.mkdtempSync(path.join(os.tmpdir(),'openassist-live-'));
+// PrivateTmp service hardening deliberately hides /tmp: exercise a real home layout.
+const home=fs.mkdtempSync('/root/openassist-live-');
 process.env.HOME=home;
 delete process.env.OPENASSIST_STATE_ROOT;
 const load=file=>import(pathToFileURL(path.join(source,'apps/openassist-cli',file)));
@@ -67,6 +68,9 @@ try {
   assert.equal(fs.existsSync(second),false);
   await uninstallApplication({});
   console.log('Live systemd activation, private runtime, identity, rollback, skip-restart recovery and data-preserving uninstall passed.');
+} catch(error) {
+  spawnSync('journalctl',['-u','openassistd.service','--no-pager','-n','80'],{stdio:'inherit'});
+  throw error;
 } finally {
   if(await service.isInstalled()) {await service.stop().catch(()=>{});await service.uninstall();}
   fs.rmSync(home,{recursive:true,force:true});

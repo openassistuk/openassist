@@ -1,4 +1,4 @@
-import { providerTuningLabel } from "@openassist/config";
+import { providerTuningLabel, cachedUpdateStatus } from "@openassist/config";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -3267,7 +3267,7 @@ export class OpenAssistRuntime {
         skillsDirectory: this.config.paths.skillsDir,
         helperToolsDirectory: this.managedHelperToolsDir()
       },
-      installContext: this.installContext
+      installContext: {...this.installContext,updateStatus:cachedUpdateStatus()}
     });
   }
 

@@ -16,6 +16,7 @@ for (const {artifact} of records) for (const entry of [artifact,artifact.bootstr
 const privateKey = process.env.OPENASSIST_RELEASE_SIGNING_KEY;
 if(!privateKey) throw new Error('Protected release signing key is not provisioned.');
 const key = fs.readFileSync('release-public.pem','utf8');
+if(createPublicKey(privateKey).asymmetricKeyType!=='rsa') throw new Error('Release signing requires an RSA key.');
 const pub = createPublicKey(privateKey).export({type:'spki',format:'pem'});
 if(key.trim() !== pub.trim()) throw new Error('Signing key is not pinned in release-public.pem.');
 const manifest = Buffer.from(JSON.stringify({schemaVersion:1,build:records[0].build,channel,artifacts:records.map(r=>r.artifact)},null,2));

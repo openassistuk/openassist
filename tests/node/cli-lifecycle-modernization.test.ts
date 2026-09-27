@@ -12,7 +12,7 @@ import { renderOperationSummary } from "../../apps/openassist-cli/src/lib/lifecy
 import { saveInstallState, loadInstallState, atomicWriteJson } from "../../apps/openassist-cli/src/lib/install-state.js";
 import { checkForUpdate, setUpdateNotifications } from "../../apps/openassist-cli/src/lib/update-notifications.js";
 import { uninstallApplication } from "../../apps/openassist-cli/src/lib/lifecycle-uninstall.js";
-import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath } from "../../packages/config/src/index.js";
+import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath } from "../../packages/config/dist/index.js";
 import { randomUUID } from "node:crypto";
 
 describe("managed lifecycle command contracts", () => {

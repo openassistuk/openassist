@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { createHash, verify } from "node:crypto";
+import { createHash, createPublicKey, verify } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import * as tar from "tar";
 import { fileURLToPath } from "node:url";
@@ -40,7 +40,7 @@ export function trustedReleaseKeys(root = findApplicationRoot()): string[] {
 }
 
 export function verifyManifest(bytes: Buffer, signature: Buffer, keys: string[]): ReleaseManifest {
-  if (bytes.length > 1024 * 1024 || !keys.some(key => verify("RSA-SHA256", bytes, key, signature))) throw new Error("Release signature verification failed.");
+  if (bytes.length > 1024 * 1024 || !keys.some(key => createPublicKey(key).asymmetricKeyType==="rsa" && verify("RSA-SHA256", bytes, key, signature))) throw new Error("Release signature verification failed.");
   const manifest = JSON.parse(bytes.toString("utf8")) as ReleaseManifest;
   if (manifest.schemaVersion !== 1 || !["stable", "preview"].includes(manifest.channel) || !manifest.build ||
       !Array.isArray(manifest.artifacts) || manifest.artifacts.length !== 4 ||
@@ -76,9 +76,18 @@ export function platformArtifact(manifest: ReleaseManifest): ReleaseArtifact {
 }
 
 export async function download(url: string, limit: number, timeoutMs = 30_000): Promise<Buffer> {
-  const parsed = new URL(url);
-  if (parsed.protocol !== "https:") throw new Error("Release downloads require HTTPS.");
-  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), headers: { accept: "application/octet-stream", "user-agent": "OpenAssist" } });
+  let parsed = new URL(url);
+  const signal=AbortSignal.timeout(timeoutMs);
+  let response: Response;
+  for(let redirects=0;;redirects++) {
+    if (parsed.protocol !== "https:") throw new Error("Release downloads require HTTPS.");
+    response = await fetch(parsed, {redirect:"manual",signal,headers:{accept:"application/octet-stream","user-agent":"OpenAssist"}});
+    if(![301,302,303,307,308].includes(response.status)) break;
+    const location=response.headers.get("location");
+    await response.body?.cancel();
+    if(!location || redirects>=5) throw new Error("Release redirect limit exceeded or redirect location missing.");
+    parsed=new URL(location,parsed);
+  }
   if (!response.ok || !response.body) throw new Error(`Release download failed (HTTP ${response.status}). No installation was changed.`);
   if (Number(response.headers.get("content-length")) > limit) throw new Error("Release download exceeds its size limit.");
   const chunks: Buffer[] = [];
@@ -98,7 +107,7 @@ export async function resolveRelease(options: {channel?: "stable" | "preview"; v
   const release = Array.isArray(metadata) ? metadata.find(r => r.prerelease && !r.draft) : metadata;
   if (!release || release.draft || !/^v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(release.tag_name)) throw new Error("No matching published release is available. Use an explicit source installation if needed.");
   const baseUrl = `https://github.com/openassistuk/openassist/releases/download/${release.tag_name}`;
-  const [bytes, signature] = await Promise.all([download(`${baseUrl}/release.json`, 1024 * 1024), download(`${baseUrl}/release.sig`, 8192)]);
+  const [bytes, signature] = await Promise.all([download(`${baseUrl}/release.json`, 1024 * 1024, 5000), download(`${baseUrl}/release.sig`, 8192, 5000)]);
   const manifest = verifyManifest(bytes, signature, keys);
   if (`v${manifest.build.version}` !== release.tag_name || (!options.version && manifest.channel !== (options.channel ?? "stable"))) throw new Error("Release identity does not match the requested track.");
   return {manifest, baseUrl};

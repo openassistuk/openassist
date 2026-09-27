@@ -30,6 +30,8 @@ export function sourceUpdatePlan(options: UpdateOptions): {ok:boolean; lines:str
   }
   const ok = report.summary.upgradeReadiness === "safe-to-continue" && !plan.explicitTargetRequired;
   const lines = renderUpgradePlanSummary({installDir,currentBranch,currentCommit:metadata.lastKnownGoodCommit??"unknown",trackedRef,rollbackTarget:state?.lastKnownGoodCommit,upgradeReadiness:report.summary.upgradeReadiness,upgradeBlockers:report.sections.needsActionBeforeUpgrade,recommendedNextCommand:report.recommendedNextCommand.command,plan});
+  const methodLine=lines.findIndex(line=>line.startsWith("- Update method:"));
+  if(methodLine>=0 && !plan.explicitTargetRequired) lines[methodLine]="- Update method: resolve an immutable revision, build a separate candidate, then activate with a stopped-state backup.";
   lines.push(ok ? "Dry-run complete. Upgrade is safe to continue with the install directory and update track shown above." : `Dry-run complete. Upgrade is not ready yet: ${report.summary.upgradeReadiness === "rerun-bootstrap" ? "rerun bootstrap instead" : "fix before updating"}.`);
   return {ok,lines,targetRef:plan.targetRef};
 }

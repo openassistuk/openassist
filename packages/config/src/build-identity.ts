@@ -10,8 +10,10 @@ export function cachedUpdateStatus(): string | undefined {
   try {
     const state=JSON.parse(fs.readFileSync(path.join(defaultConfigDir(),"install-state.json"),"utf8"));
     if(state.notifications===false) return "Update notices disabled";
-    const cache=JSON.parse(fs.readFileSync(path.join(defaultConfigDir(),"update-check.json"),"utf8"));
-    if(typeof cache.checkedAt!=="number" || Date.now()-cache.checkedAt>86_400_000) return undefined;
+    const file=path.join(defaultConfigDir(),"update-check.json");
+    if(fs.statSync(file).size>16_384)return undefined;
+    const cache=JSON.parse(fs.readFileSync(file,"utf8"));
+    if(typeof cache.checkedAt!=="number" || Date.now()-cache.checkedAt>86_400_000 || Date.now()<cache.checkedAt) return undefined;
     if(cache.updateAvailable && typeof cache.available==="string" && /^[a-zA-Z0-9._-]{1,80}$/.test(cache.available)) return `Update available: ${cache.available}; run openassist update --dry-run`;
     return cache.status==="unavailable" ? "Update check unavailable" : "No update available at last check";
   } catch { return undefined; }

@@ -16,6 +16,7 @@ import { createServiceManager, type ServiceManagerAdapter } from "./service-mana
 import { checkHealth } from "./health-check.js";
 import { detectDefaultDaemonBaseUrl } from "./runtime-context.js";
 import { sourceUpdatePlan } from "./source-update-plan.js";
+import { classifyGitDirtyState } from "./git-dirty.js";
 
 export interface UpdateOptions {
   source?: boolean; release?: boolean; channel?: "stable" | "preview"; version?: string;
@@ -218,11 +219,13 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
   const root = old?.managedRoot ?? defaultManagedInstallDir();
   if (path.resolve(root)!==path.resolve(defaultManagedInstallDir())) throw new Error("Invalid managed installation root; preserve and repair the install record.");
   const configPath = old?.configPath ?? defaultConfigPath();
+  if(old?.active?.method==="source" && classifyGitDirtyState(old.installDir).hasRealCodeChanges) throw new Error("Preserve local source changes before updating or switching the primary installation.");
   for (const file of old?.ownedFiles ?? []) {
     if (fs.existsSync(file.path) && (fs.lstatSync(file.path).isSymbolicLink() || sha256(fs.readFileSync(file.path))!==file.sha256)) throw new Error(`Owned lifecycle file was modified; preserve and review it before activation: ${file.path}`);
   }
   if (options.installDir && old && path.resolve(options.installDir) !== path.resolve(old.installDir)) throw new Error("--install-dir does not match the recorded installation.");
   if (rollback && !old?.previous) throw new Error("No retained application is available for rollback.");
+  if(!old && !options.prepared && !options.dryRun) throw new Error("No installation record exists. Use the installer or repair the recorded source installation first.");
   if (options.dryRun) {
     const release = method === "release" && !rollback ? await resolveRelease({channel: options.channel ?? old?.active?.channel, version: options.version ?? (!options.channel ? old?.active?.pinnedVersion : undefined)}) : undefined;
     return {action: rollback ? "rollback" : "update", method, ref, target: release?.manifest.build ?? old?.previous?.build, root, restart: !options.skipRestart, current: old?.active?.build, statePreserved: true};
@@ -298,7 +301,7 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
     journal.phase = "backed-up";
     atomicWriteJson(journalPath, journal);
     normalizeConfigPaths(configPath,old?.installDir ?? app.path);
-    const next = {...old, installDir: app.path, managedRoot: root, configPath, envFilePath: old?.envFilePath ?? defaultEnvFilePath(), repoUrl: old?.repoUrl ?? "https://github.com/openassistuk/openassist.git", trackedRef: app.ref ?? app.channel ?? "stable", serviceManager: service.kind, active: app, previous: old?.active, instanceId: runtimeInstanceId(configPath)} as InstallState;
+    const next = {...old, installDir: app.path, managedRoot: root, configPath, envFilePath: old?.envFilePath ?? defaultEnvFilePath(), repoUrl: old?.repoUrl ?? "https://github.com/openassistuk/openassist.git", trackedRef: app.ref ?? app.channel ?? "stable", serviceManager: service.kind, active: app, previous: old?.active?.verified ? old.active : old?.previous ?? old?.active, instanceId: runtimeInstanceId(configPath)} as InstallState;
     journal.phase = "activating";
     atomicWriteJson(journalPath, journal);
     const start = Boolean(journal.wasRunning && !options.skipRestart);

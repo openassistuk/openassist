@@ -9,6 +9,11 @@ export interface BuildIdentity {
 }
 
 export interface ReleaseArtifact {
+  requirements?: {minimumOs: string; libc?: string};
+  bootstrap?: {
+    runtime: {file:string; sha256:string; bytes:number};
+    verifier: {file:string; sha256:string; bytes:number};
+  };
   platform: "linux" | "darwin";
   arch: "x64" | "arm64";
   file: string;

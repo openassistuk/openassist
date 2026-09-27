@@ -3,7 +3,7 @@ import { confirm } from "@inquirer/prompts";
 import { executeUpdate, recoverUpdate, resolveUpdateMethod, type UpdateOptions } from "../lib/lifecycle-engine.js";
 import { loadInstallState } from "../lib/install-state.js";
 import { uninstallApplication } from "../lib/lifecycle-uninstall.js";
-import { checkForUpdate, setUpdateNotifications } from "../lib/update-notifications.js";
+import { checkForUpdate, setUpdateNotifications, showUpdateNotice } from "../lib/update-notifications.js";
 import { sourceUpdatePlan } from "../lib/source-update-plan.js";
 import { renderOperationSummary } from "../lib/lifecycle-readiness.js";
 
@@ -28,6 +28,7 @@ export async function lifecycleAction(opts: {json?: boolean}, action: () => Prom
       console.log(renderOperationSummary(result).join("\n"));
     }
     if (result.ok === false) process.exitCode = 1;
+    if(!opts.json && !result.checkedAt) await showUpdateNotice();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (opts.json) console.log(JSON.stringify({version:4,ok: false, error: message}));

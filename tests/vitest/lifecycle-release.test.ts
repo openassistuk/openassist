@@ -117,7 +117,8 @@ describe("verified lifecycle releases",()=>{
     const key=publicKey.export({type:"spki",format:"pem"}).toString();
     const payload=manifest();
     let metadata:unknown={tag_name:"v0.1.0",draft:false};
-    vi.stubGlobal("fetch",vi.fn(async(url:string)=>{
+    vi.stubGlobal("fetch",vi.fn(async(input:URL)=>{
+      const url=input.toString();
       const bytes=Buffer.from(JSON.stringify(payload));
       return new Response(url.endsWith('release.sig') ? sign("RSA-SHA256",bytes,privateKey) : url.endsWith('release.json') ? bytes : JSON.stringify(metadata));
     }));
@@ -178,6 +179,13 @@ describe("verified lifecycle releases",()=>{
     }
     vi.stubGlobal("fetch",vi.fn(async()=>new Response('not JSON')));
     expect((await checkHealth("http://127.0.0.1:3344",expected)).ok).toBe(false);
+  });
+  it("bounds redirects and refuses HTTPS downgrade before requesting it",async()=>{
+    const fetch=vi.fn(async()=>new Response(null,{status:302,headers:{location:"http://example.test/insecure"}}));
+    vi.stubGlobal("fetch",fetch);
+    await expect(download("https://example.test/release",100)).rejects.toThrow("HTTPS");expect(fetch).toHaveBeenCalledTimes(1);
+    fetch.mockImplementation(async()=>new Response(null,{status:302,headers:{location:"/again"}}));
+    await expect(download("https://example.test/release",100)).rejects.toThrow("redirect limit");
   });
   it("renders concise shared summaries for availability, deletion and unverified activation",()=>{
     expect(renderOperationSummary({}).join('\n')).toContain("Ready now\n- Operation completed.\nNeeds action\n- None.");

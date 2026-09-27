@@ -25,6 +25,7 @@ for(const name of ['release-public.pem','README.md','CHANGELOG.md','LICENSE']) i
 fs.mkdirSync(path.join(stage,'runtime','bin'),{recursive:true});
 fs.copyFileSync(process.execPath,path.join(stage,'runtime','bin','node'));
 fs.chmodSync(path.join(stage,'runtime','bin','node'),0o755);
+fs.copyFileSync(path.resolve(path.dirname(process.execPath),'..','LICENSE'),path.join(stage,'runtime','LICENSE'));
 const build = {id:`${version}-${commit}`,version,commit,nodeVersion:process.versions.node,configVersion:1,databaseVersion:1};
 fs.writeFileSync(path.join(stage,'build-identity.json'),JSON.stringify(build,null,2));
 for(const app of ['openassist-cli','openassistd']) run(path.join(stage,'runtime','bin','node'),[path.join(stage,'apps',app,'dist','index.js'),'--help']);
@@ -32,6 +33,7 @@ const file = `openassist-${version}-${target}.tar.gz`;
 tar.c({gzip:true,sync:true,file:path.join(output,file),cwd:stage,portable:true},fs.readdirSync(stage));
 const bytes = fs.readFileSync(path.join(output,file));
 const artifact = {platform:process.platform,arch:process.arch,file,sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length};
+artifact.requirements = process.platform === 'linux' ? {minimumOs:'Linux 4.18',libc:'glibc >=2.28'} : {minimumOs:'macOS 13.5'};
 // Bootstrap executes only these individually authenticated files before extraction.
 const runtimeFile = `bootstrap-node-${target}.gz`;
 fs.writeFileSync(path.join(output,runtimeFile),gzipSync(fs.readFileSync(process.execPath)));

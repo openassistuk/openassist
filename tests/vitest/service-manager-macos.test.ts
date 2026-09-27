@@ -5,6 +5,9 @@ import {
 } from "../../apps/openassist-cli/src/lib/service-manager.js";
 
 describe("service-manager macOS rendering", () => {
+  it("escapes XML metacharacters in custom service paths",()=>{
+    expect(renderLaunchdPlist('<string>__OPENASSIST_REPO__</string>',{installDir:'/Users/a & b/<app>',wrapperPath:'',stdoutLogPath:'',stderrLogPath:''})).toBe('<string>/Users/a &amp; b/&lt;app&gt;</string>');
+  });
   it("renders launchd wrapper with env sourcing", () => {
     const wrapper = renderLaunchdWrapper({
       installDir: "/Users/test/openassist",

@@ -13,14 +13,15 @@ List exact commands run and results.
 
 ```bash
 pnpm verify:all
-pnpm audit --prod --audit-level high
-pnpm audit --audit-level high
 ```
+
+`verify:all` includes production/full dependency audits (`pnpm audit:dependencies`), with reports in `coverage/audit`. Distinguish local results, hosted results on the exact revision and any live checks still pending.
 
 ## Checklist
 
 - [ ] I ran `pnpm verify:all` locally.
 - [ ] I updated docs for behavior changes (`README.md`, `docs/README.md`, and relevant docs).
+- [ ] I checked changed prose, model controls and config field lists against implementation; updated `AGENTS.md` if contributor/workflow/docs discipline changed.
 - [ ] I added/updated tests for changed behavior.
 - [ ] I added a concrete `CHANGELOG.md` entry for operator-facing changes.
 - [ ] I confirmed no secrets or private credentials are present in code/logs/docs.

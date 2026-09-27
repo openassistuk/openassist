@@ -8,6 +8,7 @@ Operators can select the current GPT-6 and Claude models with controls that matc
 
 ## Progress
 
+- [x] (2026-09-27 reconciliation) Final head `310142d` passed hosted CI 36336356460 (workflow lint and Linux/macOS/Windows quality), CodeQL 36336356445 and live macOS LaunchAgent 36336356428. PR #61 merged at 17:45:04 UTC as `0ac0921`; its remote feature branch was deleted.
 - [x] (2026-09-27) Follow-up audit confirmed current stable channel/provider SDK versions against npm and upstream releases; Vitest 5.0.2 is the only applicable stable direct upgrade. Baileys latest remains a release candidate; Node types remain on 24.x.
 - [x] (2026-09-27) Follow-up implemented: bounded/scoped Responses reasoning and phase replay, delayed-401 refresh reuse, Anthropic workspace selection and bearer-token isolation, Discord clientReady and Vitest 5.0.2. Focused payload/auth/setup tests and runtime database-reopen tests pass; frozen installation passes.
 - [x] (2026-09-27) Follow-up full local gate passed on fef5bdf, including both zero-finding audits. Final hosted results are maintained on PR #61 for its exact head revision; local success does not substitute for those checks.
@@ -41,6 +42,8 @@ Retain the existing Responses-only Azure OpenAI route; Claude deployments on Mic
 
 ## Outcomes & Retrospective
 
+Delivery is complete: [PR #61](https://github.com/openassistuk/openassist/pull/61) merged as `0ac092102c4dd775f79154a0e7bc35d55eb11c67`. Final hosted results on `310142d` are [CI](https://github.com/openassistuk/openassist/actions/runs/36336356460), [CodeQL](https://github.com/openassistuk/openassist/actions/runs/36336356445) and [macOS Live Launchd](https://github.com/openassistuk/openassist/actions/runs/36336356428), all successful. Earlier publication/dispatch wording and implementation instructions below describe the work as it happened. Live provider/channel certification and actual Node migration/rollback remain pending as described in the [readiness guide](../operations/provider-channel-readiness.md#verification-and-live-checks).
+
 The follow-up harness/auth/channel implementation passed `pnpm verify:all` on fef5bdf: 406 Vitest tests, 188 passing Node integration tests and 3 platform-specific skips. Vitest coverage is statements 83.07%, branches 71.66%, functions 86.55%, lines 83.27%; Node coverage is statements/lines 80.61%, branches 71.93%, functions 91.52%. Frozen installation passed and both audits report zero findings. `pnpm outdated -r` now lists only deliberately retained Node 24 types and Baileys' release-candidate latest tag. Delayed 401 tests also prove an explicit OAuth unlink/API-key fallback is honored rather than reviving old credentials. See PR #61 for hosted results on the final head. The earlier counts below describe the initial model-refresh revision.
 
 Implementation and local verification are complete. `pnpm verify:all` passed on Windows with Node 24.21.0 and pnpm 12.5.1: workflow lint, all package builds/lint/types, 399 Vitest tests, and 185 Node integration tests (3 platform-specific skips). Vitest coverage: statements 83.04%, branches 71.53%, functions 86.54%, lines 83.24%. Node coverage: statements/lines 80.63%, branches 72.03%, functions 91.5% (107 passing coverage tests, 2 platform-specific skips). All thresholds and coverage scope remain unchanged. Production and full audits both report zero findings at every severity; reports are under ignored `coverage/audit`.
@@ -67,11 +70,11 @@ Fresh setup should recommend current models. GPT-6 API/Azure requests use Respon
 
 ## Idempotence and Recovery
 
-All work is on a new branch. Tests use temporary state and fake network responses. Existing operator installations and GitHub settings are untouched. Reverting the PR restores the earlier catalog; remove newly configured additive fields before running an older build if necessary.
+Implementation used a separate branch, now merged and deleted. Tests used temporary state and fake network responses. Existing operator installations and GitHub settings were untouched. Reverting the PR restores the earlier catalog; restore compatible saved settings and credentials before running an older build, following `docs/operations/config-rollout-and-rollback.md`.
 
 ## Artifacts and Notes
 
-Primary sources checked on 2026-09-27: OpenAI `/api/docs/models/gpt-6-sol`, `/gpt-6-luna`, `/gpt-6-astra`, `/api/docs/guides/reasoning`; Codex `https://learn.chatgpt.com/docs/models`; Anthropic `/docs/en/models/overview`, `/models/opus-5-5/migration-guide`, `/models/fable-5-1/overview`, `/build-with-claude/effort`, `/build-with-claude/preserved-thinking`; Microsoft `https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/reasoning`. Exact verified controls and any contradictions will be recorded in model-compatibility documentation.
+Primary sources checked on 2026-09-27: OpenAI `/api/docs/models/gpt-6-sol`, `/gpt-6-luna`, `/gpt-6-astra`, `/api/docs/guides/reasoning`; Codex `https://learn.chatgpt.com/docs/models`; Anthropic `/docs/en/models/overview`, `/models/opus-5-5/migration-guide`, `/models/fable-5-1/overview`, `/build-with-claude/effort`, `/build-with-claude/preserved-thinking`; Microsoft `https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/reasoning`. Exact verified controls and route differences are recorded in `docs/providers/model-compatibility.md`.
 
 ## Interfaces and Dependencies
 
@@ -80,3 +83,5 @@ Use the installed OpenAI/Anthropic SDKs and existing Zod schemas. No new depende
 Revision (2026-09-27): created with source-backed compatibility findings before implementation.
 
 Revision (2026-09-27, harness follow-up): audited upstream auth and package requirements, implemented scoped/bounded Responses replay and auth compatibility fixes, retained current stable channel/provider versions, updated paired Vitest packages, and recorded full verification. Sources and operator guidance are in `docs/operations/provider-channel-readiness.md`.
+
+Revision (2026-09-27, documentation reconciliation): Recorded the actual merge and successful final-head hosted runs. Preserved earlier implementation evidence and kept live certification explicitly pending.

@@ -31,7 +31,9 @@ Default budget values in code:
 - recalled state: `5000`
 - safety margin: `1000`
 
-Token estimation is intentionally approximate in the current release. The planner counts all injected provider payload segments together so compacted summaries and recalled memories consume the same bounded budget as the raw tail.
+Token estimation is intentionally approximate in the current release. The planner counts normalized message text across system guidance, summaries, recalled memories and the raw tail. It does not tokenize the complete provider wire payload: tool schemas, images and opaque replay metadata are outside that estimate.
+
+Responses adapters separately bound each replay metadata record to 1 MiB and 256 items and scope it to provider/model (plus the Azure underlying-model hint). Metadata travels with retained messages and is omitted on malformed, oversized or mismatched records. These byte/item bounds are not a guarantee that every assembled request fits an upstream token window. Anthropic retains signed thinking blocks and applies prefix-binding controls on the cataloged models that require them. See the [provider contract](../interfaces/provider-adapter.md) for both replay paths.
 
 ## Durable Compaction
 

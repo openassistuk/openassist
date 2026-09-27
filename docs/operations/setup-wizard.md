@@ -1,6 +1,6 @@
 # Setup Quickstart and Setup Wizard
 
-OpenAssist has two setup paths on purpose.
+OpenAssist has one primary setup hub and two stable subpaths.
 
 - `openassist setup`: interactive lifecycle hub and beginner entrypoint
 - `openassist setup quickstart`: minimal first-reply onboarding
@@ -156,13 +156,18 @@ Use wizard for:
   - OpenAI `reasoningEffort` (model-filtered `Default`, `none`, `low`, `medium`, `high`, `xhigh`, `max`)
   - Codex `reasoningEffort` (model-filtered `Default`, `none`, `low`, `medium`, `high`, `xhigh`, `max`)
   - Azure Foundry `reasoningEffort` (model-filtered `Default`, `none`, `low`, `medium`, `high`, `xhigh`, `max`)
-  - Anthropic `thinkingMode` / `thinkingEffort`, plus `thinkingBudgetTokens` on compatible manual-thinking models (blank disables manual thinking)
+  - OpenAI/Azure `reasoningMode` (`Default`, `standard`, `pro`) when the selected model or Azure hint supports it; Pro can increase cost and latency. Codex has no mode field.
+  - Anthropic `thinkingMode` / `thinkingEffort`, plus `thinkingBudgetTokens` on compatible manual-thinking models (blank clears the manual budget; thinking defaults remain model-specific)
+  - Anthropic `maxOutputTokens` for total thinking plus visible output; blank uses the model-specific default
+  - Anthropic `workspaceId` for multi-workspace keys; blank clears it, suitable for workspace-scoped keys
   - OpenAI-compatible stays unchanged in this release
 - additional channels or non-default channel behavior
 - Discord DM allow-lists or other channel-specific scope changes
 - scheduler task and timing changes
 - native web settings
 - advanced tools, workspace, and security posture
+
+The effort lists above describe the available field values, not a promise that every model accepts every value. For GPT-6, Codex and OpenAI Astra exclude `none`, while Azure Astra includes it. Use the [model compatibility matrix](../providers/model-compatibility.md) for exact route choices, Claude thinking restrictions and output limits.
 
 When one of those changes is provider-, channel-, or config-specific, use the matching reference page rather than relying only on the summary labels inside wizard:
 
@@ -178,15 +183,11 @@ When one of those changes is provider-, channel-, or config-specific, use the ma
 
 Provider reasoning-control notes:
 
-- Quickstart now exposes the same beginner-facing reasoning-effort choice for OpenAI and Codex.
+- Quickstart exposes a beginner-facing reasoning-effort prompt for both OpenAI and Codex, with choices filtered independently by route and model.
 - Wizard remains the full provider-tuning surface.
-- Safe default is unset, which means OpenAssist sends no provider-specific reasoning/thinking parameter.
-- OpenAssist omits unsupported request fields automatically:
-  - OpenAI reasoning effort is only sent on supported Responses API model families.
-  - Codex reasoning effort is only sent on supported Codex Responses-model families.
-  - Azure Foundry reasoning effort is only sent on supported Responses-model families.
-  - Anthropic thinking budget is only sent on supported thinking-capable Claude families.
-- If your configured default model does not match a supported family, setup validation warns but still saves safely.
+- Default leaves the operator override unset and preserves model defaults. It does not turn thinking off or remove required replay/binding controls; effort, execution mode and output limits are separate settings.
+- OpenAI/Codex effort is sent only for an exact supported route/model; Azure additionally requires the configured deployment's cataloged underlying-model hint.
+- Unknown/custom IDs remain accepted without inferred effort. Known incompatible efforts, unverified execution modes and unsupported/conflicting Anthropic thinking settings fail validation. Remove the override or choose a cataloged compatible model; do not interpret a warning about an unknown model as permission to send arbitrary tuning.
 
 Provider-route notes:
 

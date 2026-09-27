@@ -11,9 +11,12 @@ Thanks for contributing. OpenAssist is operator-facing software and changes are 
 ## Development Setup
 
 ```bash
+npm install --global --force --allow-scripts=pnpm pnpm@12.5.1
 pnpm install
 pnpm -r build
 ```
+
+pnpm 12 uses a native executable; use the pinned installer above rather than Corepack. `allowBuilds` in `pnpm-workspace.yaml` controls workspace dependency scripts. Linux and macOS are supported operator platforms; Windows participates in the quality matrix without service-manager parity.
 
 ## Branch and PR Policy
 
@@ -32,9 +35,10 @@ pnpm verify:all
 For dependency security checks:
 
 ```bash
-pnpm audit --prod --audit-level high
-pnpm audit --audit-level high
+pnpm audit:dependencies
 ```
+
+This is also part of `pnpm verify:all`. It runs production and full audits, retains both JSON reports under `coverage/audit`, and fails on high/critical findings or registry errors. Review lower-severity findings rather than silently discarding them.
 
 ## Engineering Rules
 
@@ -53,6 +57,10 @@ Key expectations:
 ## Documentation and Changelog Requirements
 
 If behavior changes, update docs in the same PR (at minimum `README.md`, `docs/README.md`, and affected docs under `docs/`).
+
+Update `AGENTS.md` when contributor discipline, workflow or documentation rules change. Update primary field lists and setup instructions when adding settings, not just appendices. Use the shared [model catalog guide](docs/providers/model-compatibility.md) for route-specific capabilities. The docs-truth suite checks structural consistency; manually verify prose and flags against implementation as well.
+
+Historical ExecPlans and changelog entries retain their dated evidence. Add a current reconciliation for completed work; do not mark live certification complete solely because code merged. The [readiness guide](docs/operations/provider-channel-readiness.md#verification-and-live-checks) describes the remaining evidence and how to record beta testing.
 
 Any operator-facing change must add a concrete entry to `CHANGELOG.md`.
 

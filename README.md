@@ -63,6 +63,10 @@ Provider route rules that matter at a glance:
 - Saved model IDs remain unchanged. Retired Codex `gpt-5.4` selections block readiness until you explicitly choose a replacement in `openassist setup wizard`. See [model compatibility](docs/providers/model-compatibility.md).
 - Azure Foundry is the Azure resource-style `/openai/v1/` route, uses the Responses API only, and requires a deployed Azure deployment name plus either API-key or Entra host auth.
 
+Current models include GPT-6 Astra/Sol/Luna and Claude Opus 5.5/Fable 5.1, alongside Sonnet 5 and Haiku 4.5. Azure keeps your deployment name and requires a known underlying model for tuning. Wizard exposes API/Azure Standard/Pro execution and Claude output budgets. [Model compatibility](docs/providers/model-compatibility.md) lists exact controls, availability limits and preserved-thinking behavior.
+
+Anthropic quickstart/wizard supports optional `workspaceId` for multi-workspace keys. Current stable SDK versions, credential handling and remaining live checks are recorded in the [provider/channel readiness guide](docs/operations/provider-channel-readiness.md).
+
 ## Pick a Channel
 
 | Channel | Supported scope | Notable behavior | Learn more |
@@ -240,7 +244,7 @@ Local merge gate:
 pnpm verify:all
 ```
 
-That gate includes a docs-truth validation pass, so stale command examples, broken local doc links, broken doc anchors, incomplete docs indexing, mismatched coverage-threshold references, mismatched coverage-scope references, or workflow drift fail alongside code regressions.
+That gate includes a docs-truth validation pass, so unregistered command names in examples, broken local doc links, broken doc anchors, incomplete docs indexing, mismatched coverage-threshold references, mismatched coverage-scope references, or tracked workflow drift fail alongside code regressions. Changed prose, command flags and model-control descriptions also need manual comparison with implementation. Production and full dependency audits run in the same gate, retaining reports under `coverage/audit`.
 
 Node coverage now excludes `tests/**` from reported totals, and Vitest coverage intentionally targets the CLI library plus selected daemon, config, runtime, provider, and web-tool modules instead of claiming full-repo source coverage. The exact measured source list lives in [`docs/testing/test-matrix.md`](docs/testing/test-matrix.md).
 
@@ -255,6 +259,8 @@ pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm w
 
 Quickstart preserves compatible Anthropic thinking settings when changing models. If saved settings conflict with the selected model, it asks before resetting them to provider defaults; declining lets you choose another model. Saved `claude-opus-4-5` aliases retain their manual thinking budgets.
 
-Current models include GPT-6 Astra/Sol/Luna and Claude Opus 5.5/Fable 5.1, alongside Sonnet 5 and Haiku 4.5. Azure keeps your deployment name and requires a known underlying model for tuning. Wizard exposes API/Azure Standard/Pro execution and the new Claude output budgets. [Model compatibility](docs/providers/model-compatibility.md) lists exact controls, availability limits and preserved-thinking behavior.
+## Development and release readiness
 
-Authentication and channel readiness: current stable provider/channel SDKs are recorded in [the readiness audit](docs/operations/provider-channel-readiness.md). Anthropic quickstart/wizard supports optional `workspaceId` for multi-workspace keys. Responses reasoning replay is bounded and durable; delayed concurrent authentication failures reuse refreshed credentials.
+The merged foundation includes Node 24 support, dependency audits, shared model capabilities, bounded durable Responses replay and concurrent OAuth refresh handling. See [Contributing](CONTRIBUTING.md) for local development and [AGENTS.md](AGENTS.md) for engineering requirements.
+
+Automated regression and hosted workflow results establish development readiness. Live provider/channel certification and real existing-install Node migration/rollback evidence remain separate release checks. Record beta testing by commit, OS, route/model, channel and observed behavior using the [readiness evidence checklist](docs/operations/provider-channel-readiness.md#verification-and-live-checks); a successful beta reply alone does not certify every integration.

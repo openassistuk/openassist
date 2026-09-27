@@ -14,7 +14,7 @@ Run this before merge:
 pnpm verify:all
 ```
 
-`verify:all` executes workflow lint, build, lint, typecheck, both test runners, and both coverage gates.
+`verify:all` executes workflow lint, build, lint, typecheck, both test runners, both coverage gates, and production/full dependency audits. Audit reports are retained under `coverage/audit`; high/critical findings and registry failures fail the gate.
 
 ## Local Command Breakdown
 
@@ -27,7 +27,10 @@ pnpm test:vitest
 pnpm test:node
 pnpm test:coverage:vitest
 pnpm test:coverage:node
+pnpm audit:dependencies
 ```
+
+For a documentation-only iteration, run `pnpm exec tsx --test tests/node/cli-docs-truth.test.ts` first. Its nine checks cover the documented command names, live-doc links/anchors and index, coverage, platform wording, workflows, lifecycle report version and test inventory. They do not prove every prose claim or command flag correct; manually compare changed guidance with its source. The full local gate above remains required before PR publication.
 
 ## Coverage Gates
 

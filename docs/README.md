@@ -47,14 +47,16 @@ Advanced developer note:
 - Azure Foundry: [`docs/providers/azure-foundry.md`](providers/azure-foundry.md)
 - OpenAI-compatible: [`docs/providers/openai-compatible.md`](providers/openai-compatible.md)
 - Provider contract: [`docs/interfaces/provider-adapter.md`](interfaces/provider-adapter.md)
+- Model recommendations and route-specific controls: [model compatibility](providers/model-compatibility.md)
+- SDK, authentication and live-test evidence: [provider/channel readiness](operations/provider-channel-readiness.md)
 
 Provider truth that stays consistent across setup and docs:
 
 - OpenAI is the public API-key route.
 - Codex is the separate OpenAI account-login route.
 - Codex is intentionally documented as Codex-only in this release.
-- OpenAI and Codex reasoning controls include `xhigh` alongside `low`, `medium`, and `high`.
-- Anthropic thinking budgets are supported only on thinking-capable Claude families.
+- Reasoning efforts are filtered by route and model. GPT-6 OpenAI Sol/Luna and Azure Astra/Sol/Luna include `none` through `max`; OpenAI Astra and Codex GPT-6 models exclude `none`. API/Azure execution mode is independent of effort and is not a Codex setting.
+- Anthropic uses model-specific adaptive/manual/disabled thinking and effort controls, with explicit output limits. Manual budgets remain available only on compatible models. Multi-workspace keys can select `workspaceId` in setup.
 - Azure Foundry is the Azure resource-style `/openai/v1/` route with API-key or Entra host auth and a required deployed Azure deployment name.
 
 ## Channels
@@ -148,9 +150,14 @@ Coverage reporting stays intentionally targeted rather than pretending to be ful
 - OpenClaw import guide: [`docs/migration/openclaw-import.md`](migration/openclaw-import.md)
 - ExecPlan process: [`.agents/PLANS.md`](../.agents/PLANS.md)
 
-Current lifecycle ExecPlans:
+Current housekeeping and release-evidence records:
 
+- [Documentation reconciliation](execplans/documentation-readiness-2026-09.md)
+- [Merged model, harness and auth refresh](execplans/current-provider-models-2026-09.md)
+- [Completed Dependabot follow-up](execplans/dependabot-follow-up-2026-09.md)
 - [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
+
+Historical implementation plans (retain their original evidence and read any reconciliation notes):
 
 - [`docs/execplans/access-mode-opt-in-and-beginner-copy.md`](execplans/access-mode-opt-in-and-beginner-copy.md)
 - [`docs/execplans/actions-node24-runtime-cleanup.md`](execplans/actions-node24-runtime-cleanup.md)
@@ -190,7 +197,7 @@ Current lifecycle ExecPlans:
 - [`docs/execplans/setup-wizard-full-access-prompt.md`](execplans/setup-wizard-full-access-prompt.md)
 - [`docs/execplans/status-tool-loop-followups.md`](execplans/status-tool-loop-followups.md)
 
-See the [model compatibility catalog](providers/model-compatibility.md) for current recommendations, route-specific controls, preserved Anthropic aliases, and explicit repair of retired or incompatible selections.
+Historical ExecPlans retain dated decisions, checks and unresolved certification evidence; they are not current operator instructions. The [documentation reconciliation](execplans/documentation-readiness-2026-09.md) records the current inventory and follow-up. Use the provider, configuration and lifecycle guides above for current behavior. A merged plan does not certify live accounts or an existing-install migration.
 
 ## Node 24 runtime migration
 

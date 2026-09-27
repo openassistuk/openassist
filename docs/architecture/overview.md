@@ -32,10 +32,13 @@ Current first-class provider routes are implemented as separate adapter packages
 - `packages/providers-azure-foundry`
 - `packages/providers-openai-compatible`
 
-Operator CLI includes dual setup surfaces:
+Operator CLI includes a primary setup hub and two stable subpaths:
 
+- beginner lifecycle and repair hub: `setup`
 - strict onboarding: `setup quickstart`
 - advanced editor: `setup wizard`
+
+Model capabilities are defined in `packages/config/src/provider-models.ts`, with contracts in `packages/core-types`. Setup, validation, provider requests and status share this catalog. Saved model IDs and Azure deployment names are preserved; unknown names do not imply optional tuning capabilities. See [model compatibility](../providers/model-compatibility.md).
 
 ## Message Plane Flow
 

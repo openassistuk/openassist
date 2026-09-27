@@ -6,6 +6,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+This section records the development milestones since 0.1.0, including intermediate report-version and coverage transitions. The current operator defaults and controls are defined in the [configuration reference](docs/configuration/config-reference.md) and [model compatibility guide](docs/providers/model-compatibility.md); historical transitions below are not migration commands.
+
+- Reconcile operator and contributor documentation with the merged model/auth refresh: correct route-specific reasoning choices, put execution mode, Claude output limits and workspace selection in primary references, and record merged verification separately from pending live certification. No runtime or operator-state changes.
+
 - Preserve bounded, provider/model-scoped opaque Responses reasoning and message phases across tool turns/restarts for OpenAI, Codex and Azure, without duplicate tool calls or new tool privileges. Reuse concurrently refreshed OAuth credentials after delayed 401 responses.
 - Support Anthropic multi-workspace keys through optional workspaceId in config/quickstart/wizard; select explicit API-key versus bearer auth without ambient credential mixing. Retain current stable channel SDKs, switch Discord readiness to clientReady, and update Vitest/coverage-v8 to 5.0.2.
 
@@ -90,8 +94,8 @@ The format follows Keep a Changelog conventions and this project currently track
   - lifecycle reporting is now `version: 2` in `openassist doctor --json`, preserving grouped sections while adding per-item `stage` metadata for shared rendering
 
 - Provider-native reasoning controls:
-  - `openassist setup quickstart` now exposes beginner-facing `reasoningEffort` choices for both OpenAI and Codex providers (`Default`, `Low`, `Medium`, `High`, `XHigh`)
-  - `openassist setup wizard` now exposes OpenAI `reasoningEffort`, Codex `reasoningEffort`, and Anthropic `thinkingBudgetTokens` (blank to disable)
+  - `openassist setup quickstart` exposes `Default` plus catalog-filtered `reasoningEffort` choices for OpenAI and Codex, including `none` and `max` only where the route/model supports them
+  - `openassist setup wizard` exposes provider-specific effort/mode controls, Anthropic adaptive thinking and compatible manual budgets; clearing a manual budget preserves the selected model's thinking semantics
   - built-in OpenAI adapters now send reasoning effort only on supported Responses API model families
   - built-in Codex adapters now send reasoning effort only on supported Codex Responses-model families
   - built-in Anthropic adapters now send thinking budgets only on supported thinking-capable Claude families
@@ -129,7 +133,7 @@ The format follows Keep a Changelog conventions and this project currently track
 ### Changed
 
 - Dependency security floors:
-  - root `pnpm.overrides` now pins patched transitive minimums for `lodash@4.18.1`, `picomatch@2.3.2`, and the dev-tooling audit path `brace-expansion@5.0.5`
+  - scoped `overrides` in `pnpm-workspace.yaml` pin patched transitive floors, including `lodash@4.18.1`, `picomatch@2.3.2`, and the affected dev-tooling `brace-expansion` range at `5.0.9`
   - the dependency lockfile no longer resolves the newly alerted vulnerable exact versions `lodash@4.17.23` and `picomatch@2.3.1`, it avoids the deprecated `lodash@4.18.0` release, and it also no longer resolves the audited dev-only `brace-expansion@5.0.3` path
   - this remediation stays intentionally narrow and does not broaden into direct dependency version churn
 
@@ -158,7 +162,7 @@ The format follows Keep a Changelog conventions and this project currently track
   - the lifecycle E2E smoke workflow now checks the current `openassist doctor --json` report `version: 3` instead of the stale `version: 2` expectation that local tests no longer exercised
 
 - CI, docs-truth, and coverage hardening:
-  - repo-tracked workflows now use `actions/checkout@v6`, `actions/setup-node@v6`, and `actions/upload-artifact@v7` where applicable, and the workflow lint gate now fails if tracked workflows fall below the approved action-major floors for those actions or for `github/codeql-action/*@v4`
+  - repo-tracked workflows use `actions/checkout@v7`, `actions/setup-node@v7`, and `actions/upload-artifact@v7` where applicable; workflow lint retains minimum floors of checkout/setup-node v6, upload-artifact v7 and `github/codeql-action/*` v4
   - Node coverage totals now exclude `tests/**`, so the reported Node coverage reflects product code instead of mixed source-plus-test files
   - Vitest coverage now measures additional operator-relevant daemon, config, runtime, provider, and web-tool modules instead of leaving those already-tested files outside the reported scope
   - docs-truth now validates coverage-scope wording against `vitest.config.ts` and `package.json`, and the repo docs explain the targeted coverage model explicitly instead of implying full-repo source coverage
@@ -251,9 +255,9 @@ The format follows Keep a Changelog conventions and this project currently track
   - interactive bootstrap no longer tries to pre-seed config through the stale `pnpm ... start -- init --config ...` path before opening the lifecycle hub
   - non-interactive bootstrap still creates a default config before service install, but now does it through the direct `openassist init --config ...` command path
   - bootstrap and install docs now explain the pinned `pnpm` release and WhatsApp/media build-script note in more operator-friendly language
-  - the repo, bootstrap, and workflow pins now use `pnpm@10.31.0`
+  - the repo, bootstrap, and workflow pins use native `pnpm@12.5.1`
 
-- Provider defaults now keep OpenAI on the current flagship API model `gpt-5.4` and update Anthropic onboarding examples/default prompts to the current Sonnet API model `claude-sonnet-4-6`, so new installs offer current real API model IDs instead of older snapshots or aliases.
+- Provider defaults use `gpt-6-sol` for fresh OpenAI/Codex setup and `claude-sonnet-5` for Anthropic; earlier unreleased GPT-5.4/Sonnet 4.6 recommendations are superseded. Existing saved IDs remain unchanged.
 
 - Runtime self-knowledge and identity-restoration pass:
   - runtime awareness is now a richer bounded self-knowledge contract with explicit capabilities, curated local doc references, and repo-backed maintenance/install facts
@@ -315,7 +319,7 @@ The format follows Keep a Changelog conventions and this project currently track
 - Setup timezone prompts now use a guided two-step picker (`country/region -> city`) and enforce DST-aware Country/City IANA timezones.
 - In-channel runtime diagnostics path (`/status`) that returns local runtime/time/scheduler/channel profile status without provider dependency.
 - Channel-visible operational diagnostic replies when provider/auth/runtime failures occur during inbound chat processing.
-- Workspace build-script allowlist (`onlyBuiltDependencies`: `esbuild`, `protobufjs`) to avoid install-time approval prompts during bootstrap.
+- Workspace build-script permissions use `allowBuilds` in `pnpm-workspace.yaml` for `@whiskeysockets/baileys`, `esbuild`, `protobufjs` and `sharp`, avoiding install-time approval prompts during bootstrap.
 - Setup UX clarity pass:
   - staged quickstart headings with clearer intent text per phase
   - shorter API-key prompts with explicit env-var display to reduce terminal wrapping/truncation risk
@@ -392,8 +396,8 @@ The format follows Keep a Changelog conventions and this project currently track
 - Interface/security/operations docs now describe layered awareness snapshots, native web tool contracts, setup validation for web search mode, and `/status` capability reporting.
 - Linux/macOS install and quickstart runbooks now describe automatic PATH profile updates and wizard post-save checks.
 - Wizard post-save checks now skip cleanly (with explicit messaging) on unsupported service-manager platforms.
-- Ubuntu/Debian bootstrap now installs Node 22 via NodeSource instead of relying on distro `nodejs` versions that can be below minimum.
-- Ubuntu/Debian bootstrap now attempts `npm+n` (`n 22`) fallback if NodeSource/distro provisioning still leaves Node below minimum.
+- Ubuntu/Debian bootstrap installs Node 24 via NodeSource instead of relying on distro `nodejs` versions that can be below minimum.
+- Ubuntu/Debian bootstrap attempts `npm+n` (`n 24.21.0`) fallback if NodeSource/distro provisioning leaves Node outside the supported range.
 - Setup command handling now reports saved-but-aborted post-save checks explicitly (non-zero exit on explicit abort path).
 - Setup quickstart/wizard health checks now probe loopback fallback URLs when configured bind address is wildcard (`0.0.0.0`/`::`), reducing false `fetch failed` results.
 - Linux service manager selection now supports root-friendly system mode:
@@ -408,10 +412,8 @@ The format follows Keep a Changelog conventions and this project currently track
   - Vitest: lines/statements/functions `>=81`, branches `>=71`
   - Node integration: lines/statements `>=79`, functions `>=80`, branches `>=70`
 - Setup quickstart/wizard secret prompts now use masked `*` input feedback and explicit long-value guidance for API keys/tokens.
-- OpenAI provider adapter now routes GPT-5/codex-class requests through OpenAI Responses API and auto-falls back from chat-completions on endpoint/model mismatch errors.
-- Setup defaults updated to current model baselines:
-  - OpenAI/OpenAI-compatible: `gpt-5.4`
-  - Anthropic: `claude-sonnet-4-6`
+- OpenAI provider adapter routes cataloged GPT-6/GPT-5/Codex Responses models through OpenAI Responses API and auto-falls back from chat-completions on endpoint/model mismatch errors.
+- OpenAI-compatible setup accepts backend-defined model names; the shared OpenAI prompt seed is not a compatibility guarantee or a recommendation for arbitrary servers.
 - Node integration coverage branch gate tightened from `>=67` to `>=69` (through `>=68`) while keeping lines/statements/functions gates unchanged.
 - OpenAI/OpenAI-compatible provider adapters now encode tool names to provider-safe identifiers and decode them back, fixing runtime failures for dotted internal tool names (for example `exec.run`, `fs.read`) in autonomous sessions.
 - Runtime now reconciles tool-call conversation context before each provider turn:

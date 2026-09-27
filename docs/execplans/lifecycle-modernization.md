@@ -16,7 +16,7 @@ Operators install verified prebuilt releases with a private Node runtime, prepar
 - [x] (2026-09-27 20:45Z) Ownership-aware uninstall, cached notices, source checks and release/source/isolation diagnostics implemented. Setup reports matched installation metadata; first service startup can be explicitly health-confirmed.
 - [x] (2026-09-27 20:45Z) Documentation synchronized and draft PR #63 opened. Full local verification passed before final reporting refinements, with zero dependency audit findings and unchanged coverage gates.
 - [x] (2026-09-27 20:53Z) At b01810430da6055035dc01114f71b9b7fa9a7fe5, full local verification, Linux/macOS/Windows hosted quality, CodeQL, live LaunchAgent, four native artifact targets, signing contract and live Linux source/release round trip passed. Supplemental Linux/macOS workflows passed at 6d8db90.
-- [ ] Reconcile final isolated-setup and legacy PR-track guard refinements after their passing targeted tests; retain signing/publication as maintainer rollout prerequisites.
+- [x] (2026-09-27 21:04Z) Final implementation f0f5c8199cce184bf2c14f457878251edab82956 passed full local verification and every hosted PR gate. The final reconciliation below records exact runs, coverage and publication prerequisites.
 
 ## Surprises & Discoveries
 
@@ -40,7 +40,19 @@ The existing upgrade changes the active checkout and rebuilds on rollback. The d
 
 ## Outcomes & Retrospective
 
-The implementation is available in PR #63 on `codex/lifecycle-modernization`. The complete hosted matrix passed at b018104, including actual immutable source preparation and return to a packaged release with live systemd. Local Node coverage was 81.43% lines/statements, 70.97% branches and 89.93% functions; both dependency audit reports contained zero findings. No release has been published and no live operator installation has been changed. The production trust anchor remains deliberately unprovisioned, so publication readiness requires maintainer signing-key/protected-environment setup and a tested preview rollout.
+Implementation, documentation, tests, native packaging and recovery validation are complete in PR #63 on `codex/lifecycle-modernization`. The complete hosted matrix passed at f0f5c81, including actual immutable source preparation and return to a packaged release with live systemd. Final local Node coverage was 81.43% lines/statements, 70.98% branches and 89.93% functions. Vitest measured 83.24% lines, 82.29% statements, 72.14% branches and 85.18% functions. Both dependency audit reports contained zero findings. No release has been published and no live operator installation has been changed.
+
+Publication readiness is separate from implementation readiness. The production trust anchor remains deliberately unprovisioned. Maintainers must commit the RSA public key, configure the protected signing secret/environment and publishing controls, prepare matching version/tag metadata, and validate a preview before stable publication. Until then, normal release bootstrap fails closed and explicit source installation remains available. Windows results certify development/CI behavior only.
+
+## Final Merge and Check Reconciliation
+
+The complete code/docs diff was reviewed against `main`; `git diff --check origin/main` passed and no unrelated edits, embedded credentials or production private keys were found. The exact final implementation reviewed and tested is f0f5c8199cce184bf2c14f457878251edab82956. This reconciliation is a documentation-only follow-up; the PR has not been merged.
+
+`pnpm verify:all` passed locally on Node 24.21.0/pnpm 12.5.1, including workflow lint, builds, lint/type checks, the full Node/Vitest suites, unchanged coverage gates and both dependency audits. The local host is Windows; native release/service proof comes from hosted jobs, not simulated host tests.
+
+[CI run 36346229618](https://github.com/openassistuk/openassist/actions/runs/36346229618) passed Linux/macOS/Windows quality and workflow lint. [CodeQL run 36346229598](https://github.com/openassistuk/openassist/actions/runs/36346229598) and the CodeQL alert gate passed. [macOS live run 36346229621](https://github.com/openassistuk/openassist/actions/runs/36346229621) passed the required LaunchAgent gate. [Release run 36346229745](https://github.com/openassistuk/openassist/actions/runs/36346229745) passed all four native artifacts, live Linux activation/rollback/recovery/source switching and test-key signing; publication was skipped as intended.
+
+The supplemental [Service Smoke run 36346102535](https://github.com/openassistuk/openassist/actions/runs/36346102535) and [Lifecycle E2E run 36346104068](https://github.com/openassistuk/openassist/actions/runs/36346104068) passed Linux/macOS at 48930b8, whose product code is identical to f0f5c81. The only intervening change allocated independent ports in test fixtures and recorded that correction. No merge or live provider/channel certification is inferred from these results.
 
 ## Context and Orientation
 

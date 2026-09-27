@@ -29,7 +29,7 @@ const build = {id:`${version}-${commit}`,version,commit,nodeVersion:process.vers
 fs.writeFileSync(path.join(stage,'build-identity.json'),JSON.stringify(build,null,2));
 for(const app of ['openassist-cli','openassistd']) run(path.join(stage,'runtime','bin','node'),[path.join(stage,'apps',app,'dist','index.js'),'--help']);
 const file = `openassist-${version}-${target}.tar.gz`;
-await tar.c({gzip:true,file:path.join(output,file),cwd:stage,portable:true},fs.readdirSync(stage));
+tar.c({gzip:true,sync:true,file:path.join(output,file),cwd:stage,portable:true},fs.readdirSync(stage));
 const bytes = fs.readFileSync(path.join(output,file));
 const artifact = {platform:process.platform,arch:process.arch,file,sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length};
 // Bootstrap executes only these individually authenticated files before extraction.

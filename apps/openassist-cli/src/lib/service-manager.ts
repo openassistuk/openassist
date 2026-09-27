@@ -124,7 +124,7 @@ export function renderSystemdUnit(
         .replaceAll("__OPENASSIST_INSTALL_DIR__", systemdPath(values.installDir))
         .replaceAll("__OPENASSIST_RW_CONFIG_DIR__", systemdPath(rwConfigDir))
     )
-    .concat(values.systemdFilesystemAccess === "hardened" && values.writablePaths?.length ? [`ReadWritePaths=${values.writablePaths.map(systemdPath).join(" ")}`] : [])
+    .concat(values.systemdFilesystemAccess === "hardened" && values.writablePaths?.length ? [`ReadWritePaths=${values.writablePaths.map(value=>systemdPath(value)).join(" ")}`] : [])
     .join("\n");
   const rendered = template
     .replaceAll("__OPENASSIST_INSTALL_DIR__/apps/openassistd/dist/index.js",systemdPath(path.posix.join(toPosixPath(values.installDir),"apps","openassistd","dist","index.js"),true))

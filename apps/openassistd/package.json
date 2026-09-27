@@ -25,9 +25,12 @@
     "@openassist/storage-sqlite": "workspace:*",
     "@openassist/channels-whatsapp-md": "workspace:*",
     "@openassist/providers-openai": "workspace:*",
-    "commander": "^14.0.1"
+    "commander": "^15.0.0"
   },
   "bin": {
     "openassistd": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=24.21.0 <25"
   }
 }

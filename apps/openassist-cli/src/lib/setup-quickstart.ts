@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { OpenAssistConfig } from "@openassist/config";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, providerTuningErrors, type OpenAssistConfig } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
 import {
   isUntouchedDefaultConfigObject,
@@ -53,7 +53,8 @@ import {
   promptAzureFoundryReasoningEffort,
   promptAzureFoundryUnderlyingModel,
   createInquirerPromptAdapter,
-  promptReasoningEffort
+  promptReasoningEffort,
+  describeModelChoices
 } from "./setup-wizard.js";
 import {
   validateSetupReadiness,
@@ -150,21 +151,21 @@ function defaultProviderForType(type: ProviderType): { id: string; model: string
   if (type === "codex") {
     return {
       id: "codex-main",
-      model: "gpt-5.4"
+      model: DEFAULT_OPENAI_MODEL
     };
   }
 
   if (type === "anthropic") {
     return {
       id: "anthropic-main",
-      model: "claude-sonnet-4-6"
+      model: DEFAULT_ANTHROPIC_MODEL
     };
   }
 
   if (type === "openai-compatible") {
     return {
       id: "compat-main",
-      model: "gpt-5.4",
+      model: DEFAULT_OPENAI_MODEL,
       baseUrl: "http://127.0.0.1:11434/v1"
     };
   }
@@ -178,7 +179,7 @@ function defaultProviderForType(type: ProviderType): { id: string; model: string
 
   return {
     id: "openai-main",
-    model: "gpt-5.4"
+    model: DEFAULT_OPENAI_MODEL
   };
 }
 
@@ -345,9 +346,9 @@ async function runPreflight(
   dependencies: SetupQuickstartDependencies
 ): Promise<void> {
   stage("Preflight", "Checking tools, writable paths, and service manager readiness.");
-  const nodeMajor = Number.parseInt(process.versions.node.split(".")[0] ?? "0", 10);
-  if (!Number.isFinite(nodeMajor) || nodeMajor < 22) {
-    throw new Error(`Node.js 22+ is required (found ${process.version}).`);
+  const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
+  if (nodeMajor !== 24 || nodeMinor! < 21) {
+    throw new Error(`Node.js >=24.21.0 <25 is required (found ${process.version}).`);
   }
 
   if (options.preflightCommandChecks !== false) {
@@ -499,7 +500,8 @@ async function promptProvider(
     const baseUrl = baseUrlInput.trim();
     const reasoningEffort = await promptAzureFoundryReasoningEffort(
       prompts,
-      existingAzure?.reasoningEffort
+      existingAzure?.reasoningEffort,
+      underlyingModel ?? ""
     );
 
     return {
@@ -516,11 +518,27 @@ async function promptProvider(
     };
   }
 
-  const defaultModel = await promptRequiredText(
+  describeModelChoices(type, existing?.defaultModel);
+  let defaultModel = await promptRequiredText(
     prompts,
     "Default model",
-    existing?.defaultModel ?? suggested.model
+    existing?.type === type ? existing.defaultModel : suggested.model
   );
+  let anthropicTuning = type === "anthropic" && existing?.type === "anthropic"
+    ? { thinkingMode: existing.thinkingMode, thinkingEffort: existing.thinkingEffort, thinkingBudgetTokens: existing.thinkingBudgetTokens }
+    : {};
+  if (type === "anthropic") {
+    while (true) {
+      const errors = providerTuningErrors({ id: providerId, type, defaultModel, ...anthropicTuning });
+      if (errors.length === 0) break;
+      console.log(`Saved thinking settings are incompatible with ${defaultModel}: ${errors.join(" ")}`);
+      if (await prompts.confirm("Reset thinking settings to provider defaults for this model?", false)) {
+        anthropicTuning = {};
+        break;
+      }
+      defaultModel = await promptRequiredText(prompts, "Choose another model to preserve the saved thinking settings", existing?.defaultModel);
+    }
+  }
   const baseUrlInput = providerSupportsCustomBaseUrl(type)
     ? await prompts.input("Base URL (blank for default)", existing?.baseUrl ?? suggested.baseUrl ?? "")
     : "";
@@ -529,9 +547,9 @@ async function promptProvider(
     : existing?.baseUrl?.trim() ?? "";
   const reasoningEffort =
     type === "openai"
-      ? await promptReasoningEffort(prompts, "OpenAI", existing?.type === "openai" ? existing.reasoningEffort : undefined)
+      ? await promptReasoningEffort(prompts, "OpenAI", existing?.type === "openai" ? existing.reasoningEffort : undefined, defaultModel)
       : type === "codex"
-        ? await promptReasoningEffort(prompts, "Codex", existing?.type === "codex" ? existing.reasoningEffort : undefined)
+        ? await promptReasoningEffort(prompts, "Codex", existing?.type === "codex" ? existing.reasoningEffort : undefined, defaultModel)
         : undefined;
 
   return {
@@ -541,6 +559,7 @@ async function promptProvider(
     ...(resolvedBaseUrl.length > 0 ? { baseUrl: resolvedBaseUrl } : {}),
     ...((type === "openai" || type === "codex") && reasoningEffort ? { reasoningEffort } : {}),
     ...(existing && "oauth" in existing && existing.oauth ? { oauth: existing.oauth } : {}),
+    ...anthropicTuning,
     ...(existing?.metadata ? { metadata: existing.metadata } : {})
   };
 }

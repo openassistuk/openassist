@@ -51,9 +51,10 @@ Provider entry:
 [[runtime.providers]]
 id = "anthropic-main"
 type = "anthropic"
-defaultModel = "claude-sonnet-4-6"
+defaultModel = "claude-sonnet-5"
 # Optional for supported thinking-capable Claude families:
-# thinkingBudgetTokens = 4096
+# thinkingMode = "adaptive"
+# thinkingEffort = "high"
 ```
 
 Env file entry:
@@ -82,7 +83,9 @@ Schema-backed provider fields:
 - `type = "anthropic"`
 - `defaultModel`
 - `baseUrl` (optional)
-- `thinkingBudgetTokens` (optional, `1024..32000`)
+- `thinkingMode` (optional, `adaptive|enabled|disabled`, filtered by model)
+- `thinkingEffort` (optional, `low|medium|high|xhigh|max`, filtered by model)
+- `thinkingBudgetTokens` (optional, `1024..32000`, manual-thinking models only)
 - `oauth` (optional advanced configuration)
 - `metadata` (optional)
 
@@ -90,7 +93,7 @@ Schema-backed provider fields:
 
 - Anthropic can inspect inbound image attachments.
 - `thinkingBudgetTokens` is only sent on supported thinking-capable Claude families.
-- If the selected model does not support thinking mode, OpenAssist omits the budget safely.
+- Unsupported or conflicting thinking settings fail validation with repair guidance. Sonnet 5 and Opus 5 use adaptive thinking by default and reject manual budgets. Legacy budget-only settings still enable manual thinking on cataloged compatible models such as Sonnet 4.6 and Haiku 4.5. Unset controls omit request parameters; they do not disable provider-default thinking.
 - Anthropic replay metadata stays internal to the provider/runtime path and is not exposed as raw internal reasoning in channels.
 
 ## Verify the Route
@@ -134,3 +137,11 @@ Troubleshooting runbook:
 - [Azure Foundry Provider](azure-foundry.md)
 - [OpenAI-compatible Provider](openai-compatible.md)
 - [Configuration File Guide](../configuration/config-file-guide.md)
+
+## Modernization compatibility
+
+Fresh setup recommends `claude-sonnet-5`, with `claude-opus-5` and `claude-haiku-4-5-20251001` alternatives. Sonnet 5 and Opus 5 support adaptive thinking and all five effort values. Haiku 4.5 supports manual budgets, not adaptive thinking or effort. Opus 5 cannot disable thinking at xhigh/max effort. Output tokens remain bounded: default 4096, or manual budget plus 1024 when larger; an explicit output limit must exceed a manual budget. Thinking replay and tool results remain durable and hidden from channel-visible output.
+
+OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.
+
+Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.

@@ -34,3 +34,7 @@ Bring the merged outbound-delivery change back into line with the repo's review 
 ## Outcomes & Retrospective
 
 The follow-up closes the concrete review gaps left behind in PR `#36`: hidden tool calls no longer execute, reply-mode delivery now enforces the same boundary the runtime advertises, adapter fallback behavior matches the documented explicit-note contract, and recovery logs no longer imply a retry after terminal failure. The full local repo gate is green again on the final follow-up branch.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #37 merged at 2026-03-11T19:30:57Z as `8c00fb04056bd6691ef8fec03dd25e7dad9b7e61`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

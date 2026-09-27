@@ -232,3 +232,7 @@ CLI commands:
 - HTTP-first only (`http` and `https`)
 - redirect count, response bytes, result counts, and pages-per-run are bounded
 - no browser automation and no JavaScript page execution in this release
+
+## Modernization compatibility
+
+Provider modernization preserves sequential runtime tool execution and the existing round budget. Adaptive Anthropic thinking blocks use the same durable replay path as manual thinking; raw thinking is never rendered to channels. Current model controls come from the shared configuration catalog.

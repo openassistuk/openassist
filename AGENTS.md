@@ -34,6 +34,8 @@ For non-trivial changes, follow `.agents/PLANS.md`.
   - `Outcomes & Retrospective`
 - Record concrete evidence before marking milestones complete.
 
+Model compatibility lives in `packages/config/src/provider-models.ts`, with contracts in core-types. Setup, validation, request mapping, and status must use these definitions. Preserve saved model IDs and require explicit repair for retired Codex selections. Do not infer optional capabilities from model-name substrings or Azure deployment names. Preserve manual budget semantics on compatible Anthropic models and verified aliases, and reject unsupported/conflicting tuning. Quickstart must offer an explicit reset or another model when saved thinking settings conflict with a model change; compatible settings must remain intact.
+
 ## Module Boundaries
 
 - `packages/core-types`: contracts only
@@ -82,12 +84,13 @@ When changing installer/setup/service behavior:
    - Codex must be described truthfully as Codex-only in V1, not as generic ChatGPT API auth for arbitrary OpenAI models
    - legacy `openai + oauth` configs may remain readable for compatibility, but new account-login guidance must steer operators to `codex`
    - quickstart must expose the beginner-facing reasoning-effort choice for `openai` and `codex`
-   - OpenAI and Codex reasoning-effort choices now include `xhigh` in addition to `low`, `medium`, and `high`
+   - OpenAI and Codex reasoning-effort choices come from the shared model catalog and include `none` and `max` only where supported; Default omits the parameter
    - wizard remains the full provider-tuning surface:
      - `openai.reasoningEffort`
      - `codex.reasoningEffort`
      - `azure-foundry.reasoningEffort`
-     - `anthropic.thinkingBudgetTokens`
+     - `anthropic.thinkingMode` and `anthropic.thinkingEffort`
+     - `anthropic.thinkingBudgetTokens` for cataloged manual-thinking models
    - Azure Foundry quickstart and wizard must ask for the Azure resource name, endpoint flavor, deployment name, auth mode, and optional underlying model hint
    - Azure Foundry Entra auth uses host credentials via `DefaultAzureCredential`; it must not reuse linked-account storage or `openassist auth start/complete`
    - `openassist auth status` must be able to surface `Entra ID` as the active auth kind for Azure Foundry providers
@@ -299,7 +302,7 @@ Docs truth-source checks are required before claiming doc completeness:
 - root `README.md` is a mandatory updated surface for operator-facing lifecycle or public-product changes
 - root `AGENTS.md` is a mandatory updated surface for contributor discipline, workflow, or docs-sync changes
 - command examples must be validated against CLI registry files:
-  - `apps/openassist-cli/src/index.ts`
+  - `apps/openassist-cli/src/main.ts`
   - `apps/openassist-cli/src/commands/setup.ts`
   - `apps/openassist-cli/src/commands/service.ts`
   - `apps/openassist-cli/src/commands/upgrade.ts`
@@ -391,7 +394,7 @@ Release-notes policy:
 - Any operator-facing change must update `CHANGELOG.md` in the same PR.
 - Changelog entries must be concrete (behavioral impact + affected surfaces), not placeholder text.
 - If behavior is security-sensitive, include explicit risk/control language in changelog notes.
-- Keep `pnpm-workspace.yaml` build-script allowlist (`onlyBuiltDependencies`) aligned with actual postinstall requirements so bootstrap/install remains non-blocking.
+- Keep `pnpm-workspace.yaml` build-script allowlist (`allowBuilds`) aligned with actual postinstall requirements so bootstrap/install remains non-blocking.
 
 ## Testing and CI Rules
 
@@ -453,3 +456,11 @@ A change is done only when all are true:
 4. docs are current and specific
 5. security and reliability impacts are explicit
 6. ExecPlan is updated for non-trivial scope
+
+## Node runtime discipline
+
+Support Node >=24.21.0 <25 only. Keep entrypoint guards, bootstrap checks, CI and service guidance synchronized. CLI command registration lives in `apps/openassist-cli/src/main.ts`; `src/index.ts` is the early runtime guard and dynamic launcher. Daemon startup uses the same separation. Reject unsupported runtimes before loading provider or storage modules.
+
+Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
+
+pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.

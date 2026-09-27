@@ -1,3 +1,4 @@
+import { providerTuningLabel } from "@openassist/config";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -3693,6 +3694,7 @@ export class OpenAssistRuntime {
           `session id: ${sessionId}`,
           `assistant: ${assistant.name}`,
           `default provider: ${this.config.defaultProviderId}`,
+          ...this.config.providers.filter(provider => provider.id === this.config.defaultProviderId).map(provider => `provider route: ${provider.type}; model: ${provider.defaultModel}; ${providerTuningLabel(provider)}`),
           `what this is: ${OPENASSIST_SOFTWARE_IDENTITY}`,
           `chat surface: ${this.formatChannelSurfaceSummary(sessionId)}`,
           `awareness: ${summarizeRuntimeAwareness(awareness)}`,

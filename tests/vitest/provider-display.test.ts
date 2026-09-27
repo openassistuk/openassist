@@ -17,7 +17,7 @@ function baseConfig(): OpenAssistConfig {
         {
           id: "openai-main",
           type: "openai",
-          defaultModel: "gpt-5.4",
+          defaultModel: "gpt-5.6-terra",
           reasoningEffort: "high"
         }
       ],
@@ -98,7 +98,7 @@ describe("provider display helpers", () => {
     expect(providerTuningLabel({
       id: "codex-main",
       type: "codex",
-      defaultModel: "gpt-5.4",
+      defaultModel: "gpt-5.6-terra",
       reasoningEffort: "medium"
     })).toBe("Reasoning effort: medium");
     expect(providerTuningLabel({
@@ -114,9 +114,9 @@ describe("provider display helpers", () => {
       authMode: "entra",
       resourceName: "demo-resource",
       endpointFlavor: "openai-resource",
-      underlyingModel: "gpt-5.4",
+      underlyingModel: "gpt-5.6-terra",
       reasoningEffort: "high"
-    })).toBe("Auth: Entra ID; Underlying model: gpt-5.4; Reasoning effort: high");
+    })).toBe("Auth: Entra ID; Underlying model: gpt-5.6-terra; Reasoning effort: high");
   });
 
   it("describes the primary provider and provider menu labels", () => {
@@ -124,17 +124,17 @@ describe("provider display helpers", () => {
     config.runtime.providers.push({
       id: "codex-main",
       type: "codex",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     expect(describePrimaryProvider(config)).toMatchObject({
       id: "openai-main",
       routeLabel: "OpenAI (API Key)",
-      model: "gpt-5.4",
+      model: "gpt-5.6-terra",
       tuningLabel: "Reasoning effort: high"
     });
     expect(formatProviderMenuLabel(config.runtime.providers[1]!)).toBe(
-      "codex-main (Codex (OpenAI account login), gpt-5.4, Reasoning effort: Default (recommended))"
+      "codex-main (Codex (OpenAI account login), gpt-5.6-terra, Reasoning effort: Default (recommended))"
     );
 
     config.runtime.providers.push({
@@ -144,10 +144,10 @@ describe("provider display helpers", () => {
       authMode: "api-key",
       resourceName: "demo-resource",
       endpointFlavor: "foundry-resource",
-      underlyingModel: "gpt-5.4"
+      underlyingModel: "gpt-5.6-terra"
     });
     expect(formatProviderMenuLabel(config.runtime.providers[2]!)).toBe(
-      "azure-foundry-main (Azure Foundry, gpt-5-deployment, Auth: API key; Underlying model: gpt-5.4; Reasoning effort: Default (recommended))"
+      "azure-foundry-main (Azure Foundry, gpt-5-deployment, Auth: API key; Underlying model: gpt-5.6-terra; Reasoning effort: Default (recommended))"
     );
   });
 });

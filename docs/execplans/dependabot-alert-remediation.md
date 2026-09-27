@@ -150,3 +150,7 @@ The dependency floors that must exist at the end of this work are:
     undici@<6.24.0 -> 6.24.0
     file-type@<21.3.2 -> 21.3.2
     music-metadata@<11.12.3 -> 11.12.3
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #49 merged at 2026-04-02T17:54:13Z as `1e17fa219a0c5ac6ec96dd38ac2543ad7e2929b3`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

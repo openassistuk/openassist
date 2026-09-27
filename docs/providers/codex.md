@@ -65,7 +65,7 @@ Provider entry:
 [[runtime.providers]]
 id = "codex-main"
 type = "codex"
-defaultModel = "gpt-5.4"
+defaultModel = "gpt-5.6-terra"
 # Optional for supported Codex Responses-model families:
 # reasoningEffort = "medium"
 ```
@@ -102,7 +102,7 @@ Schema-backed provider fields:
 - `type = "codex"`
 - `defaultModel`
 - `baseUrl` (optional, advanced/manual only)
-- `reasoningEffort` (optional, `low|medium|high|xhigh`)
+- `reasoningEffort` (optional, `none|low|medium|high|xhigh|max`, filtered by the exact model and route)
 - `metadata` (optional)
 
 Normal operator setup should not prompt for a custom base URL. The built-in route uses the supported Codex login and chat endpoints.
@@ -190,3 +190,7 @@ Start with:
 - [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
 - [Common Troubleshooting](../operations/common-troubleshooting.md)
+
+## Modernization compatibility
+
+Fresh setup recommends `gpt-5.6-terra`; Astra, Sol, and Luna are alternatives. Saved `gpt-5.4` and `gpt-5.4-mini` selections are preserved but block readiness with explicit replacement guidance. Use `openassist setup wizard` to choose Terra or Luna respectively. Login and token refresh do not repair a retired model selection.

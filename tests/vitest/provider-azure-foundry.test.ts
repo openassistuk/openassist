@@ -2,7 +2,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ChatRequest } from "../../packages/core-types/src/provider.js";
 
 function encodedToolName(name: string): string {
@@ -71,6 +71,8 @@ async function loadAzureFoundryModule() {
 }
 
 describe("azure foundry provider", () => {
+  // Load the Azure SDK once outside the five-second behavioral assertions.
+  beforeAll(async () => { await loadAzureFoundryModule(); }, 20_000);
   it("derives Azure resource-style base URLs", async () => {
     const { deriveBaseUrl } = await loadAzureFoundryModule();
     expect(

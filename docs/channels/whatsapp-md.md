@@ -141,3 +141,7 @@ openassist doctor
 - [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
 - [Common Troubleshooting](../operations/common-troubleshooting.md)
 - [Configuration Reference](../configuration/config-reference.md)
+
+## Modernization compatibility
+
+The dependency baseline uses stable Baileys 6.7.24 and a parent-scoped registry libsignal 6.0.0 security override. Encryption, decryption, and persisted session reload have local contract coverage; real reconnect/persisted-account certification remains a release requirement. `/status` reports the active route/model/tuning locally.

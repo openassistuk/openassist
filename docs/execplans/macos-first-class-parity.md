@@ -143,3 +143,7 @@ The relevant dependencies are the existing CLI/runtime modules, the docs-truth n
     .github/workflows/codeql.yml
     .github/workflows/service-smoke.yml
     .github/workflows/lifecycle-e2e-smoke.yml
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #44 merged at 2026-03-20T15:43:40Z as `cf3ab02925e87da64a57aeb4797158e436b0e323`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

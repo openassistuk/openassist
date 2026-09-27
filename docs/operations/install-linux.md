@@ -9,8 +9,8 @@ Linux is a first-class OpenAssist operator path.
 Bootstrap can install missing prerequisites automatically unless you disable it:
 
 - Git
-- Node `>=22`
-- pnpm `>=10`
+- Node `>=24.21.0 <25`
+- pnpm `12.5.1` (the repository-pinned version)
 
 Common Linux notes:
 
@@ -213,3 +213,9 @@ If you want to move that install back to the normal release track:
 openassist upgrade --dry-run --install-dir "$HOME/openassist" --ref main
 openassist upgrade --install-dir "$HOME/openassist" --ref main
 ```
+
+## Node 24 runtime migration
+
+OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+
+When quickstart changes an Anthropic model, incompatible saved thinking settings now trigger an explicit reset-or-select-another-model prompt; compatible settings and saved Opus 4.5 aliases are preserved. See [quickstart](quickstart-linux-macos.md) for the guided repair flow.

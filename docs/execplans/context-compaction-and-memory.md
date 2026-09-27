@@ -177,3 +177,7 @@ In `apps/openassistd/src/index.ts` and `apps/openassist-cli/src/index.ts`, expos
 Revision (2026-03-12 15:36Z): Initial ExecPlan created to drive implementation of rolling context summaries, actor-scoped permanent memory, operator inspection surfaces, tool gating, docs, and CI/review completion.
 Revision (2026-03-12 16:18Z): Updated progress, discoveries, decisions, and concrete evidence after implementing the runtime/storage/API/CLI/docs work and running the focused build/test passes.
 Revision (2026-03-12 17:18Z): Recorded the local `ci:strict` success, the stale runtime test fix, and the handoff into commit/PR/CI/review work.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #40 merged at 2026-03-12T18:47:38Z as `7e168affbc1c01485adeb9c6865eeb764f6a835a`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

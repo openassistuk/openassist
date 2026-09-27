@@ -153,10 +153,10 @@ Use wizard for:
   - Azure Foundry
   - OpenAI-compatible
 - advanced provider-native reasoning controls:
-  - OpenAI `reasoningEffort` (`Default`, `low`, `medium`, `high`, `xhigh`)
-  - Codex `reasoningEffort` (`Default`, `low`, `medium`, `high`, `xhigh`)
-  - Azure Foundry `reasoningEffort` (`Default`, `low`, `medium`, `high`, `xhigh`)
-  - Anthropic `thinkingBudgetTokens` (blank disables it)
+  - OpenAI `reasoningEffort` (model-filtered `Default`, `none`, `low`, `medium`, `high`, `xhigh`, `max`)
+  - Codex `reasoningEffort` (model-filtered `Default`, `none`, `low`, `medium`, `high`, `xhigh`, `max`)
+  - Azure Foundry `reasoningEffort` (model-filtered `Default`, `none`, `low`, `medium`, `high`, `xhigh`, `max`)
+  - Anthropic `thinkingMode` / `thinkingEffort`, plus `thinkingBudgetTokens` on compatible manual-thinking models (blank disables manual thinking)
   - OpenAI-compatible stays unchanged in this release
 - additional channels or non-default channel behavior
 - Discord DM allow-lists or other channel-specific scope changes
@@ -297,3 +297,14 @@ Wizard channel settings already contain the only proactive recipient allow-list 
 - Telegram and WhatsApp direct-recipient sends use those IDs directly
 - Discord direct-recipient sends also require the same recipient in `allowedDmUserIds`
 - there is no separate `notificationUserIds` setting
+
+## Node 24 runtime migration
+
+OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+
+
+## Modernization compatibility
+
+The provider editor prints current recommendations without overwriting saved IDs. It filters reasoning choices by exact model and route, supports adaptive Anthropic thinking/effort, and preserves the legacy budget editing path. Retired Codex selections must be explicitly replaced before readiness succeeds.
+
+Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.

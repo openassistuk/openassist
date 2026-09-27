@@ -137,7 +137,7 @@ function extractRegisteredCommands(filePath: string): string[] {
 function collectSupportedCommands(): Set<string> {
   const supported = new Set<string>(["openassist", "openassistd"]);
   for (const filePath of [
-    "apps/openassist-cli/src/index.ts",
+    "apps/openassist-cli/src/main.ts",
     "apps/openassist-cli/src/commands/setup.ts",
     "apps/openassist-cli/src/commands/service.ts",
     "apps/openassist-cli/src/commands/upgrade.ts"
@@ -428,6 +428,8 @@ describe("docs truth", () => {
     const testMatrix = readText("docs/testing/test-matrix.md");
     const vitest = extractVitestThresholds();
     const node = extractNodeCoverageThresholds();
+    assert.equal(vitest.functions, vitest.lines, "Combined docs wording must reflect the actual function threshold");
+    assert.equal(vitest.statements, vitest.lines, "Combined docs wording must reflect the actual statement threshold");
 
     assert.match(
       agents,

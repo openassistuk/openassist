@@ -150,6 +150,8 @@ Coverage reporting stays intentionally targeted rather than pretending to be ful
 
 Current lifecycle ExecPlans:
 
+- [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
+
 - [`docs/execplans/access-mode-opt-in-and-beginner-copy.md`](execplans/access-mode-opt-in-and-beginner-copy.md)
 - [`docs/execplans/actions-node24-runtime-cleanup.md`](execplans/actions-node24-runtime-cleanup.md)
 - [`docs/execplans/bootstrap-setup-hub-regression.md`](execplans/bootstrap-setup-hub-regression.md)
@@ -187,3 +189,11 @@ Current lifecycle ExecPlans:
 - [`docs/execplans/setup-codex-auth-polish.md`](execplans/setup-codex-auth-polish.md)
 - [`docs/execplans/setup-wizard-full-access-prompt.md`](execplans/setup-wizard-full-access-prompt.md)
 - [`docs/execplans/status-tool-loop-followups.md`](execplans/status-tool-loop-followups.md)
+
+See the [model compatibility catalog](providers/model-compatibility.md) for current recommendations, route-specific controls, preserved Anthropic aliases, and explicit repair of retired or incompatible selections.
+
+## Node 24 runtime migration
+
+OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+
+pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.

@@ -1,43 +1,58 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
-import { describe, it } from "node:test";
+import { test } from "node:test";
 
-describe("dependency security override contract", () => {
-  it("pins patched transitive floors in package.json and pnpm-lock.yaml", () => {
-    const packageJson = JSON.parse(fs.readFileSync(path.resolve("package.json"), "utf8")) as {
-      pnpm?: { overrides?: Record<string, string> };
-    };
-    const overrides = packageJson.pnpm?.overrides ?? {};
-    const lockfile = fs.readFileSync(path.resolve("pnpm-lock.yaml"), "utf8");
+function resolvedVersions(lock: string, name: string): string[] {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^  '?${escaped}@(\\d+\\.\\d+\\.\\d+)(?=['(:])`, "gm");
+  return [...new Set([...lock.matchAll(pattern)].map(match => match[1]))];
+}
 
-    assert.equal(overrides["undici@<6.24.0"], "6.24.0");
-    assert.equal(overrides["file-type@<21.3.2"], "21.3.2");
-    assert.equal(overrides["music-metadata@<11.12.3"], "11.12.3");
-    assert.equal(overrides["brace-expansion@>=5.0.0 <5.0.5"], "5.0.5");
-    assert.equal(overrides["lodash@<4.18.1"], "4.18.1");
-    assert.equal(overrides["picomatch@<2.3.2"], "2.3.2");
+test("the resolved tree covers every package in the 2026-09-27 Dependabot alert snapshot", () => {
+  const lock = fs.readFileSync("pnpm-lock.yaml", "utf8");
+  // Highest patched floor among the 72 open alerts, across direct and transitive entries.
+  const floors: Record<string, string> = {
+    "@protobufjs/utf8": "1.1.1",
+    "@vitest/mocker": "4.1.11",
+    "@whiskeysockets/baileys": "6.7.22",
+    axios: "1.18.0",
+    "brace-expansion": "5.0.7",
+    esbuild: "0.28.1",
+    "follow-redirects": "1.16.0",
+    "form-data": "4.0.6",
+    nanoid: "3.3.12",
+    postcss: "8.5.23",
+    protobufjs: "7.6.5",
+    sharp: "0.35.4",
+    undici: "6.28.0",
+    vite: "6.4.3",
+    vitest: "4.1.11",
+    ws: "8.21.0"
+  };
+  for (const [name, floor] of Object.entries(floors)) {
+    const versions = resolvedVersions(lock, name);
+    assert.ok(versions.length > 0, `Expected resolved package ${name}; review alert reconciliation if removed`);
+    const minimum = floor.split(".").map(Number);
+    for (const version of versions) {
+      const parts = version.split(".").map(Number);
+      const different = parts.findIndex((value, index) => value !== minimum[index]);
+      assert.ok(different === -1 || parts[different] > minimum[different], `${name}@${version} is below patched floor ${floor}`);
+    }
+  }
+  // Parent upgrades removed the vulnerable UUID dependency entirely.
+  assert.deepEqual(resolvedVersions(lock, "uuid"), []);
+  // PR #54 left coverage-v8 on 2.x; the modernization upgrades both together.
+  assert.deepEqual(resolvedVersions(lock, "@vitest/coverage-v8"), resolvedVersions(lock, "vitest"));
+});
 
-    assert.match(lockfile, /^  undici@<6\.24\.0: 6\.24\.0$/m);
-    assert.match(lockfile, /^  file-type@<21\.3\.2: 21\.3\.2$/m);
-    assert.match(lockfile, /^  music-metadata@<11\.12\.3: 11\.12\.3$/m);
-    assert.match(lockfile, /^  brace-expansion@>=5\.0\.0 <5\.0\.5: 5\.0\.5$/m);
-    assert.match(lockfile, /^  lodash@<4\.18\.1: 4\.18\.1$/m);
-    assert.match(lockfile, /^  picomatch@<2\.3\.2: 2\.3\.2$/m);
-
-    assert.match(lockfile, /^  undici@6\.24\.0:$/m);
-    assert.match(lockfile, /^  file-type@21\.3\.2:$/m);
-    assert.match(lockfile, /^  music-metadata@11\.12\.3:$/m);
-    assert.match(lockfile, /^  brace-expansion@5\.0\.5:$/m);
-    assert.match(lockfile, /^  lodash@4\.18\.1:$/m);
-    assert.match(lockfile, /^  picomatch@2\.3\.2:$/m);
-
-    assert.doesNotMatch(lockfile, /undici@6\.23\.0:/m);
-    assert.doesNotMatch(lockfile, /file-type@21\.3\.1:/m);
-    assert.doesNotMatch(lockfile, /music-metadata@11\.12\.1:/m);
-    assert.doesNotMatch(lockfile, /brace-expansion@5\.0\.3:/m);
-    assert.doesNotMatch(lockfile, /lodash@4\.17\.23:/m);
-    assert.doesNotMatch(lockfile, /lodash@4\.18\.0:/m);
-    assert.doesNotMatch(lockfile, /picomatch@2\.3\.1:/m);
-  });
+test("dependency policy rejects the previously vulnerable dependency floors", () => {
+  const policy = fs.readFileSync("pnpm-workspace.yaml", "utf8");
+  const lock = fs.readFileSync("pnpm-lock.yaml", "utf8");
+  assert.match(policy, /engineStrict: true/);
+  assert.doesNotMatch(policy, /blockExoticSubdeps: false|trustLockfile: true/);
+  for (const spec of ["undici@6.24.0", "protobufjs@6.8.8", "protobufjs@7.5.4", "axios@1.13.5", "ws@8.19.0", "sharp@0.34.5", "vitest@2.1.9"]) {
+    assert.ok(!lock.includes(spec + ":"), "Vulnerable version remains: " + spec);
+  }
+  assert.match(policy, /'@whiskeysockets\/baileys>libsignal': '6.0.0'/);
+  assert.ok(!lock.includes("libsignal-node"), "Baileys must use registry libsignal rather than a Git snapshot");
 });

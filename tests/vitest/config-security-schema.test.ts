@@ -74,6 +74,38 @@ function baseConfigInput(): Record<string, unknown> {
 }
 
 describe("config schema security validation", () => {
+  it.each([
+    ["discord", { allowedDmUserIds: "12345" }, "allowedDmUserIds"],
+    ["discord", { allowedDmUserIds: ["not-a-snowflake"] }, "numeric snowflakes"],
+    ["telegram", { operatorUserIds: "12345" }, "array of sender IDs"],
+    ["discord", { operatorUserIds: ["not-a-snowflake"] }, "numeric snowflakes"],
+    ["whatsapp-md", { operatorUserIds: [" "] }, "exact sender ID"],
+    ["telegram", { botTokens: ["env:VALID_TOKEN", "plaintext"] }, "env:VAR_NAME entries"],
+    ["telegram", { botToken: 123 }, "string env:VAR_NAME values"],
+    ["telegram", { botToken: false }, "string env:VAR_NAME values"],
+    ["telegram", { label: "env:invalid-name" }, "Invalid env reference"],
+    ["telegram", { labels: ["ordinary", "env:invalid-name"] }, "Invalid env reference"]
+  ])("retains channel security rejection for %s settings %j after the Zod upgrade", (type, settings, error) => {
+    const input = baseConfigInput();
+    (input.runtime as any).channels = [{ id: "test", type, settings }];
+    expect(() => parseConfig(input)).toThrow(error);
+  });
+
+  it("preserves valid array env references, ordinary values and default nested security settings", () => {
+    const input = baseConfigInput();
+    delete input.tools;
+    delete input.security;
+    (input.runtime as any).channels = [{ id: "test", type: "telegram", settings: {
+      botTokens: ["env:TOKEN_A", "env:TOKEN_B"], labels: ["ordinary", "env:LABEL"], retries: 3, enabled: true
+    } }];
+    const parsed = parseConfig(input);
+    expect(parsed.runtime.channels[0].settings.botTokens).toEqual(["env:TOKEN_A", "env:TOKEN_B"]);
+    expect(parsed.tools.exec.guardrails.mode).toBe("minimal");
+    expect(parsed.tools.fs.workspaceOnly).toBe(true);
+    expect(parsed.security.auditLogEnabled).toBe(true);
+    expect(parsed.security.secretsBackend).toBe("encrypted-file");
+  });
+
   it("rejects plaintext channel bot tokens", () => {
     const input = baseConfigInput();
     (input.runtime as any).channels = [

@@ -32,7 +32,7 @@ Examples:
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.4"
+defaultModel = "gpt-5.6-terra"
 ```
 
 ```text
@@ -95,7 +95,7 @@ promptOnFirstContact = false
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.4"
+defaultModel = "gpt-5.6-terra"
 
 [[runtime.channels]]
 id = "telegram-main"
@@ -193,3 +193,9 @@ Use manual TOML edits when:
 - [Azure Foundry Provider](../providers/azure-foundry.md)
 - [Telegram Channel](../channels/telegram.md)
 - [Config Rollout and Rollback](../operations/config-rollout-and-rollback.md)
+
+## Modernization compatibility
+
+Fresh OpenAI/Codex setup recommends Terra and Anthropic recommends Sonnet 5. Existing TOML model IDs are preserved. Use wizard for an explicit model change; retired Codex IDs block readiness. Optional Anthropic `thinkingMode` and `thinkingEffort` complement legacy manual budgets; unsupported combinations fail validation.
+
+Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.

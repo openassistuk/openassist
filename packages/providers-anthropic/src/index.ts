@@ -1,3 +1,4 @@
+import { ANTHROPIC_THINKING_MODES, ANTHROPIC_THINKING_EFFORTS, anthropicThinking, modelCapabilities, providerTuningErrors } from "@openassist/config";
 import fs from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
@@ -20,6 +21,8 @@ const configSchema = z.object({
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
   thinkingBudgetTokens: z.number().int().min(1024).max(32_000).optional(),
+  thinkingMode: z.enum(ANTHROPIC_THINKING_MODES).optional(),
+  thinkingEffort: z.enum(ANTHROPIC_THINKING_EFFORTS).optional(),
   oauth: z
     .object({
       authorizeUrl: z.string().url(),
@@ -34,8 +37,8 @@ const configSchema = z.object({
         .optional(),
       scopes: z.array(z.string()).optional(),
       audience: z.string().optional(),
-      extraAuthParams: z.record(z.string()).optional(),
-      extraTokenParams: z.record(z.string()).optional()
+      extraAuthParams: z.record(z.string(), z.string()).optional(),
+      extraTokenParams: z.record(z.string(), z.string()).optional()
     })
     .optional()
 });
@@ -116,29 +119,6 @@ function replayMetadataForResponseContent(content: Array<any>): Record<string, s
   return {
     [PROVIDER_REPLAY_KIND_KEY]: ANTHROPIC_REPLAY_KIND,
     [PROVIDER_REPLAY_JSON_KEY]: JSON.stringify(content)
-  };
-}
-
-function supportsAnthropicThinking(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return (
-    normalized.includes("claude-3-7") ||
-    normalized.includes("claude-sonnet-4") ||
-    normalized.includes("claude-opus-4") ||
-    normalized.includes("claude-4")
-  );
-}
-
-function thinkingPayload(
-  model: string,
-  budgetTokens: number | undefined
-): { type: "enabled"; budget_tokens: number } | undefined {
-  if (!budgetTokens || !supportsAnthropicThinking(model)) {
-    return undefined;
-  }
-  return {
-    type: "enabled",
-    budget_tokens: budgetTokens
   };
 }
 
@@ -338,22 +318,26 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
 
     const bodyText = await response.text();
     if (!response.ok) {
-      throw new Error(
-        `OAuth token exchange failed (${response.status} ${response.statusText}): ${bodyText.slice(0, 500)}`
-      );
+      throw new Error(`OAuth token exchange failed (HTTP ${response.status}). Check the OAuth configuration and retry account linking.`);
     }
 
-    const tokenBody = JSON.parse(bodyText) as {
-      access_token?: string;
-      refresh_token?: string;
-      expires_in?: number;
-      scope?: string;
-      token_type?: string;
-    };
-
-    if (!tokenBody.access_token) {
-      throw new Error("OAuth token exchange did not return access_token");
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(bodyText);
+    } catch {
+      throw new Error("OAuth token exchange returned invalid JSON. Retry account linking.");
     }
+    const parsed = z.object({
+      access_token: z.string().trim().min(1),
+      refresh_token: z.string().optional(),
+      expires_in: z.number().nonnegative().max(315_360_000).optional(),
+      scope: z.string().optional(),
+      token_type: z.string().optional()
+    }).safeParse(decoded);
+    if (!parsed.success) {
+      throw new Error("OAuth token exchange returned invalid token fields or missing access_token. Retry account linking.");
+    }
+    const tokenBody = parsed.data;
 
     return {
       providerId: this.config.id,
@@ -372,7 +356,8 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
   async validateConfig(config: unknown): Promise<ValidationResult> {
     const parsed = configSchema.safeParse(config);
     if (parsed.success) {
-      return { valid: true, errors: [] };
+      const errors = providerTuningErrors({ ...parsed.data, type: "anthropic" });
+      return { valid: errors.length === 0, errors };
     }
 
     return {
@@ -394,11 +379,17 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
 
     const mapped = await mapMessages(req.messages);
     const model = req.model || this.config.defaultModel;
+    const tuning = anthropicThinking({ ...this.config, type: "anthropic", defaultModel: model });
+    const thinkingOn = tuning.thinking?.type !== "disabled" && (tuning.thinking || modelCapabilities(model, "anthropic")?.defaultThinking === "adaptive");
+    const maxTokens = req.maxTokens ?? Math.max(4096, (this.config.thinkingBudgetTokens ?? 0) + 1024);
+    if (tuning.thinking?.type === "enabled" && maxTokens <= tuning.thinking.budget_tokens) {
+      throw new Error("Anthropic maxTokens must be greater than thinkingBudgetTokens.");
+    }
     const response = await client.messages.create({
       model,
-      max_tokens: req.maxTokens ?? 1024,
-      temperature: req.temperature,
-      thinking: thinkingPayload(model, this.config.thinkingBudgetTokens) as any,
+      max_tokens: maxTokens,
+      temperature: thinkingOn || modelCapabilities(model, "anthropic")?.supportsTemperature === false ? undefined : req.temperature,
+      ...tuning,
       messages: mapped.messages as any,
       system: mapped.system,
       tools: mapTools(req.tools) as any

@@ -154,3 +154,7 @@ Dependencies and workflow surfaces:
 Revision (2026-03-02 18:24Z): Initialized plan with implemented hardening decisions, evidence-backed progress, and remaining release/rewrite guardrail tasks to complete public-readiness baseline.
 Revision (2026-03-02 18:40Z): Recorded completion of docs/changelog sync, full strict verification, single-root rewrite, force-push, Actions cleanup, and branch protection configuration.
 Revision (2026-03-03 12:55Z): Recorded Unix/macOS CI follow-up fixes for strict permission enforcement paths and documented private-repo GitHub scanning feature blockers.
+
+## Housekeeping reconciliation (2026-09-27)
+
+The repository is now public. GitHub reports secret scanning and push protection enabled, so the earlier private-repository availability blocker is superseded. The historical private-repository checkbox is retained as evidence of that earlier limitation. Current CodeQL workflow activation and final-revision execution remain pending in the modernization plan.

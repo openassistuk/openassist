@@ -15,6 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@openassist/core-types": "workspace:*"
+    "@openassist/core-types": "workspace:*",
+    "@openassist/config": "workspace:*"
   }
 }

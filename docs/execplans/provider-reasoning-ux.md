@@ -156,3 +156,7 @@ At the end of this work the following repository interfaces must exist and remai
   - adds provider route/model/tuning context additively without breaking lifecycle report version `2`
 
 Revision note: This ExecPlan was created after the core code changes were already underway so the repo has one self-contained record of the final implementation, remaining verification work, and the reasoning behind the UX and lifecycle changes.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #21 merged at 2026-03-09T00:33:04Z as `6b0a7b04d3f8f209edf5aca822be990083ab548d`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

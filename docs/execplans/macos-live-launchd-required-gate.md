@@ -40,7 +40,7 @@ The user-visible outcome is stricter than the previous parity PR. This branch is
 - [x] (2026-03-20 17:12+00:00) Addressed the remaining launchd `enable()` / `disable()` review concerns by keeping startup-state commands side-effect free for unloaded jobs and by extending the hosted macOS workflow to prove disable-keeps-unloaded and enable-does-not-auto-load behavior before `start()`.
 - [x] (2026-03-20 17:15+00:00) Re-ran the full local gate with `pnpm verify:all` after the launchd `enable()` / `disable()` pass; workflow lint, build, lint, typecheck, Vitest, Node tests, and both coverage suites all passed again.
 - [ ] Push the final launchd follow-up fix, then continue the CI or review or code-scanning monitoring loop.
-- [ ] Promote the live macOS check into required branch protection on `main` once it is stable on the PR head and a rerun is also green.
+- [x] (2026-09-27 reconciliation) Required-check promotion confirmed: active ruleset `Protect main` (13499978) requires `launchd-live-smoke (macos-latest)`. Original hosted run evidence is retained below.
 
 ## Surprises & Discoveries
 
@@ -177,3 +177,7 @@ The live workflow and ruleset changes depend on the current GitHub Actions topol
     tests/node/cli-service-manager-coverage.test.ts
     tests/node/cli-docs-truth.test.ts
     .github/workflows/macos-live-launchd.yml
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #45 merged at 2026-03-20T18:10:03Z as `971cdf2525b57d6768af220072c830e1c0d05f39`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

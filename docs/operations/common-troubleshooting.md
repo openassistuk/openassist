@@ -312,7 +312,7 @@ Current operator story:
 - Azure Foundry quickstart and wizard both expose `reasoningEffort`
 - OpenAI and Codex both support `low`, `medium`, `high`, and `xhigh`
 - Azure Foundry supports `low`, `medium`, `high`, and `xhigh` when the underlying model family supports Responses reasoning
-- Anthropic `thinkingBudgetTokens` stays wizard-editable only
+- Anthropic `thinkingMode`, `thinkingEffort`, and legacy `thinkingBudgetTokens` stay wizard-editable
 - OpenAI-compatible stays provider-default only
 
 ## Full access is not working
@@ -502,3 +502,16 @@ If the issue is proactive notify instead of same-chat file reply, also verify:
 
 - `channels[*].settings.operatorUserIds` contains the exact recipient ID
 - on Discord, `allowedDmUserIds` also contains that same recipient ID
+
+## Node 24 runtime migration
+
+OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+
+
+## Retired models and thinking validation
+
+A linked Codex account can be chat-ready while its saved model is retired. `provider.codex_model_retired` blocks readiness for `gpt-5.4` (replacement `gpt-5.6-terra`) and `gpt-5.4-mini` (replacement `gpt-5.6-luna`). Run `openassist setup wizard`, edit the provider, explicitly enter the replacement, save, and verify `openassist doctor`. OpenAssist never silently substitutes a saved model.
+
+For Sonnet 5 or Opus 5, remove `thinkingBudgetTokens` and choose adaptive thinking in wizard. Budget-only settings retain manual meaning on supported older models. If schema validation prevents opening wizard, back up the TOML, remove the conflicting fields directly, and run `openassist config validate` before restarting. Unknown/custom models omit optional OpenAI tuning; explicit unsupported Anthropic tuning fails validation. See [model compatibility](../providers/model-compatibility.md).
+
+Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.

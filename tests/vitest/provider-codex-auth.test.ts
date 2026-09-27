@@ -33,7 +33,7 @@ describe("codex provider auth", () => {
   it("includes the current upstream Codex scopes in the browser login URL", async () => {
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     const start = await adapter.startOAuthLogin({
@@ -64,7 +64,7 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     const handle = await adapter.completeOAuthLogin({
@@ -97,7 +97,7 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     const refreshed = await adapter.refreshOAuthAuth({
@@ -129,7 +129,7 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     await expect(
@@ -158,7 +158,7 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     await expect(
@@ -203,7 +203,7 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     const start = await adapter.startOAuthDeviceCodeLogin({
@@ -250,7 +250,7 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     await expect(
@@ -306,13 +306,13 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     const response = await adapter.chat(
       {
         sessionId: "telegram-main:27328245",
-        model: "gpt-5.4",
+        model: "gpt-5.6-terra",
         messages: [
           { role: "system", content: "OpenAssist runtime guidance" },
           { role: "user", content: "hello codex" }
@@ -341,7 +341,7 @@ describe("codex provider auth", () => {
     });
     const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>;
     expect(body).toMatchObject({
-      model: "gpt-5.4",
+      model: "gpt-5.6-terra",
       tool_choice: "auto",
       parallel_tool_calls: true,
       store: false,
@@ -380,13 +380,13 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     await adapter.chat(
       {
         sessionId: "telegram-main:27328245",
-        model: "gpt-5.4",
+        model: "gpt-5.6-terra",
         messages: [
           { role: "system", content: "system one" },
           { role: "system", content: "system two" },
@@ -457,14 +457,14 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4",
+      defaultModel: "gpt-5.6-terra",
       reasoningEffort: "high"
     });
 
     await adapter.chat(
       {
         sessionId: "telegram-main:27328245",
-        model: "gpt-5.4",
+        model: "gpt-5.6-terra",
         messages: [{ role: "user", content: "hello codex" }],
         tools: [],
         metadata: {}
@@ -532,13 +532,13 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     const response = await adapter.chat(
       {
         sessionId: "telegram-main:27328245",
-        model: "gpt-5.4",
+        model: "gpt-5.6-terra",
         messages: [{ role: "user", content: "hello codex" }],
         tools: [],
         metadata: {}
@@ -568,14 +568,14 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     await expect(
       adapter.chat(
         {
           sessionId: "telegram-main:27328245",
-          model: "gpt-5.4",
+          model: "gpt-5.6-terra",
           messages: [{ role: "user", content: "hello codex" }],
           tools: [],
           metadata: {}
@@ -608,14 +608,14 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     await expect(
       adapter.chat(
         {
           sessionId: "telegram-main:27328245",
-          model: "gpt-5.4",
+          model: "gpt-5.6-terra",
           messages: [{ role: "user", content: "hello codex" }],
           tools: [],
           metadata: {}
@@ -648,14 +648,14 @@ describe("codex provider auth", () => {
 
     const adapter = new CodexProviderAdapter({
       id: "codex-main",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
 
     await expect(
       adapter.chat(
         {
           sessionId: "telegram-main:27328245",
-          model: "gpt-5.4",
+          model: "gpt-5.6-terra",
           messages: [{ role: "user", content: "hello codex" }],
           tools: [],
           metadata: {}

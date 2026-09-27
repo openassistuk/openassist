@@ -200,3 +200,7 @@ Important evidence captured during implementation:
 These prove that the new home-state defaults, legacy migration behavior, and setup hub contracts are already implemented before the final docs and verification pass.
 
 Revision note: created on 2026-03-08 to capture the lifecycle hub and home-state branch after the core implementation and targeted regression coverage were already in place, so the remaining work and evidence are explicit for the next contributor.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #15 merged at 2026-03-08T16:17:33Z as `b7d78eb0af67f5e1cae38e3aa4ae7fbeda7cca0e`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

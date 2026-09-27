@@ -66,7 +66,7 @@ Provider entry:
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.4"
+defaultModel = "gpt-5.6-terra"
 # Optional for supported Responses-model families:
 # reasoningEffort = "medium"
 ```
@@ -90,7 +90,7 @@ Main provider fields accepted by the schema:
 - `type = "openai"`
 - `defaultModel`
 - `baseUrl` (optional)
-- `reasoningEffort` (optional, `low|medium|high|xhigh`)
+- `reasoningEffort` (optional, `none|low|medium|high|xhigh|max`, filtered by the exact model and route)
 - `metadata` (optional)
 
 Advanced provider OAuth fields are also supported in the schema for explicit operator-managed flows, but the public beginner path for OpenAI remains API-key auth.
@@ -153,3 +153,9 @@ If you need a richer troubleshooting path, start with:
 - [OpenAI-compatible Provider](openai-compatible.md)
 - [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
+
+## Modernization compatibility
+
+Fresh setup recommends `gpt-5.6-terra`; Astra (`gpt-6-astra`), Sol (`gpt-5.6-sol`), and Luna (`gpt-5.6-luna`) are alternatives. Saved API-key model IDs remain unchanged. Capability checks use exact catalog entries, not family-name matching.
+
+OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.

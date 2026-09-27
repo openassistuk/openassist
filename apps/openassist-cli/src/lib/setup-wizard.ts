@@ -1,7 +1,7 @@
 import type { OpenAssistConfig } from "@openassist/config";
 import type { OpenAIReasoningEffort } from "@openassist/core-types";
 import { confirm as inqConfirm, input as inqInput, password as inqPassword, select as inqSelect } from "@inquirer/prompts";
-import { parseConfig } from "@openassist/config";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, modelCapabilities, reasoningEfforts, retiredModelReplacement, parseConfig } from "@openassist/config";
 import {
   loadWizardState,
   saveWizardState,
@@ -129,43 +129,41 @@ function providerSupportsCustomBaseUrl(type: ProviderType): boolean {
 export async function promptReasoningEffort(
   prompts: PromptAdapter,
   routeLabel: string,
-  initial?: OpenAIReasoningEffort
+  initial?: OpenAIReasoningEffort,
+  model = DEFAULT_OPENAI_MODEL
 ): Promise<OpenAIReasoningEffort | undefined> {
-  console.log(`- ${routeLabel} reasoning effort is only sent on supported Responses API model families.`);
-  console.log("- Leave it on Default to keep provider defaults and avoid unsupported request fields.");
+  const route = routeLabel === "Codex" ? "codex" : routeLabel === "Azure Foundry" ? "azure-foundry" : "openai";
+  const supported = reasoningEfforts(model, route);
+  if (!supported.length) {
+    console.log("- This model has no cataloged reasoning controls; no reasoning parameter will be sent.");
+    return undefined;
+  }
   const selected = await prompts.select<ReasoningEffortPromptChoice>(
     `${routeLabel} reasoning effort`,
-    [
-      { name: "Default (do not send a reasoning parameter)", value: "default" },
-      { name: "low", value: "low" },
-      { name: "medium", value: "medium" },
-      { name: "high", value: "high" },
-      { name: "xhigh", value: "xhigh" }
-    ],
-    initial ?? "default"
+    [{ name: "Default (do not send a reasoning parameter)", value: "default" },
+      ...supported.map(value => ({ name: value, value }))],
+    initial && supported.includes(initial) ? initial : "default"
   );
   return selected === "default" ? undefined : selected;
 }
 
-async function promptOpenAIReasoningEffort(
-  prompts: PromptAdapter,
-  initial?: OpenAIReasoningEffort
-): Promise<OpenAIReasoningEffort | undefined> {
-  return promptReasoningEffort(prompts, "OpenAI", initial);
+async function promptOpenAIReasoningEffort(prompts: PromptAdapter, initial?: OpenAIReasoningEffort, model = DEFAULT_OPENAI_MODEL) {
+  return promptReasoningEffort(prompts, "OpenAI", initial, model);
 }
 
-async function promptCodexReasoningEffort(
-  prompts: PromptAdapter,
-  initial?: OpenAIReasoningEffort
-): Promise<OpenAIReasoningEffort | undefined> {
-  return promptReasoningEffort(prompts, "Codex", initial);
+async function promptCodexReasoningEffort(prompts: PromptAdapter, initial?: OpenAIReasoningEffort, model = DEFAULT_OPENAI_MODEL) {
+  return promptReasoningEffort(prompts, "Codex", initial, model);
 }
 
-export async function promptAzureFoundryReasoningEffort(
-  prompts: PromptAdapter,
-  initial?: OpenAIReasoningEffort
-): Promise<OpenAIReasoningEffort | undefined> {
-  return promptReasoningEffort(prompts, "Azure Foundry", initial);
+export async function promptAzureFoundryReasoningEffort(prompts: PromptAdapter, initial?: OpenAIReasoningEffort, model = "") {
+  return promptReasoningEffort(prompts, "Azure Foundry", initial, model);
+}
+
+export function describeModelChoices(type: ProviderType, currentModel?: string): void {
+  if (type === "openai" || type === "codex") console.log(`Recommended: ${DEFAULT_OPENAI_MODEL}. Alternatives: gpt-6-astra, gpt-5.6-sol, gpt-5.6-luna. Custom model IDs remain supported.`);
+  if (type === "anthropic") console.log(`Recommended: ${DEFAULT_ANTHROPIC_MODEL}. Alternatives: claude-opus-5, claude-haiku-4-5-20251001. Custom model IDs remain supported.`);
+  const replacement = currentModel && retiredModelReplacement(type, currentModel);
+  if (replacement) console.log(`Saved model ${currentModel} retired on the Codex route. Enter ${replacement} explicitly to replace it; keeping the old ID leaves readiness blocked.`);
 }
 
 export async function promptAzureFoundryEndpointFlavor(
@@ -299,6 +297,33 @@ async function promptAnthropicThinkingBudget(
     },
     initial
   );
+}
+
+type AnthropicProvider = Extract<ProviderConfig, { type: "anthropic" }>;
+type AnthropicTuning = Pick<AnthropicProvider, "thinkingMode" | "thinkingEffort" | "thinkingBudgetTokens">;
+export async function promptAnthropicThinking(prompts: PromptAdapter, model: string, existing?: AnthropicProvider): Promise<AnthropicTuning> {
+  const capabilities = modelCapabilities(model, "anthropic");
+  if (!capabilities?.thinkingModes) return {};
+  if (!capabilities.thinkingModes.includes("adaptive")) {
+    const budget = await promptAnthropicThinkingBudget(prompts, existing?.thinkingBudgetTokens);
+    return budget === undefined ? { thinkingMode: "disabled" } : { thinkingBudgetTokens: budget };
+  }
+  const mode = await prompts.select<"default" | NonNullable<AnthropicProvider["thinkingMode"]>>(
+    "Anthropic thinking mode",
+    [{ name: "Default (provider default)", value: "default" }, ...capabilities.thinkingModes.map(value => ({ name: value, value }))],
+    existing?.thinkingMode ?? (existing?.thinkingBudgetTokens !== undefined ? "enabled" : "default")
+  );
+  if (mode === "enabled") {
+    const budget = await promptAnthropicThinkingBudget(prompts, existing?.thinkingBudgetTokens);
+    return budget === undefined ? { thinkingMode: "disabled" } : { thinkingBudgetTokens: budget };
+  }
+  if (mode === "disabled") return { thinkingMode: mode };
+  const effort = await prompts.select<"default" | NonNullable<AnthropicProvider["thinkingEffort"]>>(
+    "Anthropic thinking effort",
+    [{ name: "Default (provider default)", value: "default" }, ...(capabilities.thinkingEfforts ?? []).map(value => ({ name: value, value }))],
+    existing?.thinkingEffort ?? "default"
+  );
+  return { ...(mode !== "default" ? { thinkingMode: mode } : {}), ...(effort !== "default" ? { thinkingEffort: effort } : {}) };
 }
 
 function validateCsvIds(
@@ -561,7 +586,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       ""
     );
     const trimmedBaseUrl = baseUrl.trim();
-    const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts);
+    const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts, undefined, underlyingModel ?? "");
     state.config.runtime.providers.push({
       id: providerId,
       type: providerType,
@@ -597,16 +622,17 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
     return;
   }
 
+  describeModelChoices(providerType);
   const defaultModel = await promptRequiredText(
     prompts,
     "Default model",
-    providerType === "anthropic" ? "claude-sonnet-4-6" : "gpt-5.4"
+    providerType === "anthropic" ? DEFAULT_ANTHROPIC_MODEL : DEFAULT_OPENAI_MODEL
   );
   const baseUrl = providerSupportsCustomBaseUrl(providerType)
     ? await prompts.input("Base URL (optional)", "")
     : "";
   if (providerType === "openai") {
-    const reasoningEffort = await promptOpenAIReasoningEffort(prompts);
+    const reasoningEffort = await promptOpenAIReasoningEffort(prompts, undefined, defaultModel);
     state.config.runtime.providers.push({
       id: providerId,
       type: providerType,
@@ -615,7 +641,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       ...(reasoningEffort ? { reasoningEffort } : {})
     });
   } else if (providerType === "codex") {
-    const reasoningEffort = await promptCodexReasoningEffort(prompts);
+    const reasoningEffort = await promptCodexReasoningEffort(prompts, undefined, defaultModel);
     state.config.runtime.providers.push({
       id: providerId,
       type: providerType,
@@ -624,13 +650,13 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       ...(reasoningEffort ? { reasoningEffort } : {})
     });
   } else if (providerType === "anthropic") {
-    const thinkingBudgetTokens = await promptAnthropicThinkingBudget(prompts);
+    const thinking = await promptAnthropicThinking(prompts, defaultModel);
     state.config.runtime.providers.push({
       id: providerId,
       type: providerType,
       defaultModel,
       ...(baseUrl ? { baseUrl } : {}),
-      ...(typeof thinkingBudgetTokens === "number" ? { thinkingBudgetTokens } : {})
+      ...thinking
     });
   } else {
     state.config.runtime.providers.push({
@@ -694,6 +720,7 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
     provider.resourceName = await promptRequiredText(prompts, "Azure resource name", provider.resourceName);
     provider.endpointFlavor = await promptAzureFoundryEndpointFlavor(prompts, provider.endpointFlavor);
     provider.authMode = await promptAzureFoundryAuthMode(prompts, provider.authMode);
+    describeModelChoices(provider.type, provider.defaultModel);
     provider.defaultModel = await promptRequiredText(
       prompts,
       "Deployment name (sent in the model field)",
@@ -717,7 +744,7 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
     } else {
       delete provider.baseUrl;
     }
-    const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts, provider.reasoningEffort);
+    const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts, provider.reasoningEffort, provider.underlyingModel ?? "");
     if (reasoningEffort) {
       provider.reasoningEffort = reasoningEffort;
     } else {
@@ -745,6 +772,7 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
     return;
   }
 
+  describeModelChoices(provider.type, provider.defaultModel);
   provider.defaultModel = await promptRequiredText(prompts, "Default model", provider.defaultModel);
 
   if (providerSupportsCustomBaseUrl(provider.type)) {
@@ -757,7 +785,7 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
   }
 
   if (provider.type === "openai") {
-    const reasoningEffort = await promptOpenAIReasoningEffort(prompts, provider.reasoningEffort);
+    const reasoningEffort = await promptOpenAIReasoningEffort(prompts, provider.reasoningEffort, provider.defaultModel);
     if (reasoningEffort) {
       provider.reasoningEffort = reasoningEffort;
     } else {
@@ -766,7 +794,7 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
   }
 
   if (provider.type === "codex") {
-    const reasoningEffort = await promptCodexReasoningEffort(prompts, provider.reasoningEffort);
+    const reasoningEffort = await promptCodexReasoningEffort(prompts, provider.reasoningEffort, provider.defaultModel);
     if (reasoningEffort) {
       provider.reasoningEffort = reasoningEffort;
     } else {
@@ -775,12 +803,11 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
   }
 
   if (provider.type === "anthropic") {
-    const thinkingBudgetTokens = await promptAnthropicThinkingBudget(prompts, provider.thinkingBudgetTokens);
-    if (typeof thinkingBudgetTokens === "number") {
-      provider.thinkingBudgetTokens = thinkingBudgetTokens;
-    } else {
-      delete provider.thinkingBudgetTokens;
-    }
+    const thinking = await promptAnthropicThinking(prompts, provider.defaultModel, provider);
+    delete provider.thinkingMode;
+    delete provider.thinkingEffort;
+    delete provider.thinkingBudgetTokens;
+    Object.assign(provider, thinking);
   }
 
   if (provider.type === "codex") {

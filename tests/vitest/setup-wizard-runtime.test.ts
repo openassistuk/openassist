@@ -67,7 +67,7 @@ describe("setup wizard runtime flow", () => {
       "add",
       "openai-compat-main",
       "openai-compatible",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "http://127.0.0.1:9999/v1",
       "true",
       "provider-key",
@@ -228,7 +228,7 @@ describe("setup wizard runtime flow", () => {
       "foundry-resource",
       "entra",
       "gpt-5-deployment",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "   ",
       "medium",
       "true",
@@ -254,7 +254,7 @@ describe("setup wizard runtime flow", () => {
       resourceName: "demo-resource",
       endpointFlavor: "foundry-resource",
       defaultModel: "gpt-5-deployment",
-      underlyingModel: "gpt-5.4",
+      underlyingModel: "gpt-5.6-terra",
       reasoningEffort: "medium"
     });
     expect(state.env.AZURE_TENANT_ID).toBe("tenant-id");
@@ -387,7 +387,7 @@ describe("setup wizard runtime flow", () => {
       "providers",
       "edit",
       "openai-main",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "",
       "default",
       "true",
@@ -456,20 +456,21 @@ describe("setup wizard runtime flow", () => {
       "providers",
       "edit",
       "openai-main",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "",
       "high",
       "false",
       "add",
       "codex-main",
       "codex",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "medium",
       "add",
       "anthropic-main",
       "anthropic",
       "claude-sonnet-4-6",
       "",
+      "enabled",
       "4096",
       "false",
       "back",
@@ -507,11 +508,11 @@ describe("setup wizard runtime flow", () => {
       "add",
       "codex-main",
       "codex",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "high",
       "edit",
       "codex-main",
-      "gpt-5.4",
+      "gpt-5.6-terra",
       "default",
       "back",
       "save"
@@ -527,7 +528,7 @@ describe("setup wizard runtime flow", () => {
     ).toMatchObject({
       id: "codex-main",
       type: "codex",
-      defaultModel: "gpt-5.4"
+      defaultModel: "gpt-5.6-terra"
     });
     expect(
       state.config.runtime.providers.find((provider) => provider.id === "codex-main")

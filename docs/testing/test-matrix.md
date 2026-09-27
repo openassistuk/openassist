@@ -100,11 +100,13 @@ Current suite files under `tests/vitest/`:
 - `pkg-install-tool.test.ts`
 - `pnpm-workspace-policy.test.ts`
 - `prompt-validation.test.ts`
+- `provider-auth-contracts.test.ts`
 - `provider-auth-readiness.test.ts`
 - `provider-anthropic-tool-mapping.test.ts`
 - `provider-azure-foundry.test.ts`
 - `provider-codex-auth.test.ts`
 - `provider-display.test.ts`
+- `provider-model-catalog.test.ts`
 - `provider-openai-compatible-tool-mapping.test.ts`
 - `provider-openai-tool-mapping.test.ts`
 - `runtime-attachments-rendering.test.ts`
@@ -146,6 +148,7 @@ Current suite files under `tests/node/`:
 - `cli-command-branches.test.ts`
 - `cli-command-integration.test.ts`
 - `dependency-security-overrides.test.ts`
+- `dependency-audit.test.ts`
 - `cli-docs-truth.test.ts`
 - `cli-growth-status-coverage.test.ts`
 - `cli-lib-coverage.test.ts`
@@ -179,6 +182,8 @@ Current suite files under `tests/node/`:
 - `runtime-provider-tool-contracts.test.ts`
 - `runtime-tool-audit.test.ts`
 - `runtime.test.ts`
+- `runtime-version.test.ts`
+- `whatsapp-signal-compatibility.test.ts`
 - `scheduler-runtime.test.ts`
 - `storage.test.ts`
 - `systemd-template-contract.test.ts`
@@ -319,3 +324,19 @@ Current suite files under `tests/node/`:
 - full live-provider contract certification with production credentials
 - fully automated live channel end-to-end tests in CI
 - long-duration multi-day soak data collection on production-like hosts
+
+Node runtime rejection is exercised by `tests/node/runtime-version.test.ts` for both CLI and daemon before application imports.
+
+Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
+
+`tests/node/whatsapp-signal-compatibility.test.ts` verifies real Baileys/libsignal encryption and decryption across a persisted-session reload without a network account.
+
+- `tests/vitest/provider-model-catalog.test.ts`: current defaults, saved/retired IDs, exact capability matching, reasoning prompts, adaptive/manual validation, and actual SDK request payloads with mocked transport.
+
+pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
+
+`tests/vitest/provider-auth-contracts.test.ts` covers OpenAI/Anthropic callback and PKCE exchange, token metadata, missing credentials, malformed responses and error redaction, plus compatible-endpoint auth boundaries. `config-security-schema.test.ts` checks Zod 4 channel secret arrays, operator IDs, rejection paths and nested security defaults.
+
+`dependency-security-overrides.test.ts` enforces patched floors for all 17 packages in the 2026-09-27 snapshot of 72 Dependabot alerts (including removal of UUID), and matching Vitest/coverage-v8 resolutions. The live production/full audits continue to detect advisories beyond that recorded snapshot.
+
+The model-catalog suite covers saved Opus 4.5 alias validation and manual request mapping. Quickstart flow tests save and reload configurations for unchanged models, compatible model changes, accepted thinking resets, and declined resets followed by another model.

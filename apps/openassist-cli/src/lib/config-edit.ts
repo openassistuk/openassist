@@ -1,3 +1,4 @@
+import { DEFAULT_OPENAI_MODEL } from "@openassist/config";
 import fs from "node:fs";
 import path from "node:path";
 import TOML from "@iarna/toml";
@@ -61,7 +62,7 @@ function defaultConfigObjectRaw(): Record<string, unknown> {
         {
           id: "openai-main",
           type: "openai",
-          defaultModel: "gpt-5.4"
+          defaultModel: DEFAULT_OPENAI_MODEL
         }
       ],
       channels: [],
@@ -125,7 +126,7 @@ export function isUntouchedDefaultConfigObject(config: OpenAssistConfig): boolea
     config.runtime.providers.length === 1 &&
     config.runtime.providers[0]?.id === "openai-main" &&
     config.runtime.providers[0]?.type === "openai" &&
-    config.runtime.providers[0]?.defaultModel === "gpt-5.4"
+    config.runtime.providers[0]?.defaultModel === DEFAULT_OPENAI_MODEL
   );
 }
 

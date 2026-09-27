@@ -139,3 +139,7 @@ The user-reported failure that drives the OAuth redirect fix:
 The key contrast is that the current flow uses the daemon callback URL, while the public Codex login flow uses the standard localhost callback path.
 
 Revision note (2026-03-09): created the initial plan after auditing the current setup/Codex code paths and identifying the likely root causes for the SQLite warning, Codex prompt regressions, and unsupported auth redirect.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #26 merged at 2026-03-09T23:03:43Z as `02f869176b0ff2a2cbd7da2441c967755fe8fe3e`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

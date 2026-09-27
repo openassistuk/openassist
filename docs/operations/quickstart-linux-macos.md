@@ -24,8 +24,8 @@ If you hit trouble on any of those steps, keep `docs/operations/common-troublesh
 
 Supported runtime baseline:
 
-- Node `>=22`
-- pnpm `>=10`
+- Node `>=24.21.0 <25`
+- pnpm `12.5.1` (the repository-pinned version)
 - Git
 
 Platform notes:
@@ -439,3 +439,14 @@ pnpm -r build
 pnpm verify:all
 pnpm --filter @openassist/openassist-cli dev -- setup quickstart --config openassist.toml --env-file ~/.config/openassist/openassistd.env --skip-service
 ```
+
+## Node 24 runtime migration
+
+OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+
+
+## Modernization compatibility
+
+Fresh setup recommends Terra for OpenAI/Codex and Sonnet 5 for Anthropic, and prints named alternatives while accepting custom model IDs. OpenAI/Codex reasoning choices follow the selected model. Anthropic advanced thinking controls remain in wizard. Retired saved Codex models require an explicit edit; credentials and conversations are preserved.
+
+Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.

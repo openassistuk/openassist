@@ -27,13 +27,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24.21.0
           package-manager-cache: false
 
       - name: Setup pnpm
         run: |
-          corepack enable
-          corepack prepare pnpm@10.31.0 --activate
+          npm install --global --force --allow-scripts=pnpm pnpm@12.5.1
           pnpm --version
 
       - name: Install dependencies
@@ -59,13 +58,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24.21.0
           package-manager-cache: false
 
       - name: Setup pnpm
         run: |
-          corepack enable
-          corepack prepare pnpm@10.31.0 --activate
+          npm install --global --force --allow-scripts=pnpm pnpm@12.5.1
           pnpm --version
 
       - name: Install dependencies

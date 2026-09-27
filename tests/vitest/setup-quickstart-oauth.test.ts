@@ -121,7 +121,7 @@ function validCodexQuickstartAnswers(bindPort: number, extra: string[] = []): st
     "Keep answers practical",
     "codex",
     "codex-main",
-    "gpt-5.4",
+    "gpt-5.6-terra",
     "default",
     "telegram",
     "telegram-main",
@@ -150,7 +150,7 @@ describe("setup quickstart oauth path", () => {
       {
         id: "codex-main",
         type: "codex",
-        defaultModel: "gpt-5.4",
+        defaultModel: "gpt-5.6-terra",
       }
     ];
     state.config.runtime.defaultProviderId = "codex-main";
@@ -314,7 +314,7 @@ describe("setup quickstart oauth path", () => {
       {
         id: "codex-main",
         type: "codex",
-        defaultModel: "gpt-5.4"
+        defaultModel: "gpt-5.6-terra"
       }
     ];
     state.config.runtime.defaultProviderId = "codex-main";
@@ -449,7 +449,7 @@ describe("setup quickstart oauth path", () => {
       {
         id: "codex-main",
         type: "codex",
-        defaultModel: "gpt-5.4"
+        defaultModel: "gpt-5.6-terra"
       }
     ];
     state.config.runtime.defaultProviderId = "codex-main";
@@ -584,7 +584,7 @@ describe("setup quickstart oauth path", () => {
       {
         id: "codex-main",
         type: "codex",
-        defaultModel: "gpt-5.4",
+        defaultModel: "gpt-5.6-terra",
       }
     ];
     state.config.runtime.defaultProviderId = "codex-main";
@@ -738,7 +738,7 @@ describe("setup quickstart oauth path", () => {
       {
         id: "codex-main",
         type: "codex",
-        defaultModel: "gpt-5.4"
+        defaultModel: "gpt-5.6-terra"
       }
     ];
     state.config.runtime.defaultProviderId = "codex-main";
@@ -890,7 +890,7 @@ describe("setup quickstart oauth path", () => {
       {
         id: "codex-main",
         type: "codex",
-        defaultModel: "gpt-5.4"
+        defaultModel: "gpt-5.6-terra"
       }
     ];
     state.config.runtime.defaultProviderId = "codex-main";

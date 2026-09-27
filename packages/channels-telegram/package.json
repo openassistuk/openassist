@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@openassist/core-types": "workspace:*",
-    "grammy": "^1.38.3",
-    "zod": "^3.24.1"
+    "grammy": "^1.46.0",
+    "zod": "^4.6.5"
   }
 }

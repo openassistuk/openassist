@@ -82,3 +82,7 @@ Importer:
 - OAuth linked-account state is not imported
 - Azure Foundry provider entries are not auto-detected as a separate route by the current importer
 - unsupported fields are intentionally reported as warnings, not silently dropped
+
+## Modernization compatibility
+
+Imported model IDs remain unchanged; only absent-model defaults now use `gpt-5.6-terra` (or `claude-sonnet-5` for Anthropic). Review imported providers in setup wizard, then run doctor. Known retired Codex IDs block readiness until explicitly replaced. Do not copy a manual Anthropic budget onto Sonnet 5 or Opus 5.

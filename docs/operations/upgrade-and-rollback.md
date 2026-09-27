@@ -204,3 +204,29 @@ Installed commands are the primary operator path. For contributor workflows:
 ```bash
 pnpm --filter @openassist/openassist-cli dev -- upgrade --dry-run --install-dir "$PWD"
 ```
+
+## Node 24 runtime migration
+
+OpenAssist requires Node.js `>=24.21.0 <25`. Node 22, Node 25+, and earlier Node 24 versions are rejected before the CLI or daemon loads providers or opens operator state. Upgrade Node before upgrading OpenAssist. No database migration or automatic model replacement is included.
+
+1. Schedule a maintenance window and run `openassist service stop`. Confirm it is stopped with `openassist service status` before copying SQLite files. Record the install directory, `git rev-parse HEAD` from that directory, the old Node executable and version, and the service definition. Preserve the previous checkout, including built output and its dependency installation, until recovery is proven.
+2. Back up `~/.config/openassist` and `~/.local/share/openassist` (or every custom path configured in your installation). Include config overlays, env files, encrypted credentials, SQLite files, channel sessions, skills and helper tools. Keep owner-only permissions; the backup contains credentials. Back up the service unit or LaunchAgent plist and wrapper as well. A stopped default-layout installation can be copied with the following commands; choose an existing private backup location and substitute custom paths when applicable:
+
+   ```bash
+   umask 077
+   backup_dir="$HOME/openassist-backup-$(date +%Y%m%d-%H%M%S)"
+   mkdir -p "$backup_dir/config" "$backup_dir/share"
+   cp -pR "$HOME/.config/openassist" "$backup_dir/config/"
+   cp -pR "$HOME/.local/share/openassist" "$backup_dir/share/"
+   ```
+
+3. Install Node 24.21.0 or a newer 24.x release using your normal Node manager, NodeSource 24 on Linux, or Homebrew `node@24` on macOS. Retain the old executable for rollback. Confirm `node --version` and `command -v node`. Install the pinned package manager with `npm install --global --force --allow-scripts=pnpm pnpm@12.5.1`, then check `pnpm --version`. npm's permission is scoped to pnpm's installer; workspace dependency scripts remain restricted by `allowBuilds`.
+4. Inspect the service's executable, which can differ from your shell. For Linux user services, use `systemctl --user cat openassistd.service`; for system services use `sudo systemctl cat openassistd.service`. Record and back up the unit path displayed, then run the absolute Node path from `ExecStart` with `--version`. For macOS, inspect `~/Library/LaunchAgents/ai.openassist.openassistd.plist` and `~/.config/openassist/openassistd-launchd-wrapper.sh`; run the absolute Node path in the wrapper's final `exec` line with `--version`. Back up both files with permissions intact. Do not paste env-file contents into logs or support requests.
+5. If the service Node path changed, run the existing CLI under the new Node executable and regenerate its service definition, preserving your install, config and env paths. `openassist service install --dry-run --install-dir <install-dir> --config <config-path> --env-file <env-path>` previews the operation; repeat without `--dry-run` to apply it. Service generation records the CLI's actual Node executable. If the installed wrapper selects the old Node, invoke `/absolute/path/to/node24 <install-dir>/apps/openassist-cli/dist/index.js service install` with those same flags. Recheck the generated service path. Installation may start the service; keep traffic paused until health checks pass.
+6. Run `openassist upgrade --dry-run`, resolve its blockers, then run `openassist upgrade` with the same install/track flags used by your installation. Verify `openassist service restart`, `openassist service health`, and `openassist doctor`. Check that previous conversations, credentials and channel sessions remain available before ending the maintenance window.
+
+If migration or upgrade fails, stop the service, preserve the failed checkout and state for diagnosis, and restore the previous checkout plus its service definition and Node executable. Use the restored version's package manager and frozen lockfile if dependencies need rebuilding. Reload systemd or bootstrap the restored LaunchAgent through the previous CLI's `service install`, then start the service and verify health. Restore operator-state backups only if state changed and recovery requires it; preserve newer data separately first. Automatic application rollback does not roll back a separately installed Node runtime or manually changed service definition.
+
+Local regression tests cover Node 22 rejection before state access, upgrade failure/rollback, and generated service paths. Live Linux/macOS Node migration remains a release certification check; the Windows quality matrix is not operator-platform certification.
+
+When quickstart changes an Anthropic model, incompatible saved thinking settings now trigger an explicit reset-or-select-another-model prompt; compatible settings and saved Opus 4.5 aliases are preserved. See [quickstart](quickstart-linux-macos.md) for the guided repair flow.

@@ -72,7 +72,7 @@ defaultModel = "gpt-5-deployment"
 authMode = "api-key"
 resourceName = "your-resource-name"
 endpointFlavor = "openai-resource"
-underlyingModel = "gpt-5.4"
+underlyingModel = "gpt-5.6-terra"
 # reasoningEffort = "medium"
 ```
 
@@ -92,7 +92,7 @@ defaultModel = "gpt-5-deployment"
 authMode = "entra"
 resourceName = "your-resource-name"
 endpointFlavor = "foundry-resource"
-underlyingModel = "gpt-5.4"
+underlyingModel = "gpt-5.6-terra"
 # reasoningEffort = "medium"
 ```
 
@@ -115,7 +115,7 @@ Schema-backed provider fields:
 - `resourceName`
 - `endpointFlavor = "openai-resource" | "foundry-resource"`
 - `underlyingModel` (optional)
-- `reasoningEffort` (optional, `low|medium|high|xhigh`)
+- `reasoningEffort` (optional, `none|low|medium|high|xhigh|max`, filtered by the exact model and route)
 - `baseUrl` (optional advanced override)
 - `metadata` (optional)
 
@@ -180,3 +180,7 @@ Start with:
 - [Configuration Reference](../configuration/config-reference.md)
 - [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
+
+## Modernization compatibility
+
+A deployment name never establishes model capabilities, even if it resembles a model ID. Optional reasoning is sent only when `underlyingModel` is a cataloged model and the request uses that configured deployment. API-key and Entra authentication remain separate from linked accounts.

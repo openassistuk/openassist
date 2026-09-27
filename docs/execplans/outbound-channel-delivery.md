@@ -51,3 +51,7 @@ Implementation is in place across core types, runtime delivery, recovery, awaren
 - notify mode succeeds only for an approved sender targeting a listed recipient
 
 The remaining work is now purely release follow-through: open/update the PR, clear CI, and resolve review threads to merge. The local repo gate is complete and green on the final tree.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #36 merged at 2026-03-11T17:44:53Z as `d4e1154a633e5c1eae65aa104fbd73a3cd749cab`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

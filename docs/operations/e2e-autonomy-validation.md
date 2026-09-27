@@ -253,3 +253,7 @@ Optional targeted notify check for approved operators only:
 1. Ensure the recipient is listed in `channels[*].settings.operatorUserIds`.
 2. On Discord, also ensure the recipient is in `allowedDmUserIds`.
 3. Ask OpenAssist to send a relevant targeted operator notification and confirm it does not fan out beyond that one listed recipient.
+
+## Modernization compatibility
+
+For the modernized provider set, certify Terra and Sonnet 5 first replies, sequential tools, images/files, auth refresh, reconnect, and durable sessions using designated test accounts. Mock transport tests are not live certification. Record missing credentials or paid-test authorization as pending.

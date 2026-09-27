@@ -1,3 +1,4 @@
+import { modelCapabilities, reasoningEfforts, retiredModelReplacement } from "@openassist/config";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -60,49 +61,13 @@ function hasEnvValue(env: Record<string, string>, varName: string): boolean {
   return typeof current === "string" && current.trim().length > 0;
 }
 
-function supportsOpenAIReasoningEffort(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return (
-    normalized.startsWith("gpt-5") ||
-    normalized.includes("codex") ||
-    normalized.startsWith("o1") ||
-    normalized.startsWith("o2") ||
-    normalized.startsWith("o3") ||
-    normalized.startsWith("o4")
-  );
-}
+function supportsOpenAIReasoningEffort(model: string): boolean { return reasoningEfforts(model).length > 0; }
 
-function supportsAnthropicThinking(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return (
-    normalized.includes("claude-3-7") ||
-    normalized.includes("claude-sonnet-4") ||
-    normalized.includes("claude-opus-4") ||
-    normalized.includes("claude-4")
-  );
-}
+function supportsAnthropicThinking(model: string): boolean { return modelCapabilities(model, "anthropic")?.thinkingModes?.includes("enabled") ?? false; }
 
-function supportsCodexRouteModel(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return normalized === "gpt-5.4" || normalized.includes("codex");
-}
+function supportsCodexRouteModel(model: string): boolean { return !!modelCapabilities(model, "codex"); }
 
-function supportsAzureFoundryResponsesModel(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return (
-    normalized.startsWith("gpt-5") ||
-    normalized.startsWith("o1") ||
-    normalized.startsWith("o2") ||
-    normalized.startsWith("o3") ||
-    normalized.startsWith("o4") ||
-    normalized.includes("deepseek") ||
-    normalized.includes("grok") ||
-    normalized.includes("mai") ||
-    normalized.includes("llama") ||
-    normalized.includes("mistral") ||
-    normalized.includes("phi")
-  );
-}
+function supportsAzureFoundryResponsesModel(model: string): boolean { return modelCapabilities(model, "azure-foundry")?.responses ?? false; }
 
 function forEachEnvReference(
   settings: Record<string, string | number | boolean | string[]>,
@@ -328,7 +293,7 @@ function validateProviderReasoningRequirements(
         warnings,
         "provider.codex_reasoning_model_unsupported",
         `Provider '${provider.id}' sets Codex reasoning effort '${provider.reasoningEffort}', but model '${provider.defaultModel}' is not on the built-in reasoning-effort allow-list.`,
-        "Use gpt-5.4 or a Codex-family model for Codex reasoning effort, or leave the setting unset so OpenAssist can rely on provider defaults."
+        "Use a cataloged current Codex model such as gpt-5.6-terra for Codex reasoning effort, or leave the setting unset so OpenAssist can rely on provider defaults."
       );
     }
 
@@ -337,7 +302,7 @@ function validateProviderReasoningRequirements(
         warnings,
         "provider.codex_model_unsupported",
         `Provider '${provider.id}' uses the Codex account-login route, but model '${provider.defaultModel}' is not on the built-in Codex route allow-list.`,
-        "Use gpt-5.4 or a Codex-family model on the codex route."
+        "Use a cataloged current Codex model such as gpt-5.6-terra on the codex route."
       );
     }
 
@@ -616,6 +581,10 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
     errors,
     warnings
   );
+  for (const provider of input.config.runtime.providers) {
+    const replacement = retiredModelReplacement(provider.type, provider.defaultModel);
+    if (replacement) pushIssue(errors, "provider.codex_model_retired", `Codex model '${provider.defaultModel}' has retired. Saved configuration has not been changed.`, `Run openassist setup wizard and select '${replacement}' for provider '${provider.id}'.`);
+  }
   validateProviderReasoningRequirements(input.config, warnings);
   validateChannelRequirements(input.config, input.env, errors, warnings);
   if (input.requireEnabledChannel) {

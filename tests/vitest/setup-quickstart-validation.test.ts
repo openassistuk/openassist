@@ -387,7 +387,7 @@ describe("setup quickstart validation", () => {
     expect(result.warnings.some((item) => item.code === "tools.web_hybrid_fallback_only")).toBe(true);
   });
 
-  it("warns when OpenAI reasoning effort is configured on an unsupported model family", async () => {
+  it("rejects when OpenAI reasoning effort is configured on an unsupported model family", async () => {
     const root = tempDir("openassist-quickstart-validation-openai-reasoning-warning-");
     const config = createDefaultConfigObject();
     config.runtime.bindPort = await getFreePort();
@@ -412,11 +412,11 @@ describe("setup quickstart validation", () => {
     });
 
     expect(
-      result.warnings.some((item) => item.code === "provider.openai_reasoning_model_unsupported")
+      result.errors.some((item) => item.message.includes("does not support reasoning"))
     ).toBe(true);
   });
 
-  it("warns when Anthropic thinking budget is configured on an unsupported model family", async () => {
+  it("rejects when Anthropic thinking budget is configured on an unsupported model family", async () => {
     const root = tempDir("openassist-quickstart-validation-anthropic-thinking-warning-");
     const config = createDefaultConfigObject();
     config.runtime.bindPort = await getFreePort();
@@ -444,7 +444,7 @@ describe("setup quickstart validation", () => {
     });
 
     expect(
-      result.warnings.some((item) => item.code === "provider.anthropic_thinking_model_unsupported")
+      result.errors.some((item) => item.message.includes("verified support for thinkingMode"))
     ).toBe(true);
   });
 

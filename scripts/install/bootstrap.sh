@@ -14,7 +14,7 @@ ALLOW_DIRTY=0
 AUTO_INSTALL_PREREQS=1
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 GLOBAL_BIN_DIR="${OPENASSIST_GLOBAL_BIN_DIR:-/usr/local/bin}"
-PINNED_PNPM_VERSION="10.31.0"
+PINNED_PNPM_VERSION="12.5.1"
 
 # When this script is piped from curl in an interactive shell, stdin is often
 # a pipe instead of a TTY. Reattach stdin to /dev/tty so interactive setup can
@@ -390,6 +390,10 @@ node_major() {
   node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0
 }
 
+node_supported() {
+  node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major === 24 && minor >= 21 ? 0 : 1)' >/dev/null 2>&1
+}
+
 pnpm_major() {
   if ! command -v pnpm >/dev/null 2>&1; then
     echo 0
@@ -469,35 +473,35 @@ install_node_runtime() {
   local os_kind="$1"
   local pkg_manager="$2"
   if [[ "${os_kind}" == "darwin" ]]; then
-    brew install node@22 || brew install node
-    brew link --overwrite --force node@22 >/dev/null 2>&1 || true
+    brew install node@24
+    brew link --overwrite --force node@24 >/dev/null 2>&1 || true
     return
   fi
 
   case "${pkg_manager}" in
     apt-get)
-      echo "Installing Node.js 22.x via NodeSource (Debian/Ubuntu)..."
+      echo "Installing Node.js 24.x via NodeSource (Debian/Ubuntu)..."
       run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates gnupg
-      if curl -fsSL https://deb.nodesource.com/setup_22.x | run_as_root bash -; then
+      if curl -fsSL https://deb.nodesource.com/setup_24.x | run_as_root bash -; then
         run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
       else
         echo "NodeSource setup failed; falling back to distro nodejs package."
         run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm
       fi
 
-      if [[ "$(node_major)" -lt 22 ]]; then
-        echo "Node.js is still <22 after package install; attempting fallback install via npm+n..."
+      if ! node_supported; then
+        echo "Node.js is outside >=24.21.0 <25 after package install; attempting fallback install via npm+n..."
         if command -v npm >/dev/null 2>&1; then
           if [[ "$(id -u)" -eq 0 ]]; then
-            if ! (npm install -g n && n 22); then
+            if ! (npm install -g n && n 24.21.0); then
               echo "Fallback install via npm+n failed (root mode)."
             fi
           elif command -v sudo >/dev/null 2>&1; then
-            if ! (sudo npm install -g n && sudo n 22); then
+            if ! (sudo npm install -g n && sudo n 24.21.0); then
               echo "Fallback install via npm+n failed (sudo mode)."
             fi
           else
-            if ! (npm install -g n && n 22); then
+            if ! (npm install -g n && n 24.21.0); then
               echo "Fallback install via npm+n failed (user mode)."
             fi
           fi
@@ -528,24 +532,18 @@ install_node_runtime() {
 }
 
 install_pnpm_runtime() {
-  if command -v corepack >/dev/null 2>&1; then
-    corepack enable
-    corepack prepare "pnpm@${PINNED_PNPM_VERSION}" --activate
-    return
-  fi
-
   if command -v npm >/dev/null 2>&1; then
     if [[ "$(id -u)" -eq 0 ]]; then
-      npm install -g pnpm
+      npm install -g --force --allow-scripts=pnpm "pnpm@${PINNED_PNPM_VERSION}"
     elif command -v sudo >/dev/null 2>&1; then
-      sudo npm install -g pnpm
+      sudo npm install -g --force --allow-scripts=pnpm "pnpm@${PINNED_PNPM_VERSION}"
     else
-      npm install -g pnpm
+      npm install -g --force --allow-scripts=pnpm "pnpm@${PINNED_PNPM_VERSION}"
     fi
     return
   fi
 
-  echo "Cannot install pnpm automatically: neither corepack nor npm is available."
+  echo "Cannot install pnpm automatically: npm is unavailable; install the pinned pnpm native executable manually."
   return 1
 }
 
@@ -559,22 +557,20 @@ collect_missing_prereqs() {
   fi
 
   if ! command -v node >/dev/null 2>&1; then
-    MISSING_PREREQS+=("node>=22")
+    MISSING_PREREQS+=("node>=24.21.0 <25")
   else
-    local node_v
-    node_v="$(node_major)"
-    if [[ "${node_v}" -lt 22 ]]; then
-      MISSING_PREREQS+=("node>=22")
+    if ! node_supported; then
+      MISSING_PREREQS+=("node>=24.21.0 <25")
     fi
   fi
 
   if ! command -v pnpm >/dev/null 2>&1; then
-    MISSING_PREREQS+=("pnpm>=10")
+    MISSING_PREREQS+=("pnpm>=12")
   else
     local pnpm_v
     pnpm_v="$(pnpm_major)"
-    if [[ "${pnpm_v}" -lt 10 ]]; then
-      MISSING_PREREQS+=("pnpm>=10")
+    if [[ "${pnpm_v}" -lt 12 ]]; then
+      MISSING_PREREQS+=("pnpm>=12")
     fi
   fi
 }
@@ -773,9 +769,9 @@ print_prereq_troubleshooting() {
     else
       echo "Try these commands manually:"
       echo "  brew update"
-      echo "  brew install git node@22"
-      echo "  brew link --overwrite --force node@22"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  brew install git node@24"
+      echo "  brew link --overwrite --force node@24"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
     fi
     return
   fi
@@ -785,30 +781,30 @@ print_prereq_troubleshooting() {
       echo "Try these commands manually:"
       echo "  sudo apt-get update"
       echo "  sudo apt-get install -y curl ca-certificates gnupg git"
-      echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -"
+      echo "  curl -fsSL https://deb.nodesource.com/setup_24.x | sudo bash -"
       echo "  sudo apt-get install -y nodejs"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     dnf|yum)
       echo "Try these commands manually:"
       echo "  sudo ${pkg_manager} install -y git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     pacman)
       echo "Try these commands manually:"
       echo "  sudo pacman -Sy --noconfirm git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     zypper)
       echo "Try these commands manually:"
       echo "  sudo zypper --non-interactive refresh"
       echo "  sudo zypper --non-interactive install git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     apk)
       echo "Try these commands manually:"
       echo "  sudo apk add --no-cache git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     *)
       echo "No known automatic troubleshooting commands for this platform/package-manager pair."
@@ -957,13 +953,13 @@ ensure_prereqs() {
     install_base_prereqs "${os_kind}" "${pkg_manager}"
     hash -r
 
-    if ! command -v node >/dev/null 2>&1 || [[ "$(node_major)" -lt 22 ]]; then
+    if ! command -v node >/dev/null 2>&1 || ! node_supported; then
       echo "Installing Node.js runtime..."
       install_node_runtime "${os_kind}" "${pkg_manager}"
       hash -r
     fi
 
-    if ! command -v pnpm >/dev/null 2>&1 || [[ "$(pnpm_major)" -lt 10 ]]; then
+    if ! command -v pnpm >/dev/null 2>&1 || [[ "$(pnpm_major)" -lt 12 ]]; then
       echo "Installing pnpm..."
       install_pnpm_runtime
       hash -r

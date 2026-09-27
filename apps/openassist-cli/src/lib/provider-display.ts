@@ -1,3 +1,4 @@
+import { providerTuningLabel } from "@openassist/config";
 import type { OpenAssistConfig } from "@openassist/config";
 
 export type ProviderConfig = OpenAssistConfig["runtime"]["providers"][number];
@@ -25,29 +26,7 @@ export function providerRouteLabel(type: ProviderConfig["type"]): string {
   return "OpenAI-compatible";
 }
 
-export function providerTuningLabel(provider: ProviderConfig): string {
-  if (provider.type === "openai" || provider.type === "codex") {
-    return provider.reasoningEffort
-      ? `Reasoning effort: ${provider.reasoningEffort}`
-      : "Reasoning effort: Default (recommended)";
-  }
-  if (provider.type === "anthropic") {
-    return typeof provider.thinkingBudgetTokens === "number"
-      ? `Thinking budget: ${provider.thinkingBudgetTokens} tokens`
-      : "Thinking budget: Default (disabled)";
-  }
-  if (provider.type === "azure-foundry") {
-    const details = [
-      `Auth: ${provider.authMode === "entra" ? "Entra ID" : "API key"}`,
-      provider.underlyingModel ? `Underlying model: ${provider.underlyingModel}` : undefined,
-      provider.reasoningEffort
-        ? `Reasoning effort: ${provider.reasoningEffort}`
-        : "Reasoning effort: Default (recommended)"
-    ].filter((entry): entry is string => Boolean(entry));
-    return details.join("; ");
-  }
-  return "Provider defaults";
-}
+export { providerTuningLabel };
 
 export function describeProvider(provider: ProviderConfig): ProviderDisplayState {
   return {

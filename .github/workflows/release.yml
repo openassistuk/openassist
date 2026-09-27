@@ -121,4 +121,22 @@ jobs:
         run: |
           args=()
           if [ "$RELEASE_CHANNEL" = preview ]; then args+=(--prerelease); fi
-          gh release create "$RELEASE_TAG" --verify-tag --generate-notes "${args[@]}" release-output/*.gz release-output/*.mjs release-output/release.json release-output/release.sig release-output/release-index.txt release-output/release-index.sig
+          gh release create "$RELEASE_TAG" --verify-tag --notes-file "docs/releases/$RELEASE_TAG.md" "${args[@]}" release-output/*.gz release-output/*.mjs release-output/release.json release-output/release.sig release-output/release-index.txt release-output/release-index.sig
+  public-install:
+    needs: publish
+    if: needs.publish.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Install and remove the publicly published release
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: bash scripts/release/public-install-smoke.sh "${RELEASE_TAG#v}" "$RELEASE_CHANNEL"

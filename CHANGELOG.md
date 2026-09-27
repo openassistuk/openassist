@@ -6,6 +6,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+- Clarify README installation with an executable source path while the first signed release is pending, separate preview/stable commands, packaged prerequisites, setup and health checks, existing-install migration and application/data locations. Release signing is a maintainer responsibility, not an operator prerequisite.
+
+- Prepare `v0.2.0-rc.1`: align root/CLI/daemon versions, pin the production RSA-4096 public key, add reviewed preview release notes and use per-tag notes in the publication workflow. Source CLI/daemon version output follows the workspace version when no immutable build metadata exists. Protected signing-secret configuration, publication approval and public-installer validation remain separate rollout steps; no private key is committed.
+
 - Fix four lifecycle review findings: isolated daemons load dedicated env-file credentials without sharing them with builds; startup identity comes from the running application even before update commit; packaged bootstrap installs owned shell PATH blocks that uninstall removes only when unchanged; archive verification resolves link chains and rejects traversal, cycles and excessive indirection before extraction. Add regression and deployed-artifact coverage without changing release-signature requirements.
 
 - Replace saved-selector update requests with bounded public release/ref catalogues and local selection. Preserve stable/preview/exact-release and branch/PR/tag/commit workflows, with explicit unavailable results for missing or over-limit catalogues. Notices remain advisory; signed preparation is unchanged. Restrict installed-client download routes, credentials, ports and every redirect, including approved GitHub artifact CDNs. This redesign supersedes the earlier reviewed file-to-network dismissal.

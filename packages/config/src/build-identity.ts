@@ -41,6 +41,13 @@ export function getBuildIdentity(start = path.dirname(fileURLToPath(import.meta.
   while (true) {
     const file = path.join(current, "build-identity.json");
     if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8")) as BuildIdentity;
+    const manifestPath = path.join(current, "package.json");
+    if (fs.existsSync(path.join(current, "pnpm-workspace.yaml")) && fs.existsSync(manifestPath)) {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+      if (manifest.name === "openassist" && typeof manifest.version === "string") {
+        return {id: "development", version: manifest.version, commit: "unknown", nodeVersion: process.versions.node, configVersion: 1, databaseVersion: 1};
+      }
+    }
     const parent = path.dirname(current);
     if (parent === current) return {id: "development", version: "0.1.0", commit: "unknown", nodeVersion: process.versions.node, configVersion: 1, databaseVersion: 1};
     current = parent;

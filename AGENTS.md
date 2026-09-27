@@ -481,6 +481,10 @@ Responses replay metadata must stay provider/model-scoped, bounded to 1 MiB and 
 
 ## Managed lifecycle discipline
 
+Keep README installation commands explicit about actual release availability. Operators never provision release-signing keys. Distinguish published previews from stable releases, and document existing-install migration separately from fresh bootstrap. Record publication and public-installer verification independently of PR artifact checks.
+
+Release publication uses reviewed notes at `docs/releases/<tag>.md`. Candidate root/CLI/daemon versions must agree, and source CLI version output must follow its workspace manifest when no immutable build identity exists. Never commit private signing material or machine-specific maintainer notes. Restrict publication to approved tags plus explicit maintainer review.
+
 Validate daemon installation facts against the executing application during activation and rollback, before install-state commit. Isolated env-file credentials belong only to the daemon environment, never builds; preserve forced instance routing and private-runtime variables. Packaged bootstrap owns only the exact shell PATH blocks it inserts, and uninstall must preserve surrounding text, edited blocks and unknown profiles. Archive admission must resolve complete link chains before interpreting parent traversal; test forward references, cycles and ordinary internal package links before extraction.
 
 Packaged stable releases are the normal installer route; explicit main/branch/PR/local source workflows remain supported. Maintain install-state version 2, lifecycle JSON version 4, signed release manifests, private runtime paths, and expected-build health checks together. Do not reintroduce in-place builds or network-dependent managed rollback. Rollback never automatically restores operator databases; incompatible schemas require explicit recovery.

@@ -8,7 +8,7 @@ For packaged shell PATH setup, see the platform installation guides. For dedicat
 
 Recommended operator flow:
 
-1. Install OpenAssist from GitHub or a local checkout.
+1. Follow the [README installation commands](../README.md#install-and-first-reply), including the current release-availability notice.
 2. Run bare `openassist setup` and choose `First-time setup`.
 3. Confirm `openassist doctor` and `openassist service health`.
 4. Use `openassist setup wizard` only for advanced changes.
@@ -218,6 +218,7 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 ## Managed release lifecycle
 
 - [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
+- [v0.2.0-rc.1 release notes](releases/v0.2.0-rc.1.md): first packaged preview, installation, migration and testing limits (publication pending).
 - [Developer testing](operations/developer-testing.md): main/branch/PR/local isolated tests and explicit primary-install switching.
 - [Uninstall](operations/uninstall.md): owned application removal, retained state and explicit purge.
 

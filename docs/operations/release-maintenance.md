@@ -6,9 +6,11 @@ Packaged installations support Linux glibc and macOS on x64 and arm64. Artifacts
 
 ## Publication prerequisites
 
-`release-public.pem` is intentionally unprovisioned. Release installation fails closed until a maintainer provisions the RSA public key and publishes a signed release. An unavailable release never falls back to main or an unsigned download. Explicit `--source --ref main` remains available.
+OpenAssist packages are signed with RSA/SHA-256 and verified against the public key in `release-public.pem`. Operators do not need a signing key. Signature or checksum failures stop installation; an unavailable release never falls back to main or an unsigned download. Explicit `--source --ref main` remains available.
 
-Generate and retain the private key outside the checkout. Commit only the PEM public key to `release-public.pem`; configure the private key as `OPENASSIST_RELEASE_SIGNING_KEY` in GitHub's protected `release` environment. Restrict publication to approved refs and required maintainers. PR jobs never receive this secret. Key rotation requires a reviewed trust-anchor update and a bridge release trusted by existing clients before retiring the old key.
+Production signing is restricted to the protected `release` environment and approved publication jobs. PR jobs never receive signing credentials. Key rotation requires a reviewed trust-anchor update and a bridge release trusted by existing clients before retiring the old public key. Private operational details are not part of the public documentation.
+
+The release environment requires explicit maintainer approval and permits approved release tags only.
 
 The HTTPS shell entrypoint is the initial trust boundary. Bootstrap downloads the pinned public key from the reviewed main entrypoint, authenticates the release index using OpenSSL, then verifies the separately compressed private Node runtime, standalone verifier and application archive. The authenticated verifier checks the entire archive and link topology before extraction, using the same bounded tar validator as installed updates. Bootstrap requires curl, gzip and OpenSSL. Installed clients verify signed JSON manifests using Node crypto. Never bypass verification to repair an unavailable release.
 
@@ -17,6 +19,12 @@ The HTTPS shell entrypoint is the initial trust boundary. Bootstrap downloads th
 On each native target, install the pinned toolchain, run `pnpm verify:all`, then `node scripts/release/package.mjs coverage/release`. Packaging refuses an existing stage and produces the artifact plus commit/hash metadata. Run `node scripts/release/smoke.mjs coverage/release/stage-<platform>-<arch>` to verify relocated startup without system Node, Git or pnpm in PATH.
 
 The `Release Artifacts` workflow runs on PRs and manual dispatch. Publication is manual, requires an existing version tag matching `package.json`, waits for all four builds, portable media/SQLite checks, live Linux service activation and the signing contract job, and uses the protected environment. All artifacts must have the same immutable commit. Stable releases are the normal target; previews require explicit selection.
+
+Each publication requires reviewed notes at `docs/releases/<tag>.md`; the workflow uses that file as the GitHub release body. For this candidate, root/CLI/daemon package versions are `0.2.0-rc.1` and the notes are [v0.2.0-rc.1](../releases/v0.2.0-rc.1.md). After the preparation PR is reviewed and merged, tag that exact reviewed main commit without moving an existing tag. Dispatch `release.yml` **from the tag**, with `tag=v0.2.0-rc.1`, `channel=preview`, and `publish=true`, so the environment's tag restriction applies. A maintainer must approve the waiting publish job.
+
+After publication, the workflow's `public-install` matrix runs on all four supported targets. It uses the public main installer and downloaded signed assets, tests both channel and exact-version selection, checks installed CLI/daemon versions, inspects update plans, and uninstalls while retaining config/env files. It uses temporary homes, installs no service and receives no signing secret. These jobs are skipped when publication is skipped. A failure leaves the preview published for investigation; it must not be presented as validated. The pre-publication artifact/service gates separately exercise daemon health, state, update and rollback.
+
+Only after these checks pass should the README, quickstart, platform-guide and docs-index availability notices change from pending to published. Record additional real setup/provider/channel testing separately. The unqualified stable installer remains unavailable until stable publication; never mark the preview as latest stable to work around that distinction.
 
 The signing contract job downloads all four artifacts and runs `scripts/release/test-signing.mjs`. It generates an ephemeral RSA key outside the checkout, exercises the production signing script, verifies both signed formats with OpenSSL and the JSON manifest with the packaged Node client, and proves the production trust anchor rejects its test signature. Test private keys are never uploaded or used for publication. The supplemental scheduled/manual service and lifecycle workflows also exercise packaged artifacts while retaining source-bootstrap coverage.
 

@@ -6,6 +6,14 @@ import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 
 describe("bootstrap installer idempotence contract", () => {
+  it("keeps public release smoke syntactically valid and refuses non-hosted execution", (t)=>{
+    const script="scripts/release/public-install-smoke.sh";
+    const syntax=spawnSync("bash",["-n",script],{encoding:"utf8"});
+    if(syntax.error && "code" in syntax.error && syntax.error.code==="ENOENT") {t.skip("Bash unavailable");return;}
+    assert.equal(syntax.status,0,syntax.stderr);
+    const result=spawnSync("bash",[script,"0.2.0-rc.1","preview"],{encoding:"utf8",env:{...process.env,GITHUB_ACTIONS:"false"}});
+    assert.equal(result.status,1);assert.match(result.stderr,/disposable hosted runners/);
+  });
   it("sets up owned PATH blocks after packaged activation and before setup",()=>{
     const release=fs.readFileSync(path.join(process.cwd(),"scripts/install/release.sh"),"utf8");
     assert.ok(release.indexOf("await engine.executeUpdate(")<release.indexOf("profiles.installShellPath()"));

@@ -13,6 +13,7 @@ import { DatabaseSync } from "node:sqlite";
 import { isolatedEnvironment, isolatedDaemonEnvironment, instancePath } from "../../apps/openassist-cli/src/commands/dev.js";
 import { checkHealth } from "../../apps/openassist-cli/src/lib/health-check.js";
 import { renderOperationSummary } from "../../apps/openassist-cli/src/lib/lifecycle-readiness.js";
+import { getBuildIdentity } from "../../packages/config/src/build-identity.js";
 
 const require = createRequire(path.resolve("apps/openassist-cli/package.json"));
 const tar = require("tar");
@@ -23,6 +24,14 @@ const build={id:"0.1.0-test",version:"0.1.0",commit:"a".repeat(40),nodeVersion:"
 const manifest=()=>({schemaVersion:1,build,channel:"stable",artifacts:["linux-x64","linux-arm64","darwin-x64","darwin-arm64"].map(target=>{const[platform,arch]=target.split('-');return{platform,arch,file:`${target}.tar.gz`,sha256:"b".repeat(64),bytes:100};})});
 
 describe("verified lifecycle releases",()=>{
+  it("reports the source workspace version while preferring immutable build metadata",()=>{
+    const root=temp();const app=path.join(root,"apps","openassist-cli","dist");fs.mkdirSync(app,{recursive:true});
+    fs.writeFileSync(path.join(root,"pnpm-workspace.yaml"),"packages: []\n");
+    fs.writeFileSync(path.join(root,"package.json"),JSON.stringify({name:"openassist",version:"0.2.0-rc.1"}));
+    expect(getBuildIdentity(app)).toMatchObject({id:"development",version:"0.2.0-rc.1"});
+    fs.writeFileSync(path.join(root,"build-identity.json"),JSON.stringify(build));
+    expect(getBuildIdentity(app)).toEqual(build);
+  });
   it("authenticates exact manifest bytes and rejects tampering and duplicate targets",()=>{
     const {privateKey,publicKey}=generateKeyPairSync("rsa",{modulusLength:2048});
     const key=publicKey.export({type:"spki",format:"pem"}).toString();

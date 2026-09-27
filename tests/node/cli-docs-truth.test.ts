@@ -646,6 +646,10 @@ describe("docs truth", () => {
     const workflow = readText(".github/workflows/release.yml");
     for (const target of ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64"]) assert(workflow.includes(`target: ${target}`));
     assert.match(workflow, /needs: \[package, signing-contract\]/);
+    assert.match(workflow, /--notes-file "docs\/releases\/\$RELEASE_TAG\.md"/);
+    assert.match(workflow, /public-install:\s+needs: publish/);
+    assert.match(workflow, /public-install-smoke\.sh/);
+    assert.match(readText("docs/testing/test-matrix.md"), /post-publication `public-install`/);
     const [buildJobs, publication] = workflow.split(/\r?\n  publish:/);
     assert(!buildJobs.includes("secrets.OPENASSIST_RELEASE_SIGNING_KEY"));
     assert.match(publication, /github.event_name == 'workflow_dispatch' && inputs.publish/);

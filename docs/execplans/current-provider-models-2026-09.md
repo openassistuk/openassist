@@ -10,7 +10,7 @@ Operators can select the current GPT-6 and Claude models with controls that matc
 
 - [x] (2026-09-27) Follow-up audit confirmed current stable channel/provider SDK versions against npm and upstream releases; Vitest 5.0.2 is the only applicable stable direct upgrade. Baileys latest remains a release candidate; Node types remain on 24.x.
 - [x] (2026-09-27) Follow-up implemented: bounded/scoped Responses reasoning and phase replay, delayed-401 refresh reuse, Anthropic workspace selection and bearer-token isolation, Discord clientReady and Vitest 5.0.2. Focused payload/auth/setup tests and runtime database-reopen tests pass; frozen installation passes.
-- [ ] Complete the follow-up full gate and hosted checks, and update PR #61 with final evidence.
+- [x] (2026-09-27) Follow-up full local gate passed on fef5bdf, including both zero-finding audits. Final hosted results are maintained on PR #61 for its exact head revision; local success does not substitute for those checks.
 
 - [x] (2026-09-27) Inspected clean main at 7e42961 and created `codex/current-provider-models` after fetching origin.
 - [x] (2026-09-27) Verified official GPT-6 Sol/Luna specifications, Claude Opus 5.5/Fable 5.1 specifications and migration contracts, and Azure reasoning documentation.
@@ -41,7 +41,7 @@ Retain the existing Responses-only Azure OpenAI route; Claude deployments on Mic
 
 ## Outcomes & Retrospective
 
-The follow-up harness/auth/channel implementation has passed focused verification; its full gate and hosted results are pending. The earlier counts below describe the initial model-refresh revision, not the extended follow-up.
+The follow-up harness/auth/channel implementation passed `pnpm verify:all` on fef5bdf: 406 Vitest tests, 188 passing Node integration tests and 3 platform-specific skips. Vitest coverage is statements 83.07%, branches 71.66%, functions 86.55%, lines 83.27%; Node coverage is statements/lines 80.61%, branches 71.93%, functions 91.52%. Frozen installation passed and both audits report zero findings. `pnpm outdated -r` now lists only deliberately retained Node 24 types and Baileys' release-candidate latest tag. Delayed 401 tests also prove an explicit OAuth unlink/API-key fallback is honored rather than reviving old credentials. See PR #61 for hosted results on the final head. The earlier counts below describe the initial model-refresh revision.
 
 Implementation and local verification are complete. `pnpm verify:all` passed on Windows with Node 24.21.0 and pnpm 12.5.1: workflow lint, all package builds/lint/types, 399 Vitest tests, and 185 Node integration tests (3 platform-specific skips). Vitest coverage: statements 83.04%, branches 71.53%, functions 86.54%, lines 83.24%. Node coverage: statements/lines 80.63%, branches 72.03%, functions 91.5% (107 passing coverage tests, 2 platform-specific skips). All thresholds and coverage scope remain unchanged. Production and full audits both report zero findings at every severity; reports are under ignored `coverage/audit`.
 
@@ -78,3 +78,5 @@ Primary sources checked on 2026-09-27: OpenAI `/api/docs/models/gpt-6-sol`, `/gp
 Use the installed OpenAI/Anthropic SDKs and existing Zod schemas. No new dependencies or database migration are needed. Add capability fields only to core-types, with shared lookup/validation in config. Keep optional provider-specific settings additive and default-omitting.
 
 Revision (2026-09-27): created with source-backed compatibility findings before implementation.
+
+Revision (2026-09-27, harness follow-up): audited upstream auth and package requirements, implemented scoped/bounded Responses replay and auth compatibility fixes, retained current stable channel/provider versions, updated paired Vitest packages, and recorded full verification. Sources and operator guidance are in `docs/operations/provider-channel-readiness.md`.

@@ -498,6 +498,33 @@ describe("runtime codex auth route", () => {
     }
   });
 
+  it("honors an explicit API-key replacement while an OAuth request is in flight", async () => {
+    const root = tempDir("openassist-runtime-auth-replaced-");
+    roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+    let refreshes = 0;
+    const originalAuth: ProviderAuthHandle = { providerId: "openai-main", accountId: "default", accessToken: "old-token", refreshToken: "old-refresh", expiresAt: new Date(Date.now() + 3_600_000).toISOString() };
+    const provider = Object.assign(new MockOpenAIProvider(), { refreshOAuthAuth: async () => { refreshes += 1; return originalAuth; } });
+    const runtime = new OpenAssistRuntime(runtimeConfig(root), { db, logger }, { providers: [provider], channels: [] });
+    (runtime as any).persistOAuthHandle(originalAuth);
+    provider.chat = async (_req, auth) => {
+      if ("accountId" in auth) {
+        runtime.setProviderApiKey("openai-main", "replacement-key");
+        assert.equal(runtime.removeOAuthAccount("openai-main", "default"), true);
+        throw Object.assign(new Error("Unauthorized"), { status: 401 });
+      }
+      assert.equal(auth.apiKey, "replacement-key");
+      return { output: { role: "assistant", content: "ok" }, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } };
+    };
+    try {
+      await (runtime as any).chatWithProvider(provider, { sessionId: "test", model: "gpt-6-sol", messages: [], tools: [], metadata: {} });
+      assert.equal(refreshes, 0);
+    } finally {
+      db.close();
+    }
+  });
+
   it("does not force codex refresh on non-401 authentication wording", async () => {
     const root = tempDir("openassist-runtime-codex-auth-wording-");
     roots.push(root);

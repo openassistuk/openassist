@@ -2,7 +2,7 @@
 
 After packaged installation, open a new shell so its saved PATH block takes effect. If `openassist` is not yet found, run `~/.local/bin/openassist setup`; the installer also prints this fallback. Existing or edited shell-profile blocks are preserved rather than overwritten.
 
-Normal bootstrap selects a verified packaged release and private Node; the Git/pnpm prerequisites below apply to explicit developer source installs. **No signed release is published yet.** Until the first preview is available, use the source command in step 1. Signing is handled by maintainers, not operators; an unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
+The signed [v0.2.0-rc.1 preview](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1) is published and public installation has passed on all four supported targets. Use `--channel preview` as shown below; no stable release is published yet. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
 
 This is the canonical operator runbook for a public OpenAssist install.
 
@@ -26,7 +26,9 @@ If you hit trouble on any of those steps, keep `docs/operations/common-troublesh
 
 ## Before You Start
 
-Source-development prerequisites (packaged releases include Node):
+Packaged installation needs Bash, curl, OpenSSL, gzip and standard Unix utilities. It supports Linux glibc x64/arm64 and macOS Intel/Apple Silicon; see the [Linux](install-linux.md) and [macOS](install-macos.md) guides for minimum OS requirements.
+
+Optional source-development prerequisites (packaged releases include Node):
 
 - Node `>=24.21.0 <25`
 - pnpm `12.5.1` (the repository-pinned version)
@@ -41,16 +43,16 @@ Platform notes:
 
 ## 1. Install OpenAssist
 
-Install today from main (builds source):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main
-```
-
-After the first preview is published, install its packaged application instead:
+Install the published packaged preview:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview
+```
+
+To pin this release, use `--version 0.2.0-rc.1` instead of `--channel preview`. For source development, explicitly build main instead:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main
 ```
 
 After stable publication, the default command installs the latest stable release:
@@ -62,7 +64,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/
 Non-interactive example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --non-interactive --skip-service
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview --non-interactive --skip-service
 ```
 
 Bootstrap behavior:

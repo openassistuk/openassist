@@ -401,7 +401,7 @@ If your old layout used custom paths, keep using explicit `--config` and `--env-
 What it usually means:
 
 - the checkout has real local code changes
-- the install is damaged or no longer repo-backed
+- a source installation is damaged or missing its Git metadata (packaged releases do not require Git)
 - the install still needs legacy-layout migration first
 - required build output or helper binaries are missing
 
@@ -409,7 +409,7 @@ Start with:
 
 ```bash
 openassist doctor
-openassist upgrade --dry-run --install-dir "$HOME/openassist"
+openassist update --dry-run
 ```
 
 Interpret the result like this:
@@ -432,14 +432,14 @@ What to run:
 
 ```bash
 openassist doctor
-openassist upgrade --dry-run --install-dir "$HOME/openassist" --pr 123
+openassist update --dry-run --pr 123
 openassist upgrade --install-dir "$HOME/openassist" --pr 123
 ```
 
 If you are done testing that PR and want to move the install back to the normal release track:
 
 ```bash
-openassist upgrade --dry-run --install-dir "$HOME/openassist" --ref main
+openassist update --dry-run --ref main
 openassist upgrade --install-dir "$HOME/openassist" --ref main
 ```
 

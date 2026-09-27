@@ -1,13 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import net from "node:net";
+import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { Command } from "commander";
 import TOML from "@iarna/toml";
 import { defaultDevInstancesDir, loadConfig, writeDefaultConfig } from "@openassist/config";
-import { atomicWriteJson, saveInstallState } from "../lib/install-state.js";
+import { atomicWriteJson, atomicWriteText, saveInstallState } from "../lib/install-state.js";
 import { acquireLifecycleLock, containedPath, removeManagedPath } from "../lib/lifecycle-files.js";
-import { prepareSource, sourceRef, buildSource } from "../lib/lifecycle-engine.js";
+import { prepareSource, sourceRef, buildSource, resolveUpdateMethod } from "../lib/lifecycle-engine.js";
 import { confirmLifecycle, lifecycleAction } from "./lifecycle.js";
 
 export function instancePath(name: string): string {
@@ -56,8 +57,7 @@ export function registerDevCommands(program: Command): void {
     .option("--name <name>","Reusable instance name","test").option("--port <port>").option("--dry-run").option("--json")
     .action(async opts => lifecycleAction(opts,async () => {
       if ((opts.local && (opts.ref || opts.pr)) || (opts.ref && opts.pr)) throw new Error("Select one local checkout, ref, or PR.");
-      if (opts.pr && !/^[1-9]\d*$/.test(opts.pr)) throw new Error("Invalid PR number.");
-      if (opts.ref && (opts.ref.startsWith('-') || /\s/.test(opts.ref))) throw new Error("Invalid source ref.");
+      resolveUpdateMethod(opts);
       const root = instancePath(opts.name);
       if (opts.dryRun) return {root,source: opts.local ?? sourceRef(opts),service: false,credentialsCopied:false};
       const release = acquireLifecycleLock(root);
@@ -76,21 +76,23 @@ export function registerDevCommands(program: Command): void {
         const port = await availablePort(opts.port);
         if (!fs.existsSync(configPath)) {
           fs.mkdirSync(path.dirname(configPath),{recursive:true,mode:0o700});
-          writeDefaultConfig(configPath);
-          const {config} = loadConfig({baseFile:configPath,overlaysDir:path.join(root,"config","config.d")});
+          const draft = path.join(root,`${randomUUID()}.toml`);
+          writeDefaultConfig(draft);
+          const {config} = loadConfig({baseFile:draft,overlaysDir:path.join(root,"config","config.d")});
+          fs.unlinkSync(draft);
           config.runtime.bindAddress = "127.0.0.1";
           config.runtime.bindPort = port;
           config.runtime.channels = [];
           config.runtime.scheduler.enabled = false;
           config.runtime.paths = {dataDir:path.join(root,"share","data"),logsDir:path.join(root,"share","logs"),skillsDir:path.join(root,"share","skills")};
           fs.mkdirSync(path.dirname(configPath),{recursive:true,mode:0o700});
-          fs.writeFileSync(configPath,TOML.stringify(config as unknown as TOML.JsonMap),{mode:0o600});
-          fs.writeFileSync(path.join(root,"config","openassistd.env"),"# Dedicated test credentials only.\n",{mode:0o600});
+          atomicWriteText(configPath,TOML.stringify(config as unknown as TOML.JsonMap));
+          fs.writeFileSync(path.join(root,"config","openassistd.env"),"# Dedicated test credentials only.\n",{mode:0o600,flag:"wx"});
         } else {
           const raw = TOML.parse(fs.readFileSync(configPath,"utf8")) as unknown as {runtime:{bindPort:number; bindAddress:string}};
           raw.runtime.bindPort = port;
           raw.runtime.bindAddress = "127.0.0.1";
-          fs.writeFileSync(configPath,TOML.stringify(raw as unknown as TOML.JsonMap),{mode:0o600});
+          atomicWriteText(configPath,TOML.stringify(raw as unknown as TOML.JsonMap));
         }
         atomicWriteJson(path.join(root,"instance.json"),{name:opts.name,application,configPath,port});
         saveInstallState({installDir:application,configPath,envFilePath:path.join(root,"config","openassistd.env"),trackedRef:opts.local ? "local" : sourceRef(opts)},path.join(root,"config","install-state.json"));

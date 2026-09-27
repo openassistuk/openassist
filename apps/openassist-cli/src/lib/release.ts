@@ -93,7 +93,7 @@ export async function download(url: string, limit: number, timeoutMs = 30_000): 
 
 export async function resolveRelease(options: {channel?: "stable" | "preview"; version?: string}, keys = trustedReleaseKeys()): Promise<{manifest: ReleaseManifest; baseUrl: string}> {
   if (options.version && !/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(options.version)) throw new Error("Invalid release version; use a semantic version without a leading v.");
-  const url = options.version ? `${RELEASE_REPOSITORY}/tags/v${options.version}` : options.channel === "preview" ? `${RELEASE_REPOSITORY}?per_page=30` : `${RELEASE_REPOSITORY}/latest`;
+  const url = options.version ? `${RELEASE_REPOSITORY}/tags/v${encodeURIComponent(options.version)}` : options.channel === "preview" ? `${RELEASE_REPOSITORY}?per_page=30` : `${RELEASE_REPOSITORY}/latest`;
   const metadata = JSON.parse((await download(url, 2 * 1024 * 1024, 10_000)).toString("utf8"));
   const release = Array.isArray(metadata) ? metadata.find(r => r.prerelease && !r.draft) : metadata;
   if (!release || release.draft || !/^v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(release.tag_name)) throw new Error("No matching published release is available. Use an explicit source installation if needed.");

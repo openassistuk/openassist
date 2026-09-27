@@ -27,7 +27,7 @@ export class SpawnCommandRunner implements CommandRunner {
         cwd: options.cwd,
         env: options.env ?? process.env,
         stdio: ["ignore", "pipe", "pipe"],
-        shell: process.platform === "win32"
+        shell: process.platform === "win32" && command === "pnpm"
       });
 
       const stdoutChunks: Buffer[] = [];
@@ -61,7 +61,7 @@ export class SpawnCommandRunner implements CommandRunner {
         cwd: options.cwd,
         env: options.env ?? process.env,
         stdio: "inherit",
-        shell: process.platform === "win32"
+        shell: process.platform === "win32" && command === "pnpm"
       });
 
       child.on("error", (error) => {

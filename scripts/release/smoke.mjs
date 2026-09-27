@@ -26,7 +26,7 @@ try {
   const file=path.join(state,'config/openassist.toml');
   let config=fs.readFileSync(file,'utf8');
   const port=await new Promise(resolve=>{const server=net.createServer();server.listen(0,'127.0.0.1',()=>{const port=server.address().port;server.close(()=>resolve(port));});});
-  config=config.replace('bindPort = 3344',`bindPort = ${port}`);
+  config=config.replace(/bindPort\s*=\s*[\d_]+/,`bindPort = ${port}`);
   fs.writeFileSync(file,config);
   // Import every production adapter from the deployed daemon graph without credentials.
   const require=createRequire(path.join(app,'apps/openassistd/package.json'));

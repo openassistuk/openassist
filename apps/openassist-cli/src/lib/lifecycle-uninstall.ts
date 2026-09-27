@@ -9,13 +9,21 @@ import { sha256 } from "./release.js";
 import { createServiceManager } from "./service-manager.js";
 import { SpawnCommandRunner } from "./command-runner.js";
 
+function matchesOwnedFile(file: string, expectedHash: string): boolean {
+  let fd: number;
+  try { fd=fs.openSync(file,fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW); }
+  catch { return false; }
+  try { return fs.fstatSync(fd).isFile() && sha256(fs.readFileSync(fd))===expectedHash; }
+  finally {fs.closeSync(fd);}
+}
+
 export async function uninstallApplication(options: {purge?: boolean; dryRun?: boolean}): Promise<Record<string, unknown>> {
   const state = loadInstallState();
   if (!state) return {action: "uninstall", detail: "No recorded installation; nothing removed."};
   const root = state.managedRoot;
   if (!root || path.resolve(root) !== path.resolve(defaultManagedInstallDir())) throw new Error("This legacy/source checkout is not managed. Use service uninstall, preserve the checkout, and follow the uninstall guide.");
   const allowed = new Set([...serviceOwnedFiles(), ...["openassist","openassistd"].map(name => path.join(os.homedir(),".local","bin",name))]);
-  const remove = (state.ownedFiles ?? []).filter(item => allowed.has(item.path) && fs.existsSync(item.path) && !fs.lstatSync(item.path).isSymbolicLink() && sha256(fs.readFileSync(item.path)) === item.sha256).map(item => item.path);
+  const remove = (state.ownedFiles ?? []).filter(item => allowed.has(item.path) && matchesOwnedFile(item.path,item.sha256)).map(item => item.path);
   const preserved = (state.ownedFiles ?? []).filter(item => !remove.includes(item.path)).map(item => item.path);
   if (options.purge && (path.resolve(state.configPath) !== path.join(defaultConfigDir(),"openassist.toml") || path.resolve(state.envFilePath) !== path.join(defaultConfigDir(),"openassistd.env"))) throw new Error("Custom configuration paths require manual purge; refusing directory deletion.");
   const purge = options.purge ? [defaultConfigDir(), ...["data","logs","skills"].map(name => path.join(defaultShareDir(),name))] : [];

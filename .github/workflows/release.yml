@@ -55,6 +55,12 @@ jobs:
         run: node scripts/release/package.mjs coverage/release
       - name: Portable artifact smoke
         run: node scripts/release/smoke.mjs coverage/release/stage-${{ matrix.target }}
+      - name: Live Linux service activation
+        if: matrix.target == 'linux-x64'
+        run: sudo env GITHUB_ACTIONS=true "$(command -v node)" scripts/release/lifecycle-smoke.mjs coverage/release/stage-linux-x64
+      - name: Verify publication candidate
+        if: github.event_name == 'workflow_dispatch' && inputs.publish && matrix.target == 'linux-x64'
+        run: pnpm verify:all
       - uses: actions/upload-artifact@v7
         with:
           name: release-${{ matrix.target }}

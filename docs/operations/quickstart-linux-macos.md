@@ -369,32 +369,21 @@ Wizard sections are labeled by operator task:
 
 Wizard runs post-save service and health checks by default. Use `--skip-post-checks` only when you intentionally want to defer validation.
 
-## 7. Upgrade safely
+## 7. Update safely
 
-Always start with dry-run:
-
-```bash
-openassist upgrade --dry-run --install-dir "$HOME/openassist"
-```
-
-Then run the live upgrade:
+Start with a preview, then explicitly apply the update:
 
 ```bash
-openassist upgrade --install-dir "$HOME/openassist"
+openassist update check
+openassist update --dry-run
+openassist update
 ```
 
-Dry-run tells you:
+The recorded installation method and track are preserved. Packaged installations use verified releases and their private runtimes; source installations build a separate candidate. An exact version stays pinned until explicitly changed. Source PR tracks require an explicit target on every update.
 
-- current commit
-- tracked ref
-- resolved target ref
-- update mode (`git pull` on the current branch versus checkout or detached update)
-- restart behavior
-- rollback target
+Preparation leaves the active service running. Activation stops the owned service, backs up config and persistent state, switches the application, and verifies build and instance identity. `--skip-restart` leaves activation unverified. Use `openassist update recover --dry-run` after interruption and `openassist rollback --dry-run` to inspect a compatible previous application. Rollback never restores an older conversation database automatically.
 
-If dry-run shows `Current branch: HEAD`, the checkout is detached. Prefer `openassist upgrade --ref <branch-or-tag> --install-dir "$HOME/openassist"` so the update target is explicit instead of inheriting the detached default behavior.
-
-If the checkout is damaged, missing `.git`, missing build output under `apps/openassist-cli/dist` or `apps/openassistd/dist`, or no longer trustworthy, rerun bootstrap instead of forcing `openassist upgrade`.
+`openassist upgrade` remains a compatible alias. See [upgrade and rollback](upgrade-and-rollback.md) for recovery and [developer testing](developer-testing.md) for main, branch, PR and local workflows.
 
 ## Troubleshooting
 

@@ -5,6 +5,7 @@ import { loadInstallState } from "../lib/install-state.js";
 import { uninstallApplication } from "../lib/lifecycle-uninstall.js";
 import { checkForUpdate, setUpdateNotifications } from "../lib/update-notifications.js";
 import { sourceUpdatePlan } from "../lib/source-update-plan.js";
+import { renderOperationSummary } from "../lib/lifecycle-readiness.js";
 
 function options(command: Command): Command {
   return command.option("--dry-run", "Preview without changing the installation")
@@ -21,20 +22,15 @@ export async function confirmLifecycle(required: boolean, yes: boolean, dryRun: 
 export async function lifecycleAction(opts: {json?: boolean}, action: () => Promise<Record<string, unknown>>): Promise<void> {
   try {
     const result = await action();
-    if (opts.json) console.log(JSON.stringify({ok: true, ...result}));
+    if (opts.json) console.log(JSON.stringify({version:4,ok: true, ...result}));
     else if (Array.isArray(result.lines)) console.log(result.lines.join("\n"));
     else {
-      console.log("Ready now");
-      console.log(JSON.stringify(result, null, 2));
-      console.log("Needs action");
-      console.log(result.verified === false ? "- Activation has not been health-verified." : "- Review the operation details above.");
-      console.log("Next command");
-      console.log(`- ${result.nextCommand ?? "openassist doctor"}`);
+      console.log(renderOperationSummary(result).join("\n"));
     }
     if (result.ok === false) process.exitCode = 1;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (opts.json) console.log(JSON.stringify({ok: false, error: message}));
+    if (opts.json) console.log(JSON.stringify({version:4,ok: false, error: message}));
     else console.error(`Lifecycle operation failed: ${message}`);
     process.exitCode = 1;
   }
@@ -58,18 +54,18 @@ export function registerLifecycleCommands(program: Command): void {
       return executeUpdate(opts);
     }));
   options(update.command("check").description("Check availability without installing"))
-    .action(async opts => lifecycleAction(opts, () => checkForUpdate(true)));
+    .action(async (_opts, command: Command) => lifecycleAction(command.optsWithGlobals(), () => checkForUpdate(true)));
   options(update.command("recover").description("Inspect or recover an interrupted operation"))
-    .action(async opts => lifecycleAction(opts, async () => {
+    .action(async (_opts, command: Command) => { const opts=command.optsWithGlobals(); return lifecycleAction(opts, async () => {
       await confirmLifecycle(true,opts.yes,opts.dryRun,"Recover the interrupted installation operation?");
       return recoverUpdate(opts.dryRun);
-    }));
+    }); });
   options(update.command("notifications <mode>").description("Enable or disable update notices (on/off)"))
-    .action(async (mode,opts) => lifecycleAction(opts, async () => {
+    .action(async (mode,_opts,command: Command) => { const opts=command.optsWithGlobals(); return lifecycleAction(opts, async () => {
       if (!["on","off"].includes(mode)) throw new Error("Choose on or off.");
       if (!opts.dryRun) setUpdateNotifications(mode === "on");
       return {notifications: mode};
-    }));
+    }); });
   options(program.command("rollback").description("Restore the previous compatible application"))
     .action(async opts => lifecycleAction(opts, async () => {
       await confirmLifecycle(true,opts.yes,opts.dryRun,"Activate the retained previous application?");

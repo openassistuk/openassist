@@ -5,12 +5,12 @@ import net from "node:net";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import TOML from "@iarna/toml";
-import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, defaultInstallStatePath, loadConfig, resolveConfigOverlaysDir, runtimeInstanceId } from "@openassist/config";
+import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, loadConfig, resolveConfigOverlaysDir, runtimeInstanceId } from "@openassist/config";
 import type { InstalledApplication } from "@openassist/core-types";
 import { inspectDatabaseVersion } from "@openassist/storage-sqlite";
-import { atomicWriteJson, loadInstallState, saveInstallState, type InstallState } from "./install-state.js";
+import { atomicWriteJson, atomicWriteText, loadInstallState, saveInstallState, type InstallState } from "./install-state.js";
 import { acquireLifecycleLock, containedPath, copyPrivateTree, switchCurrent, removeManagedPath } from "./lifecycle-files.js";
-import { download, findApplicationRoot, platformArtifact, readBuildIdentity, resolveRelease, sha256, unpackRelease } from "./release.js";
+import { download, platformArtifact, readBuildIdentity, resolveRelease, sha256, unpackRelease } from "./release.js";
 import { SpawnCommandRunner, runOrThrow } from "./command-runner.js";
 import { createServiceManager, type ServiceManagerAdapter } from "./service-manager.js";
 import { checkHealth } from "./health-check.js";
@@ -27,13 +27,24 @@ export interface LifecycleJournal {
   before?: InstallState; candidate?: InstalledApplication; backup?: string; serviceInstalled?: boolean; wasRunning?: boolean;
 }
 
+export function readLifecycleJournal(root: string): LifecycleJournal {
+  const raw=fs.readFileSync(path.join(root,"operation.json"));
+  if(raw.length>1024*1024) throw new Error("Lifecycle journal exceeds its size limit; preserve it for manual recovery.");
+  const journal=JSON.parse(raw.toString("utf8")) as LifecycleJournal;
+  if(journal.version!==1 || !/^[a-f0-9-]{36}$/.test(journal.id) || !["preparing","prepared","stopped","backed-up","activating","unverified","complete","rolled-back"].includes(journal.phase)) throw new Error("Invalid lifecycle journal; preserve it for manual recovery.");
+  if(journal.backup) containedPath(path.join(root,"backups"),journal.backup);
+  if(journal.candidate && journal.candidate.path!==journal.before?.previous?.path) containedPath(path.join(root,"releases"),journal.candidate.path);
+  if(journal.before?.managedRoot && path.resolve(journal.before.managedRoot)!==path.resolve(root)) throw new Error("Journal installation ownership does not match this root.");
+  return journal;
+}
+
 export function resolveUpdateMethod(options: UpdateOptions, state?: InstallState): "source" | "release" {
   const source = Boolean(options.source || options.ref || options.pr);
   const release = Boolean(options.release || options.channel || options.version);
   if ((source && release) || (options.ref && options.pr)) throw new Error("Choose one source ref/PR or one release target, not conflicting selectors.");
   if (options.channel && !["stable", "preview"].includes(options.channel)) throw new Error("Channel must be stable or preview.");
   if (options.pr && !/^[1-9]\d*$/.test(options.pr)) throw new Error("Invalid pull request number.");
-  if (options.ref && (options.ref.startsWith('-') || /[\s\x00-\x1f]/.test(options.ref))) throw new Error("Invalid source ref.");
+  if (options.ref && !/^[a-zA-Z0-9][a-zA-Z0-9._/+\-]*$/.test(options.ref)) throw new Error("Invalid source ref.");
   return source ? "source" : release ? "release" : state?.active?.method ?? (state || options.installDir ? "source" : "release");
 }
 
@@ -155,10 +166,18 @@ function writeWrappers(app: InstalledApplication): string[] {
   const files: string[] = [];
   for (const name of ["openassist", "openassistd"]) {
     const file = path.join(os.homedir(), ".local", "bin", name);
-    if (fs.existsSync(file) && !fs.readFileSync(file,"utf8").includes("openassist")) throw new Error(`Refusing to replace an unrelated command: ${file}`);
+    if (fs.existsSync(file)) {
+      const contents=fs.readFileSync(file,"utf8");
+      const state=loadInstallState();
+      const owned=state?.ownedFiles?.find(item=>item.path===file);
+      const legacy=state && !state.active && contents.includes('INSTALL_DIR="${OPENASSIST_INSTALL_DIR:-${DEFAULT_INSTALL_DIR}}"') && contents.includes(state.installDir);
+      // During activation/rollback the installed wrapper can belong to either journal candidate.
+      const managed=contents.startsWith("#!/bin/sh\n# Managed by OpenAssist lifecycle\nexec ") && contents.includes(state?.managedRoot ?? defaultManagedInstallDir());
+      if (fs.lstatSync(file).isSymbolicLink() || !(owned && owned.sha256===sha256(contents)) && !legacy && !managed) throw new Error(`Refusing to replace an unrelated or modified command: ${file}`);
+    }
     fs.mkdirSync(path.dirname(file), {recursive: true});
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
-    fs.writeFileSync(file, `#!/bin/sh\n# Managed by OpenAssist lifecycle\nexec ${quote(app.nodePath)} ${quote(path.join(app.path, "apps", name === "openassist" ? "openassist-cli" : "openassistd", "dist", "index.js"))} "$@"\n`, {mode: 0o755});
+    atomicWriteText(file, `#!/bin/sh\n# Managed by OpenAssist lifecycle\nexec ${quote(app.nodePath)} ${quote(path.join(app.path, "apps", name === "openassist" ? "openassist-cli" : "openassistd", "dist", "index.js"))} "$@"\n`, 0o755);
     files.push(file);
   }
   return files;
@@ -197,7 +216,11 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
   const method = resolveUpdateMethod(options, old);
   const ref = method === "source" && !rollback ? sourceRef(options, old) : undefined;
   const root = old?.managedRoot ?? defaultManagedInstallDir();
+  if (path.resolve(root)!==path.resolve(defaultManagedInstallDir())) throw new Error("Invalid managed installation root; preserve and repair the install record.");
   const configPath = old?.configPath ?? defaultConfigPath();
+  for (const file of old?.ownedFiles ?? []) {
+    if (fs.existsSync(file.path) && (fs.lstatSync(file.path).isSymbolicLink() || sha256(fs.readFileSync(file.path))!==file.sha256)) throw new Error(`Owned lifecycle file was modified; preserve and review it before activation: ${file.path}`);
+  }
   if (options.installDir && old && path.resolve(options.installDir) !== path.resolve(old.installDir)) throw new Error("--install-dir does not match the recorded installation.");
   if (rollback && !old?.previous) throw new Error("No retained application is available for rollback.");
   if (options.dryRun) {
@@ -215,7 +238,7 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
   let journal: LifecycleJournal | undefined;
   try {
     if (fs.existsSync(journalPath)) {
-      const existing = JSON.parse(fs.readFileSync(journalPath,"utf8")) as LifecycleJournal;
+      const existing = readLifecycleJournal(root);
       if (!["complete","rolled-back"].includes(existing.phase)) throw new Error("An unfinished operation needs openassist update recover.");
     }
     if (old && !old.active) {
@@ -234,10 +257,28 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
     if (!rollback) containedPath(root, app.path);
     validateCandidate(app);
     assertApplicationCompatible(app, configPath, old?.installDir ?? app.path);
+    const {config} = loadConfig({baseFile: configPath, overlaysDir: resolveConfigOverlaysDir(configPath)});
+    const backupSources = {config: configPath, overlays: resolveConfigOverlaysDir(configPath), env: old?.envFilePath ?? defaultEnvFilePath(), data: path.resolve(old?.installDir ?? app.path, config.runtime.paths.dataDir)};
+    let backupBytes=0;
+    const inspectBackup=(file:string):void=>{
+      const info=fs.lstatSync(file);
+      if(info.isSymbolicLink()) throw new Error(`Backup needs manual attention for symbolic link: ${file}`);
+      if(info.isDirectory()) for(const child of fs.readdirSync(file)) inspectBackup(path.join(file,child));
+      else if(info.isFile()) backupBytes+=info.size;
+      else throw new Error(`Unsupported backup file: ${file}`);
+    };
+    for(const source of Object.values(backupSources)) if(fs.existsSync(source)) {
+      const relative=path.relative(source,root);
+      if(!relative || (!relative.startsWith('..') && !path.isAbsolute(relative))) throw new Error("Operator state contains the managed install directory; use separate state before updating.");
+      inspectBackup(source);
+    }
+    const space=fs.statfsSync(root);
+    if(Number(space.bavail)*Number(space.bsize)<backupBytes+64*1024*1024) throw new Error("Insufficient free space for a consistent recovery backup.");
     journal.candidate = app;
     journal.phase = "prepared";
     const service = createServiceManager(new SpawnCommandRunner());
     journal.serviceInstalled = await service.isInstalled();
+    if(journal.serviceInstalled && !old) throw new Error("An existing service has no installation record. Import or repair its ownership before installation.");
     const healthWasOk = (await checkHealth(detectDefaultDaemonBaseUrl(configPath)).catch(() => ({ok: false}))).ok;
     journal.wasRunning = service.isRunning ? await service.isRunning() : healthWasOk;
     if (healthWasOk && !journal.serviceInstalled) throw new Error("Stop the manually running daemon before activation.");
@@ -250,8 +291,7 @@ export async function executeUpdate(options: UpdateOptions, rollback = false): P
     await assertDaemonStopped(configPath);
     const backup = path.join(root, "backups", journal.id);
     fs.mkdirSync(backup, {recursive: true, mode: 0o700});
-    const {config} = loadConfig({baseFile: configPath, overlaysDir: resolveConfigOverlaysDir(configPath)});
-    for (const [name, source] of Object.entries({config: configPath, overlays: resolveConfigOverlaysDir(configPath), env: old?.envFilePath ?? defaultEnvFilePath(), data: path.resolve(old?.installDir ?? app.path, config.runtime.paths.dataDir)})) {
+    for (const [name, source] of Object.entries(backupSources)) {
       if (fs.existsSync(source)) copyPrivateTree(source, path.join(backup, name));
     }
     journal.backup = backup;
@@ -299,7 +339,7 @@ export async function recoverUpdate(dryRun = false): Promise<Record<string, unkn
   const root = state?.managedRoot ?? defaultManagedInstallDir();
   const journalPath = path.join(root,"operation.json");
   if (!fs.existsSync(journalPath)) return {action: "recover", detail: "No interrupted operation."};
-  const journal = JSON.parse(fs.readFileSync(journalPath,"utf8")) as LifecycleJournal;
+  const journal = readLifecycleJournal(root);
   if (dryRun || ["complete","rolled-back"].includes(journal.phase)) return {action: "recover", operation: journal};
   if (fs.existsSync(path.join(root,"operation.lock"))) throw new Error("An operation lock remains. Verify no lifecycle process is running, preserve owner.json, then remove only that lock directory and retry recovery. PID alone is not sufficient proof.");
   const release = acquireLifecycleLock(root);
@@ -317,7 +357,18 @@ export async function recoverUpdate(dryRun = false): Promise<Record<string, unkn
       if (journal.wasRunning && !await expectedHealth(journal.before.active, journal.before.configPath)) throw new Error("Previous application did not recover health.");
       saveInstallState(journal.before);
       journal.phase = "rolled-back";
-    } else throw new Error("First-install recovery requires the preserved checkout/service backup; no known-good managed application exists. See the recovery runbook.");
+    } else if(journal.candidate && !journal.serviceInstalled && journal.phase==="activating") {
+      const app=journal.candidate;
+      const configPath=defaultConfigPath();
+      validateCandidate(app);
+      assertApplicationCompatible(app,configPath,app.path);
+      await assertDaemonStopped(configPath);
+      const first={installDir:app.path,managedRoot:root,configPath,envFilePath:defaultEnvFilePath(),active:app,trackedRef:app.ref??app.channel??"stable"} as InstallState;
+      const files=await activate(app,first,false,false);
+      first.ownedFiles=files.map(file=>({path:file,sha256:sha256(fs.readFileSync(file))}));
+      saveInstallState(first);
+      journal.phase="complete";
+    } else throw new Error("First-install recovery requires inspection of the preserved application and backup. See the recovery runbook.");
     atomicWriteJson(journalPath, journal);
     return {action: "recover", phase: journal.phase};
   } finally { release(); }

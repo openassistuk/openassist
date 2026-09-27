@@ -115,10 +115,18 @@ export function loadInstallState(statePath = defaultInstallStatePath()): Install
     for (const app of [raw.active, raw.previous]) {
       if (app && (!path.isAbsolute(app.path) || !path.isAbsolute(app.nodePath) ||
           !["source", "release"].includes(app.method) || !app.build ||
-          typeof app.build.id !== "string" || typeof app.verified !== "boolean")) {
+          typeof app.build.id !== "string" || !/^[a-zA-Z0-9._-]{1,160}$/.test(app.build.id) ||
+          typeof app.build.version !== "string" || typeof app.build.nodeVersion !== "string" ||
+          !/^[a-f0-9]{40,64}$/.test(app.build.commit) ||
+          !Number.isInteger(app.build.configVersion) || !Number.isInteger(app.build.databaseVersion) ||
+          typeof app.verified !== "boolean" || (app.channel !== undefined && !["stable","preview"].includes(app.channel)))) {
         throw new Error("invalid application record");
       }
     }
+    for (const file of [raw.configPath,raw.envFilePath,raw.managedRoot]) if(file!==undefined && (typeof file!=="string" || !path.isAbsolute(file))) throw new Error("invalid recorded path");
+    if(raw.notifications!==undefined && typeof raw.notifications!=="boolean") throw new Error("invalid notice preference");
+    if(raw.ownedFiles!==undefined && (!Array.isArray(raw.ownedFiles) || raw.ownedFiles.length>32 || raw.ownedFiles.some(file=>!file || !path.isAbsolute(file.path) || !/^[a-f0-9]{64}$/.test(file.sha256)))) throw new Error("invalid ownership record");
+    if(raw.active && raw.installDir !== raw.active.path) throw new Error("active application does not match install directory");
     return normalizeState(raw);
   } catch {
     throw new Error(`Invalid install-state at ${statePath}. Preserve the file and repair it before changing this installation.`);
@@ -139,11 +147,15 @@ export function saveInstallState(
 }
 
 export function atomicWriteJson(file: string, value: unknown): void {
+  atomicWriteText(file, JSON.stringify(value, null, 2));
+}
+
+export function atomicWriteText(file: string, value: string, mode = 0o600): void {
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   const temporary = `${file}.${randomUUID()}.tmp`;
-  const fd = fs.openSync(temporary, "wx", 0o600);
+  const fd = fs.openSync(temporary, "wx", mode);
   try {
-    fs.writeFileSync(fd, JSON.stringify(value, null, 2));
+    fs.writeFileSync(fd, value);
     fs.fsyncSync(fd);
   } finally { fs.closeSync(fd); }
   fs.renameSync(temporary, file);

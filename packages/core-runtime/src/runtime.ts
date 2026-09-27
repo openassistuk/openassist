@@ -3685,11 +3685,13 @@ export class OpenAssistRuntime {
           `config path: ${awareness.maintenance.configPath ?? "(not known)"}`,
           `env file path: ${awareness.maintenance.envFilePath ?? "(not known)"}`,
           `install/update: ${installSummary}; trackedRef=${awareness.maintenance.trackedRef ?? "(not known)"}; lastKnownGood=${awareness.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
+          `update notice: ${awareness.maintenance.updateStatus ?? "not checked"}`,
           `protected paths: ${awareness.maintenance.protectedPaths.join(", ") || "none"}`,
           `protected surfaces: ${awareness.maintenance.protectedSurfaces.join(", ") || "none"}`
         ]
       : [
           `install/update: ${publicInstallSummary}`,
+          `update notice: ${awareness.maintenance.updateStatus ?? "not checked"}`,
           "config/env/install detail: hidden in chat for this sender; approved operators can see full lifecycle paths here, and 'openassist doctor' shows them on the host.",
           "protected lifecycle detail: hidden in chat for this sender."
         ];

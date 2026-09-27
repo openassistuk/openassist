@@ -132,6 +132,7 @@ export interface RuntimeAwarenessDocumentation {
 }
 
 export interface RuntimeAwarenessMaintenance {
+  updateStatus?: string;
   installationMethod?: "source" | "release" | "isolated";
   installedVersion?: string;
   repoBackedInstall: boolean;

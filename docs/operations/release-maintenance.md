@@ -8,13 +8,13 @@ Packaged installations support Linux glibc and macOS on x64 and arm64. Artifacts
 
 Generate and retain the private key outside the checkout. Commit only the PEM public key to `release-public.pem`; configure the private key as `OPENASSIST_RELEASE_SIGNING_KEY` in GitHub's protected `release` environment. Restrict publication to approved refs and required maintainers. PR jobs never receive this secret. Key rotation requires a reviewed trust-anchor update and a bridge release trusted by existing clients before retiring the old key.
 
-The HTTPS shell entrypoint is the initial trust boundary. Bootstrap downloads the pinned public key from the reviewed main entrypoint, authenticates the release index using OpenSSL, and verifies archive hash, size and paths. Installed clients verify signed JSON manifests using Node crypto. Never bypass verification to repair an unavailable release.
+The HTTPS shell entrypoint is the initial trust boundary. Bootstrap downloads the pinned public key from the reviewed main entrypoint, authenticates the release index using OpenSSL, then verifies the separately compressed private Node runtime, standalone verifier and application archive. The authenticated verifier checks the entire archive and link topology before extraction, using the same bounded tar validator as installed updates. Bootstrap requires curl, gzip and OpenSSL. Installed clients verify signed JSON manifests using Node crypto. Never bypass verification to repair an unavailable release.
 
 ## Build and publish
 
 On each native target, install the pinned toolchain, run `pnpm verify:all`, then `node scripts/release/package.mjs coverage/release`. Packaging refuses an existing stage and produces the artifact plus commit/hash metadata. Run `node scripts/release/smoke.mjs coverage/release/stage-<platform>-<arch>` to verify relocated startup without system Node, Git or pnpm in PATH.
 
-The `Release Artifacts` workflow runs on PRs and manual dispatch. Publication is manual, requires an existing version tag matching `package.json`, waits for all four builds, and uses the protected environment. All artifacts must have the same immutable commit. Stable releases are the normal target; previews require explicit selection.
+The `Release Artifacts` workflow runs on PRs and manual dispatch. Publication is manual, requires an existing version tag matching `package.json`, waits for all four builds, portable media/SQLite checks and live Linux service activation, and uses the protected environment. All artifacts must have the same immutable commit. Stable releases are the normal target; previews require explicit selection.
 
 Before publication, reconcile the exact commit, dependency audits, coverage, Linux/macOS lifecycle evidence and changelog. Publish a preview first and validate fresh installation and release/source transitions on test hosts before stable. A merged PR or Windows quality run is not live operator-platform certification.
 

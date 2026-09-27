@@ -3,13 +3,26 @@ import path from "node:path";
 import os from "node:os";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, writeDefaultConfig } from "../../packages/config/src/index.js";
-import { saveInstallState, loadInstallState } from "../../apps/openassist-cli/src/lib/install-state.js";
-import { executeUpdate, recoverUpdate } from "../../apps/openassist-cli/src/lib/lifecycle-engine.js";
+import { defaultInstallStatePath, cachedUpdateStatus } from "../../packages/config/src/index.js";
+import { saveInstallState, loadInstallState, atomicWriteJson } from "../../apps/openassist-cli/src/lib/install-state.js";
+import { executeUpdate, recoverUpdate, readLifecycleJournal, pruneLifecycleHistory, prepareSource, buildSource } from "../../apps/openassist-cli/src/lib/lifecycle-engine.js";
+import { randomUUID } from "node:crypto";
 import { uninstallApplication } from "../../apps/openassist-cli/src/lib/lifecycle-uninstall.js";
 import { checkForUpdate, setUpdateNotifications } from "../../apps/openassist-cli/src/lib/update-notifications.js";
 import type { InstalledApplication } from "../../packages/core-types/src/index.js";
 
 const controls=vi.hoisted(()=>({running:true,installed:true,failCandidate:false,badStartup:false,active:"old",events:[] as string[]}));
+vi.mock("../../apps/openassist-cli/src/lib/command-runner.js",async importOriginal=>({...await importOriginal<object>(),SpawnCommandRunner:class {
+  async run(command:string,args:string[]){
+    controls.events.push([command,...args].join(" "));
+    if(command==="git" && args[0]==="clone") {
+      const directory=args.at(-1)!;
+      fs.mkdirSync(path.join(directory,".git","info"),{recursive:true});
+      fs.writeFileSync(path.join(directory,"package.json"),JSON.stringify({version:"0.1.0",packageManager:"pnpm@12.5.1"}));
+    }
+    return {code:0,stderr:"",stdout:command==="pnpm" && args[0]==="--version" ? "12.5.1" : command==="git" && args[0]==="rev-parse" ? "a".repeat(40) : ""};
+  }
+}}));
 vi.mock("node:child_process",()=>({spawnSync:vi.fn(()=>({status:controls.badStartup?1:0,stdout:"",stderr:""}))}));
 vi.mock("../../apps/openassist-cli/src/lib/lifecycle-files.js",async importOriginal=>({...await importOriginal<object>(),switchCurrent:vi.fn((_root:string,target:string)=>{controls.active=path.basename(target);controls.events.push(`activate:${controls.active}`);})}));
 vi.mock("../../apps/openassist-cli/src/lib/service-manager.js",()=>({createServiceManager:()=>({kind:"systemd-user",isInstalled:async()=>controls.installed,stop:async()=>{controls.running=false;controls.events.push("stop");},install:async(options:{installDir:string;start:boolean})=>{controls.events.push(`install:${path.basename(options.installDir)}`);if(controls.failCandidate&&path.basename(options.installDir)==="candidate")throw new Error("injected service activation failure");controls.running=options.start;},uninstall:async()=>{controls.installed=false;controls.events.push("uninstall");}})}));
@@ -90,5 +103,78 @@ describe("staged lifecycle recovery",()=>{
     expect(await checkForUpdate()).toMatchObject({available:"0.2.0"});
     setUpdateNotifications(false);expect(await checkForUpdate()).toEqual({disabled:true});
     expect(await checkForUpdate(true)).toMatchObject({updateAvailable:true});
+  });
+  it.each(["preparing","prepared","stopped","backed-up","activating"])("recovers interruption at %s without restoring conversation state",async phase=>{
+    const before=loadInstallState();const candidate=app("candidate");
+    atomicWriteJson(path.join(defaultManagedInstallDir(),"operation.json"),{version:1,id:randomUUID(),phase,before,candidate,serviceInstalled:true,wasRunning:true});
+    expect((await recoverUpdate()).phase).toBe("rolled-back");
+    expect(loadInstallState()?.active?.build.id).toBe("old");
+    expect(fs.readFileSync(defaultEnvFilePath(),"utf8")).toContain("private env");
+    if(["preparing","prepared"].includes(phase))expect(controls.events).toEqual([]);
+    else expect(controls.events).toContain("activate:old");
+  });
+  it("rejects invalid journals and preserves unfinished files during uninstall",async()=>{
+    const file=path.join(defaultManagedInstallDir(),"operation.json");
+    atomicWriteJson(file,{version:3,id:randomUUID(),phase:"activating"});
+    expect(()=>readLifecycleJournal(defaultManagedInstallDir())).toThrow("Invalid lifecycle");
+    atomicWriteJson(file,{version:1,id:randomUUID(),phase:"prepared",candidate:app("candidate")});
+    await expect(uninstallApplication({})).rejects.toThrow("unfinished");
+    fs.mkdirSync(path.join(defaultManagedInstallDir(),"operation.lock"));
+    await expect(recoverUpdate()).rejects.toThrow("lock remains");
+  });
+  it("blocks custom purge paths and prunes only unreferenced application history",async()=>{
+    const previous=app("previous");const obsolete=app("obsolete");const candidate=app("candidate");
+    const state=saveInstallState({previous});
+    pruneLifecycleHistory(state,{version:1,id:randomUUID(),phase:"complete",candidate});
+    expect(fs.existsSync(obsolete.path)).toBe(false);expect(fs.existsSync(previous.path)).toBe(true);expect(fs.existsSync(candidate.path)).toBe(true);
+    saveInstallState({configPath:path.join(home,"custom.toml")});
+    await expect(uninstallApplication({purge:true})).rejects.toThrow("Custom configuration");
+  });
+  it("rejects modified command ownership before stopping the service",async()=>{
+    const file=path.join(home,"wrapper");fs.writeFileSync(file,"modified");
+    saveInstallState({ownedFiles:[{path:file,sha256:"a".repeat(64)}]});
+    await expect(executeUpdate({prepared:app("candidate").path})).rejects.toThrow("modified");
+    expect(controls.events).toEqual([]);
+  });
+  it("fails closed on malformed installation records rather than selecting another installation",()=>{
+    const original=loadInstallState()!;
+    for(const patch of [{schemaVersion:99},{configPath:"relative"},{envFilePath:"relative"},{managedRoot:"relative"},{notifications:"yes"},{ownedFiles:{}},{ownedFiles:[{path:"relative",sha256:"bad"}]},{installDir:path.join(home,"different")},...[
+      {method:"unknown"},{nodePath:"relative"},{verified:"yes"},{channel:"unknown"},{build:{...original.active!.build,commit:"invalid"}},{build:{...original.active!.build,configVersion:1.5}},{build:{...original.active!.build,nodeVersion:24}}
+    ].map(active=>({active:{...original.active,...active}}))]){
+      atomicWriteJson(defaultInstallStatePath(),{...original,...patch});
+      expect(()=>loadInstallState()).toThrow("Invalid install-state");
+    }
+  });
+  it("reads cached status without network and repairs stale or malformed notice caches",async()=>{
+    const file=path.join(path.dirname(defaultConfigPath()),"update-check.json");
+    expect(cachedUpdateStatus()).toBeUndefined();
+    fs.writeFileSync(file,"invalid");
+    expect(await checkForUpdate()).toMatchObject({available:"0.2.0"});
+    expect(cachedUpdateStatus()).toContain("Update available");
+    atomicWriteJson(file,{checkedAt:0,available:"0.2.0"});expect(cachedUpdateStatus()).toBeUndefined();
+    expect(await checkForUpdate()).toMatchObject({available:"0.2.0"});
+    setUpdateNotifications(false);expect(cachedUpdateStatus()).toBe("Update notices disabled");
+    setUpdateNotifications(true);
+    atomicWriteJson(file,{checkedAt:Date.now(),status:"unavailable"});expect(cachedUpdateStatus()).toBe("Update check unavailable");
+    atomicWriteJson(file,{checkedAt:Date.now(),updateAvailable:false});expect(cachedUpdateStatus()).toContain("No update");
+  });
+  it("stages an immutable source revision with the pinned toolchain and private runtime",async()=>{
+    const candidate=await prepareSource(defaultManagedInstallDir(),"refs/pull/7/head");
+    expect(candidate.ref).toBe("refs/pull/7/head");expect(candidate.build.commit).toBe("a".repeat(40));
+    expect(fs.existsSync(candidate.nodePath)).toBe(true);
+    expect(controls.events.some(event=>event==="git checkout --detach FETCH_HEAD")).toBe(true);
+    expect(controls.events).toContain("pnpm install --frozen-lockfile");
+    expect(fs.readFileSync(path.join(candidate.path,".git","info","exclude"),"utf8")).toContain("/runtime/");
+    fs.writeFileSync(path.join(candidate.path,"package.json"),JSON.stringify({packageManager:"pnpm@1.0.0"}));
+    await expect(buildSource(candidate.path)).rejects.toThrow("pinned package manager");
+    expect(loadInstallState()?.active?.build.id).toBe("old");
+  });
+  it("retains the newest two backups and any older operation-referenced backup",()=>{
+    const state=loadInstallState()!;const backups=path.join(defaultManagedInstallDir(),"backups");
+    const directories=Array.from({length:4},(_,i)=>{
+      const directory=path.join(backups,randomUUID());fs.mkdirSync(directory,{recursive:true});fs.utimesSync(directory,i+100,i+100);return directory;
+    });
+    pruneLifecycleHistory(state,{version:1,id:randomUUID(),phase:"complete",backup:directories[0]});
+    expect(directories.map(file=>fs.existsSync(file))).toEqual([true,false,true,true]);
   });
 });

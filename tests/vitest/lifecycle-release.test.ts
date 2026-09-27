@@ -3,13 +3,16 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { generateKeyPairSync, sign } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { verifyManifest, unpackRelease, sha256, download, readBuildIdentity, trustedReleaseKeys, resolveRelease, platformArtifact } from "../../apps/openassist-cli/src/lib/release.js";
-import { resolveUpdateMethod, sourceRef, normalizeConfigPaths, pruneLifecycleHistory } from "../../apps/openassist-cli/src/lib/lifecycle-engine.js";
+import { resolveUpdateMethod, sourceRef, normalizeConfigPaths } from "../../apps/openassist-cli/src/lib/lifecycle-engine.js";
 import { acquireLifecycleLock, containedPath, copyPrivateTree, removeManagedPath } from "../../apps/openassist-cli/src/lib/lifecycle-files.js";
 import { inspectDatabaseVersion } from "../../packages/storage-sqlite/src/compatibility.js";
 import { DatabaseSync } from "node:sqlite";
 import { isolatedEnvironment, instancePath } from "../../apps/openassist-cli/src/commands/dev.js";
+import { checkHealth } from "../../apps/openassist-cli/src/lib/health-check.js";
+import { renderOperationSummary } from "../../apps/openassist-cli/src/lib/lifecycle-readiness.js";
 
 const require = createRequire(path.resolve("apps/openassist-cli/package.json"));
 const tar = require("tar");
@@ -107,5 +110,79 @@ describe("verified lifecycle releases",()=>{
   it("normalizes relative state paths without changing credentials",()=>{
     const root=temp();const file=path.join(root,"openassist.toml");fs.writeFileSync(file,'[runtime.paths]\ndataDir="old/data"\n[security]\nsecretsBackend="encrypted-file"\n');
     normalizeConfigPaths(file,root);const text=fs.readFileSync(file,"utf8");expect(text).toContain("encrypted-file");expect(text).toContain("old");expect(text).not.toContain('dataDir="old/data"');
+  });
+
+  it("resolves stable, pinned and preview identities and rejects mismatched signed tracks",async()=>{
+    const {privateKey,publicKey}=generateKeyPairSync("rsa",{modulusLength:2048});
+    const key=publicKey.export({type:"spki",format:"pem"}).toString();
+    const payload=manifest();
+    let metadata:unknown={tag_name:"v0.1.0",draft:false};
+    vi.stubGlobal("fetch",vi.fn(async(url:string)=>{
+      const bytes=Buffer.from(JSON.stringify(payload));
+      return new Response(url.endsWith('release.sig') ? sign("RSA-SHA256",bytes,privateKey) : url.endsWith('release.json') ? bytes : JSON.stringify(metadata));
+    }));
+    expect((await resolveRelease({},[key])).manifest.channel).toBe("stable");
+    expect((await resolveRelease({version:"0.1.0"},[key])).manifest.build.version).toBe("0.1.0");
+    payload.channel="preview"; metadata=[{tag_name:"v0.1.0",prerelease:true}];
+    expect((await resolveRelease({channel:"preview"},[key])).manifest.channel).toBe("preview");
+    metadata={tag_name:"v0.1.0",draft:false};
+    await expect(resolveRelease({},[key])).rejects.toThrow("requested track");
+    metadata={tag_name:"bad"};await expect(resolveRelease({},[key])).rejects.toThrow("No matching");
+    metadata=[];await expect(resolveRelease({channel:"preview"},[key])).rejects.toThrow("No matching");
+  });
+
+  it("rejects signed but unsupported manifest shapes",()=>{
+    const {privateKey,publicKey}=generateKeyPairSync("rsa",{modulusLength:2048});
+    const key=publicKey.export({type:"spki",format:"pem"}).toString();
+    for(const patch of [{schemaVersion:2},{channel:"unknown"},{build:null},{artifacts:null},{artifacts:[]},{build:{...build,id:"../bad"}},{build:{...build,version:"not-a-version"}},{build:{...build,configVersion:2}},{build:{...build,databaseVersion:2}},{build:{...build,commit:"bad"}}]){
+      const bytes=Buffer.from(JSON.stringify({...manifest(),...patch}));
+      expect(()=>verifyManifest(bytes,sign("RSA-SHA256",bytes,privateKey),[key])).toThrow("manifest");
+    }
+    for(const patch of [{platform:"win32"},{arch:"riscv64"},{sha256:"bad"},{bytes:0},{bytes:1.2},{bytes:1024**3}]){
+      const value=manifest();Object.assign(value.artifacts[0],patch);const bytes=Buffer.from(JSON.stringify(value));
+      expect(()=>verifyManifest(bytes,sign("RSA-SHA256",bytes,privateKey),[key])).toThrow("artifact");
+    }
+  });
+
+  it("rejects unsafe tar entries and link ancestors without creating output",()=>{
+    const archive=(entries:Record<string,unknown>[])=>gzipSync(Buffer.concat([...entries.map(entry=>{const header=new tar.Header({size:0,mode:0o644,...entry});header.encode();return header.block;}),Buffer.alloc(1024)]));
+    for(const entries of [
+      [{path:"../escape",type:"File"}], [{path:"/absolute",type:"File"}], [{path:"a:b",type:"File"}],
+      [{path:"same",type:"File"},{path:"same",type:"File"}], [{path:"fifo",type:"FIFO"}],
+      [{path:"link",type:"SymbolicLink",linkpath:"/outside"}], [{path:"link",type:"Link",linkpath:"../outside"}],
+      [{path:"link",type:"SymbolicLink",linkpath:"inside"},{path:"link/file",type:"File"}]
+    ]){
+      const root=temp();expect(()=>unpackRelease(archive(entries),path.join(root,"out")),JSON.stringify(entries)).toThrow();expect(fs.existsSync(path.join(root,"out"))).toBe(false);
+    }
+  });
+
+  it("validates platform runtime floors independently of manifest signatures",()=>{
+    const original=process.platform;
+    try{
+      Object.defineProperty(process,"platform",{value:"win32",configurable:true});expect(()=>platformArtifact(manifest() as never)).toThrow("No packaged");
+      Object.defineProperty(process,"platform",{value:"darwin",configurable:true});
+      vi.spyOn(os,"release").mockReturnValue("22.5.0");expect(()=>platformArtifact(manifest() as never)).toThrow("13.5");
+      vi.spyOn(os,"release").mockReturnValue("22.6.0");expect(platformArtifact(manifest() as never).platform).toBe("darwin");
+      Object.defineProperty(process,"platform",{value:"linux",configurable:true});
+      vi.spyOn(process.report,"getReport").mockReturnValue({header:{glibcVersionRuntime:"2.27"}} as never);expect(()=>platformArtifact(manifest() as never)).toThrow("glibc");
+      vi.spyOn(process.report,"getReport").mockReturnValue({header:{glibcVersionRuntime:"2.28"}} as never);
+      vi.spyOn(os,"release").mockReturnValue("4.17.0");expect(()=>platformArtifact(manifest() as never)).toThrow("kernel");
+      vi.spyOn(os,"release").mockReturnValue("6.1.0");expect(platformArtifact(manifest() as never).platform).toBe("linux");
+    } finally{Object.defineProperty(process,"platform",{value:original,configurable:true});}
+  });
+  it("accepts health only from the expected build and instance",async()=>{
+    const expected={buildId:"candidate",instanceId:"isolated"};
+    for(const [body,ok] of [[{status:"ok",build:{id:"candidate"},instanceId:"isolated"},true],[{status:"ok",build:{id:"other"},instanceId:"isolated"},false],[{status:"ok",build:{id:"candidate"},instanceId:"primary"},false],[{status:"ok"},false],[{status:"failed"},false]] as const){
+      vi.stubGlobal("fetch",vi.fn(async()=>new Response(JSON.stringify(body))));
+      expect((await checkHealth("http://127.0.0.1:3344",expected)).ok).toBe(ok);
+    }
+    vi.stubGlobal("fetch",vi.fn(async()=>new Response('not JSON')));
+    expect((await checkHealth("http://127.0.0.1:3344",expected)).ok).toBe(false);
+  });
+  it("renders concise shared summaries for availability, deletion and unverified activation",()=>{
+    expect(renderOperationSummary({}).join('\n')).toContain("Ready now\n- Operation completed.\nNeeds action\n- None.");
+    const lines=renderOperationSummary({build:{version:"1.0.0",id:"one"},operation:{phase:"prepared"},method:"release",available:"1.0.0",current:"0.1.0",ref:"main",root:"/managed",backup:"/backup",notifications:"on",instances:[{name:"test"}],remove:["/owned"],purge:["/config"],preserved:["/custom"],verified:false,retentionWarning:"Review retained backup",nextCommand:"openassist update recover"});
+    expect(lines.join('\n')).toContain("Activation is unverified");expect(lines.at(-1)).toBe("- openassist update recover");
+    expect(renderOperationSummary({disabled:true}).join('\n')).toContain("notifications are disabled");
   });
 });

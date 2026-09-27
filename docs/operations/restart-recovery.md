@@ -10,7 +10,7 @@ The lifecycle commands in this repo now rely on the same persistent install and 
 
 - bootstrap writes install state
 - `openassist doctor` reads it to report readiness
-- `openassist service install` refreshes service metadata without discarding repo data
+- `openassist service install` refreshes service metadata and ownership without discarding operator data
 - `openassist upgrade` updates the same record with the current known-good commit
 
 ## Durable Runtime State
@@ -102,15 +102,9 @@ Chat-side diagnostics:
 
 Use `openassist doctor` when you are unsure whether the install is still coherent enough for setup changes or upgrade.
 
-Use `openassist upgrade --dry-run` when you want the current repo, ref, and rollback plan without mutating anything.
+Use `openassist update --dry-run` to inspect the recorded method, track, restart behavior and retained application. A release installation does not require Git metadata. For an interrupted activation, first inspect `openassist update recover --dry-run`; preserve its operation journal and backup. For a damaged application or wrapper, follow [upgrade recovery](upgrade-and-rollback.md) before rerunning bootstrap over existing state.
 
-Re-run bootstrap instead of forcing an in-place recovery when:
-
-- the install is not repo-backed anymore
-- wrapper commands are broken beyond simple PATH repair
-- the checkout is damaged or untrusted
-- build output is missing under `apps/openassist-cli/dist` or `apps/openassistd/dist`
-- you want to move a detached install back onto an explicit branch or tag through the installer flow
+Source checkouts with local changes must be preserved before migration. Source PR tracks require `--pr` or `--ref` on later updates. Broken source build output can require an explicit source bootstrap repair; this is separate from packaged-release recovery.
 
 Setup readiness rejects invalid bind addresses before network probing. If this blocks setup or repair, correct the address using the [invalid-bind-address guidance](common-troubleshooting.md#invalid-bind-address) and retry; valid addresses still receive normal port checks.
 

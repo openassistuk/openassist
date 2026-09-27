@@ -167,7 +167,7 @@ When changing installer/setup/service behavior:
    - `install.sh`, `scripts/install/bootstrap.sh`, and `openassist upgrade` may expose branch/PR track flags
    - setup hub, quickstart, and wizard must not advertise branch/PR install tracks as normal operator choices
    - PR installs must keep later upgrades explicit (`--pr` or `--ref`) instead of silently falling back to `main`
-   - lifecycle output and docs must label branch and PR update tracks clearly so operators can distinguish standard `main` installs from advanced developer test installs
+   - lifecycle output and docs must label branch and PR update tracks clearly so operators can distinguish standard packaged releases from advanced `main`/branch/PR source test installs
 22. preserve Linux/macOS first-class operator platform semantics:
    - shared operator docs and lifecycle messaging must treat Linux and macOS as first-class supported operator paths
    - Linux-only service-manager and filesystem-boundary behavior must stay explicitly Linux-specific

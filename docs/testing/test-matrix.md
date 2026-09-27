@@ -156,6 +156,7 @@ Current suite files under `tests/node/`:
 - `dependency-security-overrides.test.ts`
 - `dependency-audit.test.ts`
 - `cli-docs-truth.test.ts`
+- `cli-lifecycle-modernization.test.ts`
 - `cli-growth-status-coverage.test.ts`
 - `cli-lib-coverage.test.ts`
 - `cli-lifecycle-home-state-blackbox.test.ts`

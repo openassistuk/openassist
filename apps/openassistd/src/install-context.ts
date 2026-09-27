@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import {
+  cachedUpdateStatus,
   defaultEnvFilePath as defaultOperatorEnvFilePath,
   defaultInstallStatePath as defaultOperatorInstallStatePath
 } from "@openassist/config";
@@ -176,6 +177,7 @@ export function loadRuntimeInstallContext(
 
   return {
     installationMethod: process.env.OPENASSIST_STATE_ROOT ? "isolated" : matchedStored?.active?.method ?? (repoRoot ? "source" : undefined),
+    updateStatus: cachedUpdateStatus(),
     installedVersion: matchedStored?.active?.build.version,
     repoBackedInstall: Boolean(repoRoot),
     installDir: repoRoot ?? configuredInstallDir,

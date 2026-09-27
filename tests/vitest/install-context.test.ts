@@ -26,6 +26,29 @@ afterEach(() => {
 });
 
 describe("loadRuntimeInstallContext", () => {
+  it("uses the running build throughout activation, source switching and rollback", async () => {
+    const root=tempDir("openassist-install-context-activation-");
+    vi.stubEnv("HOME",root);vi.stubEnv("USERPROFILE",root);vi.stubEnv("OPENASSIST_STATE_ROOT","");
+    const configPath=path.join(root,"config","openassist.toml");
+    const stateFile=path.join(root,".config","openassist","install-state.json");fs.mkdirSync(path.dirname(stateFile),{recursive:true});
+    const old=path.join(root,"old");const candidate=path.join(root,"candidate");fs.mkdirSync(candidate);
+    const build={id:"candidate",version:"0.2.0",commit:"b".repeat(40),nodeVersion:"24.21.0",configVersion:1,databaseVersion:1};
+    fs.writeFileSync(path.join(candidate,"build-identity.json"),JSON.stringify(build));
+    fs.writeFileSync(stateFile,JSON.stringify({installDir:old,configPath,trackedRef:"old-branch",active:{method:"source",build:{version:"0.1.0"}}}));
+    const {loadRuntimeInstallContext,createRuntimeInstallContextReader}=await import("../../apps/openassistd/src/install-context.js");
+    expect(loadRuntimeInstallContext(configPath,undefined,candidate)).toMatchObject({installationMethod:"release",installedVersion:"0.2.0",installDir:candidate,trackedRef:undefined,lastKnownGoodCommit:build.commit,repoBackedInstall:false});
+    const readContext=createRuntimeInstallContextReader(configPath,undefined,candidate);
+    expect(readContext().trackedRef).toBeUndefined();
+    fs.writeFileSync(stateFile,JSON.stringify({installDir:candidate,configPath,trackedRef:"0.2.0",active:{method:"release",build}}));
+    expect(readContext()).toMatchObject({installationMethod:"release",installedVersion:"0.2.0",trackedRef:"0.2.0"});
+    expect(childProcess.spawnSync).not.toHaveBeenCalled();
+    fs.mkdirSync(path.join(candidate,".git"));fs.writeFileSync(path.join(candidate,"build-identity.json"),JSON.stringify({...build,sourceRef:"refs/pull/63/head"}));
+    vi.mocked(childProcess.spawnSync).mockReturnValue({status:0,stdout:"HEAD\n"} as ReturnType<typeof childProcess.spawnSync>);
+    expect(loadRuntimeInstallContext(configPath,undefined,candidate)).toMatchObject({installationMethod:"source",trackedRef:"refs/pull/63/head",installDir:candidate});
+    fs.mkdirSync(old);fs.writeFileSync(path.join(old,"build-identity.json"),JSON.stringify({...build,id:"old",version:"0.1.0"}));
+    fs.writeFileSync(stateFile,JSON.stringify({installDir:candidate,configPath,trackedRef:"refs/pull/63/head",active:{method:"source",build:{version:"0.2.0"}}}));
+    expect(loadRuntimeInstallContext(configPath,undefined,old)).toMatchObject({installationMethod:"release",installedVersion:"0.1.0",installDir:old,trackedRef:undefined});
+  });
   it("reuses stored install metadata when the config stays under the stored install directory", async () => {
     const root = tempDir("openassist-install-context-stored-relative-");
     const homeDir = path.join(root, "home");

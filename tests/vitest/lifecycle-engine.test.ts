@@ -13,6 +13,7 @@ import { checkForUpdate, setUpdateNotifications } from "../../apps/openassist-cl
 import type { InstalledApplication } from "../../packages/core-types/src/index.js";
 import { installationSummary, installationSummaryText } from "../../apps/openassist-cli/src/lib/installation-summary.js";
 import { buildLifecycleReport } from "../../apps/openassist-cli/src/lib/lifecycle-readiness.js";
+import { installShellPath, removeShellPathBlocks, shellPathBlock } from "../../apps/openassist-cli/src/lib/shell-profile.js";
 
 const controls=vi.hoisted(()=>({running:true,installed:true,failCandidate:false,badStartup:false,active:"old",events:[] as string[]}));
 vi.mock("../../apps/openassist-cli/src/lib/command-runner.js",async importOriginal=>({...await importOriginal<object>(),SpawnCommandRunner:class {
@@ -52,9 +53,36 @@ beforeEach(async()=>{
   const active=app("old");
   saveInstallState({installDir:active.path,managedRoot:defaultManagedInstallDir(),configPath:defaultConfigPath(),envFilePath:defaultEnvFilePath(),active});
 });
-afterEach(()=>{Object.defineProperty(process,"platform",{value:originalPlatform,configurable:true});vi.restoreAllMocks();fs.rmSync(home,{recursive:true,force:true});});
+afterEach(()=>{Object.defineProperty(process,"platform",{value:originalPlatform,configurable:true});vi.restoreAllMocks();vi.unstubAllEnvs();fs.rmSync(home,{recursive:true,force:true});});
 
 describe("staged lifecycle recovery",()=>{
+  it("owns only the inserted PATH blocks and preserves edits during uninstall",async()=>{
+    vi.stubEnv("SHELL","/bin/bash");vi.stubEnv("ZDOTDIR","");
+    const bashrc=path.join(home,".bashrc"),profile=path.join(home,".profile");
+    fs.writeFileSync(bashrc,"# existing user setting");
+    expect(installShellPath().updated).toEqual([bashrc,profile]);
+    const installed=loadInstallState()!;
+    expect(installed.shellProfiles).toHaveLength(2);
+    expect(installShellPath().updated).toEqual([]);
+    fs.appendFileSync(bashrc,"# later user setting\n");
+    fs.writeFileSync(profile,fs.readFileSync(profile,"utf8").replace("export PATH=","export CUSTOM_PATH="));
+    expect(removeShellPathBlocks(installed.shellProfiles!,true)).toEqual({edited:[bashrc],preserved:[profile]});
+    expect(fs.readFileSync(bashrc,"utf8")).toContain(shellPathBlock());
+    controls.running=false;controls.installed=false;
+    expect(await uninstallApplication({dryRun:true})).toMatchObject({shellProfileEdits:[bashrc],preserved:[profile]});
+    await uninstallApplication({});
+    expect(fs.readFileSync(bashrc,"utf8")).toBe("# existing user setting\n# later user setting\n");
+    expect(fs.readFileSync(profile,"utf8")).toContain("CUSTOM_PATH");
+  });
+  it("supports ZDOTDIR, refuses unowned markers, and preserves unknown profile paths",()=>{
+    vi.stubEnv("SHELL","/bin/zsh");vi.stubEnv("ZDOTDIR",path.join(home,"custom zsh"));
+    expect(installShellPath().updated).toEqual([path.join(home,"custom zsh",".zshrc"),path.join(home,"custom zsh",".zprofile")]);
+    const owned=loadInstallState()!.shellProfiles!;
+    expect(removeShellPathBlocks([...owned,{path:path.join(home,"unrelated"),sha256:"a".repeat(64)}],true).preserved).toEqual([path.join(home,"unrelated")]);
+    vi.stubEnv("SHELL","/bin/unknown");fs.writeFileSync(path.join(home,".profile"),"# >>> openassist path >>>\ncustom content\n");
+    expect(installShellPath()).toEqual({updated:[],preserved:[path.join(home,".profile")]});
+    vi.stubEnv("OPENASSIST_STATE_ROOT",home);expect(()=>installShellPath()).toThrow("primary managed");
+  });
   it("prepares before stopping, backs up state, then verifies the exact application",async()=>{
     const candidate=app("candidate");
     const result=await executeUpdate({prepared:candidate.path});
@@ -235,6 +263,7 @@ describe("staged lifecycle recovery",()=>{
   it("stages an immutable source revision with the pinned toolchain and private runtime",async()=>{
     const candidate=await prepareSource(defaultManagedInstallDir(),"refs/pull/7/head");
     expect(candidate.ref).toBe("refs/pull/7/head");expect(candidate.build.commit).toBe("a".repeat(40));
+    expect(candidate.build.sourceRef).toBe("refs/pull/7/head");
     expect(fs.existsSync(candidate.nodePath)).toBe(true);
     expect(controls.events.some(event=>event==="git checkout --detach FETCH_HEAD")).toBe(true);
     expect(controls.events).toContain("pnpm install --frozen-lockfile");

@@ -6,6 +6,7 @@ export interface BuildIdentity {
   nodeVersion: string;
   configVersion: number;
   databaseVersion: number;
+  sourceRef?: string;
 }
 
 export interface ReleaseArtifact {

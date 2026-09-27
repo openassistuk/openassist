@@ -1,5 +1,7 @@
 # Restart and Recovery
 
+During activation, daemon self-knowledge identifies the application actually running, even before the installation record is committed. The release track may briefly be unknown; later status snapshots read it from the matching successful record. Recovery must still use the lifecycle journal, not treat a candidate's startup identity as proof of successful activation.
+
 Application updates now have a durable lifecycle journal separate from runtime message replay. `openassist update recover --dry-run` inspects interrupted activation. Rollback restores compatible application/runtime files without restoring an old database, so conversation and idempotency records remain current. See [upgrade/recovery](upgrade-and-rollback.md).
 
 OpenAssist is designed so restart and reboot events do not silently lose durable intent.

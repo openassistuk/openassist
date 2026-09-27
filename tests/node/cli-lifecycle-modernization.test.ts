@@ -17,8 +17,42 @@ import { uninstallApplication } from "../../apps/openassist-cli/src/lib/lifecycl
 import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, writeDefaultConfig, loadConfig } from "../../packages/config/dist/index.js";
 import { randomUUID } from "node:crypto";
 import { discoverRelease, discoverSource } from "../../apps/openassist-cli/src/lib/update-discovery.js";
+import { installShellPath, removeShellPathBlocks } from "../../apps/openassist-cli/src/lib/shell-profile.js";
 
 describe("managed lifecycle command contracts", () => {
+  it("makes packaged commands discoverable in fresh shells and removes only owned PATH blocks",()=>{
+    const root=fs.mkdtempSync(path.join(os.tmpdir(),"oa-profile-' test-"));
+    const homeMock=mock.method(os,"homedir",()=>root);
+    const saved={root:process.env.OPENASSIST_STATE_ROOT,shell:process.env.SHELL,zsh:process.env.ZDOTDIR};
+    delete process.env.OPENASSIST_STATE_ROOT;process.env.SHELL="/bin/bash";delete process.env.ZDOTDIR;
+    try{
+      const app=path.join(defaultManagedInstallDir(),"releases","active");fs.mkdirSync(app,{recursive:true});
+      saveInstallState({installDir:app,managedRoot:defaultManagedInstallDir(),active:{method:"release",path:app,nodePath:process.execPath,verified:false,channel:"stable",build:{id:"active",version:"0.1.0",commit:"a".repeat(40),nodeVersion:"24.21.0",configVersion:1,databaseVersion:1}}});
+      const profile=path.join(root,".profile");fs.writeFileSync(profile,"# user setting\n");
+      assert.equal(installShellPath().updated.length,2);assert.equal(installShellPath().updated.length,0);
+      const bin=path.join(root,".local","bin");fs.mkdirSync(bin,{recursive:true});const wrapper=path.join(bin,"openassist");fs.writeFileSync(wrapper,"#!/bin/sh\nexit 0\n",{mode:0o755});
+      if(process.platform!=="win32"){
+        for(const shell of ["bash",...(process.platform==="darwin"?["zsh"]:[])]){
+          const result=spawnSync(shell,["-c",'. "$1"; . "$1"; command -v openassist',"test",profile],{env:{HOME:root,PATH:"/usr/bin:/bin"},encoding:"utf8"});
+          assert.equal(result.status,0,result.stderr);assert.equal(result.stdout.trim(),wrapper);
+        }
+      }
+      fs.appendFileSync(profile,"# later user setting\n");
+      const owned=loadInstallState()!.shellProfiles!;
+      assert.equal(removeShellPathBlocks(owned,true).edited.length,2);
+      assert.equal(removeShellPathBlocks(owned,false).edited.length,2);
+      assert.equal(fs.readFileSync(profile,"utf8"),"# user setting\n# later user setting\n");
+      assert.equal(removeShellPathBlocks(owned,false).edited.length,0);
+      process.env.SHELL="/bin/zsh";process.env.ZDOTDIR=path.join(root,"zsh custom");assert.equal(installShellPath().updated.length,2);
+      const zsh=path.join(root,"zsh custom",".zshrc");fs.writeFileSync(zsh,fs.readFileSync(zsh,"utf8").replace("export PATH", "export EDITED_PATH"));
+      assert.ok(removeShellPathBlocks(loadInstallState()!.shellProfiles!,true).preserved.includes(zsh));
+      process.env.OPENASSIST_STATE_ROOT=root;assert.throws(()=>installShellPath(),/primary managed/);
+    }finally{
+      homeMock.mock.restore();
+      for(const [key,value] of [["OPENASSIST_STATE_ROOT",saved.root],["SHELL",saved.shell],["ZDOTDIR",saved.zsh]]){if(value===undefined)delete process.env[key!];else process.env[key!]=value;}
+      fs.rmSync(root,{recursive:true,force:true});
+    }
+  });
   it("checks recorded tracks through public catalogues without sending saved selectors", async () => {
     const root=fs.mkdtempSync(path.join(os.tmpdir(),"oa-catalogue-"));
     const previousRoot=process.env.OPENASSIST_STATE_ROOT;
@@ -225,9 +259,9 @@ describe("managed lifecycle command contracts", () => {
     fs.writeFileSync(path.join(local,"package.json"),JSON.stringify({name:"fixture",version:"0.1.0",packageManager:"pnpm@12.5.1"}));
     fs.writeFileSync(path.join(local,"pnpm-workspace.yaml"),"packages: []\n");
     fs.writeFileSync(path.join(local,"local-changes.txt"),"uncommitted content stays intact");
-    fs.writeFileSync(path.join(local,"apps","openassistd","dist","index.js"),`const fs=require('node:fs'); const path=require('node:path'); fs.writeFileSync(path.join(process.env.OPENASSIST_STATE_ROOT,'child-check.json'),JSON.stringify({secretPresent:'OPENASSIST_FIXTURE_SECRET' in process.env,stateRoot:process.env.OPENASSIST_STATE_ROOT,envFile:process.env.OPENASSIST_ENV_FILE}));`);
+    fs.writeFileSync(path.join(local,"apps","openassistd","dist","index.js"),`const fs=require('node:fs'); const path=require('node:path'); fs.writeFileSync(path.join(process.env.OPENASSIST_STATE_ROOT,'child-check.json'),JSON.stringify({secretPresent:'OPENASSIST_FIXTURE_SECRET' in process.env,dedicated:process.env.CUSTOM_TEST_KEY,stateRoot:process.env.OPENASSIST_STATE_ROOT,envFile:process.env.OPENASSIST_ENV_FILE}));`);
     const stub=path.join(bin,"pnpm-stub.cjs");
-    fs.writeFileSync(stub,"if(process.argv.includes('--version')) process.stdout.write('12.5.1');\n");
+    fs.writeFileSync(stub,"if(process.env.CUSTOM_TEST_KEY) process.exit(9); if(process.argv.includes('--version')) process.stdout.write('12.5.1');\n");
     const quote=(value:string)=>`'${value.replaceAll("'","'\\''")}'`;
     if(process.platform==="win32")fs.writeFileSync(path.join(bin,"pnpm.cmd"),`@"${process.execPath}" "${stub}" %*\r\n`);
     else fs.writeFileSync(path.join(bin,"pnpm"),`#!/bin/sh\nexec ${quote(process.execPath)} ${quote(stub)} "$@"\n`,{mode:0o755});
@@ -245,7 +279,9 @@ describe("managed lifecycle command contracts", () => {
       const config=loadConfig({baseFile:path.join(instance,"config","openassist.toml")}).config;
       assert.deepEqual(config.runtime.channels,[]);assert.equal(config.runtime.scheduler.enabled,false);assert.equal(config.runtime.bindAddress,"127.0.0.1");
       fs.writeFileSync(path.join(instance,"keep-state.txt"),"reuse me");
+      fs.writeFileSync(path.join(instance,"config","openassistd.env"),"CUSTOM_TEST_KEY=dedicated-test-value\nOPENASSIST_STATE_ROOT=/wrong\n");
       assert.equal(run("test","--local",local,"--name","local-test").code,0);
+      assert.equal(JSON.parse(fs.readFileSync(path.join(instance,"child-check.json"),"utf8")).dedicated,"dedicated-test-value");
       assert.equal(fs.readFileSync(path.join(instance,"keep-state.txt"),"utf8"),"reuse me");
       assert.equal(fs.readFileSync(path.join(local,"local-changes.txt"),"utf8"),"uncommitted content stays intact");
       assert.equal(fs.existsSync(path.join(root,".local","bin","openassist")),false);

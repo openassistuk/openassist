@@ -17,6 +17,7 @@ export interface InstallState {
   active?: InstalledApplication;
   previous?: InstalledApplication;
   ownedFiles?: OwnedInstallFile[];
+  shellProfiles?: OwnedInstallFile[];
   managedRoot?: string;
   instanceId?: string;
   notifications?: boolean;
@@ -131,6 +132,7 @@ export function loadInstallState(statePath = defaultInstallStatePath()): Install
     if(raw.serviceManager!==undefined && !["systemd-user","systemd-system","launchd"].includes(raw.serviceManager)) throw new Error("invalid service ownership");
     if(raw.notifications!==undefined && typeof raw.notifications!=="boolean") throw new Error("invalid notice preference");
     if(raw.ownedFiles!==undefined && (!Array.isArray(raw.ownedFiles) || raw.ownedFiles.length>32 || raw.ownedFiles.some(file=>!file || !path.isAbsolute(file.path) || !/^[a-f0-9]{64}$/.test(file.sha256)))) throw new Error("invalid ownership record");
+    if(raw.shellProfiles!==undefined && (!Array.isArray(raw.shellProfiles) || raw.shellProfiles.length>8 || raw.shellProfiles.some(file=>!file || !path.isAbsolute(file.path) || !/^[a-f0-9]{64}$/.test(file.sha256)))) throw new Error("invalid shell profile ownership");
     if(raw.active && raw.installDir !== raw.active.path) throw new Error("active application does not match install directory");
     return normalizeState(raw);
   } catch {

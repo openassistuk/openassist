@@ -1,5 +1,7 @@
 # Configuration Reference
 
+For `openassist dev test`, the dedicated env file under the instance root supplies daemon credentials, including custom variable names. It is loaded at daemon launch with owner-only permissions on Unix. Isolation variables and the sanitized host PATH take precedence; process-loader overrides are excluded. It is not loaded into source-build subprocesses. See [developer testing](../operations/developer-testing.md).
+
 Managed applications live under `~/.local/share/openassist/install`, while canonical operator config/data paths remain unchanged. `OPENASSIST_STATE_ROOT` redirects CLI and daemon defaults to `<root>/config` and `<root>/share` for isolated instances. Install-state schema version 2 records active/previous applications and ownership; lifecycle report version 4 distinguishes release/source. Update notification on/off preferences are configured through `openassist update notifications <mode>`, not TOML.
 
 `update-check.json` beside the install record is a disposable versioned status cache: local check time, availability status and an explicit-target boolean only. It contains no downloaded versions, commits or catalogue text. Old unversioned caches are ignored and refreshed on the next permitted check. Use `openassist update check` for fresh target details; no TOML cache or network-policy override is provided.

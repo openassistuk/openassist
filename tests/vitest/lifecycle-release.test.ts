@@ -10,7 +10,7 @@ import { resolveUpdateMethod, sourceRef, normalizeConfigPaths } from "../../apps
 import { acquireLifecycleLock, containedPath, copyPrivateTree, removeManagedPath } from "../../apps/openassist-cli/src/lib/lifecycle-files.js";
 import { inspectDatabaseVersion } from "../../packages/storage-sqlite/src/compatibility.js";
 import { DatabaseSync } from "node:sqlite";
-import { isolatedEnvironment, instancePath } from "../../apps/openassist-cli/src/commands/dev.js";
+import { isolatedEnvironment, isolatedDaemonEnvironment, instancePath } from "../../apps/openassist-cli/src/commands/dev.js";
 import { checkHealth } from "../../apps/openassist-cli/src/lib/health-check.js";
 import { renderOperationSummary } from "../../apps/openassist-cli/src/lib/lifecycle-readiness.js";
 
@@ -111,6 +111,16 @@ describe("verified lifecycle releases",()=>{
     try {const env=isolatedEnvironment(temp());expect(env.OPENASSIST_PROVIDER_SECRET_API_KEY).toBeUndefined();expect(env.OPENASSIST_STATE_ROOT).toBeTruthy();expect(()=>instancePath("../primary")).toThrow("Instance names");}
     finally{delete process.env.OPENASSIST_PROVIDER_SECRET_API_KEY;}
   });
+  it("loads dedicated credentials only for the daemon and protects routing/runtime variables",()=>{
+    const root=temp();const dir=path.join(root,"config");fs.mkdirSync(dir,{mode:0o700});
+    fs.writeFileSync(path.join(dir,"openassistd.env"),'CUSTOM_PROVIDER_KEY="dedicated key"\nAZURE_CLIENT_ID=dedicated-id\nOPENASSIST_STATE_ROOT=/primary\nOPENASSIST_ENV_FILE=/primary.env\nOPENASSIST_SERVICE_MANAGER_KIND=systemd-system\nNODE_OPTIONS=--require=bad\nPATH=/wrong\nINIT_CWD=/primary\n',{mode:0o600});
+    expect(isolatedEnvironment(root).CUSTOM_PROVIDER_KEY).toBeUndefined();
+    const env=isolatedDaemonEnvironment(root);
+    expect(env.CUSTOM_PROVIDER_KEY).toBe("dedicated key");expect(env.AZURE_CLIENT_ID).toBe("dedicated-id");
+    expect(env.OPENASSIST_STATE_ROOT).toBe(root);expect(env.OPENASSIST_ENV_FILE).toBe(path.join(dir,"openassistd.env"));
+    expect(env.OPENASSIST_SERVICE_MANAGER_KIND).toBe("manual");expect(env.PATH).toBe(process.env.PATH);
+    expect(env.NODE_OPTIONS).toBeUndefined();expect(env.INIT_CWD).toBeUndefined();
+  });
   it("normalizes relative state paths without changing credentials",()=>{
     const root=temp();const file=path.join(root,"openassist.toml");fs.writeFileSync(file,'[runtime.paths]\ndataDir="old/data"\n[security]\nsecretsBackend="encrypted-file"\n');
     normalizeConfigPaths(file,root);const text=fs.readFileSync(file,"utf8");expect(text).toContain("encrypted-file");expect(text).toContain("old");expect(text).not.toContain('dataDir="old/data"');
@@ -164,10 +174,27 @@ describe("verified lifecycle releases",()=>{
       [{path:"../escape",type:"File"}], [{path:"/absolute",type:"File"}], [{path:"a:b",type:"File"}],
       [{path:"same",type:"File"},{path:"same",type:"File"}], [{path:"fifo",type:"FIFO"}],
       [{path:"link",type:"SymbolicLink",linkpath:"/outside"}], [{path:"link",type:"Link",linkpath:"../outside"}],
-      [{path:"link",type:"SymbolicLink",linkpath:"inside"},{path:"link/file",type:"File"}]
+      [{path:"link",type:"SymbolicLink",linkpath:"inside"},{path:"link/file",type:"File"}],
+      [{path:"a",type:"SymbolicLink",linkpath:"."},{path:"b",type:"SymbolicLink",linkpath:"a/../outside"}],
+      [{path:"b",type:"SymbolicLink",linkpath:"a/../outside"},{path:"a",type:"SymbolicLink",linkpath:"."}],
+      [{path:"a",type:"SymbolicLink",linkpath:"b"},{path:"b",type:"SymbolicLink",linkpath:"a"}],
+      [{path:"a",type:"Link",linkpath:"b"},{path:"b",type:"Link",linkpath:"a"}],
+      [{path:"a",type:"SymbolicLink",linkpath:"."},{path:"b",type:"Link",linkpath:"a/../outside"}],
+      [{path:"inside",type:"File"},{path:"dir/link",type:"SymbolicLink",linkpath:"../inside"},{path:"copy",type:"Link",linkpath:"dir/link"}],
+      Array.from({length:41},(_,i)=>({path:`link${i}`,type:"SymbolicLink",linkpath:i===0?"file":`link${i-1}`}))
     ]){
       const root=temp();expect(()=>unpackRelease(archive(entries),path.join(root,"out")),JSON.stringify(entries)).toThrow();expect(fs.existsSync(path.join(root,"out"))).toBe(false);
     }
+  });
+  it.skipIf(process.platform==="win32")("retains ordinary internal package links and hardlinks",async()=>{
+    const root=temp();const source=path.join(root,"source");fs.mkdirSync(path.join(source,"store","pkg"),{recursive:true});fs.mkdirSync(path.join(source,"modules"));
+    fs.writeFileSync(path.join(source,"store","pkg","index.js"),"legitimate package");
+    fs.symlinkSync("../store/pkg",path.join(source,"modules","pkg"));
+    fs.linkSync(path.join(source,"store","pkg","index.js"),path.join(source,"copy.js"));
+    const archive=path.join(root,"good.tar.gz");await tar.c({cwd:source,file:archive,gzip:true},["store","modules","copy.js"]);
+    const out=path.join(root,"out");unpackRelease(fs.readFileSync(archive),out);
+    expect(fs.readFileSync(path.join(out,"modules","pkg","index.js"),"utf8")).toBe("legitimate package");
+    expect(fs.readFileSync(path.join(out,"copy.js"),"utf8")).toBe("legitimate package");
   });
 
   it("validates platform runtime floors independently of manifest signatures",()=>{

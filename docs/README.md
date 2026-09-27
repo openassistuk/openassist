@@ -2,6 +2,8 @@
 
 Use this index by task, lifecycle stage, provider, channel, or config area.
 
+For packaged shell PATH setup, see the platform installation guides. For dedicated instance credentials, use [developer testing](operations/developer-testing.md); for conservative shell-profile cleanup, use [uninstall](operations/uninstall.md).
+
 ## Start Here
 
 Recommended operator flow:

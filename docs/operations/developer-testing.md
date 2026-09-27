@@ -15,6 +15,8 @@ openassist dev remove <name> --dry-run
 
 Each instance lives under `~/.local/share/openassist/dev/<name>` with separate config, env, database, logs, skills and helpers. It runs in the foreground on an available loopback port; `--port` requests an exact port and fails if occupied. Ctrl-C stops it. Reusing a name preserves its state. Local testing builds working-tree changes without changing branches, cleaning files or committing.
 
+On each daemon launch, the instance reads its own `config/openassistd.env`, including custom credential variable names used by your provider/channel configuration. These values are not passed to Git, pnpm or build scripts. Dedicated env files cannot override the instance state/env path, service identity, inherited host paths or Node library-loading controls. Stop and rerun the instance after changing its credentials.
+
 New instances disable channels and scheduled tasks and do not copy primary credentials or inherit OpenAssist credential variables. Configure dedicated test accounts; sharing a Telegram/Discord/WhatsApp account between instances can interfere with routing. The printed `OPENASSIST_STATE_ROOT` setup command addresses the test state. Isolated instances cannot manage the primary service. After a crash, verify the test process has exited before removing only its operation lock.
 
 ## Primary-install testing

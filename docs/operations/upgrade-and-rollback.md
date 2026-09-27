@@ -1,5 +1,7 @@
 # Upgrade and rollback
 
+Activation and rollback derive daemon identity from the executing application's build metadata. The successful install record is still committed only after verification; the daemon refreshes its update track from that matching record. Archive preparation resolves complete link chains before extraction and rejects links that escape the installation, including traversal hidden behind another link.
+
 `openassist update` prepares a replacement separately before activation. `openassist upgrade` is its compatible alias. Normal installs follow signed stable releases; existing source installations keep their source track until explicitly migrated.
 
 ```bash

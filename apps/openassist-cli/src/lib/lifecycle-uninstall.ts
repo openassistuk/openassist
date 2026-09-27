@@ -8,6 +8,7 @@ import { serviceOwnedFiles, assertDaemonStopped, stopManagedService } from "./li
 import { sha256 } from "./release.js";
 import { createServiceManager } from "./service-manager.js";
 import { SpawnCommandRunner } from "./command-runner.js";
+import { removeShellPathBlocks } from "./shell-profile.js";
 
 function matchesOwnedFile(file: string, expectedHash: string): boolean {
   let fd: number;
@@ -24,10 +25,11 @@ export async function uninstallApplication(options: {purge?: boolean; dryRun?: b
   if (!root || path.resolve(root) !== path.resolve(defaultManagedInstallDir())) throw new Error("This legacy/source checkout is not managed. Use service uninstall, preserve the checkout, and follow the uninstall guide.");
   const allowed = new Set([...serviceOwnedFiles(), ...["openassist","openassistd"].map(name => path.join(os.homedir(),".local","bin",name))]);
   const remove = (state.ownedFiles ?? []).filter(item => allowed.has(item.path) && matchesOwnedFile(item.path,item.sha256)).map(item => item.path);
-  const preserved = (state.ownedFiles ?? []).filter(item => !remove.includes(item.path)).map(item => item.path);
+  const profiles = removeShellPathBlocks(state.shellProfiles ?? [], true);
+  const preserved = [...(state.ownedFiles ?? []).filter(item => !remove.includes(item.path)).map(item => item.path), ...profiles.preserved];
   if (options.purge && (path.resolve(state.configPath) !== path.join(defaultConfigDir(),"openassist.toml") || path.resolve(state.envFilePath) !== path.join(defaultConfigDir(),"openassistd.env"))) throw new Error("Custom configuration paths require manual purge; refusing directory deletion.");
   const purge = options.purge ? [defaultConfigDir(), ...["data","logs","skills"].map(name => path.join(defaultShareDir(),name))] : [];
-  const result = {action: "uninstall", remove, applicationPaths: ["releases","current"].map(name => path.join(root,name)), purge, preserved, backupsRetained: true};
+  const result = {action: "uninstall", remove, shellProfileEdits: profiles.edited, applicationPaths: ["releases","current"].map(name => path.join(root,name)), purge, preserved, backupsRetained: true};
   if (options.dryRun) return result;
   const release = acquireLifecycleLock(root);
   try {
@@ -40,6 +42,9 @@ export async function uninstallApplication(options: {purge?: boolean; dryRun?: b
       await service.uninstall();
     }
     await assertDaemonStopped(state.configPath);
+    const removedProfiles = removeShellPathBlocks(state.shellProfiles ?? [], false);
+    result.shellProfileEdits = removedProfiles.edited;
+    result.preserved = [...new Set([...result.preserved, ...removedProfiles.preserved])];
     for (const file of remove) if (fs.existsSync(file)) fs.unlinkSync(file);
     const current = path.join(root,"current");
     if (fs.existsSync(current) && fs.lstatSync(current).isSymbolicLink()) fs.unlinkSync(current);

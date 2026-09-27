@@ -1,5 +1,7 @@
 # Release maintenance
 
+Release archive validation resolves link chains against the complete entry list before extraction, rejecting escapes, cycles and excessive chains while retaining internal production-dependency symlinks and direct regular-file hardlinks. Hardlinks to symlinks or other aliases are rejected. Native artifact/lifecycle gates verify relocation and candidate identity while the previous installation record is still committed. Packaged bootstrap owns only its recorded shell PATH blocks; uninstall preserves modified or unrecognized profile content.
+
 Packaged installations support Linux glibc and macOS on x64 and arm64. Artifacts contain the compiled CLI/daemon, production dependencies, local docs, service templates and Node 24.21.0. Normal operators do not need Git, pnpm or system Node. Source builds retain the pinned development toolchain.
 
 ## Publication prerequisites

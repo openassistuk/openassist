@@ -841,7 +841,7 @@ export function renderOperationSummary(result: Record<string, unknown>): string[
   const ready = [result.detail, build && `Application ${build.version} (${build.id})`, result.method && `Installation method: ${result.method}`, result.ref && `Source track: ${result.ref}`, result.available && `Installed: ${result.current}; available: ${result.available}`, operation && `Operation phase: ${operation.phase}`].filter(Boolean).map(String);
   if(result.disabled || result.notifications==="off") ready.push("Update notifications are disabled; explicit checks remain available.");
   if(result.notifications==="on") ready.push("Update notifications are enabled; updates remain explicit.");
-  for(const key of ["remove","applicationPaths","purge","preserved"] as const) if(Array.isArray(result[key])) for(const file of result[key]) ready.push(`${key}: ${file}`);
+  for(const key of ["remove","shellProfileEdits","applicationPaths","purge","preserved"] as const) if(Array.isArray(result[key])) for(const file of result[key]) ready.push(`${key}: ${file}`);
   if(Array.isArray(result.instances)) for(const instance of result.instances) ready.push(`Instance: ${(instance as {name:string}).name}`);
   if(result.root) ready.push(`Managed location: ${result.root}`);
   if(result.backup) ready.push(`Recovery backup: ${result.backup}`);

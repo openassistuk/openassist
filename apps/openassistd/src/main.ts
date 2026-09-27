@@ -16,7 +16,7 @@ import { AzureFoundryProviderAdapter } from "@openassist/providers-azure-foundry
 import { TelegramChannelAdapter } from "@openassist/channels-telegram";
 import { DiscordChannelAdapter } from "@openassist/channels-discord";
 import { WhatsAppMdChannelAdapter } from "@openassist/channels-whatsapp-md";
-import { loadRuntimeInstallContext } from "./install-context.js";
+import { createRuntimeInstallContextReader } from "./install-context.js";
 import { resolveChannelSettings } from "./channel-settings.js";
 import { resolveDefaultOAuthRedirectUri } from "./oauth-redirect.js";
 
@@ -330,7 +330,7 @@ program
       {
         db,
         logger,
-        installContext: loadRuntimeInstallContext(configPath, logger)
+        installContext: createRuntimeInstallContextReader(configPath, logger)
       },
       { providers, channels }
     );

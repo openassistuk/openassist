@@ -1,5 +1,7 @@
 # Test Matrix
 
+Lifecycle regressions cover dedicated daemon credentials without build-time inheritance, running-build identity before record commit and track refresh afterward, owned shell-profile installation/removal, and archive link traversal through intermediate aliases. The existing lifecycle release/engine, install-context, CLI lifecycle and runtime access-mode suites contain these cases. Native Linux/macOS tests additionally extract legitimate internal symlinks/hardlinks and execute saved PATH blocks in Bash (and Zsh on macOS); Windows does not certify those Unix behaviors. The live Linux lifecycle smoke also checks the deployed candidate's own module-root discovery before activation.
+
 This document defines local and CI validation expectations.
 
 The normal Node integration gate now includes docs-truth validation, so stale live-doc links or anchors, incomplete docs indexing, mismatched workflow statements, stale threshold references, and stale test inventories are expected to fail before merge instead of waiting for release review.

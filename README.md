@@ -20,6 +20,8 @@ Built-in OpenAI, Codex, Anthropic, and Azure Foundry providers can inspect inbou
 
 ## Start Here
 
+Packaged installation adds an owned `~/.local/bin` PATH block for your shell; open a new shell afterward or use `~/.local/bin/openassist` immediately. Uninstall removes only unchanged owned blocks and preserves your other shell settings. Developer instances load credentials from their own env file only when starting the daemon; builds do not receive those credentials.
+
 The fastest operator path is:
 
 1. Install a verified packaged release (or explicitly select a developer source build).

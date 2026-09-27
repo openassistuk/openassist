@@ -6,6 +6,12 @@ import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 
 describe("bootstrap installer idempotence contract", () => {
+  it("sets up owned PATH blocks after packaged activation and before setup",()=>{
+    const release=fs.readFileSync(path.join(process.cwd(),"scripts/install/release.sh"),"utf8");
+    assert.ok(release.indexOf("await engine.executeUpdate(")<release.indexOf("profiles.installShellPath()"));
+    assert.ok(release.indexOf("profiles.installShellPath()")<release.indexOf('export PATH="$HOME/.local/bin:$PATH"'));
+    assert.ok(release.includes("Open a new shell for the saved PATH change"));
+  });
   it("contains update-in-place and dirty-worktree guard logic", () => {
     const scriptPath = path.resolve("scripts/install/bootstrap.sh");
     assert.equal(fs.existsSync(scriptPath), true);

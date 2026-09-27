@@ -1,5 +1,7 @@
 # Quickstart on Linux and macOS
 
+After packaged installation, open a new shell so its saved PATH block takes effect. If `openassist` is not yet found, run `~/.local/bin/openassist setup`; the installer also prints this fallback. Existing or edited shell-profile blocks are preserved rather than overwritten.
+
 Normal bootstrap now installs a verified packaged release and private Node; the Git/pnpm prerequisites below apply to explicit developer source installs. State paths and strict provider/channel onboarding remain unchanged. Signing/publication must be provisioned first; an unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
 
 This is the canonical operator runbook for a public OpenAssist install.

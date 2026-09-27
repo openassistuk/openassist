@@ -1,5 +1,7 @@
 # Install on Linux
 
+Packaged bootstrap adds a marked `~/.local/bin` PATH block to Bash's `.bashrc` and `.profile`, or Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`). Open a new shell after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved; other shells receive `.profile` guidance. Uninstall removes only an unchanged block whose ownership was recorded.
+
 Normal Linux installation downloads a signed release with private Node into `~/.local/share/openassist/install`. Git/pnpm/system-Node prerequisites and package-manager remediation below apply only to explicit source bootstrap (`--source --ref main`, `--ref`, or `--pr`). Release bootstrap requires curl, gzip and OpenSSL. Until signing/publication is provisioned, it fails closed. See [release maintenance](release-maintenance.md) and [developer testing](developer-testing.md).
 
 This page covers Linux-specific installation details. For the end-to-end operator flow, start with `docs/operations/quickstart-linux-macos.md` and keep `docs/operations/common-troubleshooting.md` nearby for repair commands.

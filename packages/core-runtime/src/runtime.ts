@@ -95,7 +95,7 @@ import {
 export interface RuntimeDependencies {
   db: OpenAssistDatabase;
   logger: OpenAssistLogger;
-  installContext?: RuntimeInstallContext;
+  installContext?: RuntimeInstallContext | (() => RuntimeInstallContext);
 }
 
 export interface RuntimeAdapterSet {
@@ -518,7 +518,11 @@ export class OpenAssistRuntime {
   private startedAt: string | null = null;
   private startupEpoch = 0;
   private readonly hostSystemProfile: Record<string, unknown>;
-  private readonly installContext: RuntimeInstallContext;
+  private readonly readInstallContext: () => RuntimeInstallContext;
+
+  private get installContext(): RuntimeInstallContext {
+    return this.readInstallContext();
+  }
 
   constructor(config: RuntimeConfig, deps: RuntimeDependencies, adapters: RuntimeAdapterSet) {
     const configuredSecretsBackend =
@@ -567,10 +571,10 @@ export class OpenAssistRuntime {
         // Best-effort helper-tools directory hardening.
       }
     }
-    this.installContext = {
-      repoBackedInstall: false,
-      ...(deps.installContext ?? {})
-    };
+    const installContext = deps.installContext;
+    this.readInstallContext = typeof installContext === "function"
+      ? installContext
+      : () => ({ repoBackedInstall: false, ...installContext });
     this.effectiveTimezone = config.time.defaultTimezone ?? detectSystemTimezoneCandidate();
     this.hostSystemProfile = {
       platform: os.platform(),

@@ -1,5 +1,9 @@
 # Common Troubleshooting
 
+If a fresh packaged install reports `openassist: command not found`, open a new terminal or run `~/.local/bin/openassist setup`. The installer adds marked PATH blocks for Bash/Zsh, but preserves existing markers and symlinked profiles; inspect its printed profile guidance when a block was preserved.
+
+If a named developer instance cannot see newly configured credentials, stop it and rerun the printed `openassist dev test` command. Only its dedicated env file is loaded for the foreground daemon. Host credentials are not inherited and build subprocesses do not receive the instance's credentials.
+
 For an unavailable update check, retry `openassist update check` after checking GitHub/network availability. Discovery uses bounded public catalogues and local target selection; a missing entry, ambiguous ref, catalogue limit or blocked redirect never means the app is current and never selects a different target. Use a fully qualified source ref for branch/tag ambiguity. See [upgrade and rollback](upgrade-and-rollback.md) for the exact limits and signed-preparation boundary; do not disable destination or signature checks to bypass a failure.
 
 For packaged installation failures, verify release availability and production signing provisioning; never bypass signatures. Use `openassist update --dry-run`, `openassist update recover --dry-run`, and `openassist rollback --dry-run` before mutation. Unverified activation requires expected-build health before completion. See [release maintenance](release-maintenance.md), [upgrade/recovery](upgrade-and-rollback.md), and [uninstall](uninstall.md).

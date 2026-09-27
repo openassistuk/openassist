@@ -109,11 +109,46 @@ export function unpackRelease(archive: Buffer, target: string): void {
       entries.set(name, {type: entry.type, link: entry.linkpath ?? ""});
     }});
     if (!entries.size || unpacked.length < 1024 || !unpacked.subarray(-1024).every(b => b === 0)) throw new Error("Truncated release archive.");
+    // Resolve components before '..': lexical normalization alone hides traversal
+    // through links such as a -> . and b -> a/../outside. Use the complete map so
+    // validation does not depend on archive order or files already extracted.
+    const resolveLink = (name: string, visiting = new Set<string>(), budget = {remaining: 40}): string[] => {
+      if (visiting.has(name) || --budget.remaining < 0) throw new Error("Release archive contains a cyclic or excessive link chain.");
+      visiting.add(name);
+      const entry = entries.get(name)!;
+      const resolved = entry.type === "Link" ? [] : name.split('/').slice(0, -1);
+      for (const segment of entry.link.split('/')) {
+        if (!segment || segment === '.') continue;
+        if (segment === '..') {
+          if (!resolved.length) throw new Error("Release archive link escapes its installation.");
+          resolved.pop();
+        } else {
+          resolved.push(segment);
+          const targetName = resolved.join('/');
+          const target = entries.get(targetName);
+          if (target?.type === "SymbolicLink" || target?.type === "Link") {
+            resolved.splice(0, resolved.length, ...resolveLink(targetName, visiting, budget));
+          }
+        }
+      }
+      visiting.delete(name);
+      return resolved;
+    };
     for (const name of entries.keys()) {
       let parent = path.posix.dirname(name);
       while (parent !== '.') {
         if (entries.has(parent) && entries.get(parent)?.type !== 'Directory') throw new Error("Archive writes through a link or file.");
         parent = path.posix.dirname(parent);
+      }
+    }
+    for (const [name, entry] of entries) {
+      if (entry.type === "SymbolicLink" || entry.type === "Link") resolveLink(name);
+      // A hardlink to a symlink copies the symlink inode, whose relative target
+      // then resolves from the new parent. Only direct regular-file targets are
+      // needed by deployment archives; refuse aliases rather than reinterpret them.
+      if (entry.type === "Link" &&
+          (entry.link.split('/').includes('..') || entries.get(path.posix.normalize(entry.link))?.type !== "File")) {
+        throw new Error("Release archive hardlinks must target regular archive files directly.");
       }
     }
     fs.mkdirSync(target, {recursive: true, mode: 0o700});

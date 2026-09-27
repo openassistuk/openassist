@@ -78,7 +78,7 @@ export async function prepareSource(root: string, ref: string, repoUrl = "https:
   const commit = (await runOrThrow(runner, "git", ["rev-parse", "HEAD"], {cwd: candidate})).stdout.trim();
   await buildSource(candidate,env);
   const manifest = JSON.parse(fs.readFileSync(path.join(candidate, "package.json"), "utf8"));
-  const build = {id: `source-${commit}`, version: manifest.version, commit, nodeVersion: process.versions.node, configVersion: 1, databaseVersion: 1};
+  const build = {id: `source-${commit}`, version: manifest.version, commit, nodeVersion: process.versions.node, configVersion: 1, databaseVersion: 1, sourceRef: ref};
   atomicWriteJson(path.join(candidate, "build-identity.json"), build);
   const nodePath = path.join(candidate, "runtime", "bin", process.platform === "win32" ? "node.exe" : "node");
   fs.mkdirSync(path.dirname(nodePath), {recursive: true});

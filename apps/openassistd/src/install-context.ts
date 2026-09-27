@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   cachedUpdateStatus,
+  getBuildIdentity,
   defaultEnvFilePath as defaultOperatorEnvFilePath,
   defaultInstallStatePath as defaultOperatorInstallStatePath
 } from "@openassist/config";
@@ -153,17 +155,23 @@ function matchesStoredConfig(
 
 export function loadRuntimeInstallContext(
   configPath: string,
-  logger?: InstallContextLogger
+  logger?: InstallContextLogger,
+  applicationRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 ): RuntimeInstallContext {
   const resolvedConfigPath = path.resolve(configPath);
   const stored = loadStoredInstallState();
   const matchedStored = matchesStoredConfig(stored, resolvedConfigPath) ? stored : undefined;
 
-  const configuredInstallDir = matchedStored?.installDir
+  // Activation starts the candidate before committing install-state. Its own
+  // immutable build metadata identifies the process throughout that interval.
+  const runningBuild = fs.existsSync(path.join(applicationRoot, "build-identity.json")) ? getBuildIdentity(applicationRoot) : undefined;
+  const runningMethod = runningBuild ? (fs.existsSync(path.join(applicationRoot, ".git")) ? "source" : "release") : undefined;
+  const matchingApplication = !runningBuild || path.resolve(matchedStored?.installDir ?? "") === applicationRoot;
+  const configuredInstallDir = runningBuild ? applicationRoot : matchedStored?.installDir
     ? path.resolve(matchedStored.installDir)
     : path.dirname(resolvedConfigPath);
   const repoRoot =
-    matchedStored?.active?.method === "release" ? undefined : findRepoRoot(configuredInstallDir) ??
+    (runningMethod ?? matchedStored?.active?.method) === "release" ? undefined : findRepoRoot(configuredInstallDir) ??
     findRepoRoot(path.dirname(resolvedConfigPath)) ??
     findRepoRoot(process.cwd());
 
@@ -172,13 +180,13 @@ export function loadRuntimeInstallContext(
   const trackedRef =
     trackedRefRaw && trackedRefRaw !== "HEAD"
       ? trackedRefRaw
-      : matchedStored?.trackedRef?.trim() || undefined;
+      : runningBuild?.sourceRef ?? (matchingApplication ? matchedStored?.trackedRef?.trim() : undefined);
   const serviceManager = resolveServiceManagerFromEnv();
 
   return {
-    installationMethod: process.env.OPENASSIST_STATE_ROOT ? "isolated" : matchedStored?.active?.method ?? (repoRoot ? "source" : undefined),
+    installationMethod: process.env.OPENASSIST_STATE_ROOT ? "isolated" : runningMethod ?? matchedStored?.active?.method ?? (repoRoot ? "source" : undefined),
     updateStatus: cachedUpdateStatus(),
-    installedVersion: matchedStored?.active?.build.version,
+    installedVersion: runningBuild?.version ?? matchedStored?.active?.build.version,
     repoBackedInstall: Boolean(repoRoot),
     installDir: repoRoot ?? configuredInstallDir,
     configPath: matchedStored?.configPath
@@ -188,8 +196,26 @@ export function loadRuntimeInstallContext(
       ? path.resolve(matchedStored.envFilePath)
       : resolveEnvFilePath(),
     trackedRef,
-    lastKnownGoodCommit: readGitValue(["rev-parse", "HEAD"]) ?? matchedStored?.lastKnownGoodCommit?.trim() ?? undefined,
+    lastKnownGoodCommit: runningBuild?.commit ?? readGitValue(["rev-parse", "HEAD"]) ?? matchedStored?.lastKnownGoodCommit?.trim() ?? undefined,
     serviceManager,
     systemdFilesystemAccessEffective: resolveSystemdFilesystemAccessEffective(serviceManager)
+  };
+}
+
+/** Keep process identity fixed, but observe the track committed after health succeeds. */
+export function createRuntimeInstallContextReader(
+  configPath: string,
+  logger?: InstallContextLogger,
+  applicationRoot?: string
+): () => RuntimeInstallContext {
+  const running = loadRuntimeInstallContext(configPath, logger, applicationRoot);
+  return () => {
+    const stored = loadStoredInstallState();
+    const matchesRunning = matchesStoredConfig(stored, path.resolve(configPath)) &&
+      stored?.installDir && path.resolve(stored.installDir) === running.installDir;
+    return {
+      ...running,
+      trackedRef: matchesRunning ? stored.trackedRef?.trim() ?? running.trackedRef : running.trackedRef
+    };
   };
 }

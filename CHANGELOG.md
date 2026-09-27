@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+- Fix four lifecycle review findings: isolated daemons load dedicated env-file credentials without sharing them with builds; startup identity comes from the running application even before update commit; packaged bootstrap installs owned shell PATH blocks that uninstall removes only when unchanged; archive verification resolves link chains and rejects traversal, cycles and excessive indirection before extraction. Add regression and deployed-artifact coverage without changing release-signature requirements.
+
 - Replace saved-selector update requests with bounded public release/ref catalogues and local selection. Preserve stable/preview/exact-release and branch/PR/tag/commit workflows, with explicit unavailable results for missing or over-limit catalogues. Notices remain advisory; signed preparation is unchanged. Restrict installed-client download routes, credentials, ports and every redirect, including approved GitHub artifact CDNs. This redesign supersedes the earlier reviewed file-to-network dismissal.
 
 - Keep server-provided versions/commits out of persistent notification caches. Cache only local freshness/availability and explicit-target status; explicit update checks still show fresh target details. Ignore old unversioned caches without changing the installation record or operator state.

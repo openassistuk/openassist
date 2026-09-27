@@ -87,11 +87,17 @@ fs.mkdirSync(path.dirname(config.defaultConfigPath()),{recursive:true,mode:0o700
 if(!fs.existsSync(config.defaultConfigPath())) config.writeDefaultConfig(config.defaultConfigPath());
 if(!fs.existsSync(config.defaultEnvFilePath())) fs.writeFileSync(config.defaultEnvFilePath(),'# OpenAssist credentials\n',{mode:0o600});
 await engine.executeUpdate({prepared:destination,channel:process.env.OPENASSIST_RELEASE_CHANNEL,version:process.env.OPENASSIST_RELEASE_VERSION||undefined,yes:true});
+const profiles=await import(pathToFileURL(path.join(destination,'apps/openassist-cli/dist/lib/shell-profile.js')));
+const profileResult=profiles.installShellPath();
+for(const file of profileResult.updated) console.log(`Added OpenAssist PATH block: ${file}`);
+for(const file of profileResult.preserved) console.log(`Preserved existing shell profile/marker: ${file}. Ensure ~/.local/bin is on PATH.`);
 NODE
+export PATH="$HOME/.local/bin:$PATH"
 echo 'Ready now'
 echo '- Verified packaged application installed with its private Node runtime.'
 echo 'Needs action'
 echo '- Complete provider/channel setup before first use.'
+echo '- Open a new shell for the saved PATH change, or use the absolute command below.'
 echo 'Next command'
 echo "- $HOME/.local/bin/openassist setup"
 if [[ "$interactive" == yes || ( "$interactive" == auto && -t 0 && -t 1 ) ]]; then

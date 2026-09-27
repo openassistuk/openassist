@@ -55,6 +55,12 @@ try {
   assert.equal(loadInstallState().active.verified,true);
   fs.writeFileSync(path.join(parsed.runtime.paths.dataDir,'retained-state.txt'),'preserve through update, rollback and uninstall');
   const second=prepare('smoke-b');
+  // Exercise the deployed daemon's own module-root discovery while install-state
+  // still describes the previous application, exactly as during service startup.
+  const candidateContext=await import(pathToFileURL(path.join(second,'apps/openassistd/dist/install-context.js')));
+  assert.equal(loadInstallState().installDir,first);
+  assert.equal(candidateContext.loadRuntimeInstallContext(config.defaultConfigPath()).installDir,second);
+  assert.equal(candidateContext.loadRuntimeInstallContext(config.defaultConfigPath()).installationMethod,'release');
   assert.equal((await executeUpdate({prepared:second})).verified,true);
   await health('smoke-b');
   assert.equal((await executeUpdate({},true)).verified,true);

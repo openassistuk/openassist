@@ -10,6 +10,7 @@ import { atomicWriteJson, atomicWriteText, saveInstallState } from "../lib/insta
 import { acquireLifecycleLock, containedPath, removeManagedPath } from "../lib/lifecycle-files.js";
 import { prepareSource, sourceRef, buildSource, resolveUpdateMethod } from "../lib/lifecycle-engine.js";
 import { confirmLifecycle, lifecycleAction } from "./lifecycle.js";
+import { enforceEnvFileSecurity, loadEnvFile } from "../lib/env-file.js";
 
 export function instancePath(name: string): string {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(name)) throw new Error("Instance names must contain 1–64 letters, digits, underscores or hyphens.");
@@ -20,6 +21,18 @@ export function isolatedEnvironment(root: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const key of ["PATH","HOME","USERPROFILE","SystemRoot","TEMP","TMP","TMPDIR","LANG","LC_ALL","TERM"]) if (process.env[key]) env[key] = process.env[key];
   return {...env, OPENASSIST_STATE_ROOT: root, OPENASSIST_ENV_FILE: path.join(root,"config","openassistd.env"), OPENASSIST_SERVICE_MANAGER_KIND: "manual"};
+}
+
+export function isolatedDaemonEnvironment(root: string): NodeJS.ProcessEnv {
+  const env = isolatedEnvironment(root);
+  enforceEnvFileSecurity(env.OPENASSIST_ENV_FILE!);
+  // Credentials belong to the daemon, never the build or its dependency scripts.
+  // Dedicated configuration cannot redirect state, runtime loading or host paths.
+  const dedicated = loadEnvFile(env.OPENASSIST_ENV_FILE!);
+  for (const key of Object.keys(dedicated)) {
+    if (["NODE_OPTIONS", "NODE_PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "INIT_CWD", "HOME", "USERPROFILE", "PATH", "SystemRoot", "TEMP", "TMP", "TMPDIR", "SHELL", "ZDOTDIR", "OPENASSIST_INSTALL_DIR", "OPENASSIST_SYSTEMD_FILESYSTEM_ACCESS"].includes(key) || key.startsWith("DYLD_")) delete dedicated[key];
+  }
+  return {...dedicated, ...env};
 }
 
 async function availablePort(requested?: string): Promise<number> {
@@ -101,7 +114,7 @@ export function registerDevCommands(program: Command): void {
         const detail = {root,port,configPath,setupCommand,service:false};
         if (!opts.json) console.error(`Isolated ${opts.name}: http://127.0.0.1:${port}\nState: ${root}\n${detail.setupCommand}\nPress Ctrl-C to stop. This is not a sandbox for untrusted code.`);
         await new Promise<void>((resolve,reject) => {
-          const child = spawn(nodePath,[path.join(application,"apps","openassistd","dist","index.js"),"run","--config",configPath],{cwd:root,env:isolatedEnvironment(root),stdio:opts.json ? ["ignore","ignore","inherit"] : "inherit"});
+          const child = spawn(nodePath,[path.join(application,"apps","openassistd","dist","index.js"),"run","--config",configPath],{cwd:root,env:isolatedDaemonEnvironment(root),stdio:opts.json ? ["ignore","ignore","inherit"] : "inherit"});
           const stop = () => child.kill("SIGTERM");
           process.once("SIGINT",stop); process.once("SIGTERM",stop);
           child.once("error",reject);

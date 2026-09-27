@@ -1,5 +1,7 @@
 # Config Rollout and Rollback
 
+For an isolated developer instance, apply credential changes through its printed setup command and restart its foreground `dev test` process. Its dedicated env file is loaded only at daemon launch; changing it does not affect an already running daemon, the primary service or later build subprocesses.
+
 Application rollback is distinct from configuration/database restoration. Staged lifecycle updates back up stopped state and normalize relative operator paths without resetting provider credentials. Unsupported config/database compatibility versions block activation. Preserve newer state and review queued external actions before any manual database restoration. See [upgrade/recovery](upgrade-and-rollback.md).
 
 OpenAssist uses layered TOML config with schema validation and generation tracking for safe apply behavior.

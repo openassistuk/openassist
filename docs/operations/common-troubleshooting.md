@@ -503,6 +503,11 @@ If the issue is proactive notify instead of same-chat file reply, also verify:
 - `channels[*].settings.operatorUserIds` contains the exact recipient ID
 - on Discord, `allowedDmUserIds` also contains that same recipient ID
 
+## Invalid bind address
+
+If setup or doctor reports `runtime.bind_address_invalid`, enter a valid IP address or hostname, such as `127.0.0.1` or `localhost`. Invalid addresses are rejected before network probing, so they do not wait for DNS or produce a secondary port-availability error. Valid addresses still receive the normal bind/port check. Use `openassist setup` to repair the configuration, then run `openassist doctor`.
+
+
 ## Node 24 runtime migration
 
 OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.

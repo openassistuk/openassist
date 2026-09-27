@@ -115,3 +115,5 @@ openassist tools invocations --session <channelId>:<conversationKey> --limit 20
 ## Modernization compatibility
 
 New model and thinking choices do not change access profiles: only full-root sessions receive autonomous tools. Higher reasoning effort does not increase tool-round, file, attachment, or web limits.
+
+GPT-6 Pro execution and current Claude thinking/output settings leave access resolution, callable tools and maximum rounds unchanged. Vendor orchestration modes and async tool execution are not enabled by selecting a model.

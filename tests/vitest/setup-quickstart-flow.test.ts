@@ -731,7 +731,7 @@ describe("setup quickstart flow", () => {
         {
           id: "openai-main",
           type: "openai",
-          defaultModel: "gpt-5.6-terra"
+          defaultModel: "gpt-6-sol"
         },
         {
           id: "compat-main",

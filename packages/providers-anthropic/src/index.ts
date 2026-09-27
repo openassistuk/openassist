@@ -23,6 +23,7 @@ const configSchema = z.object({
   thinkingBudgetTokens: z.number().int().min(1024).max(32_000).optional(),
   thinkingMode: z.enum(ANTHROPIC_THINKING_MODES).optional(),
   thinkingEffort: z.enum(ANTHROPIC_THINKING_EFFORTS).optional(),
+  maxOutputTokens: z.number().int().min(1).max(128_000).optional(),
   oauth: z
     .object({
       authorizeUrl: z.string().url(),
@@ -380,20 +381,34 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
     const mapped = await mapMessages(req.messages);
     const model = req.model || this.config.defaultModel;
     const tuning = anthropicThinking({ ...this.config, type: "anthropic", defaultModel: model });
+    // Runtime guidance, access-controlled tools and bounded history can change between
+    // requests. Let the API retain valid signed blocks and drop only stale ones.
+    const prefixBinding = modelCapabilities(model, "anthropic")?.thinkingPrefixBinding;
     const thinkingOn = tuning.thinking?.type !== "disabled" && (tuning.thinking || modelCapabilities(model, "anthropic")?.defaultThinking === "adaptive");
-    const maxTokens = req.maxTokens ?? Math.max(4096, (this.config.thinkingBudgetTokens ?? 0) + 1024);
+    const maxTokens = req.maxTokens ?? this.config.maxOutputTokens ?? Math.max(modelCapabilities(model, "anthropic")?.defaultMaxOutputTokens ?? 4096, (this.config.thinkingBudgetTokens ?? 0) + 1024);
+    const maximum = modelCapabilities(model, "anthropic")?.maxOutputTokens ?? 128_000;
+    if (!Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > maximum) {
+      throw new Error(`Anthropic maxTokens must be an integer from 1 to ${maximum} for '${model}'.`);
+    }
     if (tuning.thinking?.type === "enabled" && maxTokens <= tuning.thinking.budget_tokens) {
       throw new Error("Anthropic maxTokens must be greater than thinkingBudgetTokens.");
     }
-    const response = await client.messages.create({
+    const payload = {
       model,
       max_tokens: maxTokens,
       temperature: thinkingOn || modelCapabilities(model, "anthropic")?.supportsTemperature === false ? undefined : req.temperature,
       ...tuning,
+      ...(prefixBinding ? { thinking: { type: "adaptive", block_binding: { prefix_mismatch_behavior: "drop_block" } } } : {}),
       messages: mapped.messages as any,
       system: mapped.system,
       tools: mapTools(req.tools) as any
-    } as any);
+    };
+    const options = prefixBinding ? { headers: { "anthropic-beta": "thinking-binding-controls-2026-08-01" } } : undefined;
+    // Fold the SDK stream into the existing completed-message contract. Large
+    // reasoning budgets can exceed the SDK's non-streaming timeout estimate.
+    const response = prefixBinding || maxTokens > 16_384
+      ? await client.messages.stream(payload as any, options).finalMessage()
+      : await client.messages.create(payload as any, options);
 
     const textBlocks = response.content.filter((block: any) => block.type === "text");
     const content = textBlocks.map((block: any) => block.text).join("\n");

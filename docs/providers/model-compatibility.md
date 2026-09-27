@@ -1,27 +1,49 @@
 # Model recommendations and compatibility
 
-Fresh OpenAI API-key and Codex account-login setup recommends `gpt-5.6-terra`. Named alternatives are `gpt-6-astra`, `gpt-5.6-sol`, and `gpt-5.6-luna`. These routes retain separate authentication and transports. The recommendation does not guarantee availability on every account.
+Catalog checked on 2026-09-27. Fresh OpenAI API-key and Codex account-login setup recommends `gpt-6-sol`, with `gpt-6-astra`, `gpt-6-luna` and retained `gpt-5.6-terra` alternatives. Fresh Anthropic setup keeps balanced `claude-sonnet-5`, with `claude-opus-5-5`, `claude-fable-5-1` and `claude-haiku-4-5-20251001` alternatives. `claude-mythos-5-1` is cataloged for invitation-only accounts, not advertised as generally available. The Haiku `claude-haiku-4-5` alias is also recognized.
 
-Fresh Anthropic setup recommends `claude-sonnet-5`, with `claude-opus-5` and `claude-haiku-4-5-20251001` alternatives. Azure always asks for an existing deployment name. Custom models and deployments remain accepted.
+Saved IDs are never automatically replaced. Azure always asks for your existing deployment name plus an optional underlying-model hint; the hint does not create a deployment or grant access. Actual access depends on account, region, quota and rollout. Unknown IDs receive no inferred optional capabilities.
 
-## Capabilities and configuration
+## GPT-6 settings by route
 
-`packages/config/src/provider-models.ts` is the bounded source shared by setup, validation, provider request mapping, and status. Core-types owns its interfaces. Matching uses exact IDs rather than name fragments. Unknown models receive no inferred optional controls. OpenAI-compatible retains its existing backend-defined model behavior.
+| Route and model | Explicit reasoning efforts | Execution mode |
+| --- | --- | --- |
+| OpenAI API Sol/Luna | none, low, medium, high, xhigh, max | standard, pro |
+| OpenAI API Astra | low, medium, high, xhigh, max | standard, pro |
+| Codex Astra/Sol/Luna | low, medium, high, xhigh, max | Provider-managed; no mode field |
+| Azure OpenAI Astra/Sol/Luna | none, low, medium, high, xhigh, max | standard, pro |
 
-Terra, Sol, and Luna support `none`, `low`, `medium`, `high`, `xhigh`, and `max` reasoning. Astra supports those values except `none`. Older models have narrower choices. `Default` leaves `reasoningEffort` unset and sends no reasoning parameter. Azure applies these controls only to a cataloged `underlyingModel` on the configured deployment; the deployment name itself is never a capability hint.
+OpenAI and Azure use Responses for these models' tools. `reasoningEffort` and `reasoningMode` are independent. Default omits the relevant field; API/Azure mode then defaults to standard, and Sol/Luna effort to medium. Pro increases work, potential token cost and latency; wizard labels that explicitly. It is not selected automatically. Existing GPT-5.6 API/Azure entries also support the new mode setting. Codex Ultra is a client orchestration feature and is not sent as a reasoning effort.
 
-Anthropic supports optional `thinkingMode` (`adaptive`, `enabled`, `disabled`) and `thinkingEffort` (`low`, `medium`, `high`, `xhigh`, `max`) where cataloged. Sonnet 5 and Opus 5 default to adaptive thinking and reject manual budgets. Haiku 4.5 supports manual thinking, without adaptive mode or effort. Legacy `thinkingBudgetTokens` alone still enables manual thinking on compatible older models. A manual budget cannot coexist with adaptive/disabled mode. Opus 5 cannot disable thinking at `xhigh`/`max`. Invalid combinations return actionable configuration errors.
+The Azure Astra row follows Microsoft's own GPT-6 deployment feature table, which explicitly includes none. OpenAI's Astra specification excludes none. These entries are intentionally separate, with tests to prevent one route overwriting the other. Azure none still requires verification against the operator's actual deployment; no live deployment was available for this change.
 
-Wizard edits advanced Anthropic controls. Quickstart preserves existing controls and uses provider defaults on fresh Anthropic setup. Leaving controls unset omits the request fields; it does not disable a provider's default thinking. Manual output limits must exceed the budget. Responses retain the existing internal thinking replay contract and never expose raw thinking to channel users.
+OpenAI Astra omits temperature. Other cataloged GPT-6 API/Azure requests omit temperature unless effort is explicitly none. Codex retains its existing stream, instructions, session/account headers and refresh behavior. No async tools, subagents, built-in vendor tools, prompt-cache changes or larger context limits are enabled by a model selection.
 
-## Saved models and retirement
+Sources: [OpenAI GPT-6 migration rules](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra), [Sol](https://developers.openai.com/api/docs/models/gpt-6-sol), [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna), [reasoning modes](https://developers.openai.com/api/docs/guides/reasoning), [Codex model controls](https://learn.chatgpt.com/docs/models), and [Azure reasoning features](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/reasoning).
 
-No database migration or automatic model replacement occurs. Existing model IDs, credentials, conversation history, and operator state are preserved. Known retired Codex `gpt-5.4` and `gpt-5.4-mini` selections produce blocking readiness items recommending Terra and Luna respectively. They also fail before a chat transport request. Other custom IDs remain accepted; unknown availability is determined by the upstream service.
+## Claude settings and replay
 
-Back up the TOML, run `openassist setup wizard`, edit the provider, explicitly enter the recommended replacement, and save. Verify `openassist doctor` and a first reply. Do not relink a healthy account solely to fix model retirement. If unsupported thinking settings prevent loading the config, remove the conflicting fields in the backed-up TOML and run `openassist config validate` before restarting.
+| Model | Thinking modes | Efforts | Omitted effort |
+| --- | --- | --- | --- |
+| Opus 5.5 | adaptive only | low, medium, high, xhigh, max | medium |
+| Fable 5.1 / Mythos 5.1 | adaptive only | low, medium, high, xhigh, max | high |
+| Sonnet 5 / retained Opus 5 | adaptive, disabled | low, medium, high, xhigh, max | high |
+| Haiku 4.5 | manual enabled, disabled | None | Not applicable |
 
-## Verification sources
+`thinkingMode` and `thinkingEffort` are optional. Leaving them unset preserves provider defaults. Opus 5 additionally requires adaptive thinking at xhigh/max; Opus 5.5 and Fable/Mythos 5.1 require it at every effort. Legacy budget-only configurations keep their manual meaning on compatible models. Manual budget plus adaptive/disabled mode is invalid. Quickstart asks before resetting incompatible saved thinking; wizard supplies the full editor.
 
-Catalog reviewed on 2026-09-21 against [OpenAI Terra specifications](https://developers.openai.com/api/docs/models/gpt-5.6-terra), [OpenAI model catalog](https://developers.openai.com/api/docs/models), [Codex model guidance](https://learn.chatgpt.com/docs/models), [Anthropic model catalog](https://platform.claude.com/docs/en/models/overview), [Sonnet 5 behavior](https://platform.claude.com/docs/en/models/sonnet-5/overview), and [Anthropic effort controls](https://platform.claude.com/docs/en/build-with-claude/effort). Additions require source verification and request/validation tests. Live availability and account certification remain separate from these local catalog checks.
+`maxOutputTokens` optionally bounds total thinking plus visible output. The new always-thinking models default to 16384; their maximum is 128000. Other models retain 4096 or manual budget plus 1024 when larger, and Haiku is limited to 64000. A manual budget must be smaller than the output limit. Higher effort may exhaust a small allowance before useful text appears; explicitly adjust the limit or reduce effort. Request-level maxTokens can override the configured output limit.
 
-Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.
+New always-thinking models, and any Claude request above 16384 output tokens, stream internally through the SDK and fold into OpenAssist's completed ChatResponse. This avoids the SDK's long non-streaming request restriction. Text is selected by block type; raw thinking, including empty signed blocks, is kept for durable replay rather than channel display. Tools remain automatic and sequentially executed by the runtime; forced tool choice is not sent.
+
+Opus 5.5/Fable/Mythos 5.1 bind thinking to the conversation prefix. OpenAssist's bounded history, runtime guidance and access-controlled tool list can change that prefix. These requests therefore send `anthropic-beta: thinking-binding-controls-2026-08-01` and adaptive thinking with `block_binding.prefix_mismatch_behavior = "drop_block"`. The API preserves valid blocks and discards stale ones; complete tool-use/results remain replayed. This does not bypass signature checks or persist unbounded history. Custom gateways for these models must support that documented beta contract. Model binding across switches is handled upstream. No beta progress display or fallback-credit behavior is enabled.
+
+Sources: [Claude model lineup](https://platform.claude.com/docs/en/models/overview), [Opus 5.5 migration](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide), [Fable 5.1](https://platform.claude.com/docs/en/models/fable-5-1/overview), [Mythos 5.1](https://platform.claude.com/docs/en/models/mythos-5-1/overview), [effort](https://platform.claude.com/docs/en/build-with-claude/effort), and [preserved thinking](https://platform.claude.com/docs/en/build-with-claude/preserved-thinking).
+
+## Other endpoints and migration
+
+OpenAssist's azure-foundry adapter is Azure OpenAI Responses at `/openai/v1/`. Claude on Microsoft Foundry requires the separate Anthropic Messages contract and is not supported by that adapter. OpenAI-compatible keeps its backend-defined Chat Completions behavior without universal reasoning controls. New vendor features beyond OpenAssist's existing chat/tool/image contract are not automatically implemented.
+
+Retired Codex gpt-5.4 and gpt-5.4-mini remain saved but block readiness, recommending GPT-6 Sol and Luna respectively. Back up TOML, run `openassist setup wizard`, explicitly change the provider, and verify `openassist doctor` plus a real reply. Relinking a healthy account does not fix a retired model. If incompatible tuning prevents configuration loading, remove the conflicting fields in the backed-up TOML and run `openassist config validate` before restarting. Existing Opus 4.5 aliases retain manual budgets.
+
+The catalog lives in `packages/config/src/provider-models.ts`; contracts live in core-types. Setup, validation, requests and status use the same entries. Source checks and fake-transport regression tests establish implemented request behavior; designated live provider/channel tests are still needed for account availability and end-to-end certification.

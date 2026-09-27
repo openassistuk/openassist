@@ -130,7 +130,7 @@ Common fields for all providers:
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.6-terra"
+defaultModel = "gpt-6-sol"
 # reasoningEffort = "medium"
 ```
 
@@ -145,7 +145,7 @@ Additional fields:
 [[runtime.providers]]
 id = "codex-main"
 type = "codex"
-defaultModel = "gpt-5.6-terra"
+defaultModel = "gpt-6-sol"
 # reasoningEffort = "medium"
 ```
 
@@ -184,7 +184,7 @@ authMode = "entra"
 resourceName = "your-resource-name"
 endpointFlavor = "openai-resource"
 # Optional but recommended when the deployment name hides the model family:
-# underlyingModel = "gpt-5.6-terra"
+# underlyingModel = "gpt-6-sol"
 # Optional for supported Responses-model families:
 # reasoningEffort = "medium"
 # Optional advanced override:
@@ -373,3 +373,5 @@ openassist doctor
 Reasoning options are filtered by the exact cataloged route/model. Astra has no `none` option; Terra/Sol/Luna support `none` through `max`. Sonnet 5 and Opus 5 support adaptive thinking and no manual budgets. Haiku 4.5 supports manual thinking and no effort. Budget-only settings on compatible older models retain their manual meaning. `Default` omits the parameter; it does not turn off provider-default thinking. Unknown models remain accepted without inferred optional capabilities; explicit unsupported Anthropic tuning is rejected.
 
 Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.
+
+Optional `reasoningMode = "standard" | "pro"` belongs only to openai and azure-foundry and requires a cataloged supporting model (underlyingModel for Azure). Codex rejects it. Default omission preserves provider standard mode. Anthropic `maxOutputTokens` is an optional integer 1..128000 including thinking and visible text; it must exceed a configured manual budget. Opus 5.5/Fable 5.1/Mythos 5.1 default to 16384 and allow only adaptive thinking. Effort defaults and route-specific accepted values are in [model compatibility](../providers/model-compatibility.md).

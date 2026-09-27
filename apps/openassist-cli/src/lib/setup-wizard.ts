@@ -1,7 +1,7 @@
 import type { OpenAssistConfig } from "@openassist/config";
 import type { OpenAIReasoningEffort } from "@openassist/core-types";
 import { confirm as inqConfirm, input as inqInput, password as inqPassword, select as inqSelect } from "@inquirer/prompts";
-import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, modelCapabilities, reasoningEfforts, retiredModelReplacement, parseConfig } from "@openassist/config";
+import { OPENAI_MODEL_ALTERNATIVES, ANTHROPIC_MODEL_ALTERNATIVES, DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, modelCapabilities, reasoningEfforts, retiredModelReplacement, parseConfig } from "@openassist/config";
 import {
   loadWizardState,
   saveWizardState,
@@ -159,9 +159,21 @@ export async function promptAzureFoundryReasoningEffort(prompts: PromptAdapter, 
   return promptReasoningEffort(prompts, "Azure Foundry", initial, model);
 }
 
+export async function promptReasoningMode(prompts: PromptAdapter, route: "openai" | "azure-foundry", model: string, initial?: "standard" | "pro"): Promise<"standard" | "pro" | undefined> {
+  const modes = modelCapabilities(model, route)?.reasoningModes;
+  if (!modes?.length) return undefined;
+  const selected = await prompts.select<"default" | "standard" | "pro">(
+    "Reasoning execution mode",
+    [{ name: "Default (provider standard mode)", value: "default" },
+      ...modes.map(value => ({ name: value === "pro" ? "Pro (more latency, token usage and cost)" : "Standard", value }))],
+    initial && modes.includes(initial) ? initial : "default"
+  );
+  return selected === "default" ? undefined : selected;
+}
+
 export function describeModelChoices(type: ProviderType, currentModel?: string): void {
-  if (type === "openai" || type === "codex") console.log(`Recommended: ${DEFAULT_OPENAI_MODEL}. Alternatives: gpt-6-astra, gpt-5.6-sol, gpt-5.6-luna. Custom model IDs remain supported.`);
-  if (type === "anthropic") console.log(`Recommended: ${DEFAULT_ANTHROPIC_MODEL}. Alternatives: claude-opus-5, claude-haiku-4-5-20251001. Custom model IDs remain supported.`);
+  if (type === "openai" || type === "codex") console.log(`Recommended: ${DEFAULT_OPENAI_MODEL}. Alternatives: ${OPENAI_MODEL_ALTERNATIVES.join(", ")}. Custom model IDs remain supported.`);
+  if (type === "anthropic") console.log(`Recommended: ${DEFAULT_ANTHROPIC_MODEL}. Alternatives: ${ANTHROPIC_MODEL_ALTERNATIVES.join(", ")}. Custom model IDs remain supported.`);
   const replacement = currentModel && retiredModelReplacement(type, currentModel);
   if (replacement) console.log(`Saved model ${currentModel} retired on the Codex route. Enter ${replacement} explicitly to replace it; keeping the old ID leaves readiness blocked.`);
 }
@@ -301,6 +313,17 @@ async function promptAnthropicThinkingBudget(
 
 type AnthropicProvider = Extract<ProviderConfig, { type: "anthropic" }>;
 type AnthropicTuning = Pick<AnthropicProvider, "thinkingMode" | "thinkingEffort" | "thinkingBudgetTokens">;
+export async function promptAnthropicOutputLimit(prompts: PromptAdapter, model: string, initial?: number): Promise<number | undefined> {
+  if (!modelCapabilities(model, "anthropic")?.thinkingPrefixBinding && initial === undefined) return undefined;
+  const maximum = modelCapabilities(model, "anthropic")?.maxOutputTokens ?? 128_000;
+  console.log("Output limit includes thinking and the reply. Higher effort may need a larger limit and can increase cost.");
+  while (true) {
+    const value = (await prompts.input("Maximum output tokens (blank uses model default)", initial === undefined ? "" : String(initial))).trim();
+    if (!value) return undefined;
+    if (/^[0-9]+$/.test(value) && Number(value) >= 1 && Number(value) <= maximum) return Number(value);
+    console.log(`Enter an integer from 1 to ${maximum}, or leave blank for the default.`);
+  }
+}
 export async function promptAnthropicThinking(prompts: PromptAdapter, model: string, existing?: AnthropicProvider): Promise<AnthropicTuning> {
   const capabilities = modelCapabilities(model, "anthropic");
   if (!capabilities?.thinkingModes) return {};
@@ -311,7 +334,8 @@ export async function promptAnthropicThinking(prompts: PromptAdapter, model: str
   const mode = await prompts.select<"default" | NonNullable<AnthropicProvider["thinkingMode"]>>(
     "Anthropic thinking mode",
     [{ name: "Default (provider default)", value: "default" }, ...capabilities.thinkingModes.map(value => ({ name: value, value }))],
-    existing?.thinkingMode ?? (existing?.thinkingBudgetTokens !== undefined ? "enabled" : "default")
+    existing?.thinkingMode && capabilities.thinkingModes.includes(existing.thinkingMode) ? existing.thinkingMode
+      : existing?.thinkingBudgetTokens !== undefined && capabilities.thinkingModes.includes("enabled") ? "enabled" : "default"
   );
   if (mode === "enabled") {
     const budget = await promptAnthropicThinkingBudget(prompts, existing?.thinkingBudgetTokens);
@@ -587,6 +611,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
     );
     const trimmedBaseUrl = baseUrl.trim();
     const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts, undefined, underlyingModel ?? "");
+    const reasoningMode = await promptReasoningMode(prompts, "azure-foundry", underlyingModel ?? "");
     state.config.runtime.providers.push({
       id: providerId,
       type: providerType,
@@ -596,7 +621,8 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       endpointFlavor,
       ...(underlyingModel ? { underlyingModel } : {}),
       ...(trimmedBaseUrl.length > 0 ? { baseUrl: trimmedBaseUrl } : {}),
-      ...(reasoningEffort ? { reasoningEffort } : {})
+      ...(reasoningEffort ? { reasoningEffort } : {}),
+      ...(reasoningMode ? { reasoningMode } : {})
     });
 
     if (authMode === "api-key") {
@@ -633,12 +659,14 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
     : "";
   if (providerType === "openai") {
     const reasoningEffort = await promptOpenAIReasoningEffort(prompts, undefined, defaultModel);
+    const reasoningMode = await promptReasoningMode(prompts, "openai", defaultModel);
     state.config.runtime.providers.push({
       id: providerId,
       type: providerType,
       defaultModel,
       ...(baseUrl ? { baseUrl } : {}),
-      ...(reasoningEffort ? { reasoningEffort } : {})
+      ...(reasoningEffort ? { reasoningEffort } : {}),
+      ...(reasoningMode ? { reasoningMode } : {})
     });
   } else if (providerType === "codex") {
     const reasoningEffort = await promptCodexReasoningEffort(prompts, undefined, defaultModel);
@@ -651,12 +679,14 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
     });
   } else if (providerType === "anthropic") {
     const thinking = await promptAnthropicThinking(prompts, defaultModel);
+    const maxOutputTokens = await promptAnthropicOutputLimit(prompts, defaultModel);
     state.config.runtime.providers.push({
       id: providerId,
       type: providerType,
       defaultModel,
       ...(baseUrl ? { baseUrl } : {}),
-      ...thinking
+      ...thinking,
+      ...(maxOutputTokens ? { maxOutputTokens } : {})
     });
   } else {
     state.config.runtime.providers.push({
@@ -745,6 +775,9 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
       delete provider.baseUrl;
     }
     const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts, provider.reasoningEffort, provider.underlyingModel ?? "");
+    const reasoningMode = await promptReasoningMode(prompts, "azure-foundry", provider.underlyingModel ?? "", provider.reasoningMode);
+    if (reasoningMode) provider.reasoningMode = reasoningMode;
+    else delete provider.reasoningMode;
     if (reasoningEffort) {
       provider.reasoningEffort = reasoningEffort;
     } else {
@@ -786,6 +819,9 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
 
   if (provider.type === "openai") {
     const reasoningEffort = await promptOpenAIReasoningEffort(prompts, provider.reasoningEffort, provider.defaultModel);
+    const reasoningMode = await promptReasoningMode(prompts, "openai", provider.defaultModel, provider.reasoningMode);
+    if (reasoningMode) provider.reasoningMode = reasoningMode;
+    else delete provider.reasoningMode;
     if (reasoningEffort) {
       provider.reasoningEffort = reasoningEffort;
     } else {
@@ -804,6 +840,9 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
 
   if (provider.type === "anthropic") {
     const thinking = await promptAnthropicThinking(prompts, provider.defaultModel, provider);
+    const maxOutputTokens = await promptAnthropicOutputLimit(prompts, provider.defaultModel, provider.maxOutputTokens);
+    if (maxOutputTokens) provider.maxOutputTokens = maxOutputTokens;
+    else delete provider.maxOutputTokens;
     delete provider.thinkingMode;
     delete provider.thinkingEffort;
     delete provider.thinkingBudgetTokens;

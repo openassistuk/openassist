@@ -58,7 +58,7 @@ Provider route rules that matter at a glance:
 - OpenAI remains the public API-key route.
 - Codex remains the separate public account-login route.
 - Codex is intentionally documented as Codex-only in this release.
-- Fresh OpenAI and Codex setup recommends `gpt-5.6-terra`, with Astra, Sol, and Luna alternatives. Reasoning choices are model-specific and include `none` and `max` where supported; `Default` omits the parameter.
+- Fresh OpenAI and Codex setup recommends `gpt-6-sol`, with Astra and Luna alternatives. Reasoning choices are model-specific and include `none` and `max` where supported; `Default` omits the parameter.
 - Fresh Anthropic setup recommends `claude-sonnet-5`. Wizard exposes adaptive thinking and effort controls, plus manual budgets for compatible older models.
 - Saved model IDs remain unchanged. Retired Codex `gpt-5.4` selections block readiness until you explicitly choose a replacement in `openassist setup wizard`. See [model compatibility](docs/providers/model-compatibility.md).
 - Azure Foundry is the Azure resource-style `/openai/v1/` route, uses the Responses API only, and requires a deployed Azure deployment name plus either API-key or Entra host auth.
@@ -254,3 +254,5 @@ OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must upda
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 
 Quickstart preserves compatible Anthropic thinking settings when changing models. If saved settings conflict with the selected model, it asks before resetting them to provider defaults; declining lets you choose another model. Saved `claude-opus-4-5` aliases retain their manual thinking budgets.
+
+Current models include GPT-6 Astra/Sol/Luna and Claude Opus 5.5/Fable 5.1, alongside Sonnet 5 and Haiku 4.5. Azure keeps your deployment name and requires a known underlying model for tuning. Wizard exposes API/Azure Standard/Pro execution and the new Claude output budgets. [Model compatibility](docs/providers/model-compatibility.md) lists exact controls, availability limits and preserved-thinking behavior.

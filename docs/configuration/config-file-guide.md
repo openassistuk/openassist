@@ -32,7 +32,7 @@ Examples:
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.6-terra"
+defaultModel = "gpt-6-sol"
 ```
 
 ```text
@@ -95,7 +95,7 @@ promptOnFirstContact = false
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-5.6-terra"
+defaultModel = "gpt-6-sol"
 
 [[runtime.channels]]
 id = "telegram-main"
@@ -196,6 +196,8 @@ Use manual TOML edits when:
 
 ## Modernization compatibility
 
-Fresh OpenAI/Codex setup recommends Terra and Anthropic recommends Sonnet 5. Existing TOML model IDs are preserved. Use wizard for an explicit model change; retired Codex IDs block readiness. Optional Anthropic `thinkingMode` and `thinkingEffort` complement legacy manual budgets; unsupported combinations fail validation.
+Fresh OpenAI/Codex setup recommends GPT-6 Sol and Anthropic recommends Sonnet 5. Existing TOML model IDs are preserved. Use wizard for an explicit model change; retired Codex IDs block readiness. Optional Anthropic `thinkingMode` and `thinkingEffort` complement legacy manual budgets; unsupported combinations fail validation.
 
 Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.
+
+Use `openassist setup wizard` for API/Azure reasoningMode and new Claude maxOutputTokens. Pro mode is an explicit cost/latency choice. Saved configurations are never automatically moved to a new model; quickstart preserves existing mode/output limits and validation rejects incompatible combinations.

@@ -1,4 +1,4 @@
-import { OPENAI_REASONING_EFFORTS, providerTuningErrors } from "@openassist/config";
+import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, providerTuningErrors } from "@openassist/config";
 import OpenAI from "openai";
 import { z } from "zod";
 import type {
@@ -23,6 +23,7 @@ import {
   mapResponsesTools,
   mapTools,
   reasoningPayload,
+  temperatureForModel,
   shouldFallbackToResponses,
   shouldPreferResponsesApi
 } from "@openassist/providers-openai-shared";
@@ -31,6 +32,7 @@ const configSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
+  reasoningMode: z.enum(OPENAI_REASONING_MODES).optional(),
   reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional(),
   oauth: z
     .object({
@@ -205,14 +207,16 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
     });
 
     const model = req.model || this.config.defaultModel;
+    const tuningErrors = providerTuningErrors({ ...this.config, type: "openai", defaultModel: model });
+    if (tuningErrors.length) throw new Error(tuningErrors.join(" "));
     const useResponsesApi = shouldPreferResponsesApi(model) || hasImageInputs(req.messages);
 
     if (useResponsesApi) {
       const response = await client.responses.create({
         model,
-        temperature: req.temperature,
+        temperature: temperatureForModel(model, this.config.reasoningEffort, req.temperature),
         max_output_tokens: req.maxTokens,
-        reasoning: reasoningPayload(model, this.config.reasoningEffort),
+        reasoning: reasoningPayload(model, this.config.reasoningEffort, "openai", this.config.reasoningMode),
         input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
@@ -224,7 +228,7 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
     try {
       const completion = await client.chat.completions.create({
         model,
-        temperature: req.temperature,
+        temperature: temperatureForModel(model, this.config.reasoningEffort, req.temperature),
         max_tokens: req.maxTokens,
         messages: mapMessages(req.messages) as any,
         tools: mapTools(req.tools) as any
@@ -238,9 +242,9 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
 
       const response = await client.responses.create({
         model,
-        temperature: req.temperature,
+        temperature: temperatureForModel(model, this.config.reasoningEffort, req.temperature),
         max_output_tokens: req.maxTokens,
-        reasoning: reasoningPayload(model, this.config.reasoningEffort),
+        reasoning: reasoningPayload(model, this.config.reasoningEffort, "openai", this.config.reasoningMode),
         input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata

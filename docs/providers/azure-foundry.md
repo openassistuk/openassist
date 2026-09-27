@@ -72,7 +72,7 @@ defaultModel = "gpt-5-deployment"
 authMode = "api-key"
 resourceName = "your-resource-name"
 endpointFlavor = "openai-resource"
-underlyingModel = "gpt-5.6-terra"
+underlyingModel = "gpt-6-sol"
 # reasoningEffort = "medium"
 ```
 
@@ -92,7 +92,7 @@ defaultModel = "gpt-5-deployment"
 authMode = "entra"
 resourceName = "your-resource-name"
 endpointFlavor = "foundry-resource"
-underlyingModel = "gpt-5.6-terra"
+underlyingModel = "gpt-6-sol"
 # reasoningEffort = "medium"
 ```
 
@@ -184,3 +184,5 @@ Start with:
 ## Modernization compatibility
 
 A deployment name never establishes model capabilities, even if it resembles a model ID. Optional reasoning is sent only when `underlyingModel` is a cataloged model and the request uses that configured deployment. API-key and Entra authentication remain separate from linked accounts.
+
+GPT-6 Astra/Sol/Luna hints are cataloged for this Responses route. Azure documents none through max for all three, including Astra; this differs from the OpenAI API catalog. Optional reasoningMode selects standard/pro, with Default omitting mode and Pro potentially increasing cost. Wizard exposes it only for known hints. No hint means no inferred effort; explicit mode without a verified hint fails validation. Region, deployment version and quota still determine availability. Claude on Microsoft Foundry uses a Messages endpoint and is not supported by this Azure OpenAI Responses adapter.

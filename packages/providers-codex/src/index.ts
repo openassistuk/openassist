@@ -856,6 +856,8 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
 
     const model = req.model || this.config.defaultModel;
+    const tuningErrors = providerTuningErrors({ ...this.config, type: "codex", defaultModel: model });
+    if (tuningErrors.length) throw new Error(tuningErrors.join(" "));
     const replacement = retiredModelReplacement("codex", model);
     if (replacement) throw new Error(`Codex model '${model}' has retired. Select '${replacement}' using openassist setup wizard.`);
     const { instructions, nonSystemMessages } = buildCodexInstructions(req.messages);

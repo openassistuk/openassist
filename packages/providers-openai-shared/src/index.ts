@@ -1,6 +1,6 @@
 import { modelCapabilities, reasoningEfforts } from "@openassist/config";
 import fs from "node:fs";
-import type { ChatRequest, ChatResponse, OpenAIReasoningEffort } from "@openassist/core-types";
+import type { ChatRequest, ChatResponse, OpenAIReasoningEffort, OpenAIReasoningMode } from "@openassist/core-types";
 
 const TOOL_NAME_SAFE_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const TOOL_NAME_ENCODING_PREFIX = "oa__";
@@ -184,12 +184,20 @@ export function supportsOpenAIReasoningEffort(model: string): boolean {
 export function reasoningPayload(
   model: string,
   effort: OpenAIReasoningEffort | undefined,
-  route: "openai" | "codex" | "azure-foundry" = "openai"
-): { effort: OpenAIReasoningEffort } | undefined {
-  if (!effort || !reasoningEfforts(model, route).includes(effort)) {
-    return undefined;
+  route: "openai" | "codex" | "azure-foundry" = "openai",
+  mode?: OpenAIReasoningMode
+): { effort?: OpenAIReasoningEffort; mode?: OpenAIReasoningMode } | undefined {
+  if (mode && !modelCapabilities(model, route)?.reasoningModes?.includes(mode)) {
+    throw new Error(`Model '${model}' on ${route} does not support reasoning mode '${mode}'. Remove reasoningMode or select a verified model.`);
   }
-  return { effort };
+  const supportedEffort = effort && reasoningEfforts(model, route).includes(effort) ? effort : undefined;
+  return supportedEffort || mode ? { ...(supportedEffort ? { effort: supportedEffort } : {}), ...(mode ? { mode } : {}) } : undefined;
+}
+
+export function temperatureForModel(model: string, effort: OpenAIReasoningEffort | undefined, temperature: number | undefined, route: "openai" | "azure-foundry" = "openai"): number | undefined {
+  const capabilities = modelCapabilities(model, route);
+  if (capabilities?.supportsTemperature === false || (capabilities?.temperatureRequiresNoReasoning && effort !== "none")) return undefined;
+  return temperature;
 }
 
 function extractErrorMessage(error: unknown): string {

@@ -257,3 +257,5 @@ Optional targeted notify check for approved operators only:
 ## Modernization compatibility
 
 For the modernized provider set, certify Terra and Sonnet 5 first replies, sequential tools, images/files, auth refresh, reconnect, and durable sessions using designated test accounts. Mock transport tests are not live certification. Record missing credentials or paid-test authorization as pending.
+
+For current-model beta evidence, record commit, OS/Node, route/model/effort/mode, channel and date. Exercise a first reply, two tool rounds, an image/file, restart with retained history, reconnect and auth refresh where applicable. With new Claude models, include a history trim or changed tool availability and verify replay remains successful without visible thinking. Record untested combinations explicitly.

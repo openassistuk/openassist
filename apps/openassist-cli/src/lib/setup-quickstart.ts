@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, providerTuningErrors, type OpenAssistConfig } from "@openassist/config";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, modelCapabilities, providerTuningErrors, type OpenAssistConfig } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
 import {
   isUntouchedDefaultConfigObject,
@@ -440,6 +440,15 @@ async function configureAssistantIdentity(state: SetupQuickstartState, prompts: 
   console.log("The later first-chat identity reminder is disabled by default after quickstart. Use setup wizard or /profile force=true; ... if you want to change it later.");
 }
 
+export async function preserveReasoningMode(prompts: PromptAdapter, route: "openai" | "azure-foundry", model: string, reasoningMode?: "standard" | "pro"): Promise<{ model: string; reasoningMode?: "standard" | "pro" }> {
+  while (reasoningMode && !modelCapabilities(model, route)?.reasoningModes?.includes(reasoningMode)) {
+    console.log(`Saved reasoning mode '${reasoningMode}' is not supported for '${model || "unknown underlying model"}'.`);
+    if (await prompts.confirm("Reset reasoning mode to provider default?", false)) return { model };
+    model = await promptRequiredText(prompts, route === "azure-foundry" ? "Choose another underlying model to preserve reasoning mode" : "Choose another model to preserve reasoning mode", model);
+  }
+  return { model, ...(reasoningMode ? { reasoningMode } : {}) };
+}
+
 async function promptProvider(
   prompts: PromptAdapter,
   existing?: ProviderConfig
@@ -489,10 +498,12 @@ async function promptProvider(
       "Deployment name (sent in the model field)",
       existingAzure?.defaultModel ?? suggested.model
     );
-    const underlyingModel = await promptAzureFoundryUnderlyingModel(
+    let underlyingModel = await promptAzureFoundryUnderlyingModel(
       prompts,
       existingAzure?.underlyingModel ?? ""
     );
+    const modeSelection = await preserveReasoningMode(prompts, "azure-foundry", underlyingModel ?? "", existingAzure?.reasoningMode);
+    underlyingModel = modeSelection.model || undefined;
     const baseUrlInput = await prompts.input(
       "Base URL override (blank derives it from resource name and endpoint type)",
       existingAzure?.baseUrl ?? ""
@@ -512,6 +523,7 @@ async function promptProvider(
       resourceName,
       endpointFlavor,
       ...(underlyingModel ? { underlyingModel } : {}),
+      ...(modeSelection.reasoningMode ? { reasoningMode: modeSelection.reasoningMode } : {}),
       ...(baseUrl.length > 0 ? { baseUrl } : {}),
       ...(reasoningEffort ? { reasoningEffort } : {}),
       ...(existingAzure?.metadata ? { metadata: existingAzure.metadata } : {})
@@ -524,6 +536,10 @@ async function promptProvider(
     "Default model",
     existing?.type === type ? existing.defaultModel : suggested.model
   );
+  const modeSelection = type === "openai"
+    ? await preserveReasoningMode(prompts, "openai", defaultModel, existing?.type === "openai" ? existing.reasoningMode : undefined)
+    : { model: defaultModel, reasoningMode: undefined };
+  defaultModel = modeSelection.model;
   let anthropicTuning = type === "anthropic" && existing?.type === "anthropic"
     ? { thinkingMode: existing.thinkingMode, thinkingEffort: existing.thinkingEffort, thinkingBudgetTokens: existing.thinkingBudgetTokens }
     : {};
@@ -560,6 +576,8 @@ async function promptProvider(
     ...((type === "openai" || type === "codex") && reasoningEffort ? { reasoningEffort } : {}),
     ...(existing && "oauth" in existing && existing.oauth ? { oauth: existing.oauth } : {}),
     ...anthropicTuning,
+    ...(type === "anthropic" && existing?.type === "anthropic" && existing.maxOutputTokens ? { maxOutputTokens: existing.maxOutputTokens } : {}),
+    ...(type === "openai" && modeSelection.reasoningMode ? { reasoningMode: modeSelection.reasoningMode } : {}),
     ...(existing?.metadata ? { metadata: existing.metadata } : {})
   };
 }

@@ -106,6 +106,7 @@ Current suite files under `tests/vitest/`:
 - `provider-azure-foundry.test.ts`
 - `provider-codex-auth.test.ts`
 - `provider-display.test.ts`
+- `current-provider-models.test.ts`
 - `provider-model-catalog.test.ts`
 - `provider-openai-compatible-tool-mapping.test.ts`
 - `provider-openai-tool-mapping.test.ts`
@@ -342,3 +343,5 @@ pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm w
 `dependency-security-overrides.test.ts` enforces patched floors for all 17 packages in the 2026-09-27 snapshot of 72 Dependabot alerts (including removal of UUID), and matching Vitest/coverage-v8 resolutions. The live production/full audits continue to detect advisories beyond that recorded snapshot.
 
 The model-catalog suite covers saved Opus 4.5 alias validation and manual request mapping. Quickstart flow tests save and reload configurations for unchanged models, compatible model changes, accepted thinking resets, and declined resets followed by another model.
+
+`tests/vitest/current-provider-models.test.ts` verifies GPT-6 Responses/Codex payloads, route-specific mode rejection, Claude mandatory thinking, internal stream folding, output limits and durable replay metadata after context changes. Azure provider tests exercise all three GPT-6 hints under API-key and Entra auth while retaining deployment names. These are fake-transport checks, not live account certification.

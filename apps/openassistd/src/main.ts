@@ -205,6 +205,7 @@ program
           defaultModel: providerConfig.defaultModel,
           baseUrl: providerConfig.baseUrl,
           reasoningEffort: providerConfig.reasoningEffort,
+          reasoningMode: providerConfig.reasoningMode,
           oauth: providerConfig.oauth
         });
       }
@@ -224,6 +225,7 @@ program
           thinkingBudgetTokens: providerConfig.thinkingBudgetTokens,
           thinkingMode: providerConfig.thinkingMode,
           thinkingEffort: providerConfig.thinkingEffort,
+          maxOutputTokens: providerConfig.maxOutputTokens,
           oauth: providerConfig.oauth
         });
       }
@@ -236,6 +238,7 @@ program
           resourceName: providerConfig.resourceName,
           endpointFlavor: providerConfig.endpointFlavor,
           underlyingModel: providerConfig.underlyingModel,
+          reasoningMode: providerConfig.reasoningMode,
           reasoningEffort: providerConfig.reasoningEffort
         });
       }

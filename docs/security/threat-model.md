@@ -210,3 +210,5 @@ Controls:
 Model catalog lookup is local and bounded; custom model names do not grant tools, image capabilities, or optional reasoning fields. Provider SDK upgrades preserve policy checks, account/API-key separation, bounded context and attachment handling, and redacted diagnostics. Retired-model repair is an explicit operator configuration change, not credential replacement.
 
 OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.
+
+Current Claude prefix binding is enforced with the documented drop_block control: changed bounded guidance, access-controlled tools or compacted history discard invalid thinking upstream rather than bypassing signature checks. Valid blocks remain opaque and durable; no raw thinking or beta progress display is exposed. Pro reasoning increases possible cost, not privileges.

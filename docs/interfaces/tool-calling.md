@@ -236,3 +236,5 @@ CLI commands:
 ## Modernization compatibility
 
 Provider modernization preserves sequential runtime tool execution and the existing round budget. Adaptive Anthropic thinking blocks use the same durable replay path as manual thinking; raw thinking is never rendered to channels. Current model controls come from the shared configuration catalog.
+
+Opus 5.5/Fable 5.1/Mythos 5.1 reject forced tool choice. OpenAssist leaves tool choice at the upstream automatic default, replays complete thinking/tool_use blocks and returns matching tool_result IDs. Internal streaming does not alter the sequential runtime loop or its durable invocation records.

@@ -199,3 +199,5 @@ Setup readiness rejects malformed bind addresses before network probing; see [in
 OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
 
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
+
+Current provider choices, route-specific reasoning modes, Claude output budgets and verified source dates are documented in [model compatibility](providers/model-compatibility.md). The [current-model ExecPlan](execplans/current-provider-models-2026-09.md) records the implementation and verification evidence.

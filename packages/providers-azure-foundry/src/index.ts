@@ -1,4 +1,4 @@
-import { OPENAI_REASONING_EFFORTS, modelCapabilities, providerTuningErrors } from "@openassist/config";
+import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, modelCapabilities, providerTuningErrors } from "@openassist/config";
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 import OpenAI from "openai";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import {
   mapResponsesApiResponse,
   mapResponsesInput,
   mapResponsesTools,
+  temperatureForModel,
   reasoningPayload
 } from "@openassist/providers-openai-shared";
 
@@ -35,6 +36,7 @@ const configSchema = z.object({
     .regex(RESOURCE_NAME_PATTERN, "resourceName must use letters, numbers, or hyphen"),
   endpointFlavor: z.enum(["openai-resource", "foundry-resource"]),
   underlyingModel: z.string().min(1).optional(),
+  reasoningMode: z.enum(OPENAI_REASONING_MODES).optional(),
   reasoningEffort: z.enum(OPENAI_REASONING_EFFORTS).optional()
 });
 
@@ -228,13 +230,15 @@ export class AzureFoundryProviderAdapter implements ProviderAdapter {
     const client = this.client(auth);
     const model = req.model || this.config.defaultModel;
     const reasoningModel = resolveReasoningModel(this.config, model);
+    const tuningErrors = providerTuningErrors({ ...this.config, type: "azure-foundry", underlyingModel: reasoningModel });
+    if (tuningErrors.length) throw new AzureFoundryProviderError(tuningErrors.join(" "));
 
     try {
       const response = await client.responses.create({
         model,
-        temperature: req.temperature,
+        temperature: temperatureForModel(reasoningModel, this.config.reasoningEffort, req.temperature, "azure-foundry"),
         max_output_tokens: req.maxTokens,
-        reasoning: reasoningPayload(reasoningModel, this.config.reasoningEffort as OpenAIReasoningEffort | undefined, "azure-foundry"),
+        reasoning: reasoningPayload(reasoningModel, this.config.reasoningEffort as OpenAIReasoningEffort | undefined, "azure-foundry", this.config.reasoningMode),
         input: await mapResponsesInput(req.messages) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata

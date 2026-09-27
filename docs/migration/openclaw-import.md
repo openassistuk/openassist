@@ -85,4 +85,4 @@ Importer:
 
 ## Modernization compatibility
 
-Imported model IDs remain unchanged; only absent-model defaults now use `gpt-5.6-terra` (or `claude-sonnet-5` for Anthropic). Review imported providers in setup wizard, then run doctor. Known retired Codex IDs block readiness until explicitly replaced. Do not copy a manual Anthropic budget onto Sonnet 5 or Opus 5.
+Imported model IDs remain unchanged; only absent-model defaults now use `gpt-6-sol` (or `claude-sonnet-5` for Anthropic). Review imported providers in setup wizard, then run doctor. Known retired Codex IDs block readiness until explicitly replaced. Do not copy a manual Anthropic budget onto Sonnet 5 or Opus 5.

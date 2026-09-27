@@ -21,10 +21,10 @@ afterEach(() => vi.restoreAllMocks());
 describe("shared model capabilities", () => {
   it("recommends current models while retaining saved IDs", () => {
     const config = createDefaultConfigObject();
-    expect(config.runtime.providers[0].defaultModel).toBe("gpt-5.6-terra");
+    expect(config.runtime.providers[0].defaultModel).toBe("gpt-6-sol");
     config.runtime.providers = [{ id: "openai-main", type: "codex", defaultModel: "gpt-5.4" }];
     expect(parseConfig(config).runtime.providers[0].defaultModel).toBe("gpt-5.4");
-    expect(retiredModelReplacement("codex", "gpt-5.4")).toBe("gpt-5.6-terra");
+    expect(retiredModelReplacement("codex", "gpt-5.4")).toBe("gpt-6-sol");
     expect(retiredModelReplacement("openai", "gpt-5.4")).toBeUndefined();
     expect(retiredModelReplacement("codex", "constructor")).toBeUndefined();
     expect(retiredModelReplacement("codex", "__proto__")).toBeUndefined();
@@ -60,7 +60,7 @@ describe("shared model capabilities", () => {
       config.runtime.providers = [{ id: "openai-main", type: "codex", defaultModel: "gpt-5.4" }];
       const before = JSON.stringify(config);
       const result = await validateSetupReadiness({ config, env: {}, configPath: path.join(root, "config.toml"), envFilePath: path.join(root, "env"), installDir: root, skipService: true, skipBindAvailabilityCheck: true, timezoneConfirmed: true });
-      expect(result.errors.find(item => item.code === "provider.codex_model_retired")?.hint).toContain("gpt-5.6-terra");
+      expect(result.errors.find(item => item.code === "provider.codex_model_retired")?.hint).toContain("gpt-6-sol");
       expect(JSON.stringify(config)).toBe(before);
       const fetch = vi.spyOn(globalThis, "fetch");
       const adapter = new CodexProviderAdapter({ id: "c", defaultModel: "gpt-5.4" });

@@ -336,3 +336,5 @@ Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped s
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 
 `tests/vitest/provider-auth-contracts.test.ts` covers OpenAI/Anthropic callback and PKCE exchange, token metadata, missing credentials, malformed responses and error redaction, plus compatible-endpoint auth boundaries. `config-security-schema.test.ts` checks Zod 4 channel secret arrays, operator IDs, rejection paths and nested security defaults.
+
+`dependency-security-overrides.test.ts` enforces patched floors for all 17 packages in the 2026-09-27 snapshot of 72 Dependabot alerts (including removal of UUID), and matching Vitest/coverage-v8 resolutions. The live production/full audits continue to detect advisories beyond that recorded snapshot.

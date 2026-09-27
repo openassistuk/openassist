@@ -22,6 +22,8 @@ Operators should be able to install OpenAssist on Node 24, select supported curr
 - [ ] External validation: authorize workflow re-enabling/publication, run required hosted checks and smoke jobs, supersede dependency PRs only after replacement evidence.
 - [ ] Live integration certification: designated test credentials and authorization required; do not report mock tests as live certification.
 
+- [x] (2026-09-27) Reconciled all 72 current GitHub Dependabot alerts and PRs #53/#54 into this branch. Every affected package is patched or removed; strengthened lockfile floor tests and confirmed both audits remain zero.
+
 ## Surprises & Discoveries
 
 Baseline coverage documentation requires 81% functions but Vitest configured 80%; docs-truth only compared the lines value. The baseline installer accepts every Node major >=22 despite requiring built-in SQLite unavailable in early Node 22. Codex validation only accepts gpt-5.4 or names containing codex; the account-login service retired gpt-5.4 on 2026-08-31. Baileys latest is a prerelease; the supported legacy tag resolves to 6.7.24. Existing dependency-floor tests assert exact old overrides and must migrate with the dependency tree.
@@ -101,3 +103,35 @@ Revision note (2026-09-27): Resumed the existing local work. Added exact model c
 Revision note (2026-09-27, final verification): Recorded upstream rebase, native package-manager behavior, clean install and real runtime migration guard evidence, restored coverage, OAuth error hardening, and historical settings reconciliation. Final local verification and external certifications remain distinct.
 
 Final local evidence (2026-09-27): Full verification log is `%TEMP%/oa-verify-final.log`; clean frozen-install log is `%TEMP%/oa-clean-frozen.log`; docs-truth rerun is `%TEMP%/oa-docs-final.log`. The frozen checkout was isolated from the working checkout and had no preexisting node_modules. Runtime tools were installed only under `%TEMP%/openassist-modernization-tools` and `%TEMP%/openassist-node22-migration`. Required audits remain reproducible through `pnpm audit:dependencies`; transient local reports are not committed. Hosted and live evidence must be appended after authorization and execution.
+
+## Dependency PR and alert reconciliation (2026-09-27)
+
+The user requested that PR #53, PR #54 and all 72 current Dependabot alerts be handled together on `codex/modernize-foundation`. Read-only GitHub inspection confirmed 5 critical, 25 high, 38 medium and 4 low alerts across 17 package names. Alert numbers below include separate manifest/lockfile occurrences; they are not 72 distinct packages. Every currently resolved version is at or above the highest patched floor reported for that package; UUID is absent. Production and full `pnpm audit:dependencies` reports both remain zero. The regression contract now checks all these package floors, every resolved version, removed UUID, and matching Vitest/coverage versions.
+
+PR #53 updates Baileys 6.7.21 to 6.7.22 and is currently merge-conflicted (`DIRTY`). Its manifests and lockfile changes are superseded here by 6.7.24, the registry libsignal override, build permissions, and real persisted encryption roundtrip coverage. PR #54 updates Vitest 2.1.9 to 4.1.11 but leaves coverage-v8 at 2.1.9 and Vite at 5.4.21; its lockfile also introduces Node 26 type resolutions. It is blocked with only the macOS live check reported. This branch upgrades Vitest and coverage-v8 together to 5.0.1, Vite to 8.3.0, and keeps Node types on 24.x. The full verification result above covers that integrated migration.
+
+These fixes are consolidated locally; GitHub still reports the unmerged default-branch dependencies. PR publication, workflow re-enabling and closing the superseded PRs remain subject to the existing authorization boundary. Do not dismiss alerts to hide them or close dependency PRs before the replacement passes hosted checks.
+
+| Package | Open alert numbers | Highest reported patched floor | Modernization lockfile |
+| --- | --- | --- | --- |
+| `@protobufjs/utf8` | #37 | `1.1.1` | `1.1.2` |
+| `@vitest/mocker` | #95 | `4.1.11` | `5.0.1` |
+| `@whiskeysockets/baileys` | #56, #57 | `6.7.22` | `6.7.24` |
+| `axios` | #18, #20, #22, #23, #24, #25, #26, #27, #28, #29, #38, #39, #43, #44, #48, #49, #52, #53, #54, #58, #59, #65, #75, #76, #78, #79, #80, #81 | `1.18.0` | `1.18.0` |
+| `brace-expansion` | #73 | `5.0.7` | `5.0.9` |
+| `esbuild` | #60 | `0.28.1` | `0.28.2` |
+| `follow-redirects` | #17 | `1.16.0` | `1.16.0` |
+| `form-data` | #64 | `4.0.6` | `4.0.6` |
+| `nanoid` | #94 | `3.3.12` | `3.3.19` |
+| `postcss` | #82, #85, #92, #99 | `8.5.23` | `8.5.28` |
+| `protobufjs` | #19, #30, #31, #32, #33, #34, #35, #36, #41, #62, #63, #74 | `7.6.5` | `7.6.5` |
+| `sharp` | #77, #98 | `0.35.4` | `0.35.4` |
+| `undici` | #66, #67, #68, #69, #87, #88, #89 | `6.28.0` | `6.28.0` |
+| `uuid` | #42 | `11.1.1` | Removed by parent upgrades |
+| `vite` | #14, #71, #72 | `6.4.3` | `8.3.0` |
+| `vitest` | #50, #51, #96, #97 | `4.1.11` | `5.0.1` |
+| `ws` | #45, #70 | `8.21.0` | `8.21.0` |
+
+Revision note (2026-09-27, consolidation): Added the exact current alert inventory and both dependency PR dispositions, so the cleanup PR has explicit evidence covering every open alert rather than relying only on an aggregate audit count. No additional dependency changes were necessary; the existing modernization resolutions already cover all 72 alerts.
+
+Consolidation verification: 11 targeted dependency-policy/docs-truth tests passed; both audits again reported zero findings. No product or lockfile change was needed after the previously passing full verification, so the full suite was not repeated for this evidence/test-only follow-up.

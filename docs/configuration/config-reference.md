@@ -2,6 +2,8 @@
 
 Managed applications live under `~/.local/share/openassist/install`, while canonical operator config/data paths remain unchanged. `OPENASSIST_STATE_ROOT` redirects CLI and daemon defaults to `<root>/config` and `<root>/share` for isolated instances. Install-state schema version 2 records active/previous applications and ownership; lifecycle report version 4 distinguishes release/source. Update notification on/off preferences are configured through `openassist update notifications <mode>`, not TOML.
 
+`update-check.json` beside the install record is a disposable versioned status cache: local check time, availability status and an explicit-target boolean only. It contains no downloaded versions, commits or catalogue text. Old unversioned caches are ignored and refreshed on the next permitted check. Use `openassist update check` for fresh target details; no TOML cache or network-policy override is provided.
+
 This page is the schema-backed reference for `openassist.toml`.
 
 It summarizes the top-level config shape from `packages/config/src/schema.ts`, the public runtime/provider/channel contracts from `packages/core-types`, and the required channel/provider-specific settings from the built-in adapters.

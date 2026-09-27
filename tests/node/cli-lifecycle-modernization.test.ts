@@ -33,6 +33,10 @@ describe("managed lifecycle command contracts", () => {
       const active={method:"release" as const,path:root,nodePath:process.execPath,verified:true,channel:"stable" as const,build:{id:"active",version:"1.0.0",commit,nodeVersion:"24.21.0",configVersion:1,databaseVersion:1}};
       saveInstallState({installDir:root,active});
       assert.equal((await checkForUpdate(true)).available,"2.0.0");
+      const cache=JSON.parse(fs.readFileSync(path.join(root,"config","update-check.json"),"utf8"));
+      assert.deepEqual(Object.keys(cache).sort(),["checkedAt","requiresExplicitTarget","schemaVersion","status"]);
+      assert.equal(cache.status,"available");
+      assert.equal((await checkForUpdate()).cached,true);
       metadata=[{tag_name:"v1.0.0",draft:false,prerelease:false}];
       saveInstallState({active:{...active,pinnedVersion:"1.0.0"}});
       assert.equal((await checkForUpdate(true)).updateAvailable,false);
@@ -154,7 +158,7 @@ describe("managed lifecycle command contracts", () => {
       const state=saveInstallState({installDir:directory,managedRoot:managed,active,configPath:defaultConfigPath(),envFilePath:defaultEnvFilePath()});
       setUpdateNotifications(false);assert.deepEqual(await checkForUpdate(),{disabled:true});
       setUpdateNotifications(true);
-      atomicWriteJson(path.join(root,"config","update-check.json"),{checkedAt:Date.now(),current:"0.1.0",available:"0.1.0",updateAvailable:false});
+      atomicWriteJson(path.join(root,"config","update-check.json"),{schemaVersion:1,checkedAt:Date.now(),status:"current",requiresExplicitTarget:false});
       assert.equal((await checkForUpdate()).updateAvailable,false);
       const id=randomUUID();const backup=path.join(managed,"backups",id);fs.mkdirSync(backup,{recursive:true});
       const journal={version:1 as const,id,phase:"prepared" as const,before:state,candidate:active,backup};

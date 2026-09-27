@@ -10,6 +10,8 @@ Installed-client update discovery fetches fixed public GitHub catalogues and com
 
 Discovery has one ten-second deadline. Release/tag catalogues allow at most ten pages of 100 entries with 2 MiB per page; the complete refs response allows 4 MiB and 10,000 entries. Invalid, missing, ambiguous or over-limit results return unavailable instead of selecting a different target or claiming the installation is current. Cache lifetime and explicit notification opt-out remain unchanged. Security closure requires a fresh scanner result with the original alert reopened, not an inline suppression or a green check alone.
 
+Discovery responses are not written into the notification cache. Its schema stores only a local timestamp, an enumerated availability status and an explicit-target boolean. Exact discovered versions/commits remain transient for the fresh check result; cached notices use a generic availability message. Readers validate the cache and project only those fields, ignoring legacy unversioned records and unrelated properties. This keeps untrusted server text out of durable notification state; authenticated installation metadata remains a separate lifecycle record.
+
 ## Scope
 
 In scope:

@@ -282,4 +282,6 @@ openassist dev test --pr 123 --name pr-test
 
 Update checks fetch bounded public GitHub catalogues and compare saved versions/refs locally. Saved selectors, credentials and configuration contents are not included in discovery requests. Notices are advisory; preparation verifies the selected release's signed manifest. Installed-client downloads restrict destinations and every redirect to approved GitHub routes/hosts. See [upgrade and rollback](docs/operations/upgrade-and-rollback.md) for limits, notification controls and track repair.
 
+Cached notices store availability status only; exact discovered versions/commits are not persisted. Run `openassist update check` for fresh target details.
+
 See [release maintenance](docs/operations/release-maintenance.md), [developer testing](docs/operations/developer-testing.md), [uninstall](docs/operations/uninstall.md), and [upgrade/recovery](docs/operations/upgrade-and-rollback.md). `Release Artifacts` adds four native packaging targets on PR/manual runs; publication requires protected signing configuration and explicit dispatch. A merged PR is not proof of a published or live-certified release.

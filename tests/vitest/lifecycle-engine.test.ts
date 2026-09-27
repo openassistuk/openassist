@@ -4,7 +4,7 @@ import os from "node:os";
 import net from "node:net";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, writeDefaultConfig } from "../../packages/config/src/index.js";
-import { defaultInstallStatePath, cachedUpdateStatus } from "../../packages/config/src/index.js";
+import { defaultInstallStatePath, cachedUpdateStatus, readUpdateCache } from "../../packages/config/src/index.js";
 import { saveInstallState, loadInstallState, atomicWriteJson } from "../../apps/openassist-cli/src/lib/install-state.js";
 import { executeUpdate, recoverUpdate, readLifecycleJournal, pruneLifecycleHistory, prepareSource, buildSource } from "../../apps/openassist-cli/src/lib/lifecycle-engine.js";
 import { randomUUID } from "node:crypto";
@@ -127,7 +127,10 @@ describe("staged lifecycle recovery",()=>{
   });
   it("caches update notices and honors the explicit opt-out",async()=>{
     expect(await checkForUpdate(true)).toMatchObject({updateAvailable:true});
-    expect(await checkForUpdate()).toMatchObject({available:"0.2.0"});
+    expect(await checkForUpdate()).toMatchObject({cached:true,updateAvailable:true});
+    const cache=JSON.parse(fs.readFileSync(path.join(path.dirname(defaultConfigPath()),"update-check.json"),"utf8"));
+    expect(Object.keys(cache).sort()).toEqual(["checkedAt","requiresExplicitTarget","schemaVersion","status"]);
+    expect(JSON.stringify(cache)).not.toContain("0.2.0");
     setUpdateNotifications(false);expect(await checkForUpdate()).toEqual({disabled:true});
     expect(await checkForUpdate(true)).toMatchObject({updateAvailable:true});
   });
@@ -158,6 +161,8 @@ describe("staged lifecycle recovery",()=>{
       }
     }
     fetch.mockClear();
+    expect(await checkForUpdate()).toMatchObject({cached:true,requiresExplicitTarget:true,updateAvailable:true});
+    expect(fetch).not.toHaveBeenCalled();
     atomicWriteJson(defaultInstallStatePath(),{...original,active:{...original.active!,method:"source",ref:"main"},repoUrl:"https://example.test/private.git"});
     expect(await checkForUpdate(true)).toMatchObject({status:"unavailable"});
     expect(fetch).not.toHaveBeenCalled();
@@ -213,8 +218,19 @@ describe("staged lifecycle recovery",()=>{
     expect(await checkForUpdate()).toMatchObject({available:"0.2.0"});
     setUpdateNotifications(false);expect(cachedUpdateStatus()).toBe("Update notices disabled");
     setUpdateNotifications(true);
-    atomicWriteJson(file,{checkedAt:Date.now(),status:"unavailable"});expect(cachedUpdateStatus()).toBe("Update check unavailable");
-    atomicWriteJson(file,{checkedAt:Date.now(),updateAvailable:false});expect(cachedUpdateStatus()).toContain("No update");
+    atomicWriteJson(file,{schemaVersion:1,checkedAt:Date.now(),status:"unavailable",requiresExplicitTarget:false});expect(cachedUpdateStatus()).toBe("Update check unavailable");
+    atomicWriteJson(file,{schemaVersion:1,checkedAt:Date.now(),status:"current",requiresExplicitTarget:false});expect(cachedUpdateStatus()).toContain("No update");
+  });
+  it("ignores legacy or malformed caches and exposes only bounded local status fields",()=>{
+    const file=path.join(path.dirname(defaultConfigPath()),"update-check.json");
+    const valid={schemaVersion:1,checkedAt:Date.now(),status:"available",requiresExplicitTarget:false};
+    for(const patch of [{schemaVersion:2},{schemaVersion:undefined},{checkedAt:"today"},{checkedAt:-1},{status:"remote text"},{requiresExplicitTarget:1}]){
+      atomicWriteJson(file,{...valid,...patch});expect(readUpdateCache()).toBeUndefined();
+    }
+    atomicWriteJson(file,{...valid,available:"server-supplied-text",extra:"ignored"});
+    expect(readUpdateCache()).toEqual(valid);
+    expect(cachedUpdateStatus()).toBe("Update available; run openassist update check for target details");
+    atomicWriteJson(file,{...valid,checkedAt:Date.now()+60_000});expect(cachedUpdateStatus()).toBeUndefined();
   });
   it("stages an immutable source revision with the pinned toolchain and private runtime",async()=>{
     const candidate=await prepareSource(defaultManagedInstallDir(),"refs/pull/7/head");

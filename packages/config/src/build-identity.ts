@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import type { BuildIdentity } from "@openassist/core-types";
+import type { BuildIdentity, UpdateCheckCache } from "@openassist/core-types";
 import { defaultConfigDir } from "./operator-paths.js";
 
-export function readUpdateCache(): (Record<string, unknown> & {checkedAt:number}) | undefined {
+export function readUpdateCache(): UpdateCheckCache | undefined {
   let fd: number | undefined;
   try {
     fd=fs.openSync(path.join(defaultConfigDir(),"update-check.json"),fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
@@ -13,7 +13,9 @@ export function readUpdateCache(): (Record<string, unknown> & {checkedAt:number}
     const size=fs.readSync(fd,buffer,0,buffer.length,null);
     if(size>16_384) return undefined;
     const cache=JSON.parse(buffer.subarray(0,size).toString("utf8"));
-    return cache && typeof cache.checkedAt==="number" ? cache : undefined;
+    if (!cache || cache.schemaVersion !== 1 || typeof cache.checkedAt !== "number" || !Number.isFinite(cache.checkedAt) || cache.checkedAt < 0 ||
+        !["available", "current", "unavailable"].includes(cache.status) || typeof cache.requiresExplicitTarget !== "boolean") return undefined;
+    return {schemaVersion: 1, checkedAt: cache.checkedAt, status: cache.status, requiresExplicitTarget: cache.requiresExplicitTarget};
   } catch {return undefined;}
   finally {if(fd!==undefined)fs.closeSync(fd);}
 }
@@ -25,7 +27,7 @@ export function cachedUpdateStatus(): string | undefined {
     if(state.notifications===false) return "Update notices disabled";
     const cache=readUpdateCache();
     if(!cache || Date.now()-cache.checkedAt>86_400_000 || Date.now()<cache.checkedAt) return undefined;
-    if(cache.updateAvailable && typeof cache.available==="string" && /^[a-zA-Z0-9._-]{1,80}$/.test(cache.available)) return `Update available: ${cache.available}; run openassist update --dry-run`;
+    if(cache.status==="available") return "Update available; run openassist update check for target details";
     return cache.status==="unavailable" ? "Update check unavailable" : "No update available at last check";
   } catch { return undefined; }
 }

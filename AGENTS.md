@@ -267,6 +267,8 @@ When touching channel/runtime/provider attachment behavior:
 
 - Keep update discovery on fixed public catalogue routes; compare saved versions/refs locally rather than placing them in request URLs. Validate source selectors before preparation. Test catalogue bounds, old pins, missing/ambiguous refs, annotated tags and every download redirect against the approved destinations. Discovery is advisory; release preparation still requires a signed manifest. Check open code-scanning alerts and unresolved review threads separately from CI conclusions; do not substitute a suppression or dismissal for removing an unwanted data flow.
 
+- Persist only the versioned `UpdateCheckCache` status contract for notices. Do not cache server-supplied version/commit strings or raw catalogue responses; explicit checks may return those transient details. Keep cache validation and status/notice rendering synchronized.
+
 - Keep loopback bind default unless an approved plan changes it.
 - Keep `full-root` activation explicit and auditable.
 - Do not introduce scheduled shell actions without threat-model and policy updates.

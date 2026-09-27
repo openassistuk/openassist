@@ -50,3 +50,11 @@ export interface LifecycleResult {
   detail: string;
   nextCommand?: string;
 }
+
+/** Cached discovery status contains no server-supplied strings or executable metadata. */
+export interface UpdateCheckCache {
+  schemaVersion: 1;
+  checkedAt: number;
+  status: "available" | "current" | "unavailable";
+  requiresExplicitTarget: boolean;
+}

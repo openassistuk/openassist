@@ -2,6 +2,7 @@ import path from "node:path";
 import { defaultConfigDir, readUpdateCache } from "@openassist/config";
 import { atomicWriteJson, loadInstallState, saveInstallState } from "./install-state.js";
 import { discoverRelease, discoverSource } from "./update-discovery.js";
+import type { UpdateCheckCache } from "@openassist/core-types";
 
 export async function checkForUpdate(force = false): Promise<Record<string, unknown>> {
   const state = loadInstallState();
@@ -11,7 +12,12 @@ export async function checkForUpdate(force = false): Promise<Record<string, unkn
     const cached=readUpdateCache();
     if(cached) {
       const age=Date.now()-cached.checkedAt;
-      if(Number.isFinite(age) && age>=0 && age<86_400_000) return cached;
+      if(Number.isFinite(age) && age>=0 && age<86_400_000) return {
+        checkedAt: cached.checkedAt, cached: true, updateAvailable: cached.status === "available",
+        requiresExplicitTarget: cached.requiresExplicitTarget,
+        ...(cached.status === "unavailable" ? {status: "unavailable"} : {}),
+        detail: cached.status === "unavailable" ? "Update information is unavailable; the installed application is unchanged." : "Cached update status. Run openassist update check for current target details."
+      };
     }
   }
   let result: Record<string, unknown>;
@@ -30,7 +36,12 @@ export async function checkForUpdate(force = false): Promise<Record<string, unkn
   } catch {
     result = {checkedAt: Date.now(), status: "unavailable", detail: "Update information is unavailable; the installed application is unchanged."};
   }
-  atomicWriteJson(file,result);
+  const cache: UpdateCheckCache = {
+    schemaVersion: 1, checkedAt: Date.now(),
+    status: result.status === "unavailable" ? "unavailable" : result.updateAvailable === true ? "available" : "current",
+    requiresExplicitTarget: result.requiresExplicitTarget === true
+  };
+  atomicWriteJson(file,cache);
   return result;
 }
 
@@ -43,5 +54,5 @@ export function setUpdateNotifications(enabled: boolean): void {
 export async function showUpdateNotice(): Promise<void> {
   if (!process.stdout.isTTY) return;
   const result = await checkForUpdate();
-  if (result.updateAvailable) console.log(`OpenAssist ${result.available} is available. Run: openassist update --dry-run${result.requiresExplicitTarget ? " --pr <number>" : ""}`);
+  if (result.updateAvailable) console.log(`${result.available ? `OpenAssist ${result.available} is available.` : "An OpenAssist update is available."} Run: openassist update --dry-run${result.requiresExplicitTarget ? " --pr <number>" : ""}`);
 }

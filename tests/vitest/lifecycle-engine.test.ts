@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import net from "node:net";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, writeDefaultConfig } from "../../packages/config/src/index.js";
 import { defaultInstallStatePath, cachedUpdateStatus } from "../../packages/config/src/index.js";
@@ -28,7 +29,7 @@ vi.mock("../../apps/openassist-cli/src/lib/command-runner.js",async importOrigin
 vi.mock("node:child_process",()=>({spawnSync:vi.fn(()=>({status:controls.badStartup?1:0,stdout:"",stderr:""}))}));
 vi.mock("../../apps/openassist-cli/src/lib/lifecycle-files.js",async importOriginal=>({...await importOriginal<object>(),switchCurrent:vi.fn((_root:string,target:string)=>{controls.active=path.basename(target);controls.events.push(`activate:${controls.active}`);})}));
 vi.mock("../../apps/openassist-cli/src/lib/service-manager.js",()=>({createServiceManager:()=>({kind:"systemd-user",isInstalled:async()=>controls.installed,stop:async()=>{controls.running=false;controls.events.push("stop");},install:async(options:{installDir:string;start:boolean})=>{controls.events.push(`install:${path.basename(options.installDir)}`);if(controls.failCandidate&&path.basename(options.installDir)==="candidate")throw new Error("injected service activation failure");controls.running=options.start;},uninstall:async()=>{controls.installed=false;controls.events.push("uninstall");}})}));
-vi.mock("../../apps/openassist-cli/src/lib/health-check.js",()=>({checkHealth:async(_url:string,expected?:{buildId:string})=>({ok:controls.running&&(!expected||expected.buildId===controls.active)}),preferredLocalHealthBaseUrl:()=>"http://127.0.0.1:3344"}));
+vi.mock("../../apps/openassist-cli/src/lib/health-check.js",()=>({checkHealth:async(_url:string,expected?:{buildId:string})=>({ok:controls.running&&(!expected||expected.buildId===controls.active)}),preferredLocalHealthBaseUrl:(_address:string,port:number)=>`http://127.0.0.1:${port}`}));
 vi.mock("../../apps/openassist-cli/src/lib/release.js",async importOriginal=>({...await importOriginal<object>(),platformArtifact:vi.fn(()=>({bytes:1024})),resolveRelease:vi.fn(async()=>({manifest:{build:{id:"candidate",version:"0.2.0",configVersion:1,databaseVersion:1},channel:"stable",artifacts:[]},baseUrl:"https://example.test"}))}));
 
 let home:string;
@@ -39,12 +40,14 @@ function app(name:string):InstalledApplication{
   fs.writeFileSync(path.join(directory,"build-identity.json"),JSON.stringify(build));
   return{method:"release",path:directory,nodePath:path.join(directory,"runtime/bin/node"),build,verified:true,channel:"stable"};
 }
-beforeEach(()=>{
+beforeEach(async()=>{
   home=fs.mkdtempSync(path.join(os.tmpdir(),"oa-engine-test-"));
   vi.spyOn(os,"homedir").mockReturnValue(home);
   originalPlatform=process.platform;Object.defineProperty(process,"platform",{value:"linux",configurable:true});
   Object.assign(controls,{running:true,installed:true,failCandidate:false,badStartup:false,active:"old",events:[]});
   fs.mkdirSync(path.dirname(defaultConfigPath()),{recursive:true});writeDefaultConfig(defaultConfigPath());fs.writeFileSync(defaultEnvFilePath(),"# private env\n");
+  const port=await new Promise<number>((resolve,reject)=>{const server=net.createServer();server.once("error",reject);server.listen(0,"127.0.0.1",()=>{const selected=(server.address() as net.AddressInfo).port;server.close(error=>error?reject(error):resolve(selected));});});
+  fs.writeFileSync(defaultConfigPath(),fs.readFileSync(defaultConfigPath(),"utf8").replace(/bindPort\s*=\s*[\d_]+/,`bindPort = ${port}`));
   const active=app("old");
   saveInstallState({installDir:active.path,managedRoot:defaultManagedInstallDir(),configPath:defaultConfigPath(),envFilePath:defaultEnvFilePath(),active});
 });

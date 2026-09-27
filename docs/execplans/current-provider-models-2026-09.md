@@ -13,7 +13,7 @@ Operators can select the current GPT-6 and Claude models with controls that matc
 - [x] (2026-09-27) Implemented shared current models, route-specific efforts/modes, schema/daemon/setup/status mapping, output budgets and Claude stream folding.
 - [x] (2026-09-27) Added payload, thinking replay, output validation and wizard tests; updated required documentation and exact test inventory.
 - [x] (2026-09-27) Reviewed the final implementation and passed `pnpm verify:all` on f000816 with documentation-only follow-ups. Both dependency audits report zero findings.
-- [ ] Publish the PR and inspect hosted checks.
+- [x] (2026-09-27) Published [PR #61](https://github.com/openassistuk/openassist/pull/61) and confirmed dispatch of three-platform quality, workflow lint, CodeQL and live macOS LaunchAgent checks. Hosted completion is tracked on the PR; dispatch alone is not a passing result.
 
 ## Surprises & Discoveries
 

@@ -12,7 +12,7 @@ Operators and contributors should find one consistent description of the merged 
 - [x] (2026-09-27) Initial audit passed all nine docs-truth checks but found stale quickstart choice lists, an incorrect cross-route reasoning summary, scattered new configuration fields and incomplete final merge records.
 - [x] (2026-09-27) Reconciled root/contributor guidance, provider/configuration field lists, route-specific setup controls, architecture/interface descriptions, rollback and migration notes, audit instructions and final merge records. Swept all 90 Markdown files (44 non-ExecPlan documents and 46 plans including this one); no missing relative link paths.
 - [x] (2026-09-27) Full `pnpm verify:all` passed: 406 Vitest tests, 188 Node integration passes with 3 platform skips, unchanged coverage gates and zero findings in production/full audits. Final review preserved all runtime/dependency files; documentation checks and whitespace checks pass.
-- [ ] Commit and publish the documentation PR; report hosted checks for its exact revision.
+- [x] (2026-09-27) Committed the documentation as `14bd441`, pushed `codex/documentation-readiness`, and published [PR #62](https://github.com/openassistuk/openassist/pull/62). Three-platform CI, workflow lint, CodeQL and the live macOS LaunchAgent gate were dispatched. Their final exact-revision results are tracked on the PR; dispatch is not evidence of a pass.
 
 ## Surprises & Discoveries
 
@@ -61,6 +61,8 @@ No runtime interfaces, dependencies, database schemas or service settings change
 ## Outcomes & Retrospective
 
 Documentation reconciliation is implemented with no runtime, dependency or operator-state changes. The full local gate passed on Windows with Node 24.21.0/pnpm 12.5.1. Vitest coverage: statements 83.07%, branches 71.66%, functions 86.55%, lines 83.27%; Node coverage: statements/lines 80.61%, branches 71.93%, functions 91.52%. Production/full audits each report zero findings at every severity. Local log: `%TEMP%/openassist-docs-readiness-verify.log`. The standalone nine-test docs-truth suite also passes; the wider relative-link sweep found no missing paths. No live accounts, production operations or paid calls were used. Final hosted results belong to the published documentation PR and must not be inferred from these local results.
+
+Delivery is [PR #62](https://github.com/openassistuk/openassist/pull/62), targeting main. It remains subject to hosted checks and normal review/merge policy. No merge or deployment was performed. Future provider changes should update primary guidance alongside the compatibility catalog so appendices do not leave contradictory instructions in the main sections.
 
 Revision note (2026-09-27): Created this plan for the authorized repository-wide documentation reconciliation.
 

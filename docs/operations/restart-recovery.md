@@ -110,6 +110,8 @@ Re-run bootstrap instead of forcing an in-place recovery when:
 - build output is missing under `apps/openassist-cli/dist` or `apps/openassistd/dist`
 - you want to move a detached install back onto an explicit branch or tag through the installer flow
 
+Setup readiness rejects invalid bind addresses before network probing. If this blocks setup or repair, correct the address using the [invalid-bind-address guidance](common-troubleshooting.md#invalid-bind-address) and retry; valid addresses still receive normal port checks.
+
 ## Node 24 runtime migration
 
 OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.

@@ -244,6 +244,8 @@ That gate includes a docs-truth validation pass, so stale command examples, brok
 
 Node coverage now excludes `tests/**` from reported totals, and Vitest coverage intentionally targets the CLI library plus selected daemon, config, runtime, provider, and web-tool modules instead of claiming full-repo source coverage. The exact measured source list lives in [`docs/testing/test-matrix.md`](docs/testing/test-matrix.md).
 
+Setup readiness rejects malformed bind addresses before attempting network probes. Repair guidance is in [common troubleshooting](docs/operations/common-troubleshooting.md#invalid-bind-address).
+
 ## Node 24 runtime migration
 
 OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](docs/operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.

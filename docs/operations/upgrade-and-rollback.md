@@ -205,6 +205,8 @@ Installed commands are the primary operator path. For contributor workflows:
 pnpm --filter @openassist/openassist-cli dev -- upgrade --dry-run --install-dir "$PWD"
 ```
 
+Setup readiness rejects invalid bind addresses before network probing. If this blocks setup or repair, correct the address using the [invalid-bind-address guidance](common-troubleshooting.md#invalid-bind-address) and retry; valid addresses still receive normal port checks.
+
 ## Node 24 runtime migration
 
 OpenAssist requires Node.js `>=24.21.0 <25`. Node 22, Node 25+, and earlier Node 24 versions are rejected before the CLI or daemon loads providers or opens operator state. Upgrade Node before upgrading OpenAssist. No database migration or automatic model replacement is included.

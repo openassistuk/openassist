@@ -614,6 +614,31 @@ describe("setup quickstart validation", () => {
     expect(warningCodes.has("provider.oauth_client_secret_unset")).toBe(true);
   });
 
+  it("rejects an invalid bind address without attempting a network probe", async () => {
+    const root = tempDir("openassist-quickstart-invalid-bind-");
+    const config = createDefaultConfigObject();
+    config.runtime.bindAddress = "bad host ???";
+    const createServer = vi.spyOn(net, "createServer").mockImplementation(() => {
+      throw new Error("Invalid bind addresses must not reach the network");
+    });
+    try {
+      const result = await validateSetupReadiness({
+        config,
+        env: {},
+        configPath: path.join(root, "openassist.toml"),
+        envFilePath: path.join(root, "openassistd.env"),
+        installDir: root,
+        skipService: true,
+        timezoneConfirmed: true
+      });
+      expect(result.errors.some((item) => item.code === "runtime.bind_address_invalid")).toBe(true);
+      expect(result.errors.some((item) => item.code === "runtime.port_unavailable")).toBe(false);
+      expect(createServer).not.toHaveBeenCalled();
+    } finally {
+      createServer.mockRestore();
+    }
+  });
+
   it("flags experimental whatsapp and busy ports after schema validation", async () => {
     const root = tempDir("openassist-quickstart-validation-port-busy-");
     const config = createDefaultConfigObject();

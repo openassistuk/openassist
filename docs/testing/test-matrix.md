@@ -191,6 +191,8 @@ Current suite files under `tests/node/`:
 
 ## Docs-Truth Validation
 
+`setup-quickstart-validation.test.ts` verifies that invalid bind addresses never create a network probe, while valid-address busy-port tests remain active. Dependabot ignores major `@types/node` updates to match the Node 24 runtime; 24.x minor/patch updates remain enabled.
+
 `tests/node/cli-docs-truth.test.ts` now validates:
 
 - command examples across all live docs except `docs/execplans/**` resolve to real `openassist` commands

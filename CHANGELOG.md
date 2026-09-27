@@ -11,6 +11,8 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Modernization
 
+- Reject invalid setup bind addresses before attempting a network probe, avoiding hostname-resolution delays on macOS and misleading port errors. Keep Dependabot Node type updates on the supported 24.x series.
+
 - Preserve manual thinking for saved `claude-opus-4-5` aliases. Quickstart now detects incompatible Anthropic thinking settings after a model change and offers an explicit reset or another model, avoiding an unrecoverable validation loop.
 
 - Sanitize OpenAI/Anthropic OAuth exchange failures and validate token response fields so upstream echoed credentials cannot leak into operator errors. Add login/PKCE and config rejection regression coverage.

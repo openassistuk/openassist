@@ -721,7 +721,7 @@ async function editProvider(state: SetupWizardState, prompts: PromptAdapter): Pr
     provider.endpointFlavor = await promptAzureFoundryEndpointFlavor(prompts, provider.endpointFlavor);
     provider.authMode = await promptAzureFoundryAuthMode(prompts, provider.authMode);
     describeModelChoices(provider.type, provider.defaultModel);
-  provider.defaultModel = await promptRequiredText(
+    provider.defaultModel = await promptRequiredText(
       prompts,
       "Deployment name (sent in the model field)",
       provider.defaultModel

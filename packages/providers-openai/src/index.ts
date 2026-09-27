@@ -145,22 +145,26 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
 
     const bodyText = await response.text();
     if (!response.ok) {
-      throw new Error(
-        `OAuth token exchange failed (${response.status} ${response.statusText}): ${bodyText.slice(0, 500)}`
-      );
+      throw new Error(`OAuth token exchange failed (HTTP ${response.status}). Check the OAuth configuration and retry account linking.`);
     }
 
-    const tokenBody = JSON.parse(bodyText) as {
-      access_token?: string;
-      refresh_token?: string;
-      expires_in?: number;
-      scope?: string;
-      token_type?: string;
-    };
-
-    if (!tokenBody.access_token) {
-      throw new Error("OAuth token exchange did not return access_token");
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(bodyText);
+    } catch {
+      throw new Error("OAuth token exchange returned invalid JSON. Retry account linking.");
     }
+    const parsed = z.object({
+      access_token: z.string().trim().min(1),
+      refresh_token: z.string().optional(),
+      expires_in: z.number().nonnegative().max(315_360_000).optional(),
+      scope: z.string().optional(),
+      token_type: z.string().optional()
+    }).safeParse(decoded);
+    if (!parsed.success) {
+      throw new Error("OAuth token exchange returned invalid token fields or missing access_token. Retry account linking.");
+    }
+    const tokenBody = parsed.data;
 
     return {
       providerId: this.config.id,

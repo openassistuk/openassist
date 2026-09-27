@@ -155,3 +155,7 @@ The docs must continue to reference the existing public interfaces and commands 
 Revision note (2026-03-13): updated after implementation to record the completed docs surfaces, the successful local validation runs, and the later review-driven follow-up edits.
 
 Revision note (2026-03-13, later): updated after PR creation to record the follow-up review fixes, resolved review threads, green PR checks, and the remaining human-approval gate.
+
+## Housekeeping reconciliation (2026-09-27)
+
+PR #43 merged on 2026-03-13. The historical checkbox for non-author approval remains unverified: merge state alone does not establish who approved. No further publication is needed. Current required human approval remains one reviewer in active ruleset Protect main (13499978).

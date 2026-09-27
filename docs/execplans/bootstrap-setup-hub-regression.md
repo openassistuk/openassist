@@ -52,3 +52,7 @@ The branch now aligns the live setup/auth experience with the product story in t
 The practical lesson from this follow-up is that real VPS transcripts are still the best lifecycle UX test. The CI and unit coverage were already good enough to catch logic errors, but they did not expose the terminal repaint problem or the missing `xdg-open` crash until the flow was exercised on a headless install.
 
 The final verification evidence is straightforward: targeted Vitest and node OAuth/setup-hub suites passed locally, and the branch then cleared the full `pnpm verify:all` gate without lowering thresholds or weakening existing lifecycle checks.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #19 merged at 2026-03-08T22:20:24Z as `bcc2d640769407490f1313b6703ca0a4ff945822`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

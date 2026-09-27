@@ -201,3 +201,5 @@ Changes to provider contract require synchronized updates across:
 - runtime call sites
 - all provider adapter packages
 - this document
+
+OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.

@@ -32,8 +32,7 @@ jobs:
 
       - name: Setup pnpm
         run: |
-          corepack enable
-          corepack prepare pnpm@12.5.1 --activate
+          npm install --global --force --allow-scripts=pnpm pnpm@12.5.1
           pnpm --version
 
       - name: Install dependencies
@@ -64,8 +63,7 @@ jobs:
 
       - name: Setup pnpm
         run: |
-          corepack enable
-          corepack prepare pnpm@12.5.1 --activate
+          npm install --global --force --allow-scripts=pnpm pnpm@12.5.1
           pnpm --version
 
       - name: Install dependencies

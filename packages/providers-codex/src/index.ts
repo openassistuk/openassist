@@ -316,11 +316,6 @@ function resolveExpiresAt(
   return fallbackExpiresAt;
 }
 
-function supportsCodexRouteModel(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return normalized === "gpt-5.4" || normalized.includes("codex");
-}
-
 async function postForm<T extends Record<string, unknown>>(
   url: string,
   payload: URLSearchParams

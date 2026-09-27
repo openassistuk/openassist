@@ -150,6 +150,8 @@ Coverage reporting stays intentionally targeted rather than pretending to be ful
 
 Current lifecycle ExecPlans:
 
+- [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
+
 - [`docs/execplans/access-mode-opt-in-and-beginner-copy.md`](execplans/access-mode-opt-in-and-beginner-copy.md)
 - [`docs/execplans/actions-node24-runtime-cleanup.md`](execplans/actions-node24-runtime-cleanup.md)
 - [`docs/execplans/bootstrap-setup-hub-regression.md`](execplans/bootstrap-setup-hub-regression.md)
@@ -188,12 +190,10 @@ Current lifecycle ExecPlans:
 - [`docs/execplans/setup-wizard-full-access-prompt.md`](execplans/setup-wizard-full-access-prompt.md)
 - [`docs/execplans/status-tool-loop-followups.md`](execplans/status-tool-loop-followups.md)
 
+See the [model compatibility catalog](providers/model-compatibility.md) for current recommendations, route-specific controls and explicit repair of retired selections.
+
 ## Node 24 runtime migration
 
-OpenAssist requires Node.js `>=24.21.0 <25` on development and operator hosts. Before upgrading an existing Node 22 installation, stop the service and back up the config directory, env file, runtime data (including SQLite files), and service definition with their owner-only permissions intact. Keep the previous checkout and record its commit. Install Node 24.21.0 or a newer Node 24 release, then verify `node --version` in both the operator shell and the service's configured executable path. Reinstall the service definition if its Node path changed. Run `openassist upgrade --dry-run`, upgrade, and confirm `openassist doctor` and `openassist service health` before removing backups.
+OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
 
-Node 22, Node 25+, and earlier Node 24 versions are rejected before the CLI or daemon loads providers or opens operator state. If upgrading fails, retain the backup, restore the previous checkout and service definition, and verify health before resuming chat traffic. This change does not migrate the database or rewrite saved model IDs.
-
-Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
-
-- [Model recommendations and compatibility](providers/model-compatibility.md): shared capabilities, explicit retired-model repair, and legacy configuration behavior.
+pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.

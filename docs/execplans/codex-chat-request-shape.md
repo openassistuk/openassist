@@ -31,3 +31,7 @@ Fix the post-login Codex chat failure where `codex-main` is linked and chat-read
 - The Codex provider transport now matches the upstream conversation contract more closely and no longer relies on the generic OpenAI SDK fallback behavior for chats.
 - Runtime diagnostics now distinguish healthy linked-auth state from upstream Codex request rejection more clearly.
 - Docs now explain that Codex auth is stored as encrypted OAuth state in SQLite, refresh is automatic when possible, and a chat-ready auth handle plus a failing request should be debugged as a provider request issue rather than a missing-auth issue.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #31 merged at 2026-03-10T18:36:28Z as `baa3088e9d53d146601fc7ed0f18a4d94cb1eec7`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

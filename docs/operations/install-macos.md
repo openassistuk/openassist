@@ -10,7 +10,7 @@ Bootstrap can install missing prerequisites automatically with Homebrew unless y
 
 - Git
 - Node `>=24.21.0 <25`
-- pnpm `>=10`
+- pnpm `12.5.1` (the repository-pinned version)
 
 If Homebrew is not already available, install it first from `https://brew.sh`.
 
@@ -198,6 +198,4 @@ Shared installed-command lifecycle guidance stays aligned across Linux and macOS
 
 ## Node 24 runtime migration
 
-OpenAssist requires Node.js `>=24.21.0 <25` on development and operator hosts. Before upgrading an existing Node 22 installation, stop the service and back up the config directory, env file, runtime data (including SQLite files), and service definition with their owner-only permissions intact. Keep the previous checkout and record its commit. Install Node 24.21.0 or a newer Node 24 release, then verify `node --version` in both the operator shell and the service's configured executable path. Reinstall the service definition if its Node path changed. Run `openassist upgrade --dry-run`, upgrade, and confirm `openassist doctor` and `openassist service health` before removing backups.
-
-Node 22, Node 25+, and earlier Node 24 versions are rejected before the CLI or daemon loads providers or opens operator state. If upgrading fails, retain the backup, restore the previous checkout and service definition, and verify health before resuming chat traffic. This change does not migrate the database or rewrite saved model IDs.
+OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.

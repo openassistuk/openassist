@@ -208,3 +208,5 @@ Controls:
 ## Modernization compatibility
 
 Model catalog lookup is local and bounded; custom model names do not grant tools, image capabilities, or optional reasoning fields. Provider SDK upgrades preserve policy checks, account/API-key separation, bounded context and attachment handling, and redacted diagnostics. Retired-model repair is an explicit operator configuration change, not credential replacement.
+
+OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.

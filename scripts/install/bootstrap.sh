@@ -532,24 +532,18 @@ install_node_runtime() {
 }
 
 install_pnpm_runtime() {
-  if command -v corepack >/dev/null 2>&1; then
-    corepack enable
-    corepack prepare "pnpm@${PINNED_PNPM_VERSION}" --activate
-    return
-  fi
-
   if command -v npm >/dev/null 2>&1; then
     if [[ "$(id -u)" -eq 0 ]]; then
-      npm install -g "pnpm@${PINNED_PNPM_VERSION}"
+      npm install -g --force --allow-scripts=pnpm "pnpm@${PINNED_PNPM_VERSION}"
     elif command -v sudo >/dev/null 2>&1; then
-      sudo npm install -g "pnpm@${PINNED_PNPM_VERSION}"
+      sudo npm install -g --force --allow-scripts=pnpm "pnpm@${PINNED_PNPM_VERSION}"
     else
-      npm install -g "pnpm@${PINNED_PNPM_VERSION}"
+      npm install -g --force --allow-scripts=pnpm "pnpm@${PINNED_PNPM_VERSION}"
     fi
     return
   fi
 
-  echo "Cannot install pnpm automatically: neither corepack nor npm is available."
+  echo "Cannot install pnpm automatically: npm is unavailable; install the pinned pnpm native executable manually."
   return 1
 }
 
@@ -777,7 +771,7 @@ print_prereq_troubleshooting() {
       echo "  brew update"
       echo "  brew install git node@24"
       echo "  brew link --overwrite --force node@24"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
     fi
     return
   fi
@@ -789,28 +783,28 @@ print_prereq_troubleshooting() {
       echo "  sudo apt-get install -y curl ca-certificates gnupg git"
       echo "  curl -fsSL https://deb.nodesource.com/setup_24.x | sudo bash -"
       echo "  sudo apt-get install -y nodejs"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     dnf|yum)
       echo "Try these commands manually:"
       echo "  sudo ${pkg_manager} install -y git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     pacman)
       echo "Try these commands manually:"
       echo "  sudo pacman -Sy --noconfirm git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     zypper)
       echo "Try these commands manually:"
       echo "  sudo zypper --non-interactive refresh"
       echo "  sudo zypper --non-interactive install git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     apk)
       echo "Try these commands manually:"
       echo "  sudo apk add --no-cache git curl ca-certificates nodejs npm"
-      echo "  corepack enable && corepack prepare pnpm@${PINNED_PNPM_VERSION} --activate"
+      echo "  npm install -g --force --allow-scripts=pnpm pnpm@${PINNED_PNPM_VERSION}"
       ;;
     *)
       echo "No known automatic troubleshooting commands for this platform/package-manager pair."
@@ -965,7 +959,7 @@ ensure_prereqs() {
       hash -r
     fi
 
-    if ! command -v pnpm >/dev/null 2>&1 || [[ "$(pnpm_major)" -lt 10 ]]; then
+    if ! command -v pnpm >/dev/null 2>&1 || [[ "$(pnpm_major)" -lt 12 ]]; then
       echo "Installing pnpm..."
       install_pnpm_runtime
       hash -r

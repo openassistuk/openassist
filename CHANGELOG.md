@@ -11,6 +11,9 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ### Modernization
 
+- Sanitize OpenAI/Anthropic OAuth exchange failures and validate token response fields so upstream echoed credentials cannot leak into operator errors. Add login/PKCE and config rejection regression coverage.
+- Install native pnpm 12 through npm with a scoped script permission in bootstrap and CI; audit invocation supports native binaries on every quality-matrix platform.
+
 - Modernize pnpm, TypeScript, Vitest, Zod, provider/channel SDKs, logging and CLI dependencies. Preserve nested config defaults with Zod prefaults. Retain strict supply-chain checks by resolving Baileys libsignal from its maintainer's registry release with a scoped override; verify encryption and persisted-session reload. Both dependency audits now run in the quality gate, retain reports, and fail on high/critical findings or registry errors.
 
 - Require Node >=24.21.0 <25 for CLI, daemon, installers and CI. Early launchers reject unsupported runtimes before opening operator state. Existing Node 22 installs must back up state and update the service Node executable before upgrading; rollback guidance preserves the previous checkout and service definition.

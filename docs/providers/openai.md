@@ -157,3 +157,5 @@ If you need a richer troubleshooting path, start with:
 ## Modernization compatibility
 
 Fresh setup recommends `gpt-5.6-terra`; Astra (`gpt-6-astra`), Sol (`gpt-5.6-sol`), and Luna (`gpt-5.6-luna`) are alternatives. Saved API-key model IDs remain unchanged. Capability checks use exact catalog entries, not family-name matching.
+
+OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.

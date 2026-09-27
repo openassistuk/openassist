@@ -127,3 +127,7 @@ Revision note (2026-03-12 19:20Z): Recorded the first PR-run failure caused by `
 Revision note (2026-03-12 19:25Z): Recorded the second PR-run failure caused by `setup-node@v5` automatic package-manager caching and added the explicit `package-manager-cache: false` fix across all workflow files.
 
 Revision note (2026-03-12 19:31Z): Updated the plan after the corrected PR run finished fully green, replaced machine-specific ExecPlan paths with portable wording, and aligned the interface summary with the final no-built-in-cache workflow shape.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #41 merged at 2026-03-12T19:46:51Z as `8616ade106714cc36dbf2c629fbcfc1024e839ed`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

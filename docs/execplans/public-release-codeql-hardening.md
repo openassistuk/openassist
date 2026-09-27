@@ -110,3 +110,7 @@ No public API/schema contract changes. Internal behavior changes are limited to 
 
 Revision (2026-03-03 18:15Z): Initialized plan and recorded active remediation implementation status.
 Revision (2026-03-03 18:18Z): Recorded full local verification success and high-threshold audit gate results.
+
+## Housekeeping reconciliation (2026-09-27)
+
+The historical single-commit rewrite is no longer the current release strategy: main has merged development history through PR #50. Do not execute the old rewrite or disable repository rules as part of modernization. Active ruleset Protect main (13499978) requires the three quality jobs, workflow lint, CodeQL preflight/analyze, and live macOS LaunchAgent check. Secret scanning and push protection are enabled. Historical per-ref CodeQL and post-rewrite execution evidence is not reconstructed here; final-revision certification is tracked by the modernization plan.

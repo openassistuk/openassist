@@ -141,3 +141,5 @@ Troubleshooting runbook:
 ## Modernization compatibility
 
 Fresh setup recommends `claude-sonnet-5`, with `claude-opus-5` and `claude-haiku-4-5-20251001` alternatives. Sonnet 5 and Opus 5 support adaptive thinking and all five effort values. Haiku 4.5 supports manual budgets, not adaptive thinking or effort. Opus 5 cannot disable thinking at xhigh/max effort. Output tokens remain bounded: default 4096, or manual budget plus 1024 when larger; an explicit output limit must exceed a manual budget. Thinking replay and tool results remain durable and hidden from channel-visible output.
+
+OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.

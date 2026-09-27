@@ -19,7 +19,7 @@ describe("bootstrap argument parsing contract", () => {
     expect(script.includes("Missing prerequisites detected:")).toBe(true);
     expect(script.includes("Attempting prerequisite installation using")).toBe(true);
     expect(script.includes('PINNED_PNPM_VERSION="12.5.1"')).toBe(true);
-    expect(script.includes('corepack prepare "pnpm@${PINNED_PNPM_VERSION}" --activate')).toBe(true);
+    expect(script.includes('npm install -g --force --allow-scripts=pnpm "pnpm@${PINNED_PNPM_VERSION}"')).toBe(true);
     expect(script.includes("run_git_step")).toBe(true);
     expect(script.includes("requested_track_ref")).toBe(true);
     expect(script.includes("requested_track_label")).toBe(true);

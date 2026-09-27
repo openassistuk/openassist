@@ -249,3 +249,7 @@ At completion, the following interfaces and behaviors must exist:
 
 Revision note (2026-03-11): Created the initial ExecPlan after the implementation was already underway so the work could still be finished in compliance with `.agents/PLANS.md`, with current progress and focused test evidence recorded before the final docs and verification pass.
 Revision note (2026-03-11): Updated the plan after the docs sync and final local verification pass to record the added operator/security/testing docs, the `pnpm verify:all` result, and the small follow-up fixes required by that full gate.
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #35 merged at 2026-03-11T01:52:16Z as `3e13d8fa05428eb4bea63f0a28930bf170eee046`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

@@ -100,6 +100,7 @@ Current suite files under `tests/vitest/`:
 - `pkg-install-tool.test.ts`
 - `pnpm-workspace-policy.test.ts`
 - `prompt-validation.test.ts`
+- `provider-auth-contracts.test.ts`
 - `provider-auth-readiness.test.ts`
 - `provider-anthropic-tool-mapping.test.ts`
 - `provider-azure-foundry.test.ts`
@@ -147,6 +148,7 @@ Current suite files under `tests/node/`:
 - `cli-command-branches.test.ts`
 - `cli-command-integration.test.ts`
 - `dependency-security-overrides.test.ts`
+- `dependency-audit.test.ts`
 - `cli-docs-truth.test.ts`
 - `cli-growth-status-coverage.test.ts`
 - `cli-lib-coverage.test.ts`
@@ -330,3 +332,7 @@ Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped s
 `tests/node/whatsapp-signal-compatibility.test.ts` verifies real Baileys/libsignal encryption and decryption across a persisted-session reload without a network account.
 
 - `tests/vitest/provider-model-catalog.test.ts`: current defaults, saved/retired IDs, exact capability matching, reasoning prompts, adaptive/manual validation, and actual SDK request payloads with mocked transport.
+
+pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
+
+`tests/vitest/provider-auth-contracts.test.ts` covers OpenAI/Anthropic callback and PKCE exchange, token metadata, missing credentials, malformed responses and error redaction, plus compatible-endpoint auth boundaries. `config-security-schema.test.ts` checks Zod 4 channel secret arrays, operator IDs, rejection paths and nested security defaults.

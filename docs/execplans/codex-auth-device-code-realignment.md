@@ -40,3 +40,7 @@ Realign the `codex` provider with the current upstream Codex/OpenAI account-logi
   - OAuth state reuse after failed completion
   - redacted auth readiness/status output
   - quickstart device-code-first and browser/manual fallback behavior
+
+## Housekeeping reconciliation (2026-09-27)
+
+GitHub confirms PR #30 merged at 2026-03-10T17:12:16Z as `c87a1144c6f4ec8d33ae9a85f27b935a750e8047`. The publication/merge portion of this plan is complete. Original checkboxes and run evidence above are retained; merge state alone does not prove every historical local run or supplemental smoke rerun. Those unchecked verification portions remain historical evidence gaps, not instructions to republish the merged work. Current revision certification is tracked in `modernization-readiness-2026-09.md`.

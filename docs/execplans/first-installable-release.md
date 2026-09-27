@@ -21,7 +21,7 @@ Give operators clear installation commands and prepare a real signed `v0.2.0-rc.
 
 The README previously began with the stable install command despite there being no published release. Its mention of requiring a signing key incorrectly read like an operator prerequisite. GitHub confirms PR #63 is merged, but an empty releases list and absent release environment mean packaging readiness is not publication readiness.
 
-The first public-install run exposed HTTP 403 on macOS ARM64 before installation, despite passing native packaged smoke tests. A retry produced the same error. The other three public-install targets passed both channel and exact-version selection. Add bounded endpoint diagnostics and a verification-only dispatch mode to investigate public downloads without rebuilding or altering the signed publication.
+The first public-install run exposed HTTP 403 on macOS ARM64 before installation, despite passing native packaged smoke tests. A retry produced the same error. The other three public-install targets passed both channel and exact-version selection. Verification-only run `36358678271` identified GitHub's unauthenticated API rate limit: public raw entrypoints returned 200, while the release catalogue returned 403 with limit 60 and remaining 0. Bounded endpoint diagnostics and a verification-only dispatch mode allow investigation without rebuilding or altering the signed publication. Retry after the reported reset; never inject credentials into a check advertised as public unauthenticated installation.
 
 ## Decision Log
 

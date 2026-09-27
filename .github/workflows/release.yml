@@ -129,7 +129,7 @@ jobs:
           gh release create "$RELEASE_TAG" --verify-tag --notes-file "docs/releases/$RELEASE_TAG.md" "${args[@]}" release-output/*.gz release-output/*.mjs release-output/release.json release-output/release.sig release-output/release-index.txt release-output/release-index.sig
   public-install:
     needs: publish
-    if: always() && !cancelled() && (needs.publish.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.verify_published && inputs.tag != ''))
+    if: always() && !cancelled() && (needs.publish.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.verify_published))
     strategy:
       fail-fast: false
       matrix:

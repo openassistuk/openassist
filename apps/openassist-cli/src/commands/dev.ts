@@ -94,9 +94,11 @@ export function registerDevCommands(program: Command): void {
           raw.runtime.bindAddress = "127.0.0.1";
           atomicWriteText(configPath,TOML.stringify(raw as unknown as TOML.JsonMap));
         }
-        atomicWriteJson(path.join(root,"instance.json"),{name:opts.name,application,configPath,port});
+        const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+        const setupCommand = `OPENASSIST_STATE_ROOT=${quote(root)} ${quote(nodePath)} ${quote(path.join(application,"apps","openassist-cli","dist","index.js"))} setup --skip-service`;
+        atomicWriteJson(path.join(root,"instance.json"),{name:opts.name,application,nodePath,configPath,port,setupCommand});
         saveInstallState({installDir:application,configPath,envFilePath:path.join(root,"config","openassistd.env"),trackedRef:opts.local ? "local" : sourceRef(opts)},path.join(root,"config","install-state.json"));
-        const detail = {root,port,configPath,setupCommand:`OPENASSIST_STATE_ROOT='${root}' openassist setup --skip-service`,service:false};
+        const detail = {root,port,configPath,setupCommand,service:false};
         if (!opts.json) console.error(`Isolated ${opts.name}: http://127.0.0.1:${port}\nState: ${root}\n${detail.setupCommand}\nPress Ctrl-C to stop. This is not a sandbox for untrusted code.`);
         await new Promise<void>((resolve,reject) => {
           const child = spawn(nodePath,[path.join(application,"apps","openassistd","dist","index.js"),"run","--config",configPath],{cwd:root,env:isolatedEnvironment(root),stdio:opts.json ? ["ignore","ignore","inherit"] : "inherit"});

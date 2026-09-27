@@ -30,7 +30,7 @@ esac
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 fetch() { curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-redirs 5 --max-time 120 "$1" -o "$2"; }
-fetch 'https://raw.githubusercontent.com/openassistuk/openassist/main/release-public.pem' "$tmp/public.pem"
+fetch 'https://raw.githubusercontent.com/openassistuk/openassist/main/release-public.pem' "$tmp/public.pem" || { echo 'The release trust anchor is unavailable. No application was installed; retry later or explicitly choose --source --ref main.' >&2; exit 1; }
 grep -q -- '-----BEGIN PUBLIC KEY-----' "$tmp/public.pem" || { echo 'No production signing key is provisioned. Use --source --ref main until a signed release is available.' >&2; exit 1; }
 if [[ -n "$version" ]]; then
   base="https://github.com/openassistuk/openassist/releases/download/v${version}"

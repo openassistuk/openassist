@@ -130,7 +130,7 @@ Track behavior:
 
 - default installation follows stable packaged releases
 - exact `--version` installations stay pinned
-- explicit `--source` bootstrap without another ref follows `main`
+- fresh explicit `--source` bootstrap uses the repository default branch; existing legacy branch checkouts keep their branch when no ref is supplied
 - branch installs continue following the selected branch normally
 - PR installs record `refs/pull/<n>/head`, but later `openassist upgrade` requires an explicit `--pr <n>` or `--ref <target>`
 

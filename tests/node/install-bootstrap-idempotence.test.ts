@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 
@@ -111,5 +112,27 @@ describe("bootstrap installer idempotence contract", () => {
       0,
       `bootstrap.sh failed bash -n:\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`
     );
+  });
+
+  it("refuses managed state, malformed records and implicit PR track changes before source checkout mutation", () => {
+    const script = fs.readFileSync("scripts/install/bootstrap.sh","utf8");
+    const guard = /OPENASSIST_EXISTING_STATE=.*?node <<'NODE'\r?\n([\s\S]*?)\r?\nNODE/.exec(script)?.[1];
+    assert.ok(guard);
+    const root = fs.mkdtempSync(path.join(os.tmpdir(),"openassist-bootstrap-guard-"));
+    const file = path.join(root,"install-state.json");
+    try {
+      for (const [state, target, code] of [
+        [{installDir:root,active:{}}, "main", 1],
+        [{installDir:root,trackedRef:"refs/pull/7/head"}, "", 1],
+        [{installDir:root,trackedRef:"refs/pull/7/head"}, "7", 0],
+        [{installDir:root,trackedRef:"feature/test"}, "", 0],
+        [{installDir:"relative"}, "main", 1]
+      ] as const) {
+        fs.writeFileSync(file,JSON.stringify(state));
+        const result = spawnSync(process.execPath,["--eval",guard],{env:{...process.env,OPENASSIST_EXISTING_STATE:file,OPENASSIST_EXPLICIT_SOURCE_TARGET:target},encoding:"utf8"});
+        assert.equal(result.status,code,result.stderr);
+        assert.deepEqual(JSON.parse(fs.readFileSync(file,"utf8")),state);
+      }
+    } finally {fs.rmSync(root,{recursive:true,force:true});}
   });
 });

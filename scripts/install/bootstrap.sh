@@ -1027,7 +1027,7 @@ ensure_prereqs
 
 # Source bootstrap remains the compatibility entrypoint for a developer checkout.
 # A managed primary must use the staged engine, never update its checkout in place.
-OPENASSIST_EXISTING_STATE="${HOME}/.config/openassist/install-state.json" node <<'NODE'
+OPENASSIST_EXISTING_STATE="${HOME}/.config/openassist/install-state.json" OPENASSIST_EXPLICIT_SOURCE_TARGET="${REF}${PR_NUMBER}" node <<'NODE'
 const fs=require('node:fs');
 const path=require('node:path');
 const file=process.env.OPENASSIST_EXISTING_STATE;
@@ -1036,6 +1036,7 @@ if(fs.existsSync(file)) {
   try {state=JSON.parse(fs.readFileSync(file,'utf8'));} catch {throw new Error('Malformed install-state; preserve and repair it before source installation.');}
   if(!state || typeof state.installDir!=='string' || !path.isAbsolute(state.installDir) || (state.schemaVersion!==undefined && state.schemaVersion!==2)) throw new Error('Invalid installation record; source bootstrap will not overwrite it.');
   if(state.active) throw new Error('A managed primary installation already exists. Use openassist update --source --ref <ref> (or --pr <number>), with --yes for unattended method changes.');
+  if(typeof state.trackedRef==='string' && state.trackedRef.startsWith('refs/pull/') && !process.env.OPENASSIST_EXPLICIT_SOURCE_TARGET) throw new Error('PR installations require an explicit --pr or --ref; source bootstrap will not fall back to main.');
 }
 NODE
 

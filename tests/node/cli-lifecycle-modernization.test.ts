@@ -183,6 +183,8 @@ describe("managed lifecycle command contracts", () => {
     try{
       const first=run("test","--local",local,"--name","local-test");assert.equal(first.code,0,JSON.stringify(first.body));
       const instance=path.join(root,".local","share","openassist","dev","local-test");
+      assert.ok(first.body.setupCommand.includes(path.join(local,"apps","openassist-cli","dist","index.js")));
+      assert.equal(JSON.parse(fs.readFileSync(path.join(instance,"instance.json"),"utf8")).setupCommand,first.body.setupCommand);
       const child=JSON.parse(fs.readFileSync(path.join(instance,"child-check.json"),"utf8"));assert.equal(child.secretPresent,false);assert.equal(child.stateRoot,instance);
       const config=loadConfig({baseFile:path.join(instance,"config","openassist.toml")}).config;
       assert.deepEqual(config.runtime.channels,[]);assert.equal(config.runtime.scheduler.enabled,false);assert.equal(config.runtime.bindAddress,"127.0.0.1");

@@ -15,7 +15,8 @@ Operators install verified prebuilt releases with a private Node runtime, prepar
 - [x] (2026-09-27 20:45Z) Both developer workflows implemented. Source preparation records immutable revisions; foreground local-build integration checks preserve local changes, reuse isolated state, remove inherited credentials and enforce cleanup locks.
 - [x] (2026-09-27 20:45Z) Ownership-aware uninstall, cached notices, source checks and release/source/isolation diagnostics implemented. Setup reports matched installation metadata; first service startup can be explicitly health-confirmed.
 - [x] (2026-09-27 20:45Z) Documentation synchronized and draft PR #63 opened. Full local verification passed before final reporting refinements, with zero dependency audit findings and unchanged coverage gates.
-- [ ] Final signing-contract job, supplemental workflow dispatches, complete diff review and exact-commit local/hosted reconciliation.
+- [x] (2026-09-27 20:53Z) At b01810430da6055035dc01114f71b9b7fa9a7fe5, full local verification, Linux/macOS/Windows hosted quality, CodeQL, live LaunchAgent, four native artifact targets, signing contract and live Linux source/release round trip passed. Supplemental Linux/macOS workflows passed at 6d8db90.
+- [ ] Reconcile final isolated-setup and legacy PR-track guard refinements after their passing targeted tests; retain signing/publication as maintainer rollout prerequisites.
 
 ## Surprises & Discoveries
 
@@ -39,7 +40,7 @@ The existing upgrade changes the active checkout and rebuilds on rollback. The d
 
 ## Outcomes & Retrospective
 
-The implementation is available in draft PR #63 on `codex/lifecycle-modernization`. Native artifacts and live service tests have passed at b99091d; final reporting/signing refinements require a fresh hosted reconciliation. No release has been published and no live operator installation has been changed. The production trust anchor remains deliberately unprovisioned, so publication readiness requires maintainer signing-key/protected-environment setup and a tested preview rollout.
+The implementation is available in PR #63 on `codex/lifecycle-modernization`. The complete hosted matrix passed at b018104, including actual immutable source preparation and return to a packaged release with live systemd. Local Node coverage was 81.43% lines/statements, 70.97% branches and 89.93% functions; both dependency audit reports contained zero findings. No release has been published and no live operator installation has been changed. The production trust anchor remains deliberately unprovisioned, so publication readiness requires maintainer signing-key/protected-environment setup and a tested preview rollout.
 
 ## Context and Orientation
 
@@ -78,3 +79,5 @@ Public interfaces are `update [check|recover|notifications]`, compatible `upgrad
 Revision 2026-09-27: Created the execution record from the user-approved plan before implementation.
 
 Revision 2026-09-27 20:45Z: Recorded native and local integration evidence, updated completed milestones, and added real-artifact test-key signing plus final setup/health reporting checks. The legacy source bootstrap remains an explicit compatibility entrypoint for the first checkout; it refuses managed installations, whose later updates all use the staged engine. CodeQL identified cache stat/read races, now replaced with bounded descriptor reads. Its downloader finding concerns intentional nonsecret version/ref selectors; the narrow suppression documents that no credentials or file contents are transmitted.
+
+Revision 2026-09-27 20:53Z: Reviewed the complete implementation/docs diff and recorded successful CI run 36345718587, release/signing/live-source run 36345718604, CodeQL run 36345718527 and macOS live run 36345718531 at b018104. Supplemental Service Smoke run 36345470771 and Lifecycle E2E run 36345472456 passed on both platforms at 6d8db90. Final review corrected isolated setup to invoke its own candidate CLI/runtime and made legacy PR bootstrap require an explicit target; the 16 targeted lifecycle/docs tests and three bootstrap contracts passed. Default release bootstrap now also explains an unavailable trust anchor without fallback.

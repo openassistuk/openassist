@@ -6,6 +6,8 @@ This document defines local and CI validation expectations.
 
 The Release Artifacts workflow also has a post-publication `public-install` matrix on the four native targets. It installs public channel/exact-version assets into disposable homes and checks versions, update planning and data-preserving uninstall without service installation or signing credentials. PR runs skip publication and these dependent jobs; native PR artifact/service validation remains separate.
 
+Manual `verify_published=true` with a published tag and matching channel reruns only public installation from the dispatched test revision. It takes precedence over publishing and skips packaging, signing and uploads. Failed checks include bounded public-download diagnostics without credentials.
+
 The normal Node integration gate now includes docs-truth validation, so stale live-doc links or anchors, incomplete docs indexing, mismatched workflow statements, stale threshold references, and stale test inventories are expected to fail before merge instead of waiting for release review.
 
 Linux and macOS are the first-class operator platforms for lifecycle and service validation in this release. Windows remains part of the required quality matrix, but it is not the service-manager parity target.

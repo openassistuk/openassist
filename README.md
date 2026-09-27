@@ -284,7 +284,7 @@ Default install path is `Standard mode (recommended)`.
 - `macOS Live Launchd` runs on pull requests to `main` and manual dispatch. Its `launchd-live-smoke (macos-latest)` job is the required hosted live LaunchAgent gate on `main`.
 - `Service Smoke` runs on manual dispatch and schedule (`Mon`/`Thu` at `06:00 UTC`) for dry-run service checks, source upgrade routing and portable release smoke tests.
 - `Lifecycle E2E Smoke` runs on manual dispatch and schedule (`Tue`/`Sat` at `07:00 UTC`) for source bootstrap/home-state checks, doctor/update output, portable release smoke and live Linux update/rollback/uninstall.
-- `Release Artifacts` runs on PRs and manual dispatch for all four supported native targets, live Linux lifecycle checks and signing tests using ephemeral keys. Only explicit publication dispatch can access the protected production signing key. After publication, a separate four-target check exercises the public installer; PRs skip publishing and those dependent public-install jobs.
+- `Release Artifacts` runs on PRs and manual dispatch for all four supported native targets, live Linux lifecycle checks and signing tests using ephemeral keys. Only explicit publication dispatch can access the protected production signing key. After publication, a separate four-target check exercises the public installer; PRs skip publishing and those dependent public-install jobs. Maintainers can rerun public installation with `verify_published=true` without rebuilding or republishing assets.
 - the two smoke workflows are supplemental manual or scheduled signals, not normal per-push or per-PR gates
 
 ## Local Verification

@@ -483,6 +483,8 @@ Responses replay metadata must stay provider/model-scoped, bounded to 1 MiB and 
 
 Keep README installation commands explicit about actual release availability. Operators never provision release-signing keys. Distinguish published previews from stable releases, and document existing-install migration separately from fresh bootstrap. Record publication and public-installer verification independently of PR artifact checks.
 
+Use `release.yml` with `verify_published=true` to validate existing public assets without republishing them. This mode must skip build/sign/publish jobs, receive no signing credentials, preserve download verification and report failures truthfully.
+
 Release publication uses reviewed notes at `docs/releases/<tag>.md`. Candidate root/CLI/daemon versions must agree, and source CLI version output must follow its workspace manifest when no immutable build identity exists. Never commit private signing material or machine-specific maintainer notes. Restrict publication to approved tags plus explicit maintainer review.
 
 Validate daemon installation facts against the executing application during activation and rollback, before install-state commit. Isolated env-file credentials belong only to the daemon environment, never builds; preserve forced instance routing and private-runtime variables. Packaged bootstrap owns only the exact shell PATH blocks it inserts, and uninstall must preserve surrounding text, edited blocks and unknown profiles. Archive admission must resolve complete link chains before interpreting parent traversal; test forward references, cycles and ordinary internal package links before extraction.

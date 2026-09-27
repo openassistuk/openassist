@@ -14,11 +14,14 @@ Give operators clear installation commands and prepare a real signed `v0.2.0-rc.
 - [x] Production public trust anchor prepared. The maintainer approved the protected preview rollout; private operational details are excluded from tracked documentation.
 - [x] Local build, 19 focused lifecycle tests, source CLI/daemon version checks, docs-truth and full `pnpm verify:all` passed. Full verification includes 471 passing Vitest tests (one Unix-only skip), 199 passing Node tests (three platform skips), unchanged coverage gates and zero production/full audit findings. The subsequently added public-install workflow/script passed workflow lint and targeted docs/bootstrap checks (14 passed, one Bash-unavailable skip on Windows).
 - [x] Candidate `489dba583308f0031ee0676188cac0b4df9757b0` in PR #64 passed all 13 hosted checks: Linux/macOS/Windows quality, four artifacts, live Linux lifecycle, macOS LaunchAgent, signing contract and CodeQL. Publication and its dependent public-installer check were intentionally skipped. Public installation cannot run until the signed release exists.
-- [ ] Configure approved publication controls, publish the preview and verify public downloads and fresh installation before claiming it is available.
+- [x] Configure approved publication controls and publish `v0.2.0-rc.1` from merged main `175de895d972a5899627979d57e6ed688424faad`. All four native packaging jobs, full publication-candidate verification and signing-contract checks passed in run `36357681467`.
+- [ ] Complete four-target public-installer verification and reconcile availability documentation. Both Linux targets and macOS Intel passed; macOS ARM64 stopped on HTTP 403 in two attempts and requires download diagnostics.
 
 ## Surprises & Discoveries
 
 The README previously began with the stable install command despite there being no published release. Its mention of requiring a signing key incorrectly read like an operator prerequisite. GitHub confirms PR #63 is merged, but an empty releases list and absent release environment mean packaging readiness is not publication readiness.
+
+The first public-install run exposed HTTP 403 on macOS ARM64 before installation, despite passing native packaged smoke tests. A retry produced the same error. The other three public-install targets passed both channel and exact-version selection. Add bounded endpoint diagnostics and a verification-only dispatch mode to investigate public downloads without rebuilding or altering the signed publication.
 
 ## Decision Log
 
@@ -26,9 +29,11 @@ Use the user-selected `v0.2.0-rc.1` preview before stable. Keep source installat
 
 Use the existing publication workflow for a dependent four-target public-installer smoke job. It installs both channel and exact-version selections into disposable homes, checks version/update planning and data-preserving removal, and never receives signing credentials. Keep per-tag release notes under `docs/releases/` and publish those reviewed notes rather than a generic generated body. Source CLI version reporting must follow the workspace manifest after the version bump.
 
+Use the same workflow's `verify_published` input for later checks of immutable assets. It skips packaging, signing and publication, uses the dispatched test-script revision, and retains unauthenticated downloads and mandatory signature checks. This avoids republishing to test a network diagnostic change.
+
 ## Outcomes & Retrospective
 
-Preparation is in progress. The public trust anchor is prepared and signing verification passed. No release has been published. Local main now points to the merged lifecycle overhaul.
+The preview is published at [v0.2.0-rc.1](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1), from merged main `175de895d972a5899627979d57e6ed688424faad`. Public-installer validation is still in progress. Both published manifest/index signatures were independently downloaded and verified against the pinned public key. No stable release has been published.
 
 The README and linked guides now distinguish install-today source builds, pending previews and future stable releases. Both commands report `0.2.0-rc.1`. Local quality and hosted native artifact checks pass. Public documentation describes package verification; private operational details remain excluded.
 
@@ -67,3 +72,5 @@ No new runtime dependency is needed. Use existing Node crypto, OpenSSL verificat
 Revision 2026-09-27: Created from the user's README and first-release request, including their preview selection and request to update local main.
 
 Revision 2026-09-27 verification: Recorded complete local/hosted candidate evidence and the two intentional publication-related skips. The evidence reconciliation is documentation-only and does not change the validated application or release workflow. Local main and origin/main both point to `99b513c13c47ec2fde0c0527cf698aa0f8261634` with no divergence.
+
+Revision 2026-09-27 publication: The maintainer merged PR #64. The sanitized preparation commit `81d727ae9b5f346a93506ad812acb36f9385c997` passed all 13 hosted checks before merge: [CI](https://github.com/openassistuk/openassist/actions/runs/36357289471), [artifacts](https://github.com/openassistuk/openassist/actions/runs/36357289472), [CodeQL](https://github.com/openassistuk/openassist/actions/runs/36357289476), and [macOS LaunchAgent](https://github.com/openassistuk/openassist/actions/runs/36357289501). The immutable release tag points to merge commit `175de895d972a5899627979d57e6ed688424faad`; [publication run 36357681467](https://github.com/openassistuk/openassist/actions/runs/36357681467) published 16 assets at 23:15 UTC. This supersedes the earlier pending-rollout status; public installation and availability wording are being reconciled separately.

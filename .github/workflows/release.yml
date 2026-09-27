@@ -17,12 +17,17 @@ on:
         description: Publish signed artifacts after protected environment approval
         type: boolean
         default: false
+      verify_published:
+        description: Only test public installation of the supplied tag (takes precedence over publish)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   package:
+    if: github.event_name != 'workflow_dispatch' || !inputs.verify_published
     strategy:
       fail-fast: false
       matrix:
@@ -89,7 +94,7 @@ jobs:
       - name: Verify signing with isolated test keys
         run: node scripts/release/test-signing.mjs release-output
   publish:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish && inputs.tag != ''
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && !inputs.verify_published && inputs.tag != ''
     needs: [package, signing-contract]
     runs-on: ubuntu-24.04
     environment: release
@@ -124,7 +129,7 @@ jobs:
           gh release create "$RELEASE_TAG" --verify-tag --notes-file "docs/releases/$RELEASE_TAG.md" "${args[@]}" release-output/*.gz release-output/*.mjs release-output/release.json release-output/release.sig release-output/release-index.txt release-output/release-index.sig
   public-install:
     needs: publish
-    if: needs.publish.result == 'success'
+    if: always() && !cancelled() && (needs.publish.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.verify_published && inputs.tag != ''))
     strategy:
       fail-fast: false
       matrix:
@@ -134,7 +139,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.verify_published && github.sha || inputs.tag }}
       - name: Install and remove the publicly published release
         env:
           RELEASE_TAG: ${{ inputs.tag }}

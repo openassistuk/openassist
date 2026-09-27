@@ -207,8 +207,6 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
     });
 
     const model = req.model || this.config.defaultModel;
-    const tuningErrors = providerTuningErrors({ ...this.config, type: "openai", defaultModel: model });
-    if (tuningErrors.length) throw new Error(tuningErrors.join(" "));
     const useResponsesApi = shouldPreferResponsesApi(model) || hasImageInputs(req.messages);
 
     if (useResponsesApi) {

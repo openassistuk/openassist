@@ -82,12 +82,15 @@ export function anthropicThinking(provider: Extract<ProviderConfig, { type: "ant
 }
 
 export function anthropicTuningLabel(provider: Extract<ProviderConfig, { type: "anthropic" }>): string {
-  if (provider.thinkingBudgetTokens !== undefined) return `Thinking budget: ${provider.thinkingBudgetTokens} tokens`;
   const capabilities = modelCapabilities(provider.defaultModel, "anthropic");
+  const outputLimit = provider.maxOutputTokens ?? capabilities?.defaultMaxOutputTokens;
+  const outputLabel = outputLimit ? `; output limit: ${outputLimit} tokens` : "";
+  if (provider.thinkingBudgetTokens !== undefined) return `Thinking budget: ${provider.thinkingBudgetTokens} tokens${outputLabel}`;
   const mode = provider.thinkingMode ?? capabilities?.defaultThinking;
   const effort = provider.thinkingEffort ?? capabilities?.defaultThinkingEffort;
-  return mode === "disabled" && !provider.thinkingMode ? "Thinking budget: Default (disabled)"
+  const label = mode === "disabled" && !provider.thinkingMode ? "Thinking budget: Default (disabled)"
     : `Thinking: ${mode ?? "Provider default"}${effort ? `; effort: ${effort}${provider.thinkingEffort ? "" : " (provider default)"}` : ""}`;
+  return label + outputLabel;
 }
 
 export function providerTuningLabel(provider: ProviderConfig): string {

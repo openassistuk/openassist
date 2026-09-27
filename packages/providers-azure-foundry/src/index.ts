@@ -230,8 +230,6 @@ export class AzureFoundryProviderAdapter implements ProviderAdapter {
     const client = this.client(auth);
     const model = req.model || this.config.defaultModel;
     const reasoningModel = resolveReasoningModel(this.config, model);
-    const tuningErrors = providerTuningErrors({ ...this.config, type: "azure-foundry", underlyingModel: reasoningModel });
-    if (tuningErrors.length) throw new AzureFoundryProviderError(tuningErrors.join(" "));
 
     try {
       const response = await client.responses.create({

@@ -1,5 +1,7 @@
 # Channel Adapter Interface
 
+Isolated development instances start with channels disabled and no copied primary credentials. Test accounts must be configured explicitly; sharing one account across active instances can interfere with delivery. Application activation health does not claim live channel readiness.
+
 Source of truth: `packages/core-types/src/channel.ts`.
 
 Channel adapters normalize inbound platform messages and deliver normalized outbound messages.

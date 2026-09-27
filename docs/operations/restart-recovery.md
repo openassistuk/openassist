@@ -1,5 +1,7 @@
 # Restart and Recovery
 
+Application updates now have a durable lifecycle journal separate from runtime message replay. `openassist update recover --dry-run` inspects interrupted activation. Rollback restores compatible application/runtime files without restoring an old database, so conversation and idempotency records remain current. See [upgrade/recovery](upgrade-and-rollback.md).
+
 OpenAssist is designed so restart and reboot events do not silently lose durable intent.
 
 Use `docs/operations/common-troubleshooting.md` when you want the operator-facing repair commands without reading the deeper restart model first.

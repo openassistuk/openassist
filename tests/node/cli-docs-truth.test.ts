@@ -94,7 +94,7 @@ function extractRegisteredCommands(filePath: string): string[] {
   const supported = new Set<string>(["openassist", "openassistd"]);
   const varPaths = new Map<string, string[]>([["program", []]]);
   const source = readText(filePath);
-  const assignmentPattern = /const\s+(\w+)\s*=\s*(\w+)\s*\.\s*command\("([^"]+)"\)/g;
+  const assignmentPattern = /const\s+(\w+)\s*=\s*(?:options\()?\s*(\w+)\s*\.\s*command\("([^"]+)"\)/g;
   const callPattern = /(\w+)\s*\.\s*command\("([^"]+)"\)/g;
   const chainedCommandPattern = /(\w+)\s*\.\s*command\("([^"]+)"\)([\s\S]*?)\.\s*command\("([^"]+)"\)/g;
 
@@ -140,7 +140,9 @@ function collectSupportedCommands(): Set<string> {
     "apps/openassist-cli/src/main.ts",
     "apps/openassist-cli/src/commands/setup.ts",
     "apps/openassist-cli/src/commands/service.ts",
-    "apps/openassist-cli/src/commands/upgrade.ts"
+    "apps/openassist-cli/src/commands/upgrade.ts",
+    "apps/openassist-cli/src/commands/lifecycle.ts",
+    "apps/openassist-cli/src/commands/dev.ts"
   ]) {
     for (const command of extractRegisteredCommands(filePath)) {
       if (command === "openassist" || command === "openassistd") {
@@ -149,6 +151,7 @@ function collectSupportedCommands(): Set<string> {
       supported.add(command);
     }
   }
+  supported.add("openassist upgrade");
   return supported;
 }
 

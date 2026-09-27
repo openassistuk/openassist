@@ -1,5 +1,7 @@
 # Quickstart on Linux and macOS
 
+Normal bootstrap now installs a verified packaged release and private Node; the Git/pnpm prerequisites below apply to explicit developer source installs. State paths and strict provider/channel onboarding remain unchanged. Signing/publication must be provisioned first; an unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
+
 This is the canonical operator runbook for a public OpenAssist install.
 
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
@@ -22,7 +24,7 @@ If you hit trouble on any of those steps, keep `docs/operations/common-troublesh
 
 ## Before You Start
 
-Supported runtime baseline:
+Source-development prerequisites (packaged releases include Node):
 
 - Node `>=24.21.0 <25`
 - pnpm `12.5.1` (the repository-pinned version)
@@ -51,7 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 
 Bootstrap behavior:
 
-- uses a repo-backed checkout at `$HOME/openassist` by default
+- uses a verified release under `~/.local/share/openassist/install` by default; explicit source installs default to `$HOME/openassist`
 - is interactive on a TTY and non-interactive otherwise
 - prints a lifecycle plan before it mutates anything
 - writes install state to `~/.config/openassist/install-state.json`
@@ -62,7 +64,7 @@ Bootstrap behavior:
   - `Ready now`
   - `Needs action`
   - `Next command`
-- interactive bootstrap runs bare `openassist setup` after the build
+- interactive bootstrap runs bare `openassist setup` after preparing the application
 - non-interactive bootstrap does not run quickstart for you
 - non-interactive bootstrap still installs the service unless you pass `--skip-service`
 - OpenAssist pins a tested `pnpm` release for consistent installs, so a newer `pnpm` update notice does not block setup
@@ -72,7 +74,7 @@ Bootstrap behavior:
 If you are installing from a local checkout instead of GitHub:
 
 ```bash
-bash scripts/install/bootstrap.sh
+bash scripts/install/bootstrap.sh --source --ref main
 ```
 
 ## 2. Verify the wrappers
@@ -113,7 +115,6 @@ If you want the direct scripted first-reply path instead, run:
 
 ```bash
 openassist setup quickstart \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```

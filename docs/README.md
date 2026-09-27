@@ -210,3 +210,11 @@ pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm w
 Current provider choices, route-specific reasoning modes, Claude output budgets and verified source dates are documented in [model compatibility](providers/model-compatibility.md). The [current-model ExecPlan](execplans/current-provider-models-2026-09.md) records the implementation and verification evidence.
 
 Provider/authentication/channel maintenance: [current dependency and harness readiness](operations/provider-channel-readiness.md) records stable versions, auth compatibility, bounded reasoning replay and remaining live checks.
+
+## Managed release lifecycle
+
+- [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
+- [Developer testing](operations/developer-testing.md): main/branch/PR/local isolated tests and explicit primary-install switching.
+- [Uninstall](operations/uninstall.md): owned application removal, retained state and explicit purge.
+
+Normal installation uses verified releases; source builds require explicit selection. Install-state version 2 and lifecycle JSON version 4 distinguish the installation method. `.github/workflows/release.yml` runs on pull requests and manual dispatch, with protected publication only on explicit dispatch. Existing scheduled/manual smoke workflows and the required live macOS gate retain their trigger semantics.

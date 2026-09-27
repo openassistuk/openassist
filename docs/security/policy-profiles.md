@@ -1,5 +1,7 @@
 # Policy Profiles
 
+Lifecycle modernization does not grant new model permissions. Update, rollback, recovery and uninstall remain explicit host-side operations; update notices never execute shell jobs. Managed release paths and service definitions stay protected. Isolated developer state does not create a privilege boundary for source code.
+
 Source:
 
 - `packages/core-types/src/policy.ts`

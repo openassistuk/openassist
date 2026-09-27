@@ -1,12 +1,14 @@
 # Install on Linux
 
+Normal Linux installation downloads a signed release with private Node into `~/.local/share/openassist/install`. Git/pnpm/system-Node prerequisites and package-manager remediation below apply only to explicit source bootstrap (`--source --ref main`, `--ref`, or `--pr`). Release bootstrap requires curl, tar and OpenSSL. Until signing/publication is provisioned, it fails closed. See [release maintenance](release-maintenance.md) and [developer testing](developer-testing.md).
+
 This page covers Linux-specific installation details. For the end-to-end operator flow, start with `docs/operations/quickstart-linux-macos.md` and keep `docs/operations/common-troubleshooting.md` nearby for repair commands.
 
 ## Platform Behavior
 
 Linux is a first-class OpenAssist operator path.
 
-Bootstrap can install missing prerequisites automatically unless you disable it:
+Explicit source bootstrap can install missing development prerequisites automatically unless you disable it:
 
 - Git
 - Node `>=24.21.0 <25`
@@ -36,7 +38,7 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 Local checkout:
 
 ```bash
-bash scripts/install/bootstrap.sh
+bash scripts/install/bootstrap.sh --source --ref main
 ```
 
 Useful bootstrap flags:
@@ -47,7 +49,7 @@ bash scripts/install/bootstrap.sh --non-interactive --skip-service
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref main
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref feature/my-branch
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --pr 123
-bash scripts/install/bootstrap.sh --no-auto-install-prereqs
+bash scripts/install/bootstrap.sh --source --ref main --no-auto-install-prereqs
 ```
 
 Advanced developer GitHub entrypoint examples:
@@ -98,7 +100,6 @@ Install or reinstall the service explicitly:
 
 ```bash
 openassist service install \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
@@ -184,7 +185,6 @@ If a systemd unit still has older hardening that breaks Node startup, reinstall 
 
 ```bash
 openassist service install \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 openassist service restart

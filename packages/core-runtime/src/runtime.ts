@@ -3665,10 +3665,14 @@ export class OpenAssistRuntime {
     const canManageAccess = this.policyEngine.isApprovedOperator(sessionId, senderId);
     const operatorsConfigured = this.policyEngine.hasApprovedOperators(sessionId);
     const docRefs = awareness.documentation.refs.map((ref) => ref.path).join(", ") || "none";
-    const installSummary = awareness.maintenance.repoBackedInstall
+    const installSummary = awareness.maintenance.installationMethod
+      ? `${awareness.maintenance.installationMethod} installation ${awareness.maintenance.installedVersion ?? ""} at ${awareness.maintenance.installDir ?? "(not known)"}`
+      : awareness.maintenance.repoBackedInstall
       ? `repo-backed install at ${awareness.maintenance.installDir ?? "(not known)"}`
       : "install metadata not recorded as a repo-backed install";
-    const publicInstallSummary = awareness.maintenance.repoBackedInstall
+    const publicInstallSummary = awareness.maintenance.installationMethod
+      ? `${awareness.maintenance.installationMethod} installation ${awareness.maintenance.installedVersion ?? ""}`
+      : awareness.maintenance.repoBackedInstall
       ? "repo-backed install metadata recorded"
       : "install metadata not recorded as a repo-backed install";
     const maintenanceSummary = awareness.capabilities.canEditConfig ||

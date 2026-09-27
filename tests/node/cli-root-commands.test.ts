@@ -163,7 +163,7 @@ describe("cli root command coverage", () => {
       sections: Record<string, unknown>;
       recommendedNextCommand: { command: string };
     };
-    assert.equal(parsedDoctorJson.version, 3);
+    assert.equal(parsedDoctorJson.version, 4);
     assert.equal(parsedDoctorJson.context.updateTrackKind, "pull-request");
     assert.equal(parsedDoctorJson.context.updateTrackLabel, "PR #23 (refs/pull/23/head)");
     assert.equal(parsedDoctorJson.context.primaryProviderId, "openai-main");

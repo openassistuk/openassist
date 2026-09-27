@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { assertDatabaseVersion, DATABASE_VERSION } from "./compatibility.js";
+export { inspectDatabaseVersion, DATABASE_VERSION } from "./compatibility.js";
 import type {
   AttachmentRef,
   InboundEnvelope,
@@ -214,6 +216,7 @@ export class OpenAssistDatabase {
 
     const dbAlreadyExists = fs.existsSync(options.dbPath);
     this.db = new DatabaseSync(options.dbPath);
+    try { assertDatabaseVersion(this.db); } catch (error) { this.db.close(); throw error; }
     if (process.platform !== "win32") {
       if (!dbAlreadyExists) {
         fs.chmodSync(options.dbPath, 0o600);
@@ -232,6 +235,7 @@ export class OpenAssistDatabase {
     this.db.exec("PRAGMA journal_mode = WAL;");
     this.db.exec("PRAGMA foreign_keys = ON;");
     this.initialize();
+    this.db.exec(`PRAGMA user_version = ${DATABASE_VERSION}`);
   }
 
   private runInTransaction<T>(fn: () => T): T {

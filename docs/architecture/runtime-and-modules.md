@@ -1,5 +1,7 @@
 # Runtime and Modules
 
+Release/source/isolated installation identity flows through daemon install context into bounded runtime awareness. Packaged installs do not require Git probing. Lifecycle operations remain host-side CLI work; they do not introduce new model tool privileges or scheduled shell actions. Database compatibility is checked before initialization and activation.
+
 Primary orchestrator: `OpenAssistRuntime` in `packages/core-runtime/src/runtime.ts`.
 
 ## Runtime Composition

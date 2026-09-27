@@ -1,5 +1,7 @@
 # Config Rollout and Rollback
 
+Application rollback is distinct from configuration/database restoration. Staged lifecycle updates back up stopped state and normalize relative operator paths without resetting provider credentials. Unsupported config/database compatibility versions block activation. Preserve newer state and review queued external actions before any manual database restoration. See [upgrade/recovery](upgrade-and-rollback.md).
+
 OpenAssist uses layered TOML config with schema validation and generation tracking for safe apply behavior.
 
 If the config change leaves the install in a confusing lifecycle state, fall back to `docs/operations/common-troubleshooting.md` for the repair commands that match the current hub/doctor/upgrade flow.

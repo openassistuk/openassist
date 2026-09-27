@@ -91,6 +91,8 @@ Current suite files under `tests/vitest/`:
 - `health-check.test.ts`
 - `install-context.test.ts`
 - `install-state.test.ts`
+- `lifecycle-release.test.ts`
+- `lifecycle-engine.test.ts`
 - `lifecycle-readiness.test.ts`
 - `memory.test.ts`
 - `migration.test.ts`
@@ -350,3 +352,9 @@ The model-catalog suite covers saved Opus 4.5 alias validation and manual reques
 `tests/vitest/current-provider-models.test.ts` verifies GPT-6 Responses/Codex payloads, route-specific mode rejection, Claude mandatory thinking, internal stream folding, output limits and durable replay metadata after context changes. Azure provider tests exercise all three GPT-6 hints under API-key and Entra auth while retaining deployment names. These are fake-transport checks, not live account certification.
 
 PR #61 harness follow-up updates Vitest and coverage-v8 together to 5.0.2. Existing suites add bounded/scoped Responses replay, duplicate-call suppression, database-reopen metadata, delayed-401 credential reuse, Anthropic workspace/bearer isolation and setup persistence cases. Coverage scope and thresholds remain unchanged.
+
+## Release artifacts and lifecycle modernization
+
+`.github/workflows/release.yml` runs native package/relocation smoke tests on Linux glibc x64/arm64 and macOS x64/arm64 for PRs and manual dispatch. Only explicit publication dispatch uses the protected release environment and signing secret. Existing scheduled/manual service and lifecycle smoke workflows retain their trigger semantics. The public runner label macos-15-intel is explicitly declared for the bundled actionlint version.
+
+New lifecycle suites exercise manifest signatures, download/archive bounds, target selection, compatibility, exclusive locks, preserved state, staged activation failure, offline application rollback, unverified restart skips, uninstall ownership, isolated credentials and update notices. Production signing keys and live channel credentials are not test fixtures. Hosted native results are separate from local Windows quality evidence.

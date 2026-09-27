@@ -153,3 +153,5 @@ Optional `workspaceId = "wrkspc_..."` selects the workspace required by newer mu
 - [Azure Foundry Provider](azure-foundry.md)
 - [OpenAI-compatible Provider](openai-compatible.md)
 - [Configuration File Guide](../configuration/config-file-guide.md)
+
+Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).

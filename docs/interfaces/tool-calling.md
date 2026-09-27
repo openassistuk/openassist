@@ -1,5 +1,7 @@
 # Tool Calling Interface
 
+Lifecycle modernization adds no tool schemas or privilege escalation. Runtime awareness identifies packaged/source/isolated installs and protects managed application directories. Use host-side lifecycle commands for update/recovery/uninstall; direct edits to retained release files are not a durable growth mechanism.
+
 Source of truth:
 
 - `packages/core-types/src/common.ts`

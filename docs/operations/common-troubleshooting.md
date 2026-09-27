@@ -1,5 +1,7 @@
 # Common Troubleshooting
 
+For packaged installation failures, verify release availability and production signing provisioning; never bypass signatures. Use `openassist update --dry-run`, `openassist update recover --dry-run`, and `openassist rollback --dry-run` before mutation. Unverified activation requires expected-build health before completion. See [release maintenance](release-maintenance.md), [upgrade/recovery](upgrade-and-rollback.md), and [uninstall](uninstall.md).
+
 Use this page when install, setup, service, or upgrade behavior feels unclear and you want one place to start.
 
 The quickest repair command is:
@@ -73,7 +75,6 @@ If you want the direct strict first-reply path instead:
 
 ```bash
 openassist setup quickstart \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
@@ -350,7 +351,6 @@ and update the channel's approved operator IDs or access mode. If you add approv
 
 ```bash
 openassist service install \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 openassist service restart

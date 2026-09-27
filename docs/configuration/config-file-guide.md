@@ -1,5 +1,7 @@
 # Configuration File Guide
 
+Managed releases keep the same normal TOML/env/data locations. `OPENASSIST_STATE_ROOT` explicitly redirects an isolated developer instance to its own config and share directories; never point it at primary state. Installation metadata and notification preferences live in the versioned install record, not provider configuration. See [developer testing](../operations/developer-testing.md).
+
 This guide explains where OpenAssist keeps operator configuration, how the TOML and env file fit together, and which commands to use before you hand-edit anything.
 
 Use this page when you want to understand the practical config workflow. Use [`config-reference.md`](config-reference.md) when you need the schema-backed field list.

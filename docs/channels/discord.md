@@ -139,3 +139,5 @@ openassist tools status --session <channelId>:<conversationKey> --sender-id <sen
 Provider modernization retains guild/thread/DM boundaries and approved operator checks. Channel `/status` reports the configured provider route, model, and effective tuning from the shared catalog; known retired Codex models show explicit repair guidance without making a provider call.
 
 Dependency readiness (2026-09-27): Discord.js 14.27.0 is current stable. The adapter now listens to clientReady rather than the deprecated ready event. Bot tokens, gateway intents, DM approval and attachment limits are unchanged. See [readiness audit](../operations/provider-channel-readiness.md).
+
+Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).

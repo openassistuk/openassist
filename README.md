@@ -22,7 +22,7 @@ Built-in OpenAI, Codex, Anthropic, and Azure Foundry providers can inspect inbou
 
 The fastest operator path is:
 
-1. Install from GitHub or a local checkout.
+1. Install a verified packaged release (or explicitly select a developer source build).
 2. Run `openassist setup`.
 3. Choose one provider and one channel.
 4. Confirm `openassist doctor` and `openassist service health`.
@@ -79,7 +79,7 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-Interactive install:
+Interactive release install (requires the production signing key and a published release):
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
@@ -103,12 +103,11 @@ If you want the direct strict onboarding path instead of the hub:
 
 ```bash
 openassist setup quickstart \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Fresh installs keep writable operator state outside the repo checkout by default:
+Packaged applications live under `~/.local/share/openassist/install`; operator state stays separate:
 
 - config: `~/.config/openassist/openassist.toml`
 - overlays: `~/.config/openassist/config.d`
@@ -264,3 +263,20 @@ Quickstart preserves compatible Anthropic thinking settings when changing models
 The merged foundation includes Node 24 support, dependency audits, shared model capabilities, bounded durable Responses replay and concurrent OAuth refresh handling. See [Contributing](CONTRIBUTING.md) for local development and [AGENTS.md](AGENTS.md) for engineering requirements.
 
 Automated regression and hosted workflow results establish development readiness. Live provider/channel certification and real existing-install Node migration/rollback evidence remain separate release checks. Record beta testing by commit, OS, route/model, channel and observed behavior using the [readiness evidence checklist](docs/operations/provider-channel-readiness.md#verification-and-live-checks); a successful beta reply alone does not certify every integration.
+
+## Packaged releases and developer testing
+
+Normal bootstrap installs a verified prebuilt application with private Node; users do not need Git or pnpm. The production key is deliberately unprovisioned until the first approved release: bootstrap fails clearly rather than silently installing main. During that rollout, explicitly use `--source --ref main` to install development code.
+
+```bash
+openassist update check
+openassist update --dry-run
+openassist update
+openassist rollback --dry-run
+openassist uninstall --dry-run
+openassist dev test --pr 123 --name pr-test
+```
+
+`upgrade` remains an alias, existing source installs retain their track, and `update --release --channel stable --yes` explicitly migrates to releases. Updates prepare separately, retain a previous application/runtime, and never silently restore an old database. Notices never install software automatically. Isolated tests keep separate state and ports and do not inherit channel credentials; primary source switching remains available for deliberate real-state testing.
+
+See [release maintenance](docs/operations/release-maintenance.md), [developer testing](docs/operations/developer-testing.md), [uninstall](docs/operations/uninstall.md), and [upgrade/recovery](docs/operations/upgrade-and-rollback.md). `Release Artifacts` adds four native packaging targets on PR/manual runs; publication requires protected signing configuration and explicit dispatch. A merged PR is not proof of a published or live-certified release.

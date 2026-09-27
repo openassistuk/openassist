@@ -49,10 +49,12 @@ export interface LifecycleRecommendedAction {
 }
 
 export interface LifecycleReport {
-  version: 3;
+  version: 4;
   summary: LifecycleReportSummary;
   context: {
     installDir: string;
+    installationMethod?: "source" | "release";
+    installedVersion?: string;
     configPath: string;
     envFilePath: string;
     firstReplyDestination: string;
@@ -60,7 +62,7 @@ export interface LifecycleReport {
     serviceState: string;
     serviceFilesystemAccess: string;
     updateTrack: string;
-    updateTrackKind: "branch" | "pull-request" | "raw-ref" | "detached";
+    updateTrackKind: "branch" | "pull-request" | "raw-ref" | "detached" | "release";
     updateTrackLabel: string;
     primaryProviderId?: string;
     primaryProviderRoute?: string;
@@ -77,6 +79,8 @@ export interface LifecycleReport {
 }
 
 export interface LifecycleReportInput {
+  installationMethod?: "source" | "release";
+  installedVersion?: string;
   installDir: string;
   configPath: string;
   envFilePath: string;
@@ -307,7 +311,7 @@ function buildUpgradeBlockerItems(input: LifecycleReportInput): {
 } {
   const items: LifecycleReportItem[] = [];
   const trackedRef = classifyUpdateTrack(input.trackedRef);
-  if (!input.repoBacked) {
+  if (!input.repoBacked && input.installationMethod !== "release") {
     items.push(
       createItem(
         "upgrade.repo-backed-required",
@@ -349,7 +353,7 @@ function buildUpgradeBlockerItems(input: LifecycleReportInput): {
     return { items, readiness: "rerun-bootstrap" };
   }
 
-  if (input.hasGit === false || input.hasPnpm === false || input.hasNode === false) {
+  if ((input.installationMethod !== "release" && (input.hasGit === false || input.hasPnpm === false)) || input.hasNode === false) {
     items.push(
       createItem(
         "upgrade.prerequisites",
@@ -458,7 +462,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
     );
   }
   if (input.trackedRef?.trim()) {
-    uniquePush(readyNow, createItem("install.track", "upgrade", "Update track", trackedRef.label));
+    uniquePush(readyNow, createItem("install.track", "upgrade", "Update track", input.installationMethod === "release" ? `release ${input.trackedRef} (${input.installedVersion ?? "unknown version"})` : trackedRef.label));
   }
   if (input.currentCommit?.trim()) {
     uniquePush(readyNow, createItem("install.commit", "upgrade", "Current commit", input.currentCommit.trim()));
@@ -756,10 +760,10 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
             };
 
   return {
-    version: 3,
+    version: 4,
     summary: {
       installReadiness:
-        input.repoBacked && input.configExists && input.hasNode !== false ? "ready" : "needs-action",
+        (input.repoBacked || input.installationMethod === "release") && input.configExists && input.hasNode !== false ? "ready" : "needs-action",
       firstReplyReadiness: needsActionBeforeFirstReply.length === 0 ? "ready" : "needs-action",
       serviceReadiness:
         input.serviceWasSkipped || input.serviceHealthOk === false ? "needs-action" : "ready",
@@ -767,6 +771,8 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       upgradeReadiness: effectiveUpgradeReadiness
     },
     context: {
+      installationMethod: input.installationMethod ?? "source",
+      installedVersion: input.installedVersion,
       installDir: input.installDir,
       configPath: input.configPath,
       envFilePath: input.envFilePath,
@@ -775,8 +781,8 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       serviceState: describeServiceState(input.serviceWasSkipped, input.serviceHealthOk, input.serviceInstalled),
       serviceFilesystemAccess: describeServiceFilesystemAccess(input),
       updateTrack: input.trackedRef?.trim() || "main",
-      updateTrackKind: trackedRef.kind,
-      updateTrackLabel: trackedRef.label,
+      updateTrackKind: input.installationMethod === "release" ? "release" : trackedRef.kind,
+      updateTrackLabel: input.installationMethod === "release" ? `release ${input.trackedRef}` : trackedRef.label,
       ...(primaryProvider
         ? {
             primaryProviderId: primaryProvider.id,

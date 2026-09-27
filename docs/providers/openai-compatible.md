@@ -124,3 +124,5 @@ The current harness refresh does not add Responses replay or vendor-specific wor
 - [Azure Foundry Provider](azure-foundry.md)
 - [Configuration Reference](../configuration/config-reference.md)
 - [Common Troubleshooting](../operations/common-troubleshooting.md)
+
+Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).

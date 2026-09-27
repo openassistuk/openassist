@@ -30,6 +30,8 @@ function yesNo(value: boolean): string {
 }
 
 export interface RuntimeInstallKnowledgeInput {
+  installationMethod?: "source" | "release" | "isolated";
+  installedVersion?: string;
   repoBackedInstall: boolean;
   installDir?: string;
   configPath?: string;
@@ -493,6 +495,8 @@ function buildMaintenance(
   ];
 
   return {
+    installationMethod: input.installContext?.installationMethod,
+    installedVersion: input.installContext?.installedVersion,
     repoBackedInstall: input.installContext?.repoBackedInstall === true,
     installDir: input.installContext?.installDir,
     configPath: input.installContext?.configPath,

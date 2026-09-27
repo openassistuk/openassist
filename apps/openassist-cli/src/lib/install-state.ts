@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
+import type { InstalledApplication, OwnedInstallFile } from "@openassist/core-types";
 import {
   defaultConfigPath,
   defaultEnvFilePath,
@@ -11,6 +13,13 @@ import {
 export type ServiceManagerKind = "systemd-user" | "systemd-system" | "launchd";
 
 export interface InstallState {
+  schemaVersion: 2;
+  active?: InstalledApplication;
+  previous?: InstalledApplication;
+  ownedFiles?: OwnedInstallFile[];
+  managedRoot?: string;
+  instanceId?: string;
+  notifications?: boolean;
   installDir: string;
   repoUrl: string;
   trackedRef: string;
@@ -30,6 +39,8 @@ function normalizeState(input: Partial<InstallState>): InstallState {
         ? "systemd-system"
         : "systemd-user";
   return {
+    ...input,
+    schemaVersion: 2,
     installDir,
     repoUrl: input.repoUrl ?? "",
     trackedRef: input.trackedRef ?? "main",
@@ -96,9 +107,21 @@ export function loadInstallState(statePath = defaultInstallStatePath()): Install
   }
   try {
     const raw = JSON.parse(fs.readFileSync(statePath, "utf8")) as Partial<InstallState>;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw) ||
+        (raw.schemaVersion !== undefined && raw.schemaVersion !== 2) ||
+        typeof raw.installDir !== "string" || !path.isAbsolute(raw.installDir)) {
+      throw new Error("invalid installation record");
+    }
+    for (const app of [raw.active, raw.previous]) {
+      if (app && (!path.isAbsolute(app.path) || !path.isAbsolute(app.nodePath) ||
+          !["source", "release"].includes(app.method) || !app.build ||
+          typeof app.build.id !== "string" || typeof app.verified !== "boolean")) {
+        throw new Error("invalid application record");
+      }
+    }
     return normalizeState(raw);
   } catch {
-    return undefined;
+    throw new Error(`Invalid install-state at ${statePath}. Preserve the file and repair it before changing this installation.`);
   }
 }
 
@@ -108,7 +131,20 @@ export function saveInstallState(
   current?: Partial<InstallState>
 ): InstallState {
   const normalized = mergeInstallState(current ?? loadInstallState(statePath), state);
+  // Service generation may have recorded ownership since the caller's snapshot.
+  if (current && !state.ownedFiles) normalized.ownedFiles = loadInstallState(statePath)?.ownedFiles ?? normalized.ownedFiles;
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
-  fs.writeFileSync(statePath, JSON.stringify(normalized, null, 2), "utf8");
+  atomicWriteJson(statePath, normalized);
   return normalized;
+}
+
+export function atomicWriteJson(file: string, value: unknown): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  const temporary = `${file}.${randomUUID()}.tmp`;
+  const fd = fs.openSync(temporary, "wx", 0o600);
+  try {
+    fs.writeFileSync(fd, JSON.stringify(value, null, 2));
+    fs.fsyncSync(fd);
+  } finally { fs.closeSync(fd); }
+  fs.renameSync(temporary, file);
 }

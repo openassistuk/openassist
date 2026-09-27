@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source flags retain the developer installer. Normal installs use verified releases.
+OPENASSIST_SOURCE_REQUESTED=0
+for OPENASSIST_BOOTSTRAP_ARG in "$@"; do
+  case "$OPENASSIST_BOOTSTRAP_ARG" in --source|--ref|--pr|--repo-url|--allow-dirty) OPENASSIST_SOURCE_REQUESTED=1 ;; esac
+done
+if [[ "$OPENASSIST_SOURCE_REQUESTED" -eq 0 ]]; then
+  OPENASSIST_RELEASE_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/release.sh"
+  if [[ -f "$OPENASSIST_RELEASE_SCRIPT" ]]; then
+    exec bash "$OPENASSIST_RELEASE_SCRIPT" "$@"
+  fi
+  OPENASSIST_RELEASE_TEMP="$(mktemp -d)"
+  trap 'rm -rf "$OPENASSIST_RELEASE_TEMP"' EXIT
+  curl --proto '=https' --tlsv1.2 -fsSL 'https://raw.githubusercontent.com/openassistuk/openassist/main/scripts/install/release.sh' -o "$OPENASSIST_RELEASE_TEMP/release.sh"
+  bash "$OPENASSIST_RELEASE_TEMP/release.sh" "$@"
+  exit $?
+fi
+
 INSTALL_DIR="${HOME}/openassist"
 REPO_URL=""
 REF=""
@@ -48,6 +65,9 @@ EOF
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --source)
+      shift
+      ;;
     --install-dir)
       INSTALL_DIR="$2"
       shift 2

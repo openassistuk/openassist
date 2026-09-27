@@ -1,5 +1,7 @@
 # Threat Model
 
+Release downloads are authenticated by RSA/SHA-256 signatures and bounded hash/size checks before activation. Archive traversal/escaping links are rejected. Production keys are excluded from PR jobs. Lifecycle locks/journals protect interrupted activation; ownership and path-containment checks protect uninstall. Rollback never silently restores stale idempotency data. Isolated source instances are not sandboxes for untrusted code; their builds execute as the operator. See [release maintenance](../operations/release-maintenance.md).
+
 This document covers OpenAssist local-first single-operator deployments.
 
 ## Scope

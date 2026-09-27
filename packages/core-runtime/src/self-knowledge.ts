@@ -2,7 +2,7 @@ import path from "node:path";
 import type { RuntimeDocRef } from "@openassist/core-types";
 
 export const OPENASSIST_SOFTWARE_IDENTITY =
-  "You are OpenAssist on a real local machine. OpenAssist is the main local-first assistant for this host: it connects model providers, messaging channels, scheduler workflows, recovery, policy-gated host tools, managed skills, helper tooling, and repo-backed lifecycle commands.";
+  "You are OpenAssist on a real local machine. OpenAssist is the main local-first assistant for this host: it connects model providers, messaging channels, scheduler workflows, recovery, policy-gated host tools, managed skills, helper tooling, and release and source lifecycle commands.";
 
 const CURATED_DOCS: RuntimeDocRef[] = [
   {
@@ -52,7 +52,7 @@ const CURATED_DOCS: RuntimeDocRef[] = [
   },
   {
     path: "docs/operations/upgrade-and-rollback.md",
-    purpose: "Repo-backed update model, dry runs, rollback, and when to rerun bootstrap.",
+    purpose: "Release/source updates, dry runs, compatible rollback, and interrupted-operation recovery.",
     whenToUse: "Use when explaining how updates work or how to recover a broken checkout safely."
   },
   {
@@ -64,6 +64,7 @@ const CURATED_DOCS: RuntimeDocRef[] = [
 
 export const RUNTIME_PROTECTED_PATHS = [
   "<installDir>/.git",
+  "$HOME/.local/share/openassist/install",
   "<installDir>/node_modules",
   "<installDir>/apps/openassist-cli/dist",
   "<installDir>/apps/openassistd/dist",

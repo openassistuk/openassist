@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { getBuildIdentity, runtimeInstanceId } from "@openassist/config";
 import http from "node:http";
 import path from "node:path";
 import { Command } from "commander";
@@ -363,6 +364,8 @@ program
         if (method === "GET" && requestUrl.pathname === "/v1/health") {
           sendJson(res, 200, {
             status: "ok",
+            build: getBuildIdentity(),
+            instanceId: runtimeInstanceId(configPath),
             runtime: runtime.getStatus()
           });
           return;

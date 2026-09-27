@@ -19,6 +19,8 @@ import { createLogger } from "@openassist/observability";
 import { registerSetupCommands } from "./commands/setup.js";
 import { registerServiceCommands } from "./commands/service.js";
 import { registerUpgradeCommand } from "./commands/upgrade.js";
+import { registerDevCommands } from "./commands/dev.js";
+import { showUpdateNotice } from "./lib/update-notifications.js";
 import { SpawnCommandRunner } from "./lib/command-runner.js";
 import { loadEnvFile } from "./lib/env-file.js";
 import { classifyGitDirtyState } from "./lib/git-dirty.js";
@@ -219,6 +221,7 @@ program.name("openassist").description("OpenAssist CLI").version("0.1.0");
 registerSetupCommands(program);
 registerServiceCommands(program);
 registerUpgradeCommand(program);
+registerDevCommands(program);
 
 program
   .command("doctor")
@@ -246,7 +249,7 @@ program
     const daemonBaseUrl = detectDefaultDaemonBaseUrl(configPath);
     const hasGit = commandAvailable("git");
     const hasPnpm = commandAvailable("pnpm");
-    const hasNode = commandAvailable("node");
+    const hasNode = installState?.active ? fs.existsSync(installState.active.nodePath) : commandAvailable("node");
     const localWrapperAvailable = commandAvailable("openassist");
     const localWrapperCommand = path.join(os.homedir(), ".local", "bin", "openassist");
     const dirtyState = repoBacked ? classifyGitDirtyState(installDir) : undefined;
@@ -347,6 +350,8 @@ program
     }
 
     const report = buildLifecycleReport({
+      installationMethod: installState?.active?.method,
+      installedVersion: installState?.active?.build.version,
       installDir,
       configPath,
       envFilePath,
@@ -399,6 +404,7 @@ program
       for (const line of renderLifecycleReport(report)) {
         console.log(line);
       }
+      await showUpdateNotice();
     }
 
     if (

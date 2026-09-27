@@ -1,5 +1,7 @@
 # Architecture Overview
 
+Lifecycle orchestration remains CLI-owned. Shared build/release/installation contracts live in core-types, state paths in config, database compatibility in storage-sqlite, and daemon health exposes build/instance identity. Packaged applications carry private Node and are activated separately from operator state. See [release maintenance](../operations/release-maintenance.md).
+
 OpenAssist has two durable execution planes sharing one local state model.
 
 1. Conversational plane: inbound channel message, provider call, outbound message.

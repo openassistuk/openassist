@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+- 2026-09-27: Introduce signed packaged releases with private Node, staged update/upgrade, retained application rollback, durable recovery and version-aware health/state. Retain explicit main/branch/PR source installs and add foreground isolated developer instances. Add ownership-checked uninstall with data preservation by default, explicit purge and cached opt-out update notices. Release keys/publication remain maintainer rollout prerequisites; signature failures never bypass verification or silently select source. Synchronize lifecycle/configuration/security/test guidance and add four-target artifact validation.
+
 This section records the development milestones since 0.1.0, including intermediate report-version and coverage transitions. The current operator defaults and controls are defined in the [configuration reference](docs/configuration/config-reference.md) and [model compatibility guide](docs/providers/model-compatibility.md); historical transitions below are not migration commands.
 
 - Reconcile operator and contributor documentation with the merged model/auth refresh: correct route-specific reasoning choices, put execution mode, Claude output limits and workspace selection in primary references, and record merged verification separately from pending live certification. No runtime or operator-state changes.

@@ -13,6 +13,7 @@ import type {
 import type { OpenAssistLogger } from "@openassist/observability";
 
 interface StoredInstallState {
+  active?: {method: "release" | "source"; build: {version: string}};
   installDir?: string;
   configPath?: string;
   envFilePath?: string;
@@ -161,7 +162,7 @@ export function loadRuntimeInstallContext(
     ? path.resolve(matchedStored.installDir)
     : path.dirname(resolvedConfigPath);
   const repoRoot =
-    findRepoRoot(configuredInstallDir) ??
+    matchedStored?.active?.method === "release" ? undefined : findRepoRoot(configuredInstallDir) ??
     findRepoRoot(path.dirname(resolvedConfigPath)) ??
     findRepoRoot(process.cwd());
 
@@ -174,6 +175,8 @@ export function loadRuntimeInstallContext(
   const serviceManager = resolveServiceManagerFromEnv();
 
   return {
+    installationMethod: process.env.OPENASSIST_STATE_ROOT ? "isolated" : matchedStored?.active?.method ?? (repoRoot ? "source" : undefined),
+    installedVersion: matchedStored?.active?.build.version,
     repoBackedInstall: Boolean(repoRoot),
     installDir: repoRoot ?? configuredInstallDir,
     configPath: matchedStored?.configPath

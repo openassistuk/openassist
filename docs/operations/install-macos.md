@@ -1,5 +1,7 @@
 # Install on macOS
 
+Normal macOS installation downloads a signed release with private Node into `~/.local/share/openassist/install`. Git/pnpm/system-Node prerequisite guidance below applies only to explicit source bootstrap (`--source --ref main`, `--ref`, or `--pr`). Release bootstrap requires curl, tar and OpenSSL. Until signing/publication is provisioned, it fails closed. See [release maintenance](release-maintenance.md) and [developer testing](developer-testing.md).
+
 This page covers macOS-specific installation details. For the full install-to-first-reply path, start with `docs/operations/quickstart-linux-macos.md` and keep `docs/operations/common-troubleshooting.md` nearby for repair commands.
 
 ## Platform Behavior
@@ -31,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/instal
 Local checkout:
 
 ```bash
-bash scripts/install/bootstrap.sh
+bash scripts/install/bootstrap.sh --source --ref main
 ```
 
 Useful bootstrap flags:
@@ -42,7 +44,7 @@ bash scripts/install/bootstrap.sh --non-interactive --skip-service
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref main
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --ref feature/my-branch
 bash scripts/install/bootstrap.sh --install-dir "$HOME/openassist" --pr 123
-bash scripts/install/bootstrap.sh --no-auto-install-prereqs
+bash scripts/install/bootstrap.sh --source --ref main --no-auto-install-prereqs
 ```
 
 Advanced developer GitHub entrypoint examples:
@@ -84,7 +86,6 @@ Install or reinstall the service explicitly:
 
 ```bash
 openassist service install \
-  --install-dir "$HOME/openassist" \
   --config "$HOME/.config/openassist/openassist.toml" \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```

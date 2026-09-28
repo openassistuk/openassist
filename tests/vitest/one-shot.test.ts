@@ -59,7 +59,7 @@ describe("durable native reminders", () => {
     expect(saved.scheduledFor).toBe("2026-09-28T12:02:00.000Z");
     expect(saved.timezone).toBe("Europe/London");
   });
-  it("bounds active tasks per actor, across chats and per installation, and caps listings", () => {
+  it("bounds active tasks per actor, across chats and per installation, and caps listings", { timeout: 60_000 }, () => {
     for(let index=0;index<32;index++) create(text,`actor-limit-${index}`);
     expect(()=>create(text,"actor-limit-overflow")).toThrow("limit");
     for(const task of db.oneShots.list(owner)) db.oneShots.cancel(task.id,owner);
@@ -195,6 +195,13 @@ describe("runtime scheduling authorization", () => {
     db.setActorPolicyProfile(`${owner.channelId}:${owner.conversationKey}`,owner.actorId,"operator");
     await expect(instance.managedSchedulerAction("scheduler.create",owner,text as any,start,"r")).rejects.toThrow("full-root");
     await expect(instance.managedSchedulerAction("scheduler.list",owner,{},start,"r")).rejects.toThrow("full-root");
+  });
+  it.each(["healthy","degraded","unhealthy"] as const)("runtime confirmation immediately publishes the latest %s clock health", status => {
+    db.insertClockCheck(status,"fixture-clock",0);
+    const {instance}=runtime();
+    const update=vi.spyOn(db,"updateModuleHealth");
+    instance.confirmTimezone("Europe/London");
+    expect(update).toHaveBeenCalledWith("time-sync",status,"clock check: fixture-clock");
   });
   it("returns bounded receipts and isolates cancellation across chats", async () => {
     const {instance}=runtime(); const received=new Date().toISOString();

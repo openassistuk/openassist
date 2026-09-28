@@ -1233,7 +1233,6 @@ export class OpenAssistRuntime {
       this.config.time.defaultTimezone ??
       detectSystemTimezoneCandidate();
     this.effectiveTimezone = timezone;
-    this.clockHealthMonitor.refreshModuleHealth();
   }
 
   isTimezoneConfirmed(): boolean {
@@ -1251,6 +1250,7 @@ export class OpenAssistRuntime {
 
     this.db.setSetting(CONFIRMED_TIMEZONE_SETTING_KEY, { timezone });
     this.effectiveTimezone = timezone;
+    this.clockHealthMonitor.refreshModuleHealth();
 
     if (this.startedAt && this.config.scheduler.enabled) {
       this.schedulerWorker.start();

@@ -72,8 +72,10 @@ chmod 755 "${bootstrap_path}"
 
 # Keep the piped program on stdin until Bash has parsed this entire handoff.
 # Only the downloaded, file-backed bootstrap may read interactive input.
+# Bash 3 (macOS) treats an empty array as unset under nounset.
+set -- ${FORWARDED_ARGS[@]+"${FORWARDED_ARGS[@]}"}
 if [[ ! -t 0 && -t 1 && -r /dev/tty ]]; then
-  exec "${bootstrap_path}" "${FORWARDED_ARGS[@]}" </dev/tty
+  exec "${bootstrap_path}" "$@" </dev/tty
 else
-  exec "${bootstrap_path}" "${FORWARDED_ARGS[@]}"
+  exec "${bootstrap_path}" "$@"
 fi

@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+- Follow-up artifact evidence: support macOS Bash 3 empty argument arrays in the piped handoff, and resolve the packaged release trust anchor above nested pnpm deployment workspace markers. Signature checks remain mandatory; no trust-anchor fallback or bypass is introduced.
+
 - 2026-09-28 Ubuntu regression candidate: fix the piped installer stdin handoff, seeded first-time onboarding selection and private-runtime packaged setup without Git/npm/pnpm. Setup verifies build and instance before completing activation; recovery dry runs report pending verification. Timezone confirmation refreshes clock health, and systemd/launchd PATH includes the managed command and selected Node directories.
 - Correct recurring `skip` scheduling so timely slots execute within max(1 second, twice the scheduler tick), while missed slots advance without dispatch. Keep bounded backfill and catch-up-once behavior across restart and DST.
 - Add native one-shot text and tool-free prompt reminders through scheduler.create/list/cancel, CLI and daemon APIs. Persist original request deadlines, atomic deduplication, bounded execution/delivery state, prompt results and receipts. Restrict chat mutations/listing to approved full-root actors in the same chat and reauthorize execution/delivery. Explicit rejection may retry; ambiguous delivery never automatically resends. Cancellation cannot retract a send already in flight, but prevents remaining parts. No scheduled shell path or credential-reading fallback is introduced.

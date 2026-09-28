@@ -29,6 +29,8 @@ not certification of this implementation or stable v0.2.0.
 
 ## Surprises & Discoveries
 
+Hosted PR #67 checks found two platform-specific issues: macOS Bash 3 treats an empty forwarded-argument array as unset under nounset, and packaged release discovery stopped at a nested pnpm-deploy workspace marker before reaching the build identity/trust anchor. Fix both and retain the actual PTY and signed rc.1 upgrade tests. The 256-task durable limit test exceeded Vitest's five-second default on hosted Windows; give this fsync-heavy test a 60-second timeout without changing product bounds or coverage gates. Final review also moved the clock refresh into confirmTimezone itself and added runtime-level checks for all three clock states.
+
 Existing shell tests assert source text rather than exercising a piped PTY.
 The first full verification passed build/lint/typecheck and 506 Vitest tests (one existing skip). Node tests identified an obsolete stdin-redirection assertion and pending docs-index/inventory updates. These are being corrected before the final gate; this is not final verification evidence.
 The scheduler applies `skip` to every due occurrence, suppressing normal runs.

@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { generateKeyPairSync, sign } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { verifyManifest, unpackRelease, sha256, download, readBuildIdentity, trustedReleaseKeys, resolveRelease, platformArtifact } from "../../apps/openassist-cli/src/lib/release.js";
+import { verifyManifest, unpackRelease, sha256, download, readBuildIdentity, trustedReleaseKeys, resolveRelease, platformArtifact, findApplicationRoot } from "../../apps/openassist-cli/src/lib/release.js";
 import { resolveUpdateMethod, sourceRef, normalizeConfigPaths } from "../../apps/openassist-cli/src/lib/lifecycle-engine.js";
 import { acquireLifecycleLock, containedPath, copyPrivateTree, removeManagedPath } from "../../apps/openassist-cli/src/lib/lifecycle-files.js";
 import { inspectDatabaseVersion } from "../../packages/storage-sqlite/src/compatibility.js";
@@ -24,6 +24,15 @@ const build={id:"0.1.0-test",version:"0.1.0",commit:"a".repeat(40),nodeVersion:"
 const manifest=()=>({schemaVersion:1,build,channel:"stable",artifacts:["linux-x64","linux-arm64","darwin-x64","darwin-arm64"].map(target=>{const[platform,arch]=target.split('-');return{platform,arch,file:`${target}.tar.gz`,sha256:"b".repeat(64),bytes:100};})});
 
 describe("verified lifecycle releases",()=>{
+  it("finds the packaged trust anchor above a deployed application's workspace marker",()=>{
+    const root=temp(), app=path.join(root,"apps","openassist-cli");
+    fs.mkdirSync(app,{recursive:true});
+    fs.writeFileSync(path.join(app,"pnpm-workspace.yaml"),"packages: []\n");
+    fs.writeFileSync(path.join(root,"build-identity.json"),JSON.stringify(build));
+    expect(findApplicationRoot(app)).toBe(root);
+    fs.rmSync(path.join(root,"build-identity.json"));
+    expect(findApplicationRoot(app)).toBe(app);
+  });
   it("reports the source workspace version while preferring immutable build metadata",()=>{
     const root=temp();const app=path.join(root,"apps","openassist-cli","dist");fs.mkdirSync(app,{recursive:true});
     fs.writeFileSync(path.join(root,"pnpm-workspace.yaml"),"packages: []\n");

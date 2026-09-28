@@ -17,10 +17,17 @@ export const sha256 = (data: Buffer | string): string => createHash("sha256").up
 
 export function findApplicationRoot(start = path.dirname(fileURLToPath(import.meta.url))): string {
   let current = start;
+  let sourceRoot: string | undefined;
   while (true) {
-    if (fs.existsSync(path.join(current, "build-identity.json")) || fs.existsSync(path.join(current, "pnpm-workspace.yaml"))) return current;
+    if (fs.existsSync(path.join(current, "build-identity.json"))) return current;
+    // pnpm deploy can leave a workspace marker inside an individual application.
+    // A packaged build identity above that marker owns the release trust anchor.
+    if (fs.existsSync(path.join(current, "pnpm-workspace.yaml"))) sourceRoot ??= current;
     const parent = path.dirname(current);
-    if (parent === current) throw new Error("Cannot locate OpenAssist application files.");
+    if (parent === current) {
+      if (sourceRoot) return sourceRoot;
+      throw new Error("Cannot locate OpenAssist application files.");
+    }
     current = parent;
   }
 }

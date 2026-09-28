@@ -25,7 +25,10 @@ not certification of this implementation or stable v0.2.0.
 - [x] Cover authorization, timing, replay, cancellation, retry, and ambiguous delivery, including actual runtime cutoff receipts and tool-free scheduled provider requests.
 - [x] Update documentation, fixtures, packaged smoke tests, and resolution matrix.
 - [x] (2026-09-28) Full local `pnpm verify:all` passed: Vitest coverage 82.93% statements, 73.94% branches, 85.69% functions, 83.98% lines; Node 80.1% statements/lines, 73.38% branches, 86.52% functions. Both dependency audits report zero findings. Subsequent bounded channel-readiness/status changes passed build and 38 targeted tests. Final review and hosted checks remain in progress.
-- [ ] Create the fixes PR and inspect hosted checks, review threads, and code-scanning alerts.
+- [x] (2026-09-28) Created [fixes PR #67](https://github.com/openassistuk/openassist/pull/67). Independently inspected review threads (none) and open code-scanning alerts (none).
+- [x] (2026-09-28) Corrected implementation `4d33a39` passed local `pnpm verify:all`: 513 Vitest tests passed, one existing skip; Node suites passed. Vitest coverage: 83.08% statements, 74.09% branches, 85.82% functions, 84.08% lines. Node coverage: 80.06% statements/lines, 73.38% branches, 86.52% functions. Both dependency audits report zero findings.
+- [x] (2026-09-28) Hosted implementation checks passed for Linux/macOS quality, CodeQL, live macOS LaunchAgent, Linux/macOS x64/arm64 artifacts and signing-contract. The Linux artifact job exercised the published signed rc.1 updater, retained state, candidate activation, active-reminder rollback rejection, completed rollback, recovery and uninstall. Runs: CI `36430059776`, CodeQL `36430059606`, LaunchAgent `36430059559`, artifacts `36430059756`.
+- [x] (2026-09-28) Hosted Windows quality also passed for `4d33a39`; all implementation checks are green. This documentation reconciliation records that tested commit. Recheck the final PR head after this documentation-only commit, and require green exact-head checks and review before merge.
 
 ## Surprises & Discoveries
 
@@ -56,9 +59,11 @@ outcome; ambiguous sends are not blindly retried.
 
 ## Outcomes & Retrospective
 
-Implementation is in progress. Baseline evidence and reusable settings are in
+All eight fixes and native reminder interfaces are implemented with regression coverage. Local verification and all required hosted implementation checks passed; PR #67 is the review handoff. Baseline evidence and reusable settings are in
 `docs/testing/2026-09-28-ubuntu-live-test-*` and `docs/testing/default-test-settings.json`.
 Only sanitized evidence and synthetic operator identifiers belong in this PR.
+
+The candidate has not been tested on a replacement clean Ubuntu host. The live second-account test remains unverified. No merge, stable-version change, tag or publication has occurred. After review and merge, the fresh live test and separate stable-release preparation PR remain required. Passing automated checks does not certify those later gates.
 
 ## Context and Orientation
 

@@ -1,4 +1,5 @@
 import type { OpenAssistConfig } from "@openassist/config";
+import { completeOnboarding } from "./onboarding.js";
 import type { OpenAIReasoningEffort } from "@openassist/core-types";
 import { confirm as inqConfirm, input as inqInput, password as inqPassword, select as inqSelect } from "@inquirer/prompts";
 import { OPENAI_MODEL_ALTERNATIVES, ANTHROPIC_MODEL_ALTERNATIVES, DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, modelCapabilities, reasoningEfforts, retiredModelReplacement, parseConfig } from "@openassist/config";
@@ -1579,6 +1580,7 @@ export async function runSetupWizard(
     const saveResult = saveWizardState(state.configPath, state.envFilePath, state.config, state.env, {
       createBackup: true
     });
+    completeOnboarding(state.configPath);
     return {
       saved: true,
       backupPath: saveResult.backupPath

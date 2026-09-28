@@ -263,3 +263,9 @@ For the current provider set, certify GPT-6 Sol and Sonnet 5 first replies, sequ
 For current-model beta evidence, record commit, OS/Node, route/model/effort/mode, channel and date. Exercise a first reply, two tool rounds, an image/file, restart with retained history, reconnect and auth refresh where applicable. With new Claude models, include a history trim or changed tool availability and verify replay remains successful without visible thinking. Record untested combinations explicitly.
 
 Follow-up harness checks must also cover persisted Responses reasoning plus tool results after restart, delayed concurrent 401 recovery, and Anthropic multi-workspace key selection. Record the actual route/account/channel and commit; see [the readiness audit](provider-channel-readiness.md).
+
+## Ubuntu regression candidate
+
+Add native saved-text and prompt reminders, original-receipt deadlines, repeated creation, cancellation, restart/late execution and round-limit receipts to validation. Verify Standard and unapproved-sender denial and cross-actor/chat isolation. Automated tests use synthetic endpoints/IDs. The baseline live second-account check was skipped and remains unverified; do not claim it from the local denial tests.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

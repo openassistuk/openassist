@@ -21,6 +21,7 @@ import { registerSetupCommands } from "./commands/setup.js";
 import { registerServiceCommands } from "./commands/service.js";
 import { registerUpgradeCommand } from "./commands/upgrade.js";
 import { registerDevCommands } from "./commands/dev.js";
+import { configureManagedSchedulerCommand } from "./commands/scheduler.js";
 import { showUpdateNotice } from "./lib/update-notifications.js";
 import { SpawnCommandRunner } from "./lib/command-runner.js";
 import { loadEnvFile } from "./lib/env-file.js";
@@ -867,6 +868,9 @@ timeCommand
   });
 
 const schedulerCommand = program.command("scheduler").description("Scheduler operations");
+configureManagedSchedulerCommand(schedulerCommand.command("create"), "create");
+configureManagedSchedulerCommand(schedulerCommand.command("cancel"), "cancel");
+configureManagedSchedulerCommand(schedulerCommand.command("list"), "list");
 schedulerCommand
   .command("status")
   .description("Show scheduler worker status")

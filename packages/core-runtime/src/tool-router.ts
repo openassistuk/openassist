@@ -11,6 +11,8 @@ export interface ToolExecutionContext {
   conversationKey: string;
   activeChannelType: string;
   replyToTransportMessageId?: string;
+  receivedAt?: string;
+  requestId?: string;
 }
 
 export interface ToolExecutionRecord {
@@ -150,6 +152,7 @@ export class RuntimeToolRouter {
     context: ToolExecutionContext
   ) => Promise<Record<string, unknown>>;
   private readonly logger: OpenAssistLogger;
+  private readonly schedulerTool?: (name: string, request: Record<string, unknown>, context: ToolExecutionContext) => Promise<Record<string, unknown>>;
 
   constructor(options: {
     execTool: ExecTool;
@@ -169,6 +172,7 @@ export class RuntimeToolRouter {
       context: ToolExecutionContext
     ) => Promise<Record<string, unknown>>;
     logger: OpenAssistLogger;
+    schedulerTool?: (name: string, request: Record<string, unknown>, context: ToolExecutionContext) => Promise<Record<string, unknown>>;
   }) {
     this.execTool = options.execTool;
     this.fsTool = options.fsTool;
@@ -178,6 +182,7 @@ export class RuntimeToolRouter {
     this.memorySaveTool = options.memorySaveTool;
     this.memorySearchTool = options.memorySearchTool;
     this.logger = options.logger;
+    this.schedulerTool = options.schedulerTool;
   }
 
   async execute(toolCall: ToolCall, context: ToolExecutionContext): Promise<ToolExecutionRecord> {
@@ -190,6 +195,12 @@ export class RuntimeToolRouter {
     }
 
     try {
+      if (["scheduler.create","scheduler.list","scheduler.cancel"].includes(toolCall.name)) {
+        if (!this.schedulerTool) throw new Error("Native scheduling is unavailable.");
+        const result = await this.schedulerTool(toolCall.name,argsValue,context);
+        return { status: "succeeded", request: argsValue, result,
+          message: { toolCallId: toolCall.id, name: toolCall.name, content: JSON.stringify(result), isError: false } };
+      }
       if (toolCall.name === "exec.run") {
         const command = asString(argsValue.command, "command");
         const result = await this.execTool.run({

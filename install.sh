@@ -50,10 +50,6 @@ if [[ -z "${BOOTSTRAP_URL}" ]]; then
   fi
 fi
 
-if [[ ! -t 0 && -t 1 && -r /dev/tty ]]; then
-  exec </dev/tty
-fi
-
 require_cmd() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -74,4 +70,10 @@ bootstrap_path="${tmp_dir}/bootstrap.sh"
 curl -fsSL "${BOOTSTRAP_URL}" -o "${bootstrap_path}"
 chmod 755 "${bootstrap_path}"
 
-exec "${bootstrap_path}" "${FORWARDED_ARGS[@]}"
+# Keep the piped program on stdin until Bash has parsed this entire handoff.
+# Only the downloaded, file-backed bootstrap may read interactive input.
+if [[ ! -t 0 && -t 1 && -r /dev/tty ]]; then
+  exec "${bootstrap_path}" "${FORWARDED_ARGS[@]}" </dev/tty
+else
+  exec "${bootstrap_path}" "${FORWARDED_ARGS[@]}"
+fi

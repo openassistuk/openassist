@@ -45,6 +45,29 @@ async function runCli(args: string[], cwd = repoRoot()): Promise<{ code: number;
 }
 
 describe("cli api surface coverage", () => {
+  it("sends scoped native reminder commands with a stable request ID and original command time", async () => {
+    const requests: Array<{url:string;body:any}>=[];
+    const server=http.createServer((req,res)=>{
+      const chunks:Buffer[]=[];req.on("data",chunk=>chunks.push(chunk));
+      req.on("end",()=>{requests.push({url:req.url!,body:JSON.parse(Buffer.concat(chunks).toString())});res.writeHead(200,{"content-type":"application/json"});res.end(JSON.stringify({id:"reminder-synthetic",state:"pending"}));});
+    });
+    await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+    const address=server.address() as {port:number};
+    const common=["--actor","100000001","--channel","telegram-main","--conversation","100000001","--base-url",`http://127.0.0.1:${address.port}`];
+    try {
+      const before=Date.now();
+      assert.equal((await runCli(["scheduler","create",...common,"--delay-seconds","120","--text","Synthetic reminder","--request-id","fixture-creation"])).code,0);
+      assert.equal(requests[0].url,"/v1/scheduler/create");
+      assert.equal(requests[0].body.requestId,"fixture-creation");
+      assert.equal(requests[0].body.request.delaySeconds,120);
+      assert.ok(Date.parse(requests[0].body.receivedAt)>=before);
+      assert.equal((await runCli(["scheduler","list",...common])).code,0);
+      assert.equal((await runCli(["scheduler","cancel",...common,"--id","reminder-synthetic"])).code,0);
+      assert.deepEqual(requests[2].body.request,{id:"reminder-synthetic"});
+      assert.equal((await runCli(["scheduler","create",...common,"--text","one","--prompt","two","--delay-seconds","120"])).code,1);
+      assert.equal(requests.length,3);
+    } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
+  });
   it("covers status and mutation command paths against daemon APIs", async () => {
     const seenToolStatusQueries: string[] = [];
     const seenMemoryStatusQueries: string[] = [];

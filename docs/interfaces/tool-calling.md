@@ -242,3 +242,9 @@ Provider modernization preserves sequential runtime tool execution and the exist
 Opus 5.5/Fable 5.1/Mythos 5.1 reject forced tool choice. OpenAssist leaves tool choice at the upstream automatic default, replays complete thinking/tool_use blocks and returns matching tool_result IDs. Internal streaming does not alter the sequential runtime loop or its durable invocation records.
 
 Opaque Responses reasoning and message phases may accompany tool calls in durable metadata. Replay preserves item order and emits each function call once despite separate durable audit rows. The runtime still executes authorized tools sequentially; replay never grants tools or enlarges context policy.
+
+## Ubuntu regression candidate
+
+scheduler.create/list/cancel are runtime-owned and available only to approved full-root operators. The runtime derives actor and chat scope, anchors delays to persisted inbound receivedAt and rejects expired new deadlines. Prompt execution has tools: []. The 12-round default is unchanged; cutoff text appends at most eight sanitized completed scheduling mutation receipts containing IDs, state and original deadline, never action content.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

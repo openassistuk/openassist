@@ -4,6 +4,7 @@ export function runtimeToolSchemas(options?: {
   enablePackageTool?: boolean;
   enableWebTools?: boolean;
   enableMemoryTools?: boolean;
+  enableSchedulerTools?: boolean;
 }): ToolSchema[] {
   const schemas: ToolSchema[] = [
     {
@@ -222,5 +223,19 @@ export function runtimeToolSchemas(options?: {
     );
   }
 
+  if (options?.enableSchedulerTools) schemas.push(
+    { name: "scheduler.create", description: "Persist a one-shot text reminder or prompt in this chat. Relative delays start at the original message receipt, not now. Return the task ID and original deadline. Prompts begin generation at that deadline and deliver later with no tools. Never use shell/at/cron or credential-reading scripts as a scheduling fallback.", inputSchema: {
+      type: "object", additionalProperties: false, required: ["action"], properties: {
+        at: { type: "string", description: "ISO timestamp with explicit timezone offset; mutually exclusive with delaySeconds." },
+        delaySeconds: { type: "number", exclusiveMinimum: 0, maximum: 315360000 },
+        action: { oneOf: [
+          { type: "object", additionalProperties: false, required: ["type","text"], properties: { type: { const: "text" }, text: { type: "string", minLength: 1, maxLength: 8000 } } },
+          { type: "object", additionalProperties: false, required: ["type","prompt"], properties: { type: { const: "prompt" }, prompt: { type: "string", minLength: 1, maxLength: 8000 } } }
+        ] }
+      }
+    } },
+    { name: "scheduler.list", description: "List up to 50 reminders owned by this actor in this chat. Limits: 32 active per actor, 256 per installation.", inputSchema: { type: "object", additionalProperties: false, properties: {} } },
+    { name: "scheduler.cancel", description: "Cancel an owned reminder in this chat before delivery starts. Report when dispatch is already in flight.", inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: { type: "string" } } } }
+  );
   return schemas;
 }

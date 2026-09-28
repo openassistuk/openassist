@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { resolveOperatorPaths } from "@openassist/config";
@@ -8,6 +7,7 @@ import { autoMigrateLegacyDefaultLayoutIfNeeded } from "./operator-layout.js";
 import { loadSetupQuickstartState, runSetupQuickstart } from "./setup-quickstart.js";
 import { runSetupWizardPostSaveChecks } from "./setup-post-save.js";
 import { showUpdateNotice } from "./update-notifications.js";
+import { needsFirstTimeSetup } from "./onboarding.js";
 
 export interface SetupHubOptions {
   installDir: string;
@@ -129,7 +129,7 @@ export async function runSetupHub(
   envFilePath = migration.envFilePath;
 
   while (true) {
-    const firstTimeDefault = !fs.existsSync(configPath) ? "first-time" : "repair";
+    const firstTimeDefault = needsFirstTimeSetup(configPath) ? "first-time" : "repair";
     const action = await promptHubAction(prompts, firstTimeDefault);
 
     if (action === "exit") {

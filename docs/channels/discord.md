@@ -141,3 +141,9 @@ Provider modernization retains guild/thread/DM boundaries and approved operator 
 Dependency readiness (2026-09-27): Discord.js 14.27.0 is current stable. The adapter now listens to clientReady rather than the deprecated ready event. Bot tokens, gateway intents, DM approval and attachment limits are unchanged. See [readiness audit](../operations/provider-channel-readiness.md).
 
 Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).
+
+## Native reminders
+
+Approved Full access operators can create saved-text reminders or tool-free scheduled prompts for their current conversation. The model cannot choose a different recipient; list/cancel are scoped to the same actor and chat. Delivery uses the shared renderer and durable per-part receipts. A timeout or unknown transport outcome is shown as uncertain and is not resent automatically. Standard mode cannot use these tools.
+
+See [deadlines, limits and cancellation](../interfaces/scheduler-and-time.md#managed-one-shot-reminders).

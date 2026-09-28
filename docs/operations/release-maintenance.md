@@ -41,3 +41,11 @@ Managed applications live under `~/.local/share/openassist/install/releases`; `c
 Successful updates retain current and previous applications plus two recent recovery backups. Unfinished operations protect referenced files. Backups contain secrets and remain owner-only. Application rollback never silently restores a database.
 
 See [upgrade and recovery](upgrade-and-rollback.md), [developer testing](developer-testing.md), [uninstall](uninstall.md), and [common troubleshooting](common-troubleshooting.md).
+
+## Stable v0.2.0 follow-up gates
+
+The [Ubuntu resolution matrix](../testing/ubuntu-live-test-resolution.md) separates destroyed-host baseline evidence from candidate verification. The fixes PR keeps rc.1 package versions; a separate preparation PR follows merged fixes and clean-host retesting. Stable tagging and publication require explicit authorization.
+
+Artifact smoke now exercises private-runtime onboarding with an empty PATH and matching activation. Linux lifecycle smoke downloads and verifies the immutable published rc.1, uses its actual updater for the candidate transition, checks retained config/env/history/session memory, and rejects rollback with pending one-shot work. All four artifact jobs and ephemeral signing-contract checks remain required; hosted outcomes must be recorded rather than assumed.
+
+Run the candidate on a replacement clean Ubuntu host using the public-style piped installer without prerequisite workarounds. Repeat all successful baseline features plus both reminder actions, cancellation, restart and recurring skip. Keep the unapproved second-account live check unverified until performed. Reconcile stable root/CLI/daemon versions, docs/releases/v0.2.0.md and changelog in the later PR, then build the exact reviewed commit and require post-publication stable-channel and exact-version public installs.

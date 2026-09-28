@@ -17,6 +17,7 @@ describe("curl installer entrypoint contract", () => {
     assert.match(script, /Use either --ref or --pr, not both/);
     assert.match(script, /curl -fsSL/);
     assert.match(script, /exec "\$\{bootstrap_path\}" "\$\{FORWARDED_ARGS\[@\]\}"/);
-    assert.match(script, /exec <\/dev\/tty/);
+    assert.match(script, /exec "\$\{bootstrap_path\}" "\$\{FORWARDED_ARGS\[@\]\}" <\/dev\/tty/);
+    assert.doesNotMatch(script, /^\s*exec <\/dev\/tty/m);
   });
 });

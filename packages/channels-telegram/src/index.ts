@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { Bot, InputFile } from "grammy";
+import { Bot, InputFile, GrammyError } from "grammy";
+import { ChannelDeliveryRejected } from "@openassist/core-types";
 import { z } from "zod";
 import type {
   AttachmentRef,
@@ -312,7 +313,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 
   async send(msg: OutboundEnvelope): Promise<{ transportMessageId: string }> {
     if (!this.bot) {
-      throw new Error("Telegram adapter is not running");
+      throw new ChannelDeliveryRejected();
     }
 
     const target = parseConversationKey(msg.directRecipientUserId ?? msg.conversationKey);
@@ -345,7 +346,10 @@ export class TelegramChannelAdapter implements ChannelAdapter {
           parse_mode: parseMode,
           reply_parameters: replyParameters
         }
-      );
+      ).catch(error => {
+        if (error instanceof GrammyError && error.error_code >= 400 && error.error_code < 500) throw new ChannelDeliveryRejected();
+        throw error;
+      });
 
       return {
         transportMessageId: String(response.message_id)

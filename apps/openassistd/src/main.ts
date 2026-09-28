@@ -356,6 +356,7 @@ program
     await runtime.start();
 
     const httpServer = http.createServer(async (req, res) => {
+      const receivedAt = new Date().toISOString();
       try {
         const method = req.method ?? "GET";
         const requestUrl = new URL(req.url ?? "/", "http://localhost");
@@ -401,6 +402,24 @@ program
           sendJson(res, 200, {
             tasks: runtime.listSchedulerTasks()
           });
+          return;
+        }
+
+        if (method === "POST" && ["/v1/scheduler/create","/v1/scheduler/cancel","/v1/scheduler/list"].includes(requestUrl.pathname)) {
+          const body = await readJsonBody(req);
+          const owner = { actorId: String(body.actorId ?? ""), channelId: String(body.channelId ?? ""), conversationKey: String(body.conversationKey ?? "") };
+          const request = body.request;
+          if (!request || typeof request !== "object" || Array.isArray(request)) {
+            sendJson(res,400,{ error: "request must be an object" }); return;
+          }
+          const anchor = typeof body.receivedAt === "string" ? body.receivedAt : receivedAt;
+          if (!Number.isFinite(Date.parse(anchor)) || Date.parse(anchor) > Date.parse(receivedAt)) {
+            sendJson(res,400,{ error: "Command receipt time must be valid and cannot be in the future." }); return;
+          }
+          const requestId = String(body.requestId ?? "");
+          if (!/^[a-zA-Z0-9._-]{1,128}$/.test(requestId)) { sendJson(res,400,{ error: "A bounded requestId is required for durable idempotency." }); return; }
+          const result = await runtime.managedSchedulerAction(`scheduler.${parts[2]}`,owner,request as Record<string,unknown>,anchor,requestId);
+          sendJson(res,200,result);
           return;
         }
 

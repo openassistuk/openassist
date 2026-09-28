@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { OneShotStore } from "./one-shot.js";
+export { OneShotStore } from "./one-shot.js";
 import { assertDatabaseVersion, DATABASE_VERSION } from "./compatibility.js";
-export { inspectDatabaseVersion, DATABASE_VERSION } from "./compatibility.js";
+export { inspectDatabaseVersion, assertManagedTaskCompatibility, DATABASE_VERSION } from "./compatibility.js";
 import type {
   AttachmentRef,
   InboundEnvelope,
@@ -202,6 +204,7 @@ function assertUnixOwnerOnlyPath(
 }
 
 export class OpenAssistDatabase {
+  readonly oneShots: OneShotStore;
   private readonly db: DatabaseSync;
   private readonly logger: OpenAssistLogger;
 
@@ -235,6 +238,7 @@ export class OpenAssistDatabase {
     this.db.exec("PRAGMA journal_mode = WAL;");
     this.db.exec("PRAGMA foreign_keys = ON;");
     this.initialize();
+    this.oneShots = new OneShotStore(this.db);
     this.db.exec(`PRAGMA user_version = ${DATABASE_VERSION}`);
   }
 

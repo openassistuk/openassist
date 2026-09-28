@@ -226,3 +226,9 @@ OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP 
 Current Claude prefix binding is enforced with the documented drop_block control: changed bounded guidance, access-controlled tools or compacted history discard invalid thinking upstream rather than bypassing signature checks. Valid blocks remain opaque and durable; no raw thinking or beta progress display is exposed. Pro reasoning increases possible cost, not privileges.
 
 Responses replay is opaque, provider/model-scoped and bounded to 1 MiB/256 items per message. It stays out of visible replies and does not authorize tools. Anthropic explicit auth disables the alternate ambient SDK credential kind; workspaceId is validated before header construction. OAuth retry compares the failed token to current state to avoid unnecessary rotation after a concurrent refresh.
+
+## Ubuntu regression candidate
+
+Native reminder creation is bounded and atomically deduplicated; prompts receive tools: [] and cannot read credentials or execute host commands. Creation/list/cancellation are scoped to approved full-root actors in the current chat, with execution/delivery reauthorization. Additive durable state and rollback admission prevent old applications abandoning active work. Transport ambiguity is explicit: no exactly-once guarantee and no automatic resend after unknown acceptance. The local daemon API retains its trusted-host boundary; network bind defaults remain loopback.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

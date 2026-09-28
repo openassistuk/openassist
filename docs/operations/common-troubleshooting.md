@@ -534,3 +534,13 @@ Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `th
 For Opus 5.5/Fable 5.1/Mythos 5.1, choose Default/adaptive and remove manual budgets or disabled thinking. If high-effort replies exhaust the output allowance, increase maxOutputTokens explicitly in wizard or reduce effort; thinking consumes that allowance too. Signed thinking is replayed unchanged with a provider-side stale-block drop policy. Custom Anthropic gateways must accept the documented binding-controls beta header for these models.
 
 For Anthropic `anthropic-workspace-id is required`, set the provider workspaceId through setup or TOML using the workspace that the key may access. An expired key needs replacement; repeated account-link attempts will not renew it. GPT model updates alone do not require channel re-pairing. See [auth and channel readiness](provider-channel-readiness.md).
+
+## September 28 installer and scheduling regressions
+
+A fresh packaged install records pending onboarding and defaults to First-time setup even though a config skeleton exists. Successful validated setup clears it. Older unmarked installs use an exact untouched-default comparison; customized or invalid files lead to repair and are never overwritten by detection. Packaged setup needs its private Node, not Git/npm/pnpm; explicit source installation retains prerequisite installation.
+
+The public pipe keeps stdin attached to the script until the file-backed bootstrap handoff. After service startup, setup verifies both expected build and runtime instance before finalizing activation. If doctor reports unverified activation on a reachable service, run `openassist update recover --yes`; if stopped, first run `openassist service start`. Recovery dry runs remain read-only and report pending verification.
+
+Timezone confirmation refreshes the latest clock result immediately. A remaining degraded/unhealthy clock needs its underlying clock source repaired. Service units and launchd wrappers now include the managed command directory and selected Node directory in PATH; regenerate service configuration through setup/service commands if an older unit lacks them.
+
+Use [native reminders](../interfaces/scheduler-and-time.md#managed-one-shot-reminders). An expired creation deadline requires an explicit new deadline. An uncertain send must be inspected in chat before rescheduling. A tool-round cutoff can include completed task IDs: list or cancel those tasks instead of creating duplicates.

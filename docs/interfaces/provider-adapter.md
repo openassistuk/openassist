@@ -212,3 +212,9 @@ OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP 
 Current GPT-6 models use Responses; API/Azure optional reasoningMode is independently validated and mapped. Claude always-thinking models stream internally to the existing ChatResponse contract and replay complete signed blocks with the binding-controls beta header. A larger configured maxOutputTokens also enables internal streaming on older Claude models. This does not expose streaming or thinking to channels.
 
 Responses adapters preserve output items in `providerReplayKind=openai-responses-items`, `providerReplayScope` and `providerReplayJson`; scope includes route/provider/model (plus Azure model hint). Records are limited to 1 MiB/256 items. Replaying skips duplicate tool audit messages and falls back to normalized history for invalid/oversized/mismatched metadata. Explicit Anthropic auth selects exactly one SDK credential type and optionally sends workspaceId as a header.
+
+## Ubuntu regression candidate
+
+Managed one-shot prompt tasks use the existing scheduled provider request contract with tools: []. Saved text reminders make no provider call. Generation results persist before rendering/delivery retries, so a transport retry does not call the model again. Confirmations distinguish generation deadlines from delivery time.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

@@ -182,6 +182,17 @@ export class ClockHealthMonitor {
     return this.latest;
   }
 
+  refreshModuleHealth(): void {
+    const latest = this.latest;
+    const pending = this.getConfig().time.requireTimezoneConfirmation && !this.isTimezoneConfirmed();
+    const status = latest?.status ?? "degraded";
+    this.db.updateModuleHealth(
+      "time-sync",
+      pending && status === "healthy" ? "degraded" : status,
+      pending ? "timezone confirmation required" : latest?.source ? `clock check: ${latest.source}` : "clock check pending"
+    );
+  }
+
   getTimeStatus(): TimeStatus {
     const config = this.getConfig();
     const latest = this.latest;
@@ -223,16 +234,7 @@ export class ClockHealthMonitor {
     this.db.insertClockCheck(result.status, result.source, result.offsetMs, result.details);
     this.latest = this.db.getLatestClockCheck() ?? undefined;
 
-    const tzConfirmed = this.isTimezoneConfirmed();
-    if (config.time.requireTimezoneConfirmation && !tzConfirmed) {
-      this.db.updateModuleHealth("time-sync", "degraded", "timezone confirmation required");
-    } else {
-      this.db.updateModuleHealth(
-        "time-sync",
-        result.status === "healthy" ? "healthy" : result.status === "degraded" ? "degraded" : "unhealthy",
-        result.source ? `clock check: ${result.source}` : "clock check"
-      );
-    }
+    this.refreshModuleHealth();
 
     this.logger.info(
       {

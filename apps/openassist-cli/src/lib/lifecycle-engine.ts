@@ -7,13 +7,13 @@ import { spawnSync } from "node:child_process";
 import TOML from "@iarna/toml";
 import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, loadConfig, resolveConfigOverlaysDir, runtimeInstanceId } from "@openassist/config";
 import type { InstalledApplication } from "@openassist/core-types";
-import { inspectDatabaseVersion } from "@openassist/storage-sqlite";
+import { inspectDatabaseVersion, assertManagedTaskCompatibility } from "@openassist/storage-sqlite";
 import { atomicWriteJson, atomicWriteText, loadInstallState, saveInstallState, type InstallState } from "./install-state.js";
 import { acquireLifecycleLock, containedPath, copyPrivateTree, switchCurrent, removeManagedPath } from "./lifecycle-files.js";
 import { download, platformArtifact, readBuildIdentity, resolveRelease, sha256, unpackRelease } from "./release.js";
 import { SpawnCommandRunner, runOrThrow } from "./command-runner.js";
 import { createServiceManager, type ServiceManagerAdapter } from "./service-manager.js";
-import { checkHealth } from "./health-check.js";
+import { checkHealth, matchesExpectedHealth, type HealthResult } from "./health-check.js";
 import { detectDefaultDaemonBaseUrl } from "./runtime-context.js";
 import { sourceUpdatePlan } from "./source-update-plan.js";
 import { classifyGitDirtyState } from "./git-dirty.js";
@@ -78,7 +78,8 @@ export async function prepareSource(root: string, ref: string, repoUrl = "https:
   const commit = (await runOrThrow(runner, "git", ["rev-parse", "HEAD"], {cwd: candidate})).stdout.trim();
   await buildSource(candidate,env);
   const manifest = JSON.parse(fs.readFileSync(path.join(candidate, "package.json"), "utf8"));
-  const build = {id: `source-${commit}`, version: manifest.version, commit, nodeVersion: process.versions.node, configVersion: 1, databaseVersion: 1, sourceRef: ref};
+  const build = {id: `source-${commit}`, version: manifest.version, commit, nodeVersion: process.versions.node, configVersion: 1, databaseVersion: 1, sourceRef: ref,
+    features: fs.existsSync(path.join(candidate,"packages/core-runtime/dist/one-shot.js")) ? ["managed-one-shots-v1"] : []};
   atomicWriteJson(path.join(candidate, "build-identity.json"), build);
   const nodePath = path.join(candidate, "runtime", "bin", process.platform === "win32" ? "node.exe" : "node");
   fs.mkdirSync(path.dirname(nodePath), {recursive: true});
@@ -120,6 +121,7 @@ export function assertApplicationCompatible(application: InstalledApplication, c
   if (application.build.configVersion !== 1 || application.build.databaseVersion !== 1) throw new Error("This transition needs an explicit state migration. Automatic database downgrade is unavailable.");
   const {config} = loadConfig({baseFile: configPath, overlaysDir: resolveConfigOverlaysDir(configPath)});
   inspectDatabaseVersion(path.resolve(cwd, config.runtime.paths.dataDir, "openassist.db"));
+  assertManagedTaskCompatibility(path.resolve(cwd, config.runtime.paths.dataDir, "openassist.db"), application.build.features);
 }
 
 function validateCandidate(app: InstalledApplication): void {
@@ -360,6 +362,29 @@ export async function executeUpdate(options: UpdateOptions, rollback = false, ho
   } finally { releaseLock(); }
 }
 
+export function finalizeSetupActivation(configPath: string, health: HealthResult): void {
+  const record = loadInstallState();
+  if (!record?.active || record.active.verified || path.resolve(record.configPath) !== path.resolve(configPath)) return;
+  const release = acquireLifecycleLock(record.managedRoot ?? defaultManagedInstallDir());
+  try {
+    const state = loadInstallState();
+    if (!state?.active || state.active.path !== record.active.path) throw new Error("Installation changed during setup; retry verification.");
+    if (!health.ok || !matchesExpectedHealth(health.bodyText, {
+      buildId: state.active.build.id, instanceId: runtimeInstanceId(configPath)
+    })) throw new Error("Expected application build and instance health did not match. Activation remains unverified.");
+    const root = state.managedRoot ?? defaultManagedInstallDir();
+    const journal = fs.existsSync(path.join(root, "operation.json")) ? readLifecycleJournal(root) : undefined;
+    saveInstallState({ ...state, active: { ...state.active, verified: true }, lastKnownGoodCommit: state.active.build.commit });
+    if (journal) {
+      if (journal.candidate?.path === state.active.path && ["complete", "unverified"].includes(journal.phase)) {
+        journal.candidate.verified = true;
+        journal.phase = "complete";
+        atomicWriteJson(path.join(root, "operation.json"), journal);
+      }
+    }
+  } finally { release(); }
+}
+
 export async function recoverUpdate(dryRun = false,host?: LifecycleHost): Promise<Record<string, unknown>> {
   const state = loadInstallState();
   const root = state?.managedRoot ?? defaultManagedInstallDir();
@@ -367,7 +392,13 @@ export async function recoverUpdate(dryRun = false,host?: LifecycleHost): Promis
   if (!fs.existsSync(journalPath)) return {action: "recover", detail: "No interrupted operation."};
   const journal = readLifecycleJournal(root);
   const firstStartUnverified = journal.phase === "complete" && state?.active?.verified === false && state.active.path === journal.candidate?.path;
-  if (dryRun || (journal.phase === "complete" && !firstStartUnverified) || journal.phase === "rolled-back") return {action: "recover", operation: journal};
+  if (dryRun || (journal.phase === "complete" && !firstStartUnverified) || journal.phase === "rolled-back") return {
+    action: "recover", operation: journal,
+    ...(firstStartUnverified || journal.phase === "unverified" ? {
+      verified: false, detail: "Expected build and instance verification is pending; this dry run does not probe or change activation.",
+      nextCommand: "openassist update recover --yes"
+    } : {})
+  };
   if (fs.existsSync(path.join(root,"operation.lock"))) throw new Error("An operation lock remains. Verify no lifecycle process is running, preserve owner.json, then remove only that lock directory and retry recovery. PID alone is not sufficient proof.");
   const release = acquireLifecycleLock(root);
   try {

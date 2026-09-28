@@ -21,6 +21,7 @@ export interface InstallState {
   managedRoot?: string;
   instanceId?: string;
   notifications?: boolean;
+  onboarding?: "pending" | "complete";
   installDir: string;
   repoUrl: string;
   trackedRef: string;
@@ -131,6 +132,7 @@ export function loadInstallState(statePath = defaultInstallStatePath()): Install
     for (const value of [raw.repoUrl,raw.trackedRef,raw.instanceId,raw.lastKnownGoodCommit,raw.updatedAt]) if(value!==undefined && typeof value!=="string") throw new Error("invalid recorded metadata");
     if(raw.serviceManager!==undefined && !["systemd-user","systemd-system","launchd"].includes(raw.serviceManager)) throw new Error("invalid service ownership");
     if(raw.notifications!==undefined && typeof raw.notifications!=="boolean") throw new Error("invalid notice preference");
+    if (raw.onboarding !== undefined && !["pending", "complete"].includes(raw.onboarding)) throw new Error("invalid onboarding state");
     if(raw.ownedFiles!==undefined && (!Array.isArray(raw.ownedFiles) || raw.ownedFiles.length>32 || raw.ownedFiles.some(file=>!file || !path.isAbsolute(file.path) || !/^[a-f0-9]{64}$/.test(file.sha256)))) throw new Error("invalid ownership record");
     if(raw.shellProfiles!==undefined && (!Array.isArray(raw.shellProfiles) || raw.shellProfiles.length>8 || raw.shellProfiles.some(file=>!file || !path.isAbsolute(file.path) || !/^[a-f0-9]{64}$/.test(file.sha256)))) throw new Error("invalid shell profile ownership");
     if(raw.active && raw.installDir !== raw.active.path) throw new Error("active application does not match install directory");

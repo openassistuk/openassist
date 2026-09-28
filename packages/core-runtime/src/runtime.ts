@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import type {
   AttachmentRef,
+  OneShotOwner,
   ApiKeyAuth,
   ChannelAdapter,
   ChannelCapabilities,
@@ -82,6 +83,7 @@ import {
   resolveManagedHelperToolsDir
 } from "./self-knowledge.js";
 import { SchedulerWorker } from "./scheduler.js";
+import { OneShotWorker, createOneShot, oneShotReceipt } from "./one-shot.js";
 import { runtimeToolSchemas } from "./tool-registry.js";
 import {
   RuntimeToolRouter,
@@ -117,6 +119,7 @@ function defaultSystemPrompt(): string {
     "Prefer extensions-first growth for durable capability expansion: managed skills and helper tools are safer than editing tracked repo files.",
     "Be cautiously creative when permissions allow local action: prefer the smallest reversible fix, validate after changes, and stop when access or protected lifecycle boundaries block a safe edit.",
     "When a user explicitly asks for a generated file or document and channel.send is callable, use channel.send to return the artifact through chat instead of only naming the local path.",
+    "Use scheduler.create/list/cancel for persistent one-shot reminders when callable. Limits: 8000 characters per action, 32 active tasks per actor, 256 per installation, 50 listed. Delays are anchored to the original message receipt. Report the returned ID and original deadline; never silently reset an expired countdown. Saved text sends without a model; prompt deadlines start tool-free generation, so delivery follows later. No shell, at, system cron, or credential-reading delivery scripts as a fallback. Scheduled prompts cannot call tools.",
     "When tools, permissions, or local docs are unavailable, say so explicitly instead of pretending they exist.",
     "Never expose internal reasoning metadata to messaging channels.",
     "Use concise, actionable responses and report errors clearly.",
@@ -514,6 +517,7 @@ export class OpenAssistRuntime {
   private readonly secretBox: SecretBox;
   private readonly clockHealthMonitor: ClockHealthMonitor;
   private readonly schedulerWorker: SchedulerWorker;
+  private readonly oneShotWorker: OneShotWorker;
   private effectiveTimezone: string;
   private startedAt: string | null = null;
   private startupEpoch = 0;
@@ -645,6 +649,25 @@ export class OpenAssistRuntime {
             maxDelayMs: 30_000
           }
         );
+      }
+    });
+    this.oneShotWorker = new OneShotWorker({
+      store: this.db.oneShots,
+      enabled: () => this.config.scheduler.enabled && (!this.config.time.requireTimezoneConfirmation || this.isTimezoneConfirmed()),
+      intervalMs: () => this.config.scheduler.tickIntervalMs,
+      authorize: owner => this.canSchedule(owner),
+      available: async owner => {
+        const channel = this.channels.get(owner.channelId);
+        return Boolean(channel && await channel.health().catch(() => "unhealthy") !== "unhealthy");
+      },
+      channelType: id => this.channelTypes.get(id) ?? "unknown",
+      generate: async task => (await this.executeScheduledTask({ id: task.id, enabled: true, scheduleKind: "interval",
+        action: { type: "prompt", promptTemplate: task.action.type === "prompt" ? task.action.prompt : "" }
+      },task.scheduledFor)).text,
+      send: async (task,envelope) => {
+        const sent = await this.channels.get(task.channelId)!.send(envelope);
+        this.db.recordOutbound(`${task.channelId}:${task.conversationKey}`,envelope,sent.transportMessageId);
+        return sent;
       }
     });
   }
@@ -1210,6 +1233,7 @@ export class OpenAssistRuntime {
       this.config.time.defaultTimezone ??
       detectSystemTimezoneCandidate();
     this.effectiveTimezone = timezone;
+    this.clockHealthMonitor.refreshModuleHealth();
   }
 
   isTimezoneConfirmed(): boolean {
@@ -1251,6 +1275,7 @@ export class OpenAssistRuntime {
     enqueuedInLastTick: number;
     enabled: boolean;
     taskCount: number;
+    managedActiveTaskCount: number;
     timezone: string;
   } {
     const status = this.schedulerWorker.getStatus();
@@ -1265,26 +1290,38 @@ export class OpenAssistRuntime {
       blockedReason,
       enabled: this.config.scheduler.enabled,
       taskCount: this.config.scheduler.tasks.length,
+      managedActiveTaskCount: this.db.oneShots.countActive(),
       timezone: this.effectiveTimezone
     };
   }
 
-  listSchedulerTasks(): Array<{
-    id: string;
-    enabled: boolean;
-    scheduleKind: "cron" | "interval";
-    timezone: string;
-    misfirePolicy: MisfirePolicy;
-    nextRunAt?: string;
-    lastRun?: {
-      id: number;
-      scheduledFor: string;
-      startedAt: string;
-      finishedAt?: string;
-      status: "running" | "succeeded" | "failed";
-    };
-  }> {
-    return this.schedulerWorker.listTaskStatuses();
+  listSchedulerTasks() {
+    return [...this.schedulerWorker.listTaskStatuses(), ...this.db.oneShots.list().map(task => ({ ...oneShotReceipt(task), scheduleKind: "one-shot" }))];
+  }
+
+  private async canSchedule(owner: OneShotOwner): Promise<boolean> {
+    const sessionId = `${owner.channelId}:${owner.conversationKey}`;
+    const config = this.channelConfig(owner.channelId);
+    const allowed = await this.policyEngine.authorize("scheduler.create", { sessionId, actorId: owner.actorId });
+    return allowed.allowed && this.policyEngine.isApprovedOperator(sessionId,owner.actorId) && Boolean(config?.enabled && this.channels.has(owner.channelId));
+  }
+
+  async managedSchedulerAction(name: string, owner: OneShotOwner, request: Record<string, unknown>, receivedAt: string, requestId: string): Promise<Record<string, unknown>> {
+    if (![owner.actorId,owner.channelId,owner.conversationKey].every(value => typeof value === "string" && value.length > 0 && value.length <= 256)) throw new Error("An explicit actor, channel and conversation are required.");
+    if (!await this.canSchedule(owner)) throw new Error("Native reminders require an approved full-root operator and an available channel.");
+    if (name === "scheduler.list") {
+      if (Object.keys(request).length) throw new Error("Listing scope comes from the current chat.");
+      return { tasks: this.db.oneShots.list(owner).map(oneShotReceipt) };
+    }
+    if (name === "scheduler.cancel") {
+      if (Object.keys(request).some(key => key !== "id") || typeof request.id !== "string") throw new Error("Cancellation accepts only a task ID in this chat.");
+      const result = this.db.oneShots.cancel(request.id,owner);
+      return { ...oneShotReceipt(result.task), inFlight: result.inFlight,
+        ...(result.task.state === "delivering" ? { note: "Dispatch is already in flight; cancellation cannot retract it." } : {}) };
+    }
+    if (name !== "scheduler.create") throw new Error("Unknown scheduling action.");
+    if (!this.config.scheduler.enabled || (this.config.time.requireTimezoneConfirmation && !this.isTimezoneConfirmed())) throw new Error("Scheduler must be enabled and timezone confirmed before creating reminders.");
+    return oneShotReceipt(createOneShot(this.db.oneShots,owner,request,receivedAt,requestId,this.getEffectiveTimezone()));
   }
 
   enqueueScheduledTaskNow(taskId: string): boolean {
@@ -1382,7 +1419,7 @@ export class OpenAssistRuntime {
       return [];
     }
 
-    const schemas = this.enabledToolSchemas();
+    const schemas = this.enabledToolSchemas().filter(schema => !schema.name.startsWith("scheduler.") || Boolean(actorId && this.policyEngine.isApprovedOperator(sessionId,actorId)));
     if (this.channelSendCallable(sessionId, actorId, resolution)) {
       return schemas;
     }
@@ -1542,6 +1579,10 @@ export class OpenAssistRuntime {
       channelSendTool: async (request, context) => this.executeChannelSendTool(request, context),
       memorySaveTool: async (request, context) => this.executeMemorySaveTool(request, context),
       memorySearchTool: async (request, context) => this.executeMemorySearchTool(request, context),
+      schedulerTool: async (name,request,context) => {
+        if (!context.receivedAt || !context.requestId) throw new Error("Scheduling requires the durable original message receipt.");
+        return this.managedSchedulerAction(name,{ actorId: context.actorId, channelId: channelIdFromSessionId(context.sessionId), conversationKey: context.conversationKey },request,context.receivedAt,context.requestId);
+      },
       logger: this.logger
     });
   }
@@ -1797,6 +1838,7 @@ export class OpenAssistRuntime {
     }
 
     this.recoveryWorker.start();
+    this.oneShotWorker.start();
     this.db.updateModuleHealth("recovery", "healthy", "running");
 
     if (this.config.scheduler.enabled) {
@@ -1860,6 +1902,7 @@ export class OpenAssistRuntime {
   async stop(): Promise<void> {
     this.startupEpoch += 1;
     this.schedulerWorker.stop();
+    await this.oneShotWorker.stop();
     this.clockHealthMonitor.stop();
     this.recoveryWorker.stop();
 
@@ -2144,6 +2187,7 @@ export class OpenAssistRuntime {
       let finalResponseMetadata: Record<string, string> | undefined;
       let finalResolved = false;
       const maxToolRoundsPerTurn = this.toolLoopConfig().maxRoundsPerTurn;
+      const schedulingReceipts = new Map<string,string>();
 
       for (let round = 0; round < maxToolRoundsPerTurn; round += 1) {
         conversationMessages = this.reconcileToolConversationForProvider(
@@ -2227,8 +2271,13 @@ export class OpenAssistRuntime {
             preparedInbound.envelope.channel,
             preparedInbound.envelope.transportMessageId,
             advertisedToolNames,
-            toolCall
+            toolCall,
+            preparedInbound.envelope.receivedAt,
+            preparedInbound.envelope.idempotencyKey
           );
+          if (execution.status === "succeeded" && ["scheduler.create","scheduler.cancel"].includes(toolCall.name) && typeof execution.result.id === "string" && /^reminder-[a-f0-9-]{36}$/.test(execution.result.id)) {
+            if (schedulingReceipts.size < 8) schedulingReceipts.set(execution.result.id,`${execution.result.id}: ${execution.result.state}; original deadline ${execution.result.scheduledFor}${execution.result.inFlight === true ? "; cancellation requested while work was already in flight" : ""}`);
+          }
           const toolMessage: NormalizedMessage = {
             role: "tool",
             content: execution.message.content,
@@ -2252,6 +2301,7 @@ export class OpenAssistRuntime {
         responseText =
           `Tool execution hit the configured limit of ${maxToolRoundsPerTurn} tool rounds for this message. ` +
           "Completed tool results are already in the conversation history. Continue with a narrower follow-up request or ask me to continue from the current state.";
+        if (schedulingReceipts.size) responseText += `\nCompleted scheduling changes:\n${[...schedulingReceipts.values()].map(line => `- ${line}`).join("\n")}`;
       }
 
       const safeText = sanitizeUserOutput(
@@ -2910,6 +2960,7 @@ export class OpenAssistRuntime {
       `- delivery boundary: ${formatDeliveryBoundaryLine(awareness)}`,
       `- delivery notes: ${formatDeliveryBoundaryNotes(awareness)}`,
       `- callable tools now: ${toolsStatus.enabledTools.join(", ") || "none"}`,
+      `- Native reminders: ${toolsStatus.enabledTools.includes("scheduler.create") ? "text or tool-free prompts in this chat; 8000 characters, 32 active per actor, 256 per installation, list limit 50" : "unavailable for this session"}`,
       "Capability domains",
       ...awareness.capabilityDomains.flatMap((domain) => [
         `- ${domain.label}: ${domain.available ? "available" : "limited"}. ${domain.reason}`,
@@ -3793,7 +3844,8 @@ export class OpenAssistRuntime {
     return runtimeToolSchemas({
       enablePackageTool: this.config.tools?.pkg.enabled ?? true,
       enableWebTools: this.config.tools?.web?.enabled ?? DEFAULT_WEB_TOOLS.enabled,
-      enableMemoryTools: this.memoryConfig().enabled
+      enableMemoryTools: this.memoryConfig().enabled,
+      enableSchedulerTools: this.config.scheduler.enabled
     });
   }
 
@@ -3869,7 +3921,9 @@ export class OpenAssistRuntime {
     activeChannelType: string,
     replyToTransportMessageId: string | undefined,
     advertisedToolNames: ReadonlySet<string>,
-    toolCall: ToolCall
+    toolCall: ToolCall,
+    receivedAt?: string,
+    requestId?: string
   ): Promise<ToolExecutionRecord> {
     const request = (() => {
       try {
@@ -3959,7 +4013,9 @@ export class OpenAssistRuntime {
       actorId,
       conversationKey,
       activeChannelType,
-      replyToTransportMessageId
+      replyToTransportMessageId,
+      receivedAt,
+      requestId
     });
     const durationMs = Date.now() - startedAt;
     const auditResult = redactSensitiveData(execution.result) as Record<string, unknown>;

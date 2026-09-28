@@ -457,3 +457,9 @@ Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `th
 Fresh OpenAI/Codex onboarding recommends GPT-6 Sol; Anthropic keeps balanced Sonnet 5. Use wizard for Astra/Luna, Opus 5.5/Fable 5.1, API/Azure Standard/Pro execution, or a new Claude output budget. Existing selections remain saved until explicitly changed. Check [model compatibility](../providers/model-compatibility.md) before carrying old thinking settings to a new model.
 
 Anthropic onboarding asks for an optional Claude workspace ID (`wrkspc_...`). Enter it for a multi-workspace key; leave blank for a workspace-scoped key. Invalid IDs re-prompt. Existing Discord/Telegram bot tokens and WhatsApp pairing do not need replacement just because a model changes. See [provider/channel readiness](provider-channel-readiness.md).
+
+## Ubuntu regression candidate
+
+Fresh packaged onboarding now defaults to First-time setup using an explicit pending marker, and runs on the private Node without Git/npm/pnpm. A validated successful save clears pending onboarding. Post-start checks finalize activation only for the expected build and instance. Timezone confirmation immediately refreshes clock health. Generated service environments include the managed wrapper and selected Node directories.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

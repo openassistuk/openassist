@@ -23,3 +23,14 @@ export function inspectDatabaseVersion(file: string): number {
   try { assertDatabaseVersion(db); return DATABASE_VERSION; }
   finally { db.close(); }
 }
+
+export function assertManagedTaskCompatibility(file: string, features: string[] = []): void {
+  if (!fs.existsSync(file) || features.includes("managed-one-shots-v1")) return;
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='managed_one_shots'").get();
+    if (tables && db.prepare("SELECT 1 FROM managed_one_shots WHERE state IN ('pending','executing','ready','delivering') LIMIT 1").get()) {
+      throw new Error("Application lacks managed one-shot support. Complete or cancel active reminders and wait for in-flight dispatch before rollback; state will not be downgraded.");
+    }
+  } finally { db.close(); }
+}

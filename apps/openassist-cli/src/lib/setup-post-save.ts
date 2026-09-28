@@ -11,6 +11,7 @@ import { serviceHealthRecoveryLines } from "./lifecycle-readiness.js";
 import { requestJson } from "./runtime-context.js";
 import { createServiceManager, type ServiceManagerAdapter } from "./service-manager.js";
 import type { PromptAdapter } from "./setup-wizard.js";
+import { finalizeSetupActivation } from "./lifecycle-engine.js";
 
 export interface SetupWizardPostSaveOptions {
   installDir: string;
@@ -139,6 +140,7 @@ export async function runSetupWizardPostSaveChecks(
         );
       }
 
+      finalizeSetupActivation(options.configPath, health);
       const timeStatus = await requestJsonFn("GET", `${normalizedBaseUrl}/v1/time/status`);
       if (timeStatus.status >= 400) {
         throw new Error(`Time status check failed after setup save (status=${timeStatus.status}).`);

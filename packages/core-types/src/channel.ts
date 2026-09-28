@@ -49,6 +49,11 @@ export interface ChannelAdapter {
   health(): Promise<HealthStatus>;
 }
 
+/** Use only when the transport positively confirms it accepted no message. */
+export class ChannelDeliveryRejected extends Error {
+  constructor() { super("Transport rejected delivery before acceptance."); this.name = "ChannelDeliveryRejected"; }
+}
+
 export interface ChannelConfig {
   id: string;
   type: "telegram" | "discord" | "whatsapp-md";

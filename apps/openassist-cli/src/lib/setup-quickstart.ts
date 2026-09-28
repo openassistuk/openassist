@@ -46,6 +46,8 @@ import {
 } from "./provider-auth-readiness.js";
 import { buildSetupSummary } from "./setup-summary.js";
 import { installationSummary, installationSummaryText } from "./installation-summary.js";
+import { completeOnboarding } from "./onboarding.js";
+import { finalizeSetupActivation } from "./lifecycle-engine.js";
 import {
   type PromptAdapter,
   maybePromptAzureServicePrincipalEnv,
@@ -353,7 +355,7 @@ async function runPreflight(
     throw new Error(`Node.js >=24.21.0 <25 is required (found ${process.version}).`);
   }
 
-  if (options.preflightCommandChecks !== false) {
+  if (options.preflightCommandChecks !== false && installationSummary(state.installDir, state.configPath).installationMethod !== "release") {
     const runner = new SpawnCommandRunner();
     for (const command of ["git", "pnpm"]) {
       const result = await runner.run(command, ["--version"]);
@@ -1559,6 +1561,7 @@ async function runServiceStep(
       );
     }
     const activeBaseUrl = health.baseUrl ?? baseUrl;
+    finalizeSetupActivation(state.configPath, health);
 
     if (state.config.runtime.time.requireTimezoneConfirmation && state.confirmedTimezone) {
       const requestJsonFn = dependencies.requestJsonFn ?? requestJson;
@@ -1795,6 +1798,7 @@ export async function runSetupQuickstart(
     }
   }
 
+  if (validationGate.errors === 0 && !postSaveAborted && (options.skipService || serviceHealthOk)) completeOnboarding(state.configPath);
   const summary = buildSetupSummary({
     installDir: state.installDir,
     configPath: state.configPath,

@@ -6,6 +6,13 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+- Follow-up artifact evidence: support macOS Bash 3 empty argument arrays in the piped handoff, and resolve the packaged release trust anchor above nested pnpm deployment workspace markers. Signature checks remain mandatory; no trust-anchor fallback or bypass is introduced.
+
+- 2026-09-28 Ubuntu regression candidate: fix the piped installer stdin handoff, seeded first-time onboarding selection and private-runtime packaged setup without Git/npm/pnpm. Setup verifies build and instance before completing activation; recovery dry runs report pending verification. Timezone confirmation refreshes clock health, and systemd/launchd PATH includes the managed command and selected Node directories.
+- Correct recurring `skip` scheduling so timely slots execute within max(1 second, twice the scheduler tick), while missed slots advance without dispatch. Keep bounded backfill and catch-up-once behavior across restart and DST.
+- Add native one-shot text and tool-free prompt reminders through scheduler.create/list/cancel, CLI and daemon APIs. Persist original request deadlines, atomic deduplication, bounded execution/delivery state, prompt results and receipts. Restrict chat mutations/listing to approved full-root actors in the same chat and reauthorize execution/delivery. Explicit rejection may retry; ambiguous delivery never automatically resends. Cancellation cannot retract a send already in flight, but prevents remaining parts. No scheduled shell path or credential-reading fallback is introduced.
+- Preserve additive SQLite compatibility with rc.1 and block managed rollback to builds without one-shot support while relevant work is active. Keep the 12-round default and surface bounded completed task mutation receipts at cutoff. Expand PTY, lifecycle, scheduling and packaged upgrade regressions. Stable v0.2.0 preparation/publication remains gated on a separate PR and fresh live candidate tests.
+
 - Publish the signed `v0.2.0-rc.1` preview on 2026-09-27 and verify public channel/exact-version installation plus data-preserving uninstall on Linux/macOS x64/arm64. Put the working preview command first in README, quickstart and platform guides; keep source development explicit and state that stable publication is still pending.
 
 - Add release-workflow verification of already published artifacts without rebuilding, signing or uploading them. Public-install failures now identify the stage and report bounded unauthenticated endpoint diagnostics; signature verification remains mandatory.

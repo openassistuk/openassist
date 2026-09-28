@@ -6,6 +6,9 @@ export type EffectivePolicySource =
   | "actor-override";
 
 export type ToolAction =
+  | "scheduler.create"
+  | "scheduler.list"
+  | "scheduler.cancel"
   | "channel.send"
   | "exec.run"
   | "fs.read"

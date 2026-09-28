@@ -4,6 +4,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import net from 'node:net';
+import { fileURLToPath } from 'node:url';
 const source=path.resolve(process.argv[2]);
 const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'openassist-portable-'));
 const app=path.join(temporary,'relocated');
@@ -25,10 +26,9 @@ try {
   if(run([cli,'--version']).trim()!==record.build.version || run([daemon,'--version']).trim()!==record.build.version) throw new Error('Packaged command versions differ from release metadata.');
   run([cli,'init']);
   const file=path.join(state,'config/openassist.toml');
-  let config=fs.readFileSync(file,'utf8');
   const port=await new Promise(resolve=>{const server=net.createServer();server.listen(0,'127.0.0.1',()=>{const port=server.address().port;server.close(()=>resolve(port));});});
-  config=config.replace(/bindPort\s*=\s*[\d_]+/,`bindPort = ${port}`);
-  fs.writeFileSync(file,config);
+  const onboarding=fileURLToPath(new URL('./onboarding-smoke.mjs',import.meta.url));
+  run([onboarding,app,String(port)]);
   // Import every production adapter from the deployed daemon graph without credentials.
   const require=createRequire(path.join(app,'apps/openassistd/package.json'));
   for(const name of ['@openassist/providers-openai','@openassist/providers-codex','@openassist/providers-anthropic','@openassist/providers-azure-foundry','@openassist/providers-openai-compatible','@openassist/channels-telegram','@openassist/channels-discord','@openassist/channels-whatsapp-md','@openassist/storage-sqlite']) require.resolve(name);
@@ -44,7 +44,8 @@ try {
     await new Promise(resolve=>setTimeout(resolve,1000));
   }
   if(!healthy)throw new Error('Relocated daemon did not become healthy.');
-  console.log('Portable CLI, daemon, adapter graph, private Node, and SQLite passed without system build tools.');
+  run([onboarding,app,'verify',`http://127.0.0.1:${port}`]);
+  console.log('Portable CLI, onboarding, activation, daemon, adapter graph, private Node, and SQLite passed without system build tools.');
 } finally {
   if(child&&child.exitCode===null){child.kill('SIGTERM');await new Promise(resolve=>child.once('exit',resolve));}
   fs.rmSync(temporary,{recursive:true,force:true});

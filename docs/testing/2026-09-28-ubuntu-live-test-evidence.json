@@ -1,0 +1,181 @@
+{
+  "capturedAt": "2026-09-28T12:21:19.893628+00:00",
+  "release": {
+    "verified": true,
+    "build": {
+      "id": "0.2.0-rc.1-175de895d972a5899627979d57e6ed688424faad",
+      "version": "0.2.0-rc.1",
+      "commit": "175de895d972a5899627979d57e6ed688424faad",
+      "nodeVersion": "24.21.0",
+      "configVersion": 1,
+      "databaseVersion": 1
+    },
+    "path": "/root/.local/share/openassist/install/releases/bootstrap-1790593931808"
+  },
+  "endpoints": {
+    "health": {
+      "status": "ok",
+      "build": {
+        "id": "0.2.0-rc.1-175de895d972a5899627979d57e6ed688424faad",
+        "version": "0.2.0-rc.1",
+        "commit": "175de895d972a5899627979d57e6ed688424faad",
+        "nodeVersion": "24.21.0",
+        "configVersion": 1,
+        "databaseVersion": 1
+      },
+      "instanceId": "04c6349f2b4ada8ee8b72bf0",
+      "runtime": {
+        "startedAt": "2026-09-28T12:20:41.711Z",
+        "modules": {
+          "recovery": "running",
+          "scheduler": "running",
+          "telegram-main": "running",
+          "time-sync": "running"
+        }
+      }
+    },
+    "time/status": {
+      "time": {
+        "timezone": "Europe/London",
+        "timezoneConfirmed": true,
+        "clockHealth": "healthy",
+        "lastClockCheckAt": "2026-09-28T12:20:41.934Z",
+        "lastClockOffsetMs": -880,
+        "lastClockCheckSource": "http-date-median",
+        "ntpPolicy": "warn-degrade"
+      }
+    },
+    "scheduler/status": {
+      "scheduler": {
+        "running": true,
+        "lastTickAt": "2026-09-28T12:21:19.014Z",
+        "lastHeartbeatAt": "2026-09-28T12:21:12.005Z",
+        "enqueuedInLastTick": 0,
+        "enabled": true,
+        "taskCount": 1,
+        "timezone": "Europe/London"
+      }
+    },
+    "scheduler/tasks": {
+      "tasks": [
+        {
+          "id": "native-recurring-smoke-20260928",
+          "enabled": false,
+          "scheduleKind": "interval",
+          "timezone": "Europe/London",
+          "misfirePolicy": "catch-up-once",
+          "lastRun": {
+            "id": 2,
+            "scheduledFor": "2026-09-28T12:20:33.298Z",
+            "startedAt": "2026-09-28T12:20:34.178Z",
+            "finishedAt": "2026-09-28T12:20:36.217Z",
+            "status": "succeeded"
+          }
+        }
+      ]
+    },
+    "channels/status": {
+      "channels": [
+        {
+          "channelId": "telegram-main",
+          "channelType": "telegram",
+          "health": "healthy"
+        }
+      ]
+    }
+  },
+  "nativeSchedulerRuns": [
+    {
+      "task_id": "native-recurring-smoke-20260928",
+      "scheduled_for": "2026-09-28T12:19:33.298Z",
+      "started_at": "2026-09-28T12:19:34.733Z",
+      "finished_at": "2026-09-28T12:19:37.135Z",
+      "status": "succeeded",
+      "error_text": null,
+      "transport_message_id": "34"
+    },
+    {
+      "task_id": "native-recurring-smoke-20260928",
+      "scheduled_for": "2026-09-28T12:20:33.298Z",
+      "started_at": "2026-09-28T12:20:34.178Z",
+      "finished_at": "2026-09-28T12:20:36.217Z",
+      "status": "succeeded",
+      "error_text": null,
+      "transport_message_id": "35"
+    }
+  ],
+  "toolAuditCounts": [
+    {
+      "tool_name": "channel.send",
+      "status": "succeeded",
+      "count": 1
+    },
+    {
+      "tool_name": "exec.run",
+      "status": "failed",
+      "count": 2
+    },
+    {
+      "tool_name": "exec.run",
+      "status": "succeeded",
+      "count": 22
+    },
+    {
+      "tool_name": "fs.read",
+      "status": "succeeded",
+      "count": 1
+    },
+    {
+      "tool_name": "fs.write",
+      "status": "succeeded",
+      "count": 1
+    },
+    {
+      "tool_name": "memory.save",
+      "status": "succeeded",
+      "count": 1
+    },
+    {
+      "tool_name": "pkg.install",
+      "status": "succeeded",
+      "count": 1
+    },
+    {
+      "tool_name": "web.fetch",
+      "status": "succeeded",
+      "count": 1
+    },
+    {
+      "tool_name": "web.search",
+      "status": "succeeded",
+      "count": 1
+    }
+  ],
+  "permanentMemory": [
+    {
+      "actor_scope": "telegram-main:100000001",
+      "category": "fact",
+      "summary_text": "The user's test project's codename is Copper Lantern.",
+      "state": "active",
+      "created_at": "2026-09-28T12:11:54.353Z"
+    },
+    {
+      "actor_scope": "telegram-main:100000001",
+      "category": "fact",
+      "summary_text": "The user\u2019s test project has the codename Copper Lantern.",
+      "state": "active",
+      "created_at": "2026-09-28T12:02:34.180Z"
+    },
+    {
+      "actor_scope": "telegram-main:100000001",
+      "category": "fact",
+      "summary_text": "The user\u2019s test project is codenamed Copper Lantern.",
+      "state": "active",
+      "created_at": "2026-09-28T12:06:48.675Z"
+    }
+  ],
+  "credentialFileMode": "0o600",
+  "servicePath": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin",
+  "remainingAtJobs": "",
+  "secondAccountTest": "Skipped at user request; unverified."
+}

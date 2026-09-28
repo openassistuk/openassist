@@ -191,7 +191,8 @@ export class SchedulerWorker {
       }
 
       const cursor = this.db.getTaskCursor(task.id);
-      const dueTimes = this.computeDueTimes(task, nowUtc, cursor?.lastEnqueuedFor);
+      const policy = task.misfirePolicy ?? config.scheduler.defaultMisfirePolicy;
+      const dueTimes = this.computeDueTimes(task, nowUtc, cursor?.lastEnqueuedFor, policy);
       if (dueTimes.length === 0) {
         this.db.upsertTaskCursor(task.id, {
           lastPlannedFor: nowUtc.toISO() ?? new Date().toISOString()
@@ -199,8 +200,7 @@ export class SchedulerWorker {
         continue;
       }
 
-      const policy = task.misfirePolicy ?? config.scheduler.defaultMisfirePolicy;
-      const selected = applyMisfirePolicy(policy, dueTimes);
+      const selected = applyMisfirePolicy(policy, dueTimes, nowUtc, Math.max(1000, 2 * config.scheduler.tickIntervalMs));
 
       if (selected.length === 0) {
         const latestDue = dueTimes[dueTimes.length - 1];
@@ -279,7 +279,8 @@ export class SchedulerWorker {
   private computeDueTimes(
     task: ScheduledTaskConfig,
     nowUtc: DateTime,
-    lastEnqueuedFor?: string
+    lastEnqueuedFor?: string,
+    policy: MisfirePolicy = "backfill"
   ): DateTime[] {
     if (task.scheduleKind === "interval") {
       const intervalSec = task.intervalSec ?? 0;
@@ -296,6 +297,15 @@ export class SchedulerWorker {
         return [nowUtc];
       }
 
+      if (policy !== "backfill") {
+        const slots = Math.floor((nowUtc.toMillis() - last.toMillis()) / (intervalSec * 1000));
+        if (policy === "skip" && slots > 0) {
+          const grace = Math.max(1000, 2 * this.getConfig().scheduler.tickIntervalMs);
+          const first = Math.max(1, slots - Math.floor(grace / (intervalSec * 1000)), slots - MAX_BACKFILL_PER_TICK + 1);
+          return Array.from({ length: slots-first+1 },(_,index) => last.plus({ seconds: (first+index)*intervalSec }));
+        }
+        return slots > 0 ? [last.plus({ seconds: slots * intervalSec })] : [];
+      }
       const dueTimes: DateTime[] = [];
       let next = last.plus({ seconds: intervalSec });
       while (isTimeAfterOrEqual(nowUtc, next) && dueTimes.length < MAX_BACKFILL_PER_TICK) {
@@ -317,6 +327,25 @@ export class SchedulerWorker {
     const base = baseUtc.isValid ? baseUtc : nowUtc.minus({ seconds: 1 });
 
     try {
+      if (policy !== "backfill") {
+        const latest = CronExpressionParser.parse(cron, {
+          currentDate: nowUtc.plus({ milliseconds: 1 }).toJSDate(), tz
+        }).prev().toDate();
+        const due = DateTime.fromJSDate(latest, { zone: "utc" });
+        if (due.toMillis() <= base.toMillis()) return [];
+        if (policy === "catch-up-once") return [due];
+        const grace = Math.max(1000, 2 * this.getConfig().scheduler.tickIntervalMs);
+        const window = Math.max(base.toMillis(), nowUtc.toMillis() - grace - 1);
+        if (due.toMillis() <= window) return [due];
+        const timely = CronExpressionParser.parse(cron,{ currentDate: new Date(window),tz });
+        const slots: DateTime[] = [];
+        for (let index=0;index<MAX_BACKFILL_PER_TICK;index++) {
+          const slot = DateTime.fromJSDate(timely.next().toDate(),{zone:"utc"});
+          if (slot.toMillis() > nowUtc.toMillis()) break;
+          slots.push(slot);
+        }
+        return slots;
+      }
       const expression = CronExpressionParser.parse(cron, {
         currentDate: base.toJSDate(),
         tz
@@ -371,14 +400,16 @@ export class SchedulerWorker {
 
 export function applyMisfirePolicy(
   policy: MisfirePolicy,
-  dueTimes: DateTime[]
+  dueTimes: DateTime[],
+  nowUtc: DateTime = DateTime.utc(),
+  graceMs = 1000
 ): DateTime[] {
   if (dueTimes.length === 0) {
     return [];
   }
 
   if (policy === "skip") {
-    return [];
+    return dueTimes.filter(due => nowUtc.toMillis() >= due.toMillis() && nowUtc.toMillis() - due.toMillis() <= graceMs);
   }
 
   if (policy === "catch-up-once") {

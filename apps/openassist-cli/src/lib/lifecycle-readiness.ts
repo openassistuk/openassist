@@ -747,6 +747,8 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
           kind: "run-quickstart",
           command: "openassist setup"
         }
+      : input.activationVerified === false
+        ? { kind: "repair-first-reply", command: input.serviceHealthOk ? "openassist update recover --yes" : "openassist service start" }
       : needsActionBeforeFirstReply.length > 0
         ? {
             kind: "repair-first-reply",

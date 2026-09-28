@@ -7,6 +7,7 @@ export interface BuildIdentity {
   configVersion: number;
   databaseVersion: number;
   sourceRef?: string;
+  features?: string[];
 }
 
 export interface ReleaseArtifact {

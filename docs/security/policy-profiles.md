@@ -123,3 +123,9 @@ New model and thinking choices do not change access profiles: only full-root ses
 GPT-6 Pro execution and current Claude thinking/output settings leave access resolution, callable tools and maximum rounds unchanged. Vendor orchestration modes and async tool execution are not enabled by selecting a model.
 
 The refreshed reasoning replay does not change access profiles, advertised tools, sequential execution or round limits. Opaque provider metadata is persisted with bounded history and is not displayed as assistant reasoning. See [harness readiness](../operations/provider-channel-readiness.md).
+
+## Ubuntu regression candidate
+
+scheduler.create/list/cancel require both approved operator identity and effective full-root access. Standard/restricted sessions receive no schemas. Chat ownership and recipients come from runtime context; cross-actor/cross-chat list or cancellation is denied. Authorization is rechecked before generation and sending. Scheduled prompts retain tools: []; no escalation or scheduled shell path is added.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

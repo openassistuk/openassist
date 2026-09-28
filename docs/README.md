@@ -225,3 +225,12 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 Normal installation uses verified releases; source builds require explicit selection. Install-state version 2 and lifecycle JSON version 4 distinguish the installation method. `.github/workflows/release.yml` runs on pull requests and manual dispatch, with protected publication only on explicit dispatch. Existing scheduled/manual smoke workflows and the required live macOS gate retain their trigger semantics.
 
 Native release jobs include a separate signing contract check using ephemeral test keys. Scheduled/manual smoke workflows cover both source installation and packaged artifacts, including live Linux update/rollback/uninstall in lifecycle E2E.
+
+## September 28 Ubuntu regression work
+
+- [Live-test baseline](testing/2026-09-28-ubuntu-live-test-notes.md): dated observations from the destroyed Ubuntu host.
+- [Eight-finding resolution matrix](testing/ubuntu-live-test-resolution.md): regression evidence and remaining release gates.
+- [Native reminder interfaces](interfaces/scheduler-and-time.md#managed-one-shot-reminders): tools, CLI/API, ownership, persistence and delivery states.
+- [Implementation ExecPlan](execplans/ubuntu-live-test-fixes.md): current work and verification status.
+
+Stable v0.2.0 remains a future release-preparation PR. Baseline passes do not certify the candidate.

@@ -122,3 +122,9 @@ Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `th
 For a current-model rollout, back up TOML and explicitly select the model in wizard. Review existing budgets: Opus 5.5/Fable 5.1/Mythos 5.1 reject manual or disabled thinking. Keep provider IDs, credentials and Azure deployment names. Before reverting to a build without these additions, restore the previous model/tuning and remove unsupported `reasoningMode`, `maxOutputTokens` and `workspaceId` fields using the backup. A build without workspace-header support also needs a compatible workspace-scoped key; removing `workspaceId` does not make a multi-workspace key compatible. No database migration is involved.
 
 Before rolling back this refresh, remove the additive Anthropic workspaceId field if using an older build. Such a build cannot route multi-workspace keys; use a compatible workspace-scoped key if needed. Back up config and retain existing encrypted credential/session state. Responses replay metadata needs no database migration; older adapters ignore its additional keys.
+
+## Ubuntu regression candidate
+
+Managed one-shot reminders live in additive SQLite tables, not the TOML recurring-task list. Preserve those tables during backup and rollback. Managed rollback blocks applications lacking one-shot support until active tasks and dispatches terminate.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

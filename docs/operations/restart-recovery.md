@@ -115,3 +115,9 @@ Setup readiness rejects invalid bind addresses before network probing. If this b
 OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
 
 When quickstart changes an Anthropic model, incompatible saved thinking settings now trigger an explicit reset-or-select-another-model prompt; compatible settings and saved Opus 4.5 aliases are preserved. See [quickstart](quickstart-linux-macos.md) for the guided repair flow.
+
+## Ubuntu regression candidate
+
+Restart recovers persisted one-shot intent once, with a visible original deadline when late. Saved prompt output survives retries. Recorded successful sends are not repeated; a crash during send becomes uncertain instead of being resent automatically. Generation retries are durable and bounded.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

@@ -2,8 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { spawnSync } from "node:child_process";
 
 describe("bootstrap interactive contract", () => {
+  it("runs curl | bash through a controlling pseudo-terminal", { skip: process.platform === "win32" }, () => {
+    const result=spawnSync("python3",["tests/fixtures/install-pipe-pty.py",path.resolve("install.sh")],{encoding:"utf8",timeout:45000});
+    assert.equal(result.status,0,result.stderr || result.stdout || String(result.error));
+    assert.match(result.stdout,/Piped PTY/);
+  });
   it("supports interactive quickstart path while preserving non-interactive default", () => {
     const scriptPath = path.resolve("scripts/install/bootstrap.sh");
     const script = fs.readFileSync(scriptPath, "utf8");

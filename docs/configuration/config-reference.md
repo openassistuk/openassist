@@ -387,3 +387,9 @@ Quickstart and wizard can set or clear Anthropic `workspaceId`; wizard exposes t
 - [Configuration File Guide](config-file-guide.md)
 - [OpenAI Provider](../providers/openai.md)
 - [Telegram Channel](../channels/telegram.md)
+
+## Ubuntu regression candidate
+
+Install-state schemaVersion 2 now optionally includes onboarding: pending or complete. Absent records use a conservative untouched-default fallback. Managed one-shot tasks are separate additive database records; no one-shot TOML scheduleKind or scheduled shell action is introduced.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

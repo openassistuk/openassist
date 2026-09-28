@@ -306,7 +306,7 @@ describe("scheduler-worker", () => {
   });
 
   it("respects skip misfire policy by not enqueueing missed windows", async () => {
-    const nowMinus = new Date(Date.now() - 10 * 60 * 1_000).toISOString();
+    const nowMinus = new Date(Date.now() - 10 * 60 * 1_000 - 10_000).toISOString();
     const task: ScheduledTaskConfig = {
       id: "skip-task",
       enabled: true,

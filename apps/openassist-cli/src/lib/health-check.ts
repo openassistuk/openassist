@@ -5,6 +5,15 @@ export interface HealthResult {
   baseUrl?: string;
 }
 
+export function matchesExpectedHealth(bodyText: string, expected?: { buildId: string; instanceId: string }): boolean {
+  try {
+    const body = JSON.parse(bodyText);
+    return body.status === "ok" && (!expected || (body.build?.id === expected.buildId && body.instanceId === expected.instanceId));
+  } catch {
+    return false;
+  }
+}
+
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, "");
 }
@@ -73,11 +82,7 @@ export async function checkHealth(baseUrl: string, expected?: {buildId: string; 
     }
   });
   const bodyText = await response.text();
-  let ok = false;
-  try {
-    const body = JSON.parse(bodyText);
-    ok = response.ok && body.status === "ok" && (!expected || (body.build?.id === expected.buildId && body.instanceId === expected.instanceId));
-  } catch { /* Malformed health is unhealthy. */ }
+  const ok = response.ok && matchesExpectedHealth(bodyText, expected);
   return {
     ok,
     status: response.status,

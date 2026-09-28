@@ -69,3 +69,9 @@ Discovery is limited to ten seconds overall, ten pages of 100 release/tag entrie
 Source installs require Node >=24.21.0 <25 and pnpm 12.5.1. Update shell and service runtimes before using the new source CLI. Back up the service definition, checkout, config, credentials and database. Entrypoint guards reject unsupported Node before provider/storage imports. Packaged releases carry the tested runtime and retain it for rollback.
 
 After migration check `openassist service health`, `openassist doctor`, existing conversations and channel sessions. Local tests are distinct from live Linux/macOS certification. See [developer testing](developer-testing.md), [uninstall](uninstall.md), and [common troubleshooting](common-troubleshooting.md).
+
+## Ubuntu regression candidate
+
+Managed one-shot tables are additive at database version 1. A candidate lacking managed-one-shots-v1 cannot be selected for managed rollback while reminders are pending, executing, ready or delivering. Complete or cancel tasks and wait for in-flight work; do not downgrade or delete state to bypass the guard.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

@@ -1,0 +1,179 @@
+{
+  "formatVersion": 1,
+  "purpose": "Reusable answers for user-guided OpenAssist installation smoke tests.",
+  "status": "selected-live-tests-completed-eight-issues-recorded",
+  "lastUpdated": "2026-09-28",
+  "reuse": {
+    "instructions": "Read this file before a future authorized test run and reuse confirmed settings without repeating answered prompts. Obtain credentials separately from the operator; ask only for missing values, invalid or revoked credentials, unexpected failures, or changes beyond the authorized test scope. Never copy credential values into this repository. This is a test answer profile, not an OpenAssist config file or a native CLI import format.",
+    "pendingValue": null,
+    "storeCredentials": false,
+    "currentRunRequiresPausesForNewChoices": true
+  },
+  "installation": {
+    "platform": "ubuntu",
+    "testedOsVersion": "24.04.4 LTS",
+    "sshUser": "root",
+    "track": "latest-published-release",
+    "testedRelease": "0.2.0-rc.1",
+    "testedChannel": "preview",
+    "entrypoint": "First-time setup"
+  },
+  "runtime": {
+    "acceptDefaults": true,
+    "listenAddress": "127.0.0.1",
+    "listenPort": 3344,
+    "accessMode": "standard",
+    "fullAccessForApprovedOperators": true,
+    "pathLayout": "operator-home-defaults",
+    "dataDir": "~/.local/share/openassist/data",
+    "logsDir": "~/.local/share/openassist/logs",
+    "skillsDir": "~/.local/share/openassist/skills"
+  },
+  "assistantIdentity": {
+    "name": "OpenAssist",
+    "persona": "Pragmatic, concise, and execution-focused local AI assistant.",
+    "ongoingObjectives": "",
+    "firstChatIdentityReminder": false
+  },
+  "provider": {
+    "type": "openai",
+    "authMode": "api-key",
+    "displayName": "openai-main",
+    "model": "gpt-6-sol",
+    "baseUrl": "default",
+    "reasoningEffort": "xhigh",
+    "credentialEnvVar": "OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY",
+    "credentialSource": "Obtain the test API key separately from the operator; never save it in this file."
+  },
+  "channel": {
+    "type": "telegram",
+    "displayName": "telegram-main",
+    "allowedChatIds": [],
+    "allowAllChats": true,
+    "operatorUserIds": ["100000001"],
+    "credentialEnvVar": "OPENASSIST_CHANNEL_TELEGRAM_MAIN_BOT_TOKEN",
+    "credentialSource": "Obtain the Telegram bot token separately from the operator; never save it in this file."
+  },
+  "timezone": {
+    "name": "Europe/London",
+    "confirmed": true
+  },
+  "serviceSetup": {
+    "systemdFilesystemAccess": "unrestricted",
+    "installAndStart": true
+  },
+  "smokeTests": [
+    {
+      "name": "outbound-text-file",
+      "prompt": "Create a small text file containing \"OpenAssist file delivery test\" and send it back to me here.",
+      "expected": "Telegram delivers a text attachment containing the requested text.",
+      "result": "User confirmed file creation and delivery worked on 2026-09-28; exact bytes not independently inspected."
+    },
+    {
+      "name": "inbound-text-document",
+      "preparation": "Upload a text file with content not previously shared in the chat. Include a benign instruction as document content to check that reading does not trigger execution.",
+      "prompt": "What is in this file?",
+      "expected": "The bot accurately reports the file contents without executing instructions embedded in the document.",
+      "result": "User confirmed accurate reading of test.txt on 2026-09-28. The bot quoted the embedded Git maintenance request and stated it had not run it."
+    },
+    {
+      "name": "inbound-image",
+      "preparation": "Upload a new image, preferably with a neutral filename and visible details not previously shared in the chat.",
+      "prompt": "Describe this image and read any visible text.",
+      "expected": "The bot accurately describes image details beyond any clues in the filename.",
+      "result": "User confirmed the description of Derek_Trotter.jpg on 2026-09-28, including clothing details. Image bytes and provider payload were not independently inspected."
+    },
+    {
+      "name": "native-web-search-and-fetch",
+      "prompt": "Search the web for the official Ubuntu 24.04 release notes, open the official result, and give me its page title and link. Use the web tools rather than memory.",
+      "expected": "Successful web.search and web.fetch audit records, with the final title and link matching the fetched official page.",
+      "result": "Verified on 2026-09-28: DuckDuckGo HTML fallback search succeeded, fetch returned HTTP 200, and the response matched the fetched title and URL."
+    },
+    {
+      "name": "permanent-memory-save-and-inspect",
+      "prompt": "Remember permanently that my test project's codename is Copper Lantern.",
+      "followUp": "/memory",
+      "expected": "A successful memory.save audit row and the saved fact visible under the correct actor scope in /memory.",
+      "result": "Verified on 2026-09-28 for actor telegram-main:100000001. The daemon memory endpoint also returned the same saved fact after a service restart; recall in a fresh context remains untested."
+    },
+    {
+      "name": "service-restart-and-memory-persistence",
+      "preparation": "Save the Copper Lantern fact and obtain approval for a brief service interruption.",
+      "command": "openassist service restart",
+      "expected": "A new healthy runtime, healthy Telegram connector, and the same active memory under the original actor scope after restart.",
+      "result": "Verified on 2026-09-28 through service status and daemon health/channel/memory endpoints. The stale time-sync degradation cleared. User confirmed a correct Copper Lantern reply in Telegram after restart; this same-conversation reply does not independently prove recall from permanent memory."
+    },
+    {
+      "name": "standard-access-command-denial",
+      "preparation": "As the approved operator, send /access standard in the test chat.",
+      "prompt": "Run pwd on the server using your command tool.",
+      "expected": "The bot reports command execution is unavailable and creates no tool invocation for the request, even with unrestricted systemd filesystem access.",
+      "result": "Verified on 2026-09-28: sender-specific operator override, explicit refusal, and zero tool invocations during the test minute onward. Other actors and chats have not been tested.",
+      "restore": "Have the approved operator send /access full when ready to resume full-access tests."
+    },
+    {
+      "name": "full-access-restoration",
+      "preparation": "After the Standard-mode denial test, have the approved operator send /access full.",
+      "prompt": "Run pwd on the server using your command tool.",
+      "expected": "A full-root sender override and a successful exec.run audit row whose stdout matches the reply.",
+      "result": "Verified on 2026-09-28: exec.run executed pwd with exit code 0 and returned the active managed release directory. Full access is restored."
+    },
+    {
+      "name": "one-shot-scheduled-message",
+      "prompt": "In two minutes, send me \"OpenAssist scheduled delivery test\" here, once. Use persistent scheduling rather than a sleeping shell command, and confirm the scheduled time and task ID.",
+      "expected": "Either supported managed scheduling with an accurate deadline and task ID, or a clear explanation that one-shot scheduling is unsupported before proposing an alternative.",
+      "result": "Failed on 2026-09-28 (BUG-007): native scheduler supports cron/interval only; bot exhausted 12 tool rounds after installing at and creating OS job 1, without confirming that side effect. It reset the two-minute delay after lengthy discovery. User confirmed delivery at 13:13, about four minutes after the 13:09 request. Native task list remained empty; eventual OS-level delivery does not pass the native scheduling or timing test.",
+      "retryCaution": "Inspect native tasks, the OS at queue, and delivery receipts before retrying; a limit reply can occur after a job was created. Do not assume at installation is a default test prerequisite."
+    },
+    {
+      "name": "activation-recovery",
+      "commands": ["openassist update recover --dry-run", "openassist update recover --yes", "openassist doctor"],
+      "expected": "The dry run accurately describes pending verification; approved recovery verifies the running application and doctor passes.",
+      "result": "Recovery succeeded and doctor passed on 2026-09-28. Dry run misleadingly reported phase complete and no action while active.verified was false; tracked under BUG-004. Include ~/.local/bin on the test shell PATH."
+    },
+    {
+      "name": "native-recurring-scheduler",
+      "preparation": "Back up config, add a test task through the documented scheduler config schema, validate with the installed CLI, and restart. These messages and brief service interruptions require test-run approval.",
+      "task": {
+        "id": "native-recurring-smoke-20260928",
+        "enabled": true,
+        "scheduleKind": "interval",
+        "intervalSec": 60,
+        "timezone": "Europe/London",
+        "misfirePolicy": "catch-up-once",
+        "maxRuntimeSec": 45,
+        "action": {
+          "type": "prompt",
+          "providerId": "openai-main",
+          "model": "gpt-6-sol",
+          "promptTemplate": "Reply with exactly: OpenAssist native recurring scheduler test"
+        },
+        "output": {
+          "channelId": "telegram-main",
+          "conversationKey": "100000001",
+          "messageTemplate": "{{result}} (task={{taskId}}, scheduled={{scheduledFor}})"
+        }
+      },
+      "expected": "Two durable successful runs with scheduled times 60 seconds apart and confirmed Telegram delivery, then disable the task, validate config, restart, and verify it is disabled.",
+      "result": "Two native catch-up-once runs succeeded on 2026-09-28 with Telegram IDs 34 and 35; scheduled exactly 60 seconds apart. User confirmed both messages arrived at 13:19 and 13:20 London time with matching task IDs and timestamps. Task is disabled and service healthy. Testing skip policy first exposed BUG-008: it suppresses ordinary runs as well as misfires.",
+      "cleanup": "Disable the specific test task and restart after two completed runs, a failure, or a bounded timeout. Confirm no unwanted pending OS jobs. Use a fresh task ID or account for existing durable cursors on later runs."
+    }
+  ],
+  "testWorkarounds": [
+    {
+      "bug": "BUG-001",
+      "action": "Download install.sh to a file and run it instead of piping it into bash.",
+      "reapply": "Only if the piped installer bug still exists."
+    },
+    {
+      "bug": "BUG-002",
+      "action": "Select First-time setup explicitly when the fresh install defaults to repair.",
+      "reapply": "Only if the fresh-install menu bug still exists."
+    },
+    {
+      "bug": "BUG-003",
+      "action": "Temporarily install pnpm 12.5.1 at ~/.local/bin/pnpm and include that directory on PATH.",
+      "reapply": "Only with explicit approval if packaged setup still requires pnpm; a fixed packaged install should not need this."
+    }
+  ]
+}

@@ -209,3 +209,9 @@ For an Anthropic key covering multiple workspaces, add `workspaceId = "wrkspc_..
 - [Azure Foundry Provider](../providers/azure-foundry.md)
 - [Telegram Channel](../channels/telegram.md)
 - [Config Rollout and Rollback](../operations/config-rollout-and-rollback.md)
+
+## Ubuntu regression candidate
+
+Existing TOML cron/interval tasks are unchanged. Use native scheduler.create/list/cancel or the matching CLI for managed one-shot reminders stored in SQLite. Limits are 8000 characters, 32 active per actor, 256 per installation, and 50 listed.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

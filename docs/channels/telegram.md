@@ -146,3 +146,9 @@ Provider modernization retains inline replies and memory defaults. Channel `/sta
 Dependency readiness (2026-09-27): grammY 1.46.0 is current stable and supports Bot API 10.3. Bot-token auth, chat/thread defaults and bounded file handling are unchanged. See [readiness audit](../operations/provider-channel-readiness.md).
 
 Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).
+
+## Native reminders
+
+Approved Full access operators can create saved-text reminders or tool-free scheduled prompts for their current conversation. The model cannot choose a different recipient; list/cancel are scoped to the same actor and chat. Delivery uses the shared renderer and durable per-part receipts. A timeout or unknown transport outcome is shown as uncertain and is not resent automatically. Standard mode cannot use these tools.
+
+See [deadlines, limits and cancellation](../interfaces/scheduler-and-time.md#managed-one-shot-reminders).

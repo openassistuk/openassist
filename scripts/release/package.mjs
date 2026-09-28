@@ -30,7 +30,7 @@ fs.mkdirSync(path.join(stage,'runtime','bin'),{recursive:true});
 fs.copyFileSync(process.execPath,path.join(stage,'runtime','bin','node'));
 fs.chmodSync(path.join(stage,'runtime','bin','node'),0o755);
 fs.copyFileSync(path.resolve(path.dirname(process.execPath),'..','LICENSE'),path.join(stage,'runtime','LICENSE'));
-const build = {id:`${version}-${commit}`,version,commit,nodeVersion:process.versions.node,configVersion:1,databaseVersion:1};
+const build = {id:`${version}-${commit}`,version,commit,nodeVersion:process.versions.node,configVersion:1,databaseVersion:1,features:["managed-one-shots-v1"]};
 fs.writeFileSync(path.join(stage,'build-identity.json'),JSON.stringify(build,null,2));
 for(const app of ['openassist-cli','openassistd']) run(path.join(stage,'runtime','bin','node'),[path.join(stage,'apps',app,'dist','index.js'),'--help']);
 const file = `openassist-${version}-${target}.tar.gz`;

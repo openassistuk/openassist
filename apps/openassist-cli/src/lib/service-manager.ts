@@ -61,6 +61,14 @@ function toPosixPath(value: string): string {
   return value.replace(/\\/g, "/");
 }
 
+export function serviceExecutablePath(nodeBin: string): string {
+  return [...new Set([
+    path.posix.dirname(toPosixPath(nodeBin)),
+    path.posix.join(toPosixPath(os.homedir()), ".local", "bin"),
+    "/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin", "/usr/local/sbin", "/usr/sbin", "/sbin"
+  ])].join(":");
+}
+
 function loadTemplate(templatePath: string, fallback: string): string {
   if (!fs.existsSync(templatePath)) {
     return fallback;
@@ -127,6 +135,8 @@ export function renderSystemdUnit(
     .concat(values.systemdFilesystemAccess === "hardened" && values.writablePaths?.length ? [`ReadWritePaths=${values.writablePaths.map(value=>systemdPath(value)).join(" ")}`] : [])
     .join("\n");
   const rendered = template
+    .replace(/^Environment=(?:"PATH=[^\r\n]*"|PATH=[^\r\n]*)\r?\n/gm, "")
+    .replace(/\[Service\]\r?\n/, `[Service]\nEnvironment=${systemdPath(`PATH=${serviceExecutablePath(values.nodeBin)}`)}\n`)
     .replaceAll("__OPENASSIST_INSTALL_DIR__/apps/openassistd/dist/index.js",systemdPath(path.posix.join(toPosixPath(values.installDir),"apps","openassistd","dist","index.js"),true))
     .replaceAll("Environment=OPENASSIST_ENV_FILE=__OPENASSIST_ENV_FILE__",`Environment=${systemdPath(`OPENASSIST_ENV_FILE=${values.envFilePath}`)}`)
     .replaceAll("__OPENASSIST_INSTALL_DIR__", systemdPath(values.installDir))
@@ -235,6 +245,7 @@ export function renderLaunchdWrapper(values: {
     `  source ${shellQuote(values.envFilePath)}`,
     "  set +a",
     "fi",
+    `export PATH=${shellQuote(serviceExecutablePath(values.nodeBin))}`,
     `export OPENASSIST_ENV_FILE=${shellQuote(values.envFilePath)}`,
     "export OPENASSIST_SERVICE_MANAGER_KIND=launchd",
     `cd ${shellQuote(values.installDir)}`,

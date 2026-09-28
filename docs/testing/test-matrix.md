@@ -61,7 +61,8 @@ Vitest coverage is intentionally targeted and currently measures:
 - `apps/openassistd/src/oauth-redirect.ts`
 - `packages/config/src/operator-paths.ts`
 - `packages/config/src/schema.ts`
-- `packages/core-runtime/src/{attachments,clock-health,context,memory,scheduler,self-knowledge}.ts`
+- `packages/core-runtime/src/{attachments,clock-health,context,memory,scheduler,one-shot,self-knowledge}.ts`
+- `packages/storage-sqlite/src/one-shot.ts`
 - `packages/providers-anthropic/src/index.ts`
 - `packages/providers-azure-foundry/src/index.ts`
 - `packages/providers-codex/src/index.ts`
@@ -80,6 +81,8 @@ Node coverage is also targeted and currently measures:
 
 Current suite files under `tests/vitest/`:
 
+- `live-scheduler-clock.test.ts`
+- `one-shot.test.ts`
 - `bootstrap-arg-parsing.test.ts`
 - `channel-adapter-send.test.ts`
 - `channel-env-resolution.test.ts`
@@ -155,6 +158,7 @@ Current suite files under `tests/vitest/`:
 
 Current suite files under `tests/node/`:
 
+- `cli-live-test-fixes.test.ts`
 - `bootstrap-interactive-contract.test.ts`
 - `cli-access-and-auth-lib-coverage.test.ts`
 - `cli-api-surface-coverage.test.ts`

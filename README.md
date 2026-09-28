@@ -336,3 +336,11 @@ Update checks fetch bounded public GitHub catalogues and compare saved versions/
 Cached notices store availability status only; exact discovered versions/commits are not persisted. Run `openassist update check` for fresh target details.
 
 See [release maintenance](docs/operations/release-maintenance.md), [developer testing](docs/operations/developer-testing.md), [uninstall](docs/operations/uninstall.md), and [upgrade/recovery](docs/operations/upgrade-and-rollback.md). `Release Artifacts` adds four native packaging targets on PR/manual runs; publication requires protected signing configuration and explicit dispatch. A merged PR is not proof of a published or live-certified release.
+
+## Ubuntu live-test fixes and native reminders
+
+The fixes candidate addresses the eight findings from the September 28 Ubuntu test: piped installation, first-time setup selection, packaged prerequisites, activation verification, timezone health, service PATH, native reminders, and recurring `skip` scheduling. See the [resolution matrix](docs/testing/ubuntu-live-test-resolution.md) and [scheduler contract](docs/interfaces/scheduler-and-time.md#managed-one-shot-reminders).
+
+Approved operators using Full access can create saved-text reminders or tool-free scheduled prompts in their current chat. Deadlines retain the original request time; confirmation includes the durable task ID. Standard access cannot create, list, or cancel chat reminders. Known successful sends are not repeated; uncertain transport outcomes require inspection.
+
+These changes are preparation for stable v0.2.0. The destroyed droplet is baseline evidence only. Stable version changes and release notes belong in a separate release-preparation PR after fresh candidate tests; tagging and publication require explicit authorization.

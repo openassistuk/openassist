@@ -318,3 +318,9 @@ Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `th
 Current-model tuning: OpenAI/Azure show a separate execution-mode prompt only for verified models, with explicit Pro cost guidance; Codex does not. Opus 5.5/Fable 5.1/Mythos 5.1 offer Default/adaptive plus five efforts and an optional total-output ceiling. Blank ceiling uses 16384 on these models. Invalid numeric limits re-prompt; config validation remains blocking.
 
 Anthropic add/edit asks for `workspaceId` before thinking controls. Use the Claude Console workspace ID for multi-workspace keys; blank removes the explicit selection for a workspace-scoped key. Quickstart offers the same auth requirement. See [provider/channel readiness](provider-channel-readiness.md).
+
+## Ubuntu regression candidate
+
+A successful validated wizard save marks recorded onboarding complete. Default post-save service checks require matching build and instance before completing activation. Packaged preflight needs no source-build tools; generated systemd and launchd environments include OpenAssist and the selected Node runtime.
+
+See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).

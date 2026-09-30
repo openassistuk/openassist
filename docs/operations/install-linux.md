@@ -8,6 +8,8 @@ Normal Linux installation downloads a signed release with private Node into `~/.
 
 This page covers Linux-specific installation details. For the end-to-end operator flow, start with `docs/operations/quickstart-linux-macos.md` and keep `docs/operations/common-troubleshooting.md` nearby for repair commands.
 
+The prepared [v0.2.0 stable release](../releases/v0.2.0.md) includes the merged Ubuntu fixes and dependency repairs. Publication and replacement-host retesting remain pending. After publication, use the default installer or pin `--version 0.2.0`; existing installations should use the explicit stable update commands in the release notes.
+
 ## Platform Behavior
 
 Linux is a first-class OpenAssist operator path. Packaged releases support x64 and arm64 with glibc 2.28+ and kernel 4.18+. Alpine/musl is unsupported.

@@ -20,6 +20,8 @@ Explicit source bootstrap can install missing prerequisites automatically with H
 
 For source builds, if Homebrew is not already available, install it first from `https://brew.sh`.
 
+The prepared [v0.2.0 stable release](../releases/v0.2.0.md) includes the merged lifecycle fixes and dependency repairs. Publication and replacement-host retesting remain pending. After publication, use the default installer or pin `--version 0.2.0`; existing installations should use the explicit stable update commands in the release notes.
+
 ## Install Commands
 
 Install the packaged preview:

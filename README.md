@@ -83,6 +83,8 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 **Current availability:** [v0.2.0-rc.1](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1) is a published, signed preview. Public installation has passed on Linux and macOS, each on x64 and arm64. Select the preview explicitly; no stable release is published yet, so the unqualified installer still stops.
 
+The [v0.2.0 stable release](docs/releases/v0.2.0.md) is prepared from the merged Ubuntu lifecycle/reminder fixes and dependency/security repairs. Fresh-host retesting and protected publication remain pending; see the [release preparation evidence](docs/execplans/stable-0.2.0-release.md).
+
 ### Install the packaged preview
 
 Packaged releases contain OpenAssist, its dependencies and a private Node runtime. You do **not** need to install Node, Git or pnpm, or obtain a signing key: verification is automatic. The installer itself needs Bash, curl, OpenSSL, gzip and standard Unix utilities.
@@ -110,6 +112,8 @@ After the first stable publication, this command will install the latest stable 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
 ```
+
+To pin the stable release after publication, use the piped installer with `--version 0.2.0`. Existing preview or source installations can review `openassist update --release --channel stable --dry-run`, then run `openassist update --release --channel stable` to switch explicitly. These stable commands require published signed assets.
 
 ### Build from main instead
 
@@ -347,4 +351,4 @@ The fixes candidate addresses the eight findings from the September 28 Ubuntu te
 
 Approved operators using Full access can create saved-text reminders or tool-free scheduled prompts in their current chat. Deadlines retain the original request time; confirmation includes the durable task ID. Standard access cannot create, list, or cancel chat reminders. Known successful sends are not repeated; uncertain transport outcomes require inspection.
 
-These changes are preparation for stable v0.2.0. The destroyed droplet is baseline evidence only. Stable version changes and release notes belong in a separate release-preparation PR after fresh candidate tests; tagging and publication require explicit authorization.
+PR #67 merged the Ubuntu fixes and native reminders; PR #68 merged the dependency-audit repair and CodeQL fixture correction. This release-preparation branch sets the applications to `0.2.0` and collects the changes in the [stable notes](docs/releases/v0.2.0.md). The destroyed droplet remains baseline evidence only, and a replacement-host candidate test is still pending. Tagging and protected publication require explicit authorization and separate public-install verification.

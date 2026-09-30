@@ -6,6 +6,8 @@ The signed [v0.2.0-rc.1 preview](https://github.com/openassistuk/openassist/rele
 
 This is the canonical operator runbook for a public OpenAssist install.
 
+The [v0.2.0 stable notes](../releases/v0.2.0.md) describe the prepared candidate, merged fixes and explicit preview/source migration. Stable publication and replacement-host retesting are pending; use the preview command below until published assets are verified.
+
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
 
 Deeper references for the choices you make during quickstart:

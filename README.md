@@ -85,6 +85,8 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 The [stable release notes](docs/releases/v0.2.0.md) cover the merged Ubuntu lifecycle/reminder fixes and dependency/security repairs. Publication, independent signature checks and four-target public installation are recorded in the [release evidence](docs/execplans/stable-0.2.0-release.md). Additional fresh-host provider/channel retesting remains unverified.
 
+The final merged-main audit detected seven additional Axios advisories through WhatsApp/Baileys. Source builds containing the [post-release repair](docs/execplans/post-release-axios-audit-2026-09-30.md) resolve Axios `1.20.0`. Published `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`; this source repair does not update installed packages. A subsequent signed release is needed to deliver it through the release track.
+
 ### Install the packaged stable release
 
 Packaged releases contain OpenAssist, its dependencies and a private Node runtime. You do **not** need to install Node, Git or pnpm, or obtain a signing key: verification is automatic. The installer itself needs Bash, curl, OpenSSL, gzip and standard Unix utilities.
@@ -146,13 +148,13 @@ openassist update --dry-run
 openassist update
 ```
 
-An existing source installation continues following its source track. To switch it to the published preview, explicitly run:
+An existing source installation continues following its source track. To switch it to the published stable release, explicitly run:
 
 ```bash
-openassist update --release --channel preview
+openassist update --release --channel stable
 ```
 
-After stable is published, return to the stable track with `openassist update --release --channel stable`. Method changes require confirmation; unattended use requires `--yes`. Configuration and conversations remain in their existing locations. See [upgrade and rollback](docs/operations/upgrade-and-rollback.md) for recovery and compatibility checks.
+Preview selection remains explicit with `openassist update --release --channel preview`. Method changes require confirmation; unattended use requires `--yes`. Configuration and conversations remain in their existing locations. See [upgrade and rollback](docs/operations/upgrade-and-rollback.md) for recovery and compatibility checks.
 
 ### Installation and data locations
 

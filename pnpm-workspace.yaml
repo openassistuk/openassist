@@ -12,7 +12,7 @@ allowBuilds:
 
 # Narrow patched floors for transitive packages that upstream ranges still allow.
 overrides:
-  'undici@>=6.0.0 <6.28.0': '6.28.0'
+  'undici@>=6.0.0 <6.28.1': '6.28.1'
   'protobufjs@<7.6.5': '7.6.5'
   'sharp@<0.35.4': '0.35.4'
   'axios@<1.18.0': '1.18.0'
@@ -21,4 +21,4 @@ overrides:
   'picomatch@<2.3.2': '2.3.2'
   '@whiskeysockets/baileys>libsignal': '6.0.0'
   'form-data@>=4.0.0 <4.0.6': '4.0.6'
-  'brace-expansion@>=3.0.0 <5.0.9': '5.0.9'
+  'brace-expansion@>=3.0.0 <5.0.12': '5.0.12'

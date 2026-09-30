@@ -42,6 +42,10 @@ Out of scope:
 
 ## Threats and Controls
 
+### Dependency denial of service
+
+The source dependency overrides require Undici `6.28.1` on the existing 6.x provider/Discord paths to address an uncaught WebSocket-handshake exception from a malicious or compromised server ([GHSA-rfgv-xxqx-mfg5](https://github.com/advisories/GHSA-rfgv-xxqx-mfg5)). Coverage tooling resolves brace-expansion `5.0.12` to address stack exhaustion from nested brace groups and comma parsing ([GHSA-qhr7-859c-m2p7](https://github.com/advisories/GHSA-qhr7-859c-m2p7), [GHSA-6j4f-fj2g-mc7p](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p)), plus a moderate CPU-exhaustion advisory in brace rewriting ([GHSA-q2hr-2g5m-vwhr](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr)). Regression tests reject older affected resolutions; production and full audits remain mandatory and fail on high/critical findings or registry errors. These floors protect subsequent builds and do not alter already published preview artifacts.
+
 ### Privileged host action misuse
 
 Controls:

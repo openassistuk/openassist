@@ -8,15 +8,15 @@ function resolvedVersions(lock: string, name: string): string[] {
   return [...new Set([...lock.matchAll(pattern)].map(match => match[1]))];
 }
 
-test("the resolved tree covers every package in the 2026-09-27 Dependabot alert snapshot", () => {
+test("the resolved tree covers the 2026-09-27 Dependabot snapshot and CI #391 advisories", () => {
   const lock = fs.readFileSync("pnpm-lock.yaml", "utf8");
-  // Highest patched floor among the 72 open alerts, across direct and transitive entries.
+  // Patched floors for the 72-alert snapshot plus the advisories detected by CI #391.
   const floors: Record<string, string> = {
     "@protobufjs/utf8": "1.1.1",
     "@vitest/mocker": "4.1.11",
     "@whiskeysockets/baileys": "6.7.22",
     axios: "1.18.0",
-    "brace-expansion": "5.0.7",
+    "brace-expansion": "5.0.12",
     esbuild: "0.28.1",
     "follow-redirects": "1.16.0",
     "form-data": "4.0.6",
@@ -24,7 +24,7 @@ test("the resolved tree covers every package in the 2026-09-27 Dependabot alert 
     postcss: "8.5.23",
     protobufjs: "7.6.5",
     sharp: "0.35.4",
-    undici: "6.28.0",
+    undici: "6.28.1",
     vite: "6.4.3",
     vitest: "4.1.11",
     ws: "8.21.0"
@@ -50,7 +50,7 @@ test("dependency policy rejects the previously vulnerable dependency floors", ()
   const lock = fs.readFileSync("pnpm-lock.yaml", "utf8");
   assert.match(policy, /engineStrict: true/);
   assert.doesNotMatch(policy, /blockExoticSubdeps: false|trustLockfile: true/);
-  for (const spec of ["undici@6.24.0", "protobufjs@6.8.8", "protobufjs@7.5.4", "axios@1.13.5", "ws@8.19.0", "sharp@0.34.5", "vitest@2.1.9"]) {
+  for (const spec of ["undici@6.24.0", "undici@6.28.0", "brace-expansion@5.0.9", "brace-expansion@5.0.10", "brace-expansion@5.0.11", "protobufjs@6.8.8", "protobufjs@7.5.4", "axios@1.13.5", "ws@8.19.0", "sharp@0.34.5", "vitest@2.1.9"]) {
     assert.ok(!lock.includes(spec + ":"), "Vulnerable version remains: " + spec);
   }
   assert.match(policy, /'@whiskeysockets\/baileys>libsignal': '6.0.0'/);

@@ -159,6 +159,7 @@ Current housekeeping and release-evidence records:
 - [Documentation reconciliation](execplans/documentation-readiness-2026-09.md)
 - [Merged model, harness and auth refresh](execplans/current-provider-models-2026-09.md)
 - [Completed Dependabot follow-up](execplans/dependabot-follow-up-2026-09.md)
+- [CI #391 dependency audit repair](execplans/ci-391-dependency-audit-2026-09-30.md): patched Undici `6.28.1` and brace-expansion `5.0.12` for subsequent builds, with local and hosted verification evidence.
 - [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
 
 Historical implementation plans (retain their original evidence and read any reconciliation notes):

@@ -471,6 +471,8 @@ Support Node >=24.21.0 <25 only. Keep entrypoint guards, bootstrap checks, CI an
 
 Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
 
+The 2026-09-30 dependency remediation requires Undici 6.x >=6.28.1 and brace-expansion >=5.0.12 on the existing override paths. Keep the resolved-version regression checks aligned with advisory floors; advancing dependencies must not suppress audit findings or weaken the gate. Record source/build fixes separately from already published artifact contents.
+
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 
 ## Model and authentication maintenance

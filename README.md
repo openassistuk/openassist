@@ -81,11 +81,11 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-**Current availability:** [v0.2.0 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.0) is published and signed. Public installation passed on Linux and macOS, each on x64 and arm64. The default installer now selects this stable release.
+**Current availability:** [v0.2.1 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.1) is published and signed. Public installation passed on Linux and macOS, each on x64 and arm64. The default installer selects this security patch.
 
-The [stable release notes](docs/releases/v0.2.0.md) cover the merged Ubuntu lifecycle/reminder fixes and dependency/security repairs. Publication, independent signature checks and four-target public installation are recorded in the [release evidence](docs/execplans/stable-0.2.0-release.md). Additional fresh-host provider/channel retesting remains unverified.
+The [stable release notes](docs/releases/v0.2.1.md) cover the Axios security repair and Windows source-command correction alongside the earlier lifecycle/reminder fixes. Publication from reviewed main, independent signature checks and four-target public installation are recorded in the [release evidence](docs/execplans/stable-0.2.1-release.md). Additional fresh-host provider/channel retesting remains unverified.
 
-The final merged-main audit detected seven additional Axios advisories through WhatsApp/Baileys. Source builds containing the [post-release repair](docs/execplans/post-release-axios-audit-2026-09-30.md) resolve Axios `1.20.0`. Published `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`; this source repair does not update installed packages. The [v0.2.1 security patch](docs/releases/v0.2.1.md) is being prepared for signed publication; it is not available through the release track yet. See its [preparation evidence](docs/execplans/stable-0.2.1-release.md). After publication and public-install verification, existing installations can select it with `openassist update --release --channel stable` (inspect `--dry-run` first); exact-version pins do not advance automatically.
+The [post-release repair](docs/execplans/post-release-axios-audit-2026-09-30.md) resolves Axios `1.20.0`, covering five high and two moderate advisories through WhatsApp/Baileys. Signed `v0.2.1` delivers this repair to packaged installations. Older immutable `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`; existing installations must update to receive the fix. Inspect `openassist update --release --channel stable --dry-run`, then run `openassist update --release --channel stable`. Exact-version pins do not advance automatically.
 
 ### Install the packaged stable release
 
@@ -324,7 +324,7 @@ Automated regression and hosted workflow results establish development readiness
 
 ## Packaged releases and developer testing
 
-See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.0 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.0) is published and its public installer passed on all four supported targets. Its [release notes](docs/releases/v0.2.0.md) describe testing limits. Use the default installer for stable packages or `--source --ref main` for development code; previews require explicit selection.
+See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.1 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.1) is published and its public installer passed on all four supported targets. Its [release notes](docs/releases/v0.2.1.md) describe testing limits. Use the default installer for stable packages or `--source --ref main` for development code; previews require explicit selection.
 
 ```bash
 openassist update check

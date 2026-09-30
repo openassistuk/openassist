@@ -25,6 +25,8 @@ Restore the dependency security gate after the final merged-main check for OpenA
 
 ## Surprises & Discoveries
 
+Packaged delivery reconciliation (2026-09-30): [v0.2.1 stable](../releases/v0.2.1.md) now delivers this repair from reviewed main `a30ebc1`. [Publication 36789528574](https://github.com/openassistuk/openassist/actions/runs/36789528574) passed all four native builds, fresh candidate audits, signing and public-install targets. Both production signatures and asset digests independently verified; the downloaded Linux x64 archive contains Axios `1.20.0`. Earlier v0.2.0/rc.1 packages and the dated source-repair evidence below remain unchanged.
+
 
 The release-preparation and publication checks passed when executed, but a later registry audit on merged documentation main now reports high=5 and moderate=2 in both production and full dependency trees. [Main CI run 36744864202](https://github.com/openassistuk/openassist/actions/runs/36744864202) fails at audits on Linux, macOS and Windows; builds, tests and coverage passed. Local final verification reproduces the same failure. The retained baseline reports are `coverage/audit/final-production-all-severities.json` and `coverage/stable-0.2.0-final-audit.log` (ignored).
 
@@ -111,3 +113,5 @@ Revision 2026-09-30 local verification: Recorded complete quality/coverage/audit
 Revision 2026-09-30 hosted reconciliation: Recorded actual PR creation, source revision, all successful hosted workflows, expected publication skips and separate scanner/review checks; retained maintainer review, subsequent-revision checks and later packaged delivery as explicit boundaries.
 
 Revision 2026-09-30 final merge reconciliation: Recorded the maintainer's actual PR #71 merge, final-head and merged-main success, zero current audits/scanner alerts and local branch cleanup; linked subsequent 0.2.1 preparation without claiming published delivery.
+
+Revision 2026-09-30 packaged delivery: linked actual signed v0.2.1 publication and independent public verification while preserving affected historical assets and source-only repair evidence.

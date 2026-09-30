@@ -14,7 +14,8 @@ Prepare the first stable packaged OpenAssist release with the fixes already merg
 - [x] (2026-09-30 14:52Z) Created `codex/release-0.2.0` from `origin/main` at `fa3968b`; working tree was clean. Maintainer confirmed no replacement-host retest has occurred.
 - [x] (2026-09-30 14:58Z) Aligned root/CLI/daemon versions, stable notes, changelog and current release guidance; added version/notes regression coverage in the existing docs-truth suite.
 - [x] (2026-09-30 15:02Z) `pnpm verify:all` passed on Windows/Node 24.21.0/pnpm 12.5.1 with Git Bash available. Verified both executable versions print 0.2.0 and reviewed the full tracked patch and new notes/plan.
-- [ ] Commit, push, open and attach the release PR; reconcile exact-revision hosted gates, review threads and code-scanning alerts.
+- [x] (2026-09-30 15:04Z) Committed and pushed `fa229fad77f40e385f32595453bc470bce471fb8`; opened and attached [PR #69](https://github.com/openassistuk/openassist/pull/69). Separate queries found no review threads and zero open scanning alerts; maintainer review is required.
+- [x] (2026-09-30 15:11Z) All 13 implementation-revision checks passed at `fa229fa`, including four artifacts and signing-contract. Publication/public-install skipped intentionally. Separate final scanner query found zero open alerts; review remains required. Subsequent evidence-only commit checks are recorded in the PR.
 
 ## Surprises & Discoveries
 
@@ -22,6 +23,8 @@ Prepare the first stable packaged OpenAssist release with the fixes already merg
 The published preview is immutable and lacks the fixes now on main. Packaging requires root/CLI/daemon versions to agree, a clean committed checkout and a native Linux/macOS host. This Windows workspace can run quality checks but cannot build the four release artifacts. The manual release workflow defaults to preview, so stable publication must explicitly select `channel=stable`.
 
 Prior docs require a replacement clean-host test before stable preparation. The maintainer requested the release PR while confirming that retest has not occurred. Preparation can proceed, but the live test remains a publication gate and cannot be inferred from automated checks. The second-account live check remains unverified separately.
+
+The protected release environment currently allows only the `v0.2.0-rc.1` tag. Read-only inspection confirmed required-reviewer protection and an exact-tag deployment policy. Stable dispatch needs separate authorization to permit the exact `v0.2.0` tag; this preparation does not alter environment protections.
 
 ## Decision Log
 
@@ -32,10 +35,12 @@ Decision: Keep public availability notices on rc.1 until stable publication and 
 
 Decision: Prepare despite the missing replacement-host retest, explicitly retaining it before publication. Rationale: the maintainer authorized a branch/PR and confirmed the missing test; no host, rollout or publication authorization was provided. Date/author: 2026-09-30, Codex.
 
+Decision: Document the stable environment-tag prerequisite without changing GitHub protection. Rationale: the current allowlist admits only rc.1 and changing an external release control is outside branch/PR preparation. Date/author: 2026-09-30, Codex.
+
 ## Outcomes & Retrospective
 
 
-Release assembly and local verification are complete: root/CLI/daemon are 0.2.0, the changelog collects the development line, stable notes cover fixes and compatibility, and current docs retain truthful preview availability. All local gates pass without changing thresholds; PR handoff is in progress. No stable tag, public release or production rollout exists. Fresh-host testing and protected publication remain distinct follow-up gates.
+Release assembly, local verification and [PR #69 handoff](https://github.com/openassistuk/openassist/pull/69) are complete: root/CLI/daemon are 0.2.0, the changelog collects the development line, stable notes cover fixes and compatibility, and current docs retain truthful preview availability. All local gates and all 13 implementation-revision hosted checks pass without changing thresholds. The final evidence-only documentation commit is checked separately in the PR; results below certify `fa229fa`, not an untested future revision or merge. No stable tag, public release or production rollout exists. Fresh-host testing, stable-tag environment authorization, review/merge and protected publication remain distinct follow-up gates.
 
 ## Context and Orientation
 
@@ -64,7 +69,7 @@ From `C:/Users/dange/Coding/openassist`, run `pnpm verify:all` using Node 24.21.
 
 Inspect CI on Linux/macOS/Windows, workflow lint, CodeQL preflight/analyze, live macOS LaunchAgent, four native artifacts and signing-contract for the exact PR revision. Inspect unresolved review threads and open code-scanning alerts independently. Record outcomes and failures explicitly. Publication/public-install skips on PRs are expected. A reviewer may evaluate the preparation independently; do not tag, merge or publish in this task.
 
-Before later stable publication, exercise the exact candidate on a replacement clean Ubuntu host: public-style pipe without prerequisite workarounds, chat/files/images/web/memory/access, text and prompt reminders, cancellation, restart, recurring skip and rc.1 update preserving operator state. Record second-account authorization testing separately. After approval and merge, reconcile merged-commit checks, authorize rollout, tag the exact reviewed main commit `v0.2.0`, then dispatch release.yml from that tag with tag=v0.2.0, channel=stable and publish=true. Approve the protected release environment. Require stable-channel and exact-version public installation on all four targets before availability docs lead with stable.
+Before later stable publication, exercise the exact candidate on a replacement clean Ubuntu host: public-style pipe without prerequisite workarounds, chat/files/images/web/memory/access, text and prompt reminders, cancellation, restart, recurring skip and rc.1 update preserving operator state. Record second-account authorization testing separately. After approval and merge, reconcile merged-commit checks, authorize rollout and permit the exact stable tag in the protected release environment while retaining required reviewers. Tag the exact reviewed main commit `v0.2.0`, then dispatch release.yml from that tag with tag=v0.2.0, channel=stable and publish=true. Approve the protected publish job. Require stable-channel and exact-version public installation on all four targets before availability docs lead with stable.
 
 ## Concrete Steps
 
@@ -95,6 +100,8 @@ Initial evidence: main `fa3968b` contains merged #67/#68; GitHub release listing
 
 Local evidence: `pnpm verify:all` exited zero; 72 Vitest files, 515 tests passed/1 skipped, 207 Node tests passed/4 skipped, and 126 coverage Node tests passed/3 skipped. Vitest coverage: statements 83.08%, branches 74.09%, functions 85.82%, lines 84.08%. Node coverage: statements/lines 80.06%, branches 73.38%, functions 86.52%. Production and full audits each report zero findings. Existing skips cover platform/host-only paths; native release packaging requires hosted Linux/macOS. Both compiled commands print 0.2.0. The complete ignored log is `coverage/stable-0.2.0-verify.log`.
 
+Candidate hosted runs at `fa229fad77f40e385f32595453bc470bce471fb8` all succeeded: [CI 36733878032](https://github.com/openassistuk/openassist/actions/runs/36733878032), [CodeQL 36733877850](https://github.com/openassistuk/openassist/actions/runs/36733877850), [macOS LaunchAgent 36733877848](https://github.com/openassistuk/openassist/actions/runs/36733877848) and [Release Artifacts 36733877925](https://github.com/openassistuk/openassist/actions/runs/36733877925). CI covers all three OS quality/coverage/audit jobs and workflow lint. All four native artifacts and signing-contract passed; Linux x64 exercised actual signed rc.1 update, preserved state and reminder rollback protection. Publication and public-install skipped by design. Separate queries found zero open code-scanning alerts and no review threads; the PR requires maintainer review. The evidence-only follow-up adds the exact-tag prerequisite and records these outcomes without changing the validated application.
+
 ## Interfaces and Dependencies
 
 
@@ -105,3 +112,7 @@ Revision 2026-09-30: Created for the authorized stable branch/PR. Record publica
 Revision 2026-09-30 assembly: Added stable metadata, reviewed notes, current-guide links and version coherence coverage. Reconciled the earlier pre-preparation live requirement as a pending pre-publication gate under the maintainer's current request.
 
 Revision 2026-09-30 local verification: Recorded full test, coverage, audit and executable-version evidence before PR handoff. Kept the release notes conditional on published assets so the workflow can reuse them as the release body.
+
+Revision 2026-09-30 PR handoff: Recorded PR/revision, initial hosted runs and separate review/scanner results. Added the discovered exact-tag environment prerequisite without changing external release protection.
+
+Revision 2026-09-30 hosted reconciliation: Recorded complete implementation-revision hosted evidence, intentional publication skips and required review. Final follow-up and eventual merge/tag/publication outcomes must be inspected independently and must not be inferred from these results.

@@ -10,7 +10,7 @@ OpenAssist packages are signed with RSA/SHA-256 and verified against the public 
 
 Production signing is restricted to the protected `release` environment and approved publication jobs. PR jobs never receive signing credentials. Key rotation requires a reviewed trust-anchor update and a bridge release trusted by existing clients before retiring the old public key. Private operational details are not part of the public documentation.
 
-The release environment requires explicit maintainer approval and permits approved release tags only.
+The release environment requires explicit maintainer approval and permits approved release tags only. Before stable dispatch, ensure its deployment policy permits the exact approved `v0.2.0` tag while retaining reviewer protection. A preview-tag authorization does not authorize a new stable tag; keep the allowlist narrow.
 
 The HTTPS shell entrypoint is the initial trust boundary. Bootstrap downloads the pinned public key from the reviewed main entrypoint, authenticates the release index using OpenSSL, then verifies the separately compressed private Node runtime, standalone verifier and application archive. The authenticated verifier checks the entire archive and link topology before extraction, using the same bounded tar validator as installed updates. Bootstrap requires curl, gzip and OpenSSL. Installed clients verify signed JSON manifests using Node crypto. Never bypass verification to repair an unavailable release.
 

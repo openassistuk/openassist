@@ -27,8 +27,9 @@ The user expanded this same branch/PR on 2026-09-30 to address CodeQL alert #42.
 - [x] (2026-09-30) Removed caller-provided labels from both fixture factories; documented the unchanged production fingerprint and added compatibility/content-independence tests. Focused config typecheck passed; Vitest 28 passed/1 skipped and Node 5 passed.
 - [x] (2026-09-30) Completed a separate candidate-review pass: all seven affected calls use no-argument unique allocations, every production caller retains the same fingerprint, expected build/instance rejection tests pass, and no query exclusions/suppressions or credential transformations were introduced. All 10 docs-truth tests and `git diff --check` pass.
 - [x] (2026-09-30) Expanded patch passed `pnpm verify:all`: Vitest 515 passed/1 skipped; Node 204 passed/6 skipped; Node coverage suite 123 passed/5 skipped; coverage gates and both zero-finding audits passed.
-- [ ] Commit/push the reviewed follow-up and update the existing PR title/body around both fixes.
-- [ ] Run full branch CodeQL analysis, inspect findings separately from check conclusions, and record current-head hosted/review results.
+- [x] (2026-09-30) Committed/pushed the reviewed follow-up as `b7f8dad8d1faeea05b33544d1d7735c59d830d16` and updated PR #68 title/body around both fixes.
+- [x] (2026-09-30) Full branch CodeQL run `36729784278` passed on `b7f8dad`; analysis `1867254241` and its SARIF contain zero findings, including zero `js/insufficient-password-hash` results. The branch has zero open code-scanning alerts. Main alert #42 remains open pending merge and a subsequent main analysis.
+- [x] (2026-09-30) Source revision `b7f8dad` passed all three CI quality platforms/workflow lint (`36729792440`), PR CodeQL (`36729792038`), live macOS (`36729791934`) and native packaging/signing (`36729792026`). Publish/public-install jobs are skipped by design on PRs. Review remains required with no unresolved review threads.
 
 ## Surprises & Discoveries
 
@@ -57,7 +58,7 @@ Decision (2026-09-30, verification): perform the required independent investigat
 ## Outcomes & Retrospective
 
 
-The dependency implementation resolves Undici 6.28.1 and brace-expansion 5.0.12 with zero findings and successful local/hosted gates on the original dependency revision. [PR #68](https://github.com/openassistuk/openassist/pull/68) now also addresses CodeQL #42's false-positive fixture flow. Production instance IDs and health checks are preserved; focused compatibility/OAuth tests and expanded full local verification pass. Follow-up publication and full branch scanner verification remain pending. Review is required; the PR is not merged and no release artifacts were published.
+The dependency implementation resolves Undici 6.28.1 and brace-expansion 5.0.12 with zero audit findings. [PR #68](https://github.com/openassistuk/openassist/pull/68) also addresses CodeQL #42's false-positive fixture flow. Production instance IDs and health checks are preserved; focused compatibility/OAuth tests, expanded full local verification and all hosted gates pass on source revision `b7f8dad`. Full branch CodeQL analysis independently confirms zero findings. Main alert #42 remains open until the fix is merged and a main analysis observes it; no alert was dismissed or suppressed. Review is required; the PR is not merged and no release artifacts were published. This evidence-only plan reconciliation changes no tested code; any subsequent current-head hosted results are recorded on the PR with their exact revision.
 
 The lesson from CI #391 is that a previously verified dependency floor can become vulnerable when new advisories are catalogued. Keeping the audits active caught this drift; updating only the affected patch versions restored the gate without suppressions or weaker policy.
 
@@ -126,6 +127,8 @@ PR handoff: https://github.com/openassistuk/openassist/pull/68, implementation c
 
 CodeQL follow-up local evidence: config typecheck passed; the focused Vitest suites passed 28 tests/1 skip; Node OAuth and live installer regression suites passed all 5 tests; docs-truth passed all 10 tests. Full `pnpm verify:all` then exited zero on Windows/Node 24.21.0/pnpm 12.5.1 with Vitest 515 passed/1 skipped and Node 204 passed/6 skipped. Coverage suite: 123 passed/5 skipped. Vitest coverage remains statements 83.08%, branches 74.09%, functions 85.82%, lines 84.08%; Node coverage remains statements/lines 80.06%, branches 73.38%, functions 86.52%. Both audits report zero findings. The skips are the existing platform/Bash-dependent and hosted-only paths.
 
+CodeQL follow-up hosted evidence on commit `b7f8dad8d1faeea05b33544d1d7735c59d830d16`: full branch [run `36729784278`](https://github.com/openassistuk/openassist/actions/runs/36729784278) passed and uploaded analysis `1867254241` for `refs/heads/codex/fix-ci-391-dependency-audit`. Its SARIF contains an empty results array, and the separate branch-alert query reports zero open alerts. The default-branch alert still identifies main commit `9004841df1038bff77daa1763dfd00312c2509be`; this is not a remaining branch finding. CI `36729792440`, PR CodeQL `36729792038`, macOS Live Launchd `36729791934` and Release Artifacts `36729792026` passed. All four native targets and signing contract passed; publish/public-install jobs were skipped. A separate review-thread query returned no threads and `REVIEW_REQUIRED`. Evidence is tied to these exact revisions and does not certify an untested future merge or a released artifact.
+
 ## Interfaces and Dependencies
 
 
@@ -148,3 +151,5 @@ Revision note (2026-09-30, authorized CodeQL follow-up): Expanded the same PR to
 Revision note (2026-09-30, candidate review): Recorded the separate single-agent review, unchanged production callers, removal of all seven misclassified fixture sources and successful focused/docs-truth checks before full verification.
 
 Revision note (2026-09-30, expanded local gate): Recorded successful full local verification of the CodeQL follow-up while keeping scanner closure pending fresh full branch analysis.
+
+Revision note (2026-09-30, full scanner and hosted reconciliation): Recorded the pushed follow-up, zero-result full branch SARIF, zero open branch alerts, successful platform/release gates and outstanding review/main-scan boundary. Subsequent evidence-only commit checks are reconciled in the PR rather than attributed to the earlier source revision.

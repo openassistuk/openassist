@@ -12,6 +12,8 @@ The normal Node integration gate now includes docs-truth validation, so stale li
 
 Linux and macOS are the first-class operator platforms for lifecycle and service validation in this release. Windows remains part of the required quality matrix, but it is not the service-manager parity target.
 
+`command-runner.test.ts` additionally verifies Windows native/npm/Corepack pnpm resolution, PATH precedence, truthful missing tools and literal metacharacters in captured/streaming launches without a shell. Actual launch regressions reject an unsupported first shim despite a later runnable executable; `cli-command-integration.test.ts` verifies the dry-run prerequisite failure with git/node still available. These real Windows cases are explicitly skipped on Unix; this does not add Windows operator/service parity. The existing developer-instance integration fixture uses the same known npm entrypoint layout and retains its dedicated-state/credential checks.
+
 ## Primary Local Gate
 
 Run this before merge:

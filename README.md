@@ -85,7 +85,7 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 The [stable release notes](docs/releases/v0.2.0.md) cover the merged Ubuntu lifecycle/reminder fixes and dependency/security repairs. Publication, independent signature checks and four-target public installation are recorded in the [release evidence](docs/execplans/stable-0.2.0-release.md). Additional fresh-host provider/channel retesting remains unverified.
 
-The final merged-main audit detected seven additional Axios advisories through WhatsApp/Baileys. Source builds containing the [post-release repair](docs/execplans/post-release-axios-audit-2026-09-30.md) resolve Axios `1.20.0`. Published `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`; this source repair does not update installed packages. A subsequent signed release is needed to deliver it through the release track.
+The final merged-main audit detected seven additional Axios advisories through WhatsApp/Baileys. Source builds containing the [post-release repair](docs/execplans/post-release-axios-audit-2026-09-30.md) resolve Axios `1.20.0`. Published `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`; this source repair does not update installed packages. The [v0.2.1 security patch](docs/releases/v0.2.1.md) is being prepared for signed publication; it is not available through the release track yet. See its [preparation evidence](docs/execplans/stable-0.2.1-release.md). After publication and public-install verification, existing installations can select it with `openassist update --release --channel stable` (inspect `--dry-run` first); exact-version pins do not advance automatically.
 
 ### Install the packaged stable release
 
@@ -311,6 +311,8 @@ OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must upda
 
 
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
+
+Windows source command launches and readiness probes reject an unsupported first `pnpm.cmd` shim or missing pnpm on the selected PATH. They do not search again for another executable; install the checkout's pinned npm-managed pnpm to repair that prerequisite. Windows operator/service parity remains out of scope.
 
 Quickstart preserves compatible Anthropic thinking settings when changing models. If saved settings conflict with the selected model, it asks before resetting them to provider defaults; declining lets you choose another model. Saved `claude-opus-4-5` aliases retain their manual thinking budgets.
 

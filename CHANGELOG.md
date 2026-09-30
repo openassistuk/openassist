@@ -6,7 +6,12 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+## [0.2.1] - pending publication
+
 - 2026-09-30: Repair the post-release production/full dependency-audit failure by raising the scoped WhatsApp/Baileys Axios resolution to `1.20.0`, covering five high and two moderate advisories affecting denial of service, polluted option handling and network controls. Strengthen resolved-version regressions without weakening audit/coverage gates. Correct stable migration guidance and reconcile actual PR #67/#68/#70 merges and later audit/scanner evidence. Published `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`; the source repair requires a subsequent signed release for packaged delivery.
+
+- Remove Windows Node DEP0190 warnings from source update prerequisite checks and captured/streaming pnpm commands by resolving known native/shim entrypoints and launching without a shell. Reject unsupported first shims and missing selected-PATH pnpm with explicit resolution failures, preventing a second lookup from running a later executable; readiness reports the prerequisite as unavailable. Preserve literal arguments, supplied PATH and truthful missing-tool guidance; Linux/macOS operator support and access boundaries are unchanged.
+- Align root/CLI/daemon versions at `0.2.1` and add reviewed patch installation/update notes. Protected publication, production signatures and public-install checks remain separate gates; preparation does not claim published availability or fresh live provider/channel certification. The upstream optional `audio-decode` deprecation remains visible pending a validated decoder migration.
 
 ## [0.2.0] - 2026-09-30
 

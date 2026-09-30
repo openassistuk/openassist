@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 
 export interface RunCommandOptions {
   cwd?: string;
@@ -20,14 +22,47 @@ function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+export function resolveCommandInvocation(
+  command: string,
+  args: string[],
+  options: RunCommandOptions = {},
+  platform: NodeJS.Platform = process.platform
+): { command: string; args: string[] } | { error: string } {
+  if (platform !== "win32" || command !== "pnpm") return { command, args };
+
+  const env = options.env ?? process.env;
+  // Match Node's case-insensitive Windows environment-key selection.
+  const pathKey = Object.keys(env).sort().find(key => key.toUpperCase() === "PATH");
+  for (const entry of (env[pathKey ?? "PATH"] ?? "").split(";").filter(Boolean)) {
+    const directory = path.resolve(options.cwd ?? process.cwd(), entry.replace(/^"(.*)"$/, "$1"));
+    const executable = path.join(directory, "pnpm.exe");
+    if (fs.existsSync(executable)) return { command: executable, args };
+    if (!fs.existsSync(path.join(directory, "pnpm.cmd"))) continue;
+
+    // npm/Corepack shims need a shell; invoke their known entrypoint directly.
+    for (const relative of ["node_modules/pnpm/pnpm.exe", "../pnpm/pnpm.exe", "node_modules/pnpm/bin/pnpm.mjs", "node_modules/pnpm/bin/pnpm.cjs", "node_modules/corepack/dist/pnpm.js"]) {
+      const cli = path.join(directory, relative);
+      if (!fs.existsSync(cli)) continue;
+      if (cli.endsWith(".exe")) return { command: cli, args };
+      const node = path.join(directory, "node.exe");
+      return { command: fs.existsSync(node) ? node : process.execPath, args: [cli, ...args] };
+    }
+    // An unfamiliar first shim must not silently select another pnpm later on PATH.
+    return { error: "Unsupported pnpm.cmd shim on the selected PATH; use the checkout's pinned npm-installed pnpm." };
+  }
+  return { error: "pnpm was not found on the selected PATH." };
+}
+
 export class SpawnCommandRunner implements CommandRunner {
   async run(command: string, args: string[] = [], options: RunCommandOptions = {}): Promise<RunCommandResult> {
+    const invocation = resolveCommandInvocation(command, args, options);
+    if ("error" in invocation) throw new Error(`Failed to start ${command}: ${invocation.error}`);
     return new Promise<RunCommandResult>((resolve, reject) => {
-      const child = spawn(command, args, {
+      const child = spawn(invocation.command, invocation.args, {
         cwd: options.cwd,
         env: options.env ?? process.env,
         stdio: ["ignore", "pipe", "pipe"],
-        shell: process.platform === "win32" && command === "pnpm"
+        shell: false
       });
 
       const stdoutChunks: Buffer[] = [];
@@ -56,12 +91,14 @@ export class SpawnCommandRunner implements CommandRunner {
   }
 
   async runStreaming(command: string, args: string[] = [], options: RunCommandOptions = {}): Promise<number> {
+    const invocation = resolveCommandInvocation(command, args, options);
+    if ("error" in invocation) throw new Error(`Failed to start ${command}: ${invocation.error}`);
     return new Promise<number>((resolve, reject) => {
-      const child = spawn(command, args, {
+      const child = spawn(invocation.command, invocation.args, {
         cwd: options.cwd,
         env: options.env ?? process.env,
         stdio: "inherit",
-        shell: process.platform === "win32" && command === "pnpm"
+        shell: false
       });
 
       child.on("error", (error) => {

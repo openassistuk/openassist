@@ -1,6 +1,6 @@
 # Install on macOS
 
-**Release availability:** the signed [v0.2.0-rc.1 preview](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1) is published and public installation passed on all four supported targets. Select `--channel preview` or pin `--version 0.2.0-rc.1`. No stable release is published yet, so the unqualified installer still stops. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys.
+**Release availability:** the signed [v0.2.0 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.0) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.0`. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys.
 
 Packaged bootstrap adds a marked `~/.local/bin` PATH block to Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`), or Bash's `.bashrc` and `.profile`. Open a new terminal after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved. Uninstall removes only an unchanged block whose ownership was recorded.
 
@@ -20,20 +20,20 @@ Explicit source bootstrap can install missing prerequisites automatically with H
 
 For source builds, if Homebrew is not already available, install it first from `https://brew.sh`.
 
-The prepared [v0.2.0 stable release](../releases/v0.2.0.md) includes the merged lifecycle fixes and dependency repairs. Publication and replacement-host retesting remain pending. After publication, use the default installer or pin `--version 0.2.0`; existing installations should use the explicit stable update commands in the release notes.
+The [v0.2.0 stable release](../releases/v0.2.0.md) includes the merged lifecycle fixes and dependency repairs. Existing installations should use the explicit stable update commands in the release notes. Replacement-host provider/channel retesting remains unverified separately from public-install validation.
 
 ## Install Commands
 
-Install the packaged preview:
+Install the packaged stable release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
 Non-interactive example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview --non-interactive --skip-service
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --non-interactive --skip-service
 ```
 
 Source build from a local checkout:

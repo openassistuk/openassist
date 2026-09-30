@@ -2,11 +2,11 @@
 
 After packaged installation, open a new shell so its saved PATH block takes effect. If `openassist` is not yet found, run `~/.local/bin/openassist setup`; the installer also prints this fallback. Existing or edited shell-profile blocks are preserved rather than overwritten.
 
-The signed [v0.2.0-rc.1 preview](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1) is published and public installation has passed on all four supported targets. Use `--channel preview` as shown below; no stable release is published yet. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
+The signed [v0.2.0 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.0) is published and public installation passed on all four supported targets. The default installer selects stable. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
 
 This is the canonical operator runbook for a public OpenAssist install.
 
-The [v0.2.0 stable notes](../releases/v0.2.0.md) describe the prepared candidate, merged fixes and explicit preview/source migration. Stable publication and replacement-host retesting are pending; use the preview command below until published assets are verified.
+The [v0.2.0 stable notes](../releases/v0.2.0.md) describe the merged fixes, explicit preview/source migration and testing limits. Replacement-host provider/channel retesting remains unverified separately from the successful public-install checks.
 
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
 
@@ -45,28 +45,24 @@ Platform notes:
 
 ## 1. Install OpenAssist
 
-Install the published packaged preview:
+Install the published packaged stable release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin this release, use `--version 0.2.0-rc.1` instead of `--channel preview`. For source development, explicitly build main instead:
+To pin this release, use `bash -s -- --version 0.2.0` in the piped installer. For source development, explicitly build main instead:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main
 ```
 
-After stable publication, the default command installs the latest stable release:
-
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
-```
+The default command follows stable releases. The older preview remains available with `--channel preview`; see the stable notes for explicit migration of an existing preview or source installation.
 
 Non-interactive example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview --non-interactive --skip-service
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --non-interactive --skip-service
 ```
 
 Bootstrap behavior:

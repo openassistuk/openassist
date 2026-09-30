@@ -81,11 +81,11 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-**Current availability:** [v0.2.0-rc.1](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1) is a published, signed preview. Public installation has passed on Linux and macOS, each on x64 and arm64. Select the preview explicitly; no stable release is published yet, so the unqualified installer still stops.
+**Current availability:** [v0.2.0 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.0) is published and signed. Public installation passed on Linux and macOS, each on x64 and arm64. The default installer now selects this stable release.
 
-The [v0.2.0 stable release](docs/releases/v0.2.0.md) is prepared from the merged Ubuntu lifecycle/reminder fixes and dependency/security repairs. Fresh-host retesting and protected publication remain pending; see the [release preparation evidence](docs/execplans/stable-0.2.0-release.md).
+The [stable release notes](docs/releases/v0.2.0.md) cover the merged Ubuntu lifecycle/reminder fixes and dependency/security repairs. Publication, independent signature checks and four-target public installation are recorded in the [release evidence](docs/execplans/stable-0.2.0-release.md). Additional fresh-host provider/channel retesting remains unverified.
 
-### Install the packaged preview
+### Install the packaged stable release
 
 Packaged releases contain OpenAssist, its dependencies and a private Node runtime. You do **not** need to install Node, Git or pnpm, or obtain a signing key: verification is automatic. The installer itself needs Bash, curl, OpenSSL, gzip and standard Unix utilities.
 
@@ -94,26 +94,20 @@ Supported packaged targets are Linux x64/arm64 with glibc 2.28+ and kernel 4.18+
 Run this in a terminal on Linux or macOS, using your normal login account unless you deliberately want a system-level Linux service:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin this release, replace `--channel preview` with `--version 0.2.0-rc.1`. Exact-version installations stay pinned until you explicitly change their track. Preview releases are for testing; see the [release notes](docs/releases/v0.2.0-rc.1.md) for limits and migration guidance.
+To pin this release, use the piped installer with `bash -s -- --version 0.2.0`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.0.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
 
 For unattended packaged installation without setup prompts or service installation:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --channel preview --non-interactive --skip-service
+curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --non-interactive --skip-service
 ```
 
 These commands are for a fresh installation. If OpenAssist is already installed, use its update command instead of rerunning the packaged installer; see [Updates and switching installation method](#updates-and-switching-installation-method).
 
-After the first stable publication, this command will install the latest stable release:
-
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh)"
-```
-
-To pin the stable release after publication, use the piped installer with `--version 0.2.0`. Existing preview or source installations can review `openassist update --release --channel stable --dry-run`, then run `openassist update --release --channel stable` to switch explicitly. These stable commands require published signed assets.
+Existing preview or source installations can review `openassist update --release --channel stable --dry-run`, then run `openassist update --release --channel stable` to switch explicitly.
 
 ### Build from main instead
 
@@ -301,7 +295,7 @@ pnpm verify:all
 
 That gate includes a docs-truth validation pass, so unregistered command names in examples, broken local doc links, broken doc anchors, incomplete docs indexing, mismatched coverage-threshold references, mismatched coverage-scope references, or tracked workflow drift fail alongside code regressions. Changed prose, command flags and model-control descriptions also need manual comparison with implementation. Production and full dependency audits run in the same gate, retaining reports under `coverage/audit`.
 
-The source dependency policy includes patched Undici `6.28.1` for provider/Discord dependency paths and brace-expansion `5.0.12` for coverage tooling, addressing the denial-of-service advisories detected by scheduled CI #391, including the related moderate brace-expansion finding. These fixes apply to subsequent builds; the published `v0.2.0-rc.1` preview is unchanged. See the [repair evidence](docs/execplans/ci-391-dependency-audit-2026-09-30.md).
+The source dependency policy includes patched Undici `6.28.1` for provider/Discord dependency paths and brace-expansion `5.0.12` for coverage tooling, addressing the denial-of-service advisories detected by scheduled CI #391, including the related moderate brace-expansion finding. Stable `v0.2.0` includes these fixes; the older `v0.2.0-rc.1` preview is unchanged. See the [repair evidence](docs/execplans/ci-391-dependency-audit-2026-09-30.md).
 
 Daemon health reports a stable instance fingerprint derived only from the resolved configuration path. Configuration and environment-file contents do not affect it, and it grants no authentication or access rights. Compatibility tests preserve existing instance IDs; account-link test fixtures allocate independent directories without credential labels.
 
@@ -326,7 +320,7 @@ Automated regression and hosted workflow results establish development readiness
 
 ## Packaged releases and developer testing
 
-See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.0-rc.1 preview](https://github.com/openassistuk/openassist/releases/tag/v0.2.0-rc.1) is published and its public installer has passed on all four supported targets. Its [release notes](docs/releases/v0.2.0-rc.1.md) describe testing limits. Use `--channel preview` for packaged installation or `--source --ref main` for development code; stable publication remains a later step.
+See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.0 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.0) is published and its public installer passed on all four supported targets. Its [release notes](docs/releases/v0.2.0.md) describe testing limits. Use the default installer for stable packages or `--source --ref main` for development code; previews require explicit selection.
 
 ```bash
 openassist update check
@@ -347,8 +341,8 @@ See [release maintenance](docs/operations/release-maintenance.md), [developer te
 
 ## Ubuntu live-test fixes and native reminders
 
-The fixes candidate addresses the eight findings from the September 28 Ubuntu test: piped installation, first-time setup selection, packaged prerequisites, activation verification, timezone health, service PATH, native reminders, and recurring `skip` scheduling. See the [resolution matrix](docs/testing/ubuntu-live-test-resolution.md) and [scheduler contract](docs/interfaces/scheduler-and-time.md#managed-one-shot-reminders).
+The stable release includes fixes for the eight findings from the September 28 Ubuntu test: piped installation, first-time setup selection, packaged prerequisites, activation verification, timezone health, service PATH, native reminders, and recurring `skip` scheduling. See the [resolution matrix](docs/testing/ubuntu-live-test-resolution.md) and [scheduler contract](docs/interfaces/scheduler-and-time.md#managed-one-shot-reminders).
 
 Approved operators using Full access can create saved-text reminders or tool-free scheduled prompts in their current chat. Deadlines retain the original request time; confirmation includes the durable task ID. Standard access cannot create, list, or cancel chat reminders. Known successful sends are not repeated; uncertain transport outcomes require inspection.
 
-PR #67 merged the Ubuntu fixes and native reminders; PR #68 merged the dependency-audit repair and CodeQL fixture correction. This release-preparation branch sets the applications to `0.2.0` and collects the changes in the [stable notes](docs/releases/v0.2.0.md). The destroyed droplet remains baseline evidence only, and a replacement-host candidate test is still pending. Tagging and protected publication require explicit authorization and separate public-install verification.
+PR #67 merged the Ubuntu fixes and native reminders; PR #68 merged the dependency-audit repair and CodeQL fixture correction. PR #69 prepared `0.2.0`, now published with signed assets and verified public installation. The destroyed droplet remains baseline evidence only, and replacement-host provider/channel testing remains unverified. See the [stable notes](docs/releases/v0.2.0.md) and [publication evidence](docs/execplans/stable-0.2.0-release.md).

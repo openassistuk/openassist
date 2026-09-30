@@ -16,6 +16,11 @@ Prepare the first stable packaged OpenAssist release with the fixes already merg
 - [x] (2026-09-30 15:02Z) `pnpm verify:all` passed on Windows/Node 24.21.0/pnpm 12.5.1 with Git Bash available. Verified both executable versions print 0.2.0 and reviewed the full tracked patch and new notes/plan.
 - [x] (2026-09-30 15:04Z) Committed and pushed `fa229fad77f40e385f32595453bc470bce471fb8`; opened and attached [PR #69](https://github.com/openassistuk/openassist/pull/69). Separate queries found no review threads and zero open scanning alerts; maintainer review is required.
 - [x] (2026-09-30 15:11Z) All 13 implementation-revision checks passed at `fa229fa`, including four artifacts and signing-contract. Publication/public-install skipped intentionally. Separate final scanner query found zero open alerts; review remains required. Subsequent evidence-only commit checks are recorded in the PR.
+- [x] (2026-09-30) Final PR head `ab4696c` passed all 13 checks and the requested single-agent read-only review found no actionable issues. The maintainer merged #69 to main at `10c1c20bc4203c3d204cf41e77dfebc160baf722`; merged main CI and CodeQL passed.
+- [x] (2026-09-30) Maintainer explicitly authorized stable publication despite the previously recorded fresh-host testing gap. Added only exact `v0.2.0` environment-tag authorization, retained reviewer protection, created the immutable annotated tag at reviewed main, and dispatched [publication run 36739241771](https://github.com/openassistuk/openassist/actions/runs/36739241771) with stable/publish inputs.
+- [x] (2026-09-30 15:51Z) Protected publication succeeded with 16 assets and GitHub latest stable set to v0.2.0. Independently downloaded both signed public metadata formats and verified RSA/SHA-256 signatures against the pinned production public key; stable version/commit/four-target metadata agrees.
+- [x] (2026-09-30 15:57Z) All four public-installer targets passed stable-channel and exact-version installation, installed CLI/daemon versions, update plans and data-preserving uninstall. Publication workflow concluded success.
+- [x] (2026-09-30) Reconciled publication evidence, dated changelog and stable availability commands on `codex/stable-0.2.0-publication`. Full `pnpm verify:all` passed again with unchanged test/coverage results and zero production/full audit findings. Updated the public release body with verified publication facts and working GitHub links; the follow-up docs require normal PR review, and the tag/signed assets remain unchanged.
 
 ## Surprises & Discoveries
 
@@ -24,7 +29,7 @@ The published preview is immutable and lacks the fixes now on main. Packaging re
 
 Prior docs require a replacement clean-host test before stable preparation. The maintainer requested the release PR while confirming that retest has not occurred. Preparation can proceed, but the live test remains a publication gate and cannot be inferred from automated checks. The second-account live check remains unverified separately.
 
-The protected release environment currently allows only the `v0.2.0-rc.1` tag. Read-only inspection confirmed required-reviewer protection and an exact-tag deployment policy. Stable dispatch needs separate authorization to permit the exact `v0.2.0` tag; this preparation does not alter environment protections.
+Before rollout, the protected release environment allowed only the `v0.2.0-rc.1` tag. Read-only inspection confirmed required-reviewer protection and an exact-tag deployment policy. Under the maintainer's later publication authorization, add only exact `v0.2.0`; both explicit tags are now permitted and reviewer protection is retained.
 
 ## Decision Log
 
@@ -37,10 +42,12 @@ Decision: Prepare despite the missing replacement-host retest, explicitly retain
 
 Decision: Document the stable environment-tag prerequisite without changing GitHub protection. Rationale: the current allowlist admits only rc.1 and changing an external release control is outside branch/PR preparation. Date/author: 2026-09-30, Codex.
 
+Decision: Proceed with signed stable publication under the maintainer's later explicit request. Rationale: the release-preparation PR was reviewed and merged, exact merged-main checks passed, and the maintainer requested publication after the remaining live-testing gap was disclosed. Preserve that gap in the release evidence; do not infer new live certification. Permit only the exact stable tag and retain existing reviewer protection. Date/author: 2026-09-30, Codex.
+
 ## Outcomes & Retrospective
 
 
-Release assembly, local verification and [PR #69 handoff](https://github.com/openassistuk/openassist/pull/69) are complete: root/CLI/daemon are 0.2.0, the changelog collects the development line, stable notes cover fixes and compatibility, and current docs retain truthful preview availability. All local gates and all 13 implementation-revision hosted checks pass without changing thresholds. The final evidence-only documentation commit is checked separately in the PR; results below certify `fa229fa`, not an untested future revision or merge. No stable tag, public release or production rollout exists. Fresh-host testing, stable-tag environment authorization, review/merge and protected publication remain distinct follow-up gates.
+Preparation and approved publication are complete. [PR #69](https://github.com/openassistuk/openassist/pull/69) merged at `10c1c20bc4203c3d204cf41e77dfebc160baf722`, and that exact commit is tagged as [v0.2.0 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.0). The publication run passed all four native artifacts, Linux lifecycle/full verification, the signing contract, protected signing/publication and all four public-installer targets. GitHub latest stable points to 0.2.0; both downloaded public signatures independently verify with the pinned production key. Availability docs now lead with stable on the validated `codex/stable-0.2.0-publication` branch; its follow-up PR requires normal review and is separate from the immutable release. Replacement-host provider/channel retesting and the skipped second-account live check remain unverified; the maintainer authorized publication with those gaps disclosed. The tag and signed assets remain immutable.
 
 ## Context and Orientation
 
@@ -102,6 +109,12 @@ Local evidence: `pnpm verify:all` exited zero; 72 Vitest files, 515 tests passed
 
 Candidate hosted runs at `fa229fad77f40e385f32595453bc470bce471fb8` all succeeded: [CI 36733878032](https://github.com/openassistuk/openassist/actions/runs/36733878032), [CodeQL 36733877850](https://github.com/openassistuk/openassist/actions/runs/36733877850), [macOS LaunchAgent 36733877848](https://github.com/openassistuk/openassist/actions/runs/36733877848) and [Release Artifacts 36733877925](https://github.com/openassistuk/openassist/actions/runs/36733877925). CI covers all three OS quality/coverage/audit jobs and workflow lint. All four native artifacts and signing-contract passed; Linux x64 exercised actual signed rc.1 update, preserved state and reminder rollback protection. Publication and public-install skipped by design. Separate queries found zero open code-scanning alerts and no review threads; the PR requires maintainer review. The evidence-only follow-up adds the exact-tag prerequisite and records these outcomes without changing the validated application.
 
+Final preparation revision `ab4696c4df2aeee9450578ef5083cc00a4e8e799` passed [CI 36735017052](https://github.com/openassistuk/openassist/actions/runs/36735017052), [CodeQL 36735017125](https://github.com/openassistuk/openassist/actions/runs/36735017125), [macOS live 36735017350](https://github.com/openassistuk/openassist/actions/runs/36735017350) and [artifacts 36735017163](https://github.com/openassistuk/openassist/actions/runs/36735017163). The maintainer merged #69 on September 30. Actual merged-main [CI 36738452015](https://github.com/openassistuk/openassist/actions/runs/36738452015) and [CodeQL 36738451853](https://github.com/openassistuk/openassist/actions/runs/36738451853) passed; a separate open-alert query returned zero. No merged-main certification is inferred from the earlier PR results.
+
+Publication [run 36739241771](https://github.com/openassistuk/openassist/actions/runs/36739241771) signed and published 16 assets on September 30 at 15:51:30 UTC (16:51:30 Europe/London). The annotated tag object is `e039f80abc6219d73460a69080507d743ed7e966`, peeling to reviewed main `10c1c20bc4203c3d204cf41e77dfebc160baf722`. The unauthenticated public metadata check verified both manifest/index signatures and their matching stable/four-target entries. Manifest SHA-256 is `d4f569511cc3bb140066bd3dde7b8712efeb59e9dd79f8311057d3a88d0d9e2c`. Protected approval used the existing eligible reviewer account under the maintainer's explicit request; no reviewer or signature protection was disabled. All public-installer jobs succeeded: Linux x64 at 15:52:12Z, Linux arm64 at 15:52:24Z, macOS arm64 at 15:54:15Z and macOS x64 at 15:57:23Z. Each exercised both channel and exact-version selections, update planning and retained-state removal.
+
+Publication documentation validation: full `pnpm verify:all` exited zero on Windows/Node 24.21.0/pnpm 12.5.1 with Git Bash available. Vitest 515 passed/1 skipped; Node 207 passed/4 skipped; coverage Node 126 passed/3 skipped. Coverage totals match the preparation evidence above, with zero findings in both audits. The ignored log is `coverage/stable-0.2.0-publication-docs-verify.log`. Final docs-truth checks cover updated commands, links, test inventory and release/version coherence; hosted follow-up results are recorded with its actual PR revision rather than inferred from publication.
+
 ## Interfaces and Dependencies
 
 
@@ -116,3 +129,11 @@ Revision 2026-09-30 local verification: Recorded full test, coverage, audit and 
 Revision 2026-09-30 PR handoff: Recorded PR/revision, initial hosted runs and separate review/scanner results. Added the discovered exact-tag environment prerequisite without changing external release protection.
 
 Revision 2026-09-30 hosted reconciliation: Recorded complete implementation-revision hosted evidence, intentional publication skips and required review. Final follow-up and eventual merge/tag/publication outcomes must be inspected independently and must not be inferred from these results.
+
+Revision 2026-09-30 authorized rollout: Reconciled final head review/checks, actual merge and merged-main checks. Recorded explicit publication authorization, the immutable stable tag and narrowly scoped environment permission; publication/public verification are in progress and fresh-host integration checks remain unverified.
+
+Revision 2026-09-30 publication: Recorded actual protected signing/publication, latest-stable designation, all 16 assets, immutable tag identity and independent production-signature verification. Public-install jobs are tracked separately and availability docs wait for all four outcomes.
+
+Revision 2026-09-30 public validation: Recorded success on all four public-installer targets before updating availability notices and stable commands. Reconciled dated changelog, release notes, docs index, quickstart and platform guides on a follow-up documentation branch; signed assets and tag remain unchanged.
+
+Revision 2026-09-30 documentation handoff: Recorded repeated full local verification for the publication-doc update, reconciled the GitHub release body and retained normal PR review for current-main availability docs. Use `gh pr view codex/stable-0.2.0-publication` for that branch's final hosted checks and review status.

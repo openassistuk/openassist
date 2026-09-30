@@ -6,7 +6,9 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
-## [0.2.0] - Pending publication
+## [0.2.0] - 2026-09-30
+
+- Publish the signed stable release from reviewed main `10c1c20` with all 16 assets, private Node runtimes and unchanged mandatory signature controls. Verify both production signatures independently and pass public stable-channel/exact-version installation plus data-preserving uninstall on Linux/macOS x64/arm64. Make stable the primary operator install path and retain explicit preview/source migration. Additional replacement-host provider/channel and second-account live testing remain unverified; no broader live certification is claimed.
 
 - 2026-09-30: Prepare the first stable packaged release after merged PRs #67 and #68: align root/CLI/daemon versions at `0.2.0`, collect the development history below, and add reviewed stable installation, migration, security and testing notes at `docs/releases/v0.2.0.md`. The signed preview remains unchanged. Fresh-host candidate retesting, protected publication and post-publication public-install checks remain outstanding; this version bump does not claim that stable assets are published.
 

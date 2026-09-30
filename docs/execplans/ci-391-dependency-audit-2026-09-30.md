@@ -1,4 +1,4 @@
-# Fix CI #391 dependency audit failures
+# Fix CI #391 dependency audits and CodeQL alert #42
 
 This living ExecPlan follows `.agents/PLANS.md`. Keep Progress, Surprises & Discoveries, Decision Log, and Outcomes & Retrospective current.
 
@@ -6,6 +6,8 @@ This living ExecPlan follows `.agents/PLANS.md`. Keep Progress, Surprises & Disc
 
 
 Restore the required Linux, macOS and Windows quality gates after scheduled CI #391 detected newly catalogued high-severity denial-of-service advisories. Operators receive patched transitive dependencies through the next build; the existing signed preview is not rebuilt or republished by this change. The result is observable through passing dependency audits and unchanged test/coverage gates.
+
+The user expanded this same branch/PR on 2026-09-30 to address CodeQL alert #42. Remove its misclassified test-directory source while preserving the established path-only runtime instance fingerprint and prove the original finding no longer appears in a full branch analysis. Do not dismiss the alert or replace a non-secret path identifier with password-hashing behavior.
 
 ## Progress
 
@@ -20,6 +22,13 @@ Restore the required Linux, macOS and Windows quality gates after scheduled CI #
 - [x] (2026-09-30) Final `pnpm verify:all` passed on Windows with Node 24.21.0/pnpm 12.5.1: Vitest 513 passed/1 skipped; Node 204 passed/6 skipped; both coverage gates passed and both audits have zero findings.
 - [x] (2026-09-30) Reviewed and committed the scoped fix as `07a78857b9347502b70d7309996cad55241c5727`, published the branch, and opened/attached PR #68 against main. No unresolved review threads were present; GitHub reports `REVIEW_REQUIRED`.
 - [x] (2026-09-30) Reconciled local evidence and PR creation separately from hosted results. Workflow lint and CodeQL preflight passed on the implementation head; quality, CodeQL analysis, native packaging and live macOS jobs were still running at PR handoff. Final hosted results are recorded on the PR's current head rather than inferred here.
+- [x] (2026-09-30) Original dependency revision `8fa6b7d` passed CI `36722995536`, CodeQL `36722995665`, live macOS `36722995533` and release artifacts `36722995719`. These results predate the CodeQL follow-up.
+- [x] (2026-09-30) Read alert #42 and original full SARIF analysis `1852278759`, independently traced all callers, and confirmed the reported source is fixture directory allocation with OAuth-labelled strings, not passwords.
+- [x] (2026-09-30) Removed caller-provided labels from both fixture factories; documented the unchanged production fingerprint and added compatibility/content-independence tests. Focused config typecheck passed; Vitest 28 passed/1 skipped and Node 5 passed.
+- [x] (2026-09-30) Completed a separate candidate-review pass: all seven affected calls use no-argument unique allocations, every production caller retains the same fingerprint, expected build/instance rejection tests pass, and no query exclusions/suppressions or credential transformations were introduced. All 10 docs-truth tests and `git diff --check` pass.
+- [x] (2026-09-30) Expanded patch passed `pnpm verify:all`: Vitest 515 passed/1 skipped; Node 204 passed/6 skipped; Node coverage suite 123 passed/5 skipped; coverage gates and both zero-finding audits passed.
+- [ ] Commit/push the reviewed follow-up and update the existing PR title/body around both fixes.
+- [ ] Run full branch CodeQL analysis, inspect findings separately from check conclusions, and record current-head hosted/review results.
 
 ## Surprises & Discoveries
 
@@ -30,6 +39,8 @@ Undici `GHSA-rfgv-xxqx-mfg5` affects the OpenAI-family SDK and Discord dependenc
 
 The initial patched audit still reports one moderate brace-expansion CPU-exhaustion advisory, `GHSA-q2hr-2g5m-vwhr`, fixed in 5.0.12. The final selected floor is therefore 5.0.12. This remains the same transitive package and major line; no additional dependency is changed.
 
+Alert #42 (`js/insufficient-password-hash`) follows `tempDir("...oauth...") -> configPath -> loadSetupQuickstartState -> finalizeSetupActivation -> runtimeInstanceId -> SHA-256`. Original SARIF contains no password prompt or credential content on this path. CodeQL's `SensitiveCall` heuristic classifies calls by sensitive-looking string arguments. The fingerprint uses only `path.resolve(configPath)` and is surfaced through daemon health and saved installation state. Production behavior is already safe; the minimal remediation fixes the test source representation and records the identity contract. Earlier PR scans had zero results despite the unchanged alert because they used PR diff analysis; they are not proof that #42 is addressed.
+
 ## Decision Log
 
 
@@ -39,10 +50,14 @@ Decision (2026-09-30, Codex): extend the existing lockfile regression test with 
 
 Decision (2026-09-30, Codex): supersede the initial brace-expansion 5.0.11 floor with 5.0.12 after identifying the remaining moderate advisory on the same package. Repeat final verification because the dependency changed, even though the initial gate passed. The final dependency requirements are Undici 6.28.1 and brace-expansion 5.0.12.
 
+Decision (2026-09-30, CodeQL follow-up): keep the production path-only SHA-256 fingerprint unchanged and constrain the two affected test directory factories to a fixed non-secret prefix with no arguments. This removes all seven misclassified call sites without renaming credential variables, excluding tests, changing queries, suppressing alerts or introducing a password KDF. New golden-value and file-content tests preserve compatibility. User authorization expands the existing PR to this finding; it remains unmerged.
+
+Decision (2026-09-30, verification): perform the required independent investigation and candidate-review perspectives as separate single-agent passes because user policy forbids delegation. Run a full `workflow_dispatch` CodeQL analysis on the branch after pushing, then inspect its SARIF/results and branch alert state. Default-branch alert #42 cannot be claimed closed before a merged main analysis observes the fix.
+
 ## Outcomes & Retrospective
 
 
-The final implementation resolves Undici 6.28.1 and brace-expansion 5.0.12. Both old-lockfile regression checks failed before the dependency change, all 18 targeted tests pass, full local verification passes and both audits have zero findings at every severity. [PR #68](https://github.com/openassistuk/openassist/pull/68) is open against main; its current-head checks and reviews are the authoritative hosted handoff. At creation, workflow lint and CodeQL preflight passed while the remaining hosted jobs were running. Review is required; the PR is not merged and no release artifacts were published. The existing main CodeQL alert #42 is separately recorded and remains outside this dependency change.
+The dependency implementation resolves Undici 6.28.1 and brace-expansion 5.0.12 with zero findings and successful local/hosted gates on the original dependency revision. [PR #68](https://github.com/openassistuk/openassist/pull/68) now also addresses CodeQL #42's false-positive fixture flow. Production instance IDs and health checks are preserved; focused compatibility/OAuth tests and expanded full local verification pass. Follow-up publication and full branch scanner verification remain pending. Review is required; the PR is not merged and no release artifacts were published.
 
 The lesson from CI #391 is that a previously verified dependency floor can become vulnerable when new advisories are catalogued. Keeping the audits active caught this drift; updating only the affected patch versions restored the gate without suppressions or weaker policy.
 
@@ -51,15 +66,21 @@ The lesson from CI #391 is that a previously verified dependency floor can becom
 
 `pnpm-workspace.yaml` contains version-selective overrides, which tell the package manager to replace affected transitive dependencies (packages required by direct dependencies). `pnpm-lock.yaml` records their exact resolved versions and integrity hashes. `tests/node/dependency-security-overrides.test.ts` checks all resolved copies against patched floors and rejects old vulnerable versions. `scripts/dev/audit-dependencies.mjs` invokes both production and full registry audits, retains JSON reports under ignored `coverage/audit/`, and fails on high/critical counts or invalid registry responses. `package.json` includes that audit in `pnpm verify:all`; `.github/workflows/ci.yml` runs the same gate on all three platforms. No runtime API, configuration, privilege, replay or lifecycle behavior is changed.
 
+`packages/config/src/build-identity.ts:runtimeInstanceId` hashes the resolved configuration path into a 24-character instance label. Callers are daemon `/v1/health`, CLI lifecycle activation/recovery/update and release smoke validation. `tests/node/cli-setup-quickstart-oauth.test.ts` and `tests/vitest/setup-quickstart-oauth.test.ts` previously supplied account-link labels to a general `tempDir(prefix)` helper; their no-argument helpers now allocate unique filesystem fixtures with fixed prefixes. `tests/vitest/lifecycle-release.test.ts` verifies stable native-platform fingerprint values, normalized paths, different-path separation and independence from config/env-file contents or existence.
+
 ## Plan of Work
 
 
 First raise the regression floors for Undici and brace-expansion and run that test against the old lockfile to demonstrate failure. Edit only their existing override entries in `pnpm-workspace.yaml`, then run `pnpm install --lockfile-only` and inspect the diff for unrelated upgrades. Install with `pnpm install --frozen-lockfile`. Synchronize `README.md`, `AGENTS.md`, `docs/README.md`, `docs/testing/test-matrix.md`, `docs/security/threat-model.md` and `CHANGELOG.md` with the new floors, scope and advisory control. Run the focused dependency/audit/docs checks and the full verification gate, then review, commit, push and open a PR against main. Record actual check outcomes without inferring success from earlier runs or merging the PR.
 
+For CodeQL #42, independently trace the original SARIF and all fingerprint callers, constrain only the two fixture factories, and add identity compatibility tests. Explain the path-only contract in the helper and affected docs. Challenge the candidate for surviving call sites and legitimate behavior changes, run focused package/OAuth/lifecycle checks plus full verification, commit and push to PR #68. Update its title/body around both fixes. Dispatch the existing `codeql.yml` on the branch for full analysis and inspect scan results separately from CI success.
+
 ## Milestones
 
 
 The first milestone proves the cause and removes the vulnerable resolutions. The existing dependency test must fail before the override changes and pass afterwards, and both retained audit reports must have zero high/critical findings. The second milestone produces a reviewed, documented PR after full local verification. Hosted platform, CodeQL and release/lifecycle results must be reported as observed, with pending jobs distinguished from success.
+
+The third milestone removes the misclassified CodeQL fixture sources while proving the production identifier is compatible and contains no credential input. Acceptance requires the original rule to have no findings in a full current-branch analysis, passing OAuth and lifecycle controls, unchanged gates and an updated PR. The default-branch alert remains governed by a subsequent main scan after merge.
 
 ## Concrete Steps
 
@@ -76,10 +97,14 @@ From the repository root `C:\Users\dange\Coding\openassist`, using Node 24.21.0 
 
 After a reviewed commit, push `codex/fix-ci-391-dependency-audit` and use `gh pr create --base main --head codex/fix-ci-391-dependency-audit --body-file <temporary-body-file>`. Inspect the created PR with `gh pr checks <number>` and separately inspect unresolved review threads and open code-scanning alerts.
 
+For the authorized follow-up, run `pnpm --filter @openassist/config typecheck`, `pnpm exec vitest run tests/vitest/lifecycle-release.test.ts tests/vitest/setup-quickstart-oauth.test.ts`, `pnpm exec tsx --test tests/node/cli-setup-quickstart-oauth.test.ts tests/node/cli-live-test-fixes.test.ts tests/node/cli-docs-truth.test.ts`, then `pnpm verify:all`. After pushing the reviewed commit, use `gh pr edit 68 --title <updated-title> --body-file <temporary-body-file>` and `gh workflow run codeql.yml --ref codex/fix-ci-391-dependency-audit`. Inspect the dispatched full analysis and its SARIF; PR-only zero results are insufficient for this finding.
+
 ## Validation and Acceptance
 
 
 Before the override changes, the strengthened test must reject brace-expansion 5.0.9 or Undici 6.28.0. Afterwards, the tests must pass and lockfile resolutions must contain Undici 6.28.1 and brace-expansion 5.0.12 without the affected older copies. `pnpm verify:all` must exit zero with the existing builds, lint, types, tests, coverage thresholds and audit rules. Both final audits should have zero findings at every severity; any new registry finding must be reported honestly. The final PR must contain no unrelated dependency updates or generated audit reports.
+
+Both affected fixture factories must accept no labels, all seven old calls must be gone, and the fingerprint algorithm must be identical to the baseline. Golden values must remain `6ab3c271c1ff61cb0f860905` for `C:\OpenAssist\config\openassist.toml` and `3bb2c5179b37e066681c3103` for `/var/lib/openassist/openassist.toml` on their native platforms. File creation, replacement and removal must not change the identifier; equivalent paths match and distinct paths differ. Full CodeQL analysis on the exact pushed branch head must report no `js/insufficient-password-hash` result. No alert dismissal, inline suppression or query exclusion is permitted.
 
 ## Idempotence and Recovery
 
@@ -91,13 +116,15 @@ Installs and audits can be repeated safely; reports are local ignored artifacts.
 
 Failing run: https://github.com/openassistuk/openassist/actions/runs/36703493461. Local reproduction uses `pnpm audit:dependencies` and retains `coverage/audit/production.json` and `coverage/audit/all.json`. Upstream references are https://github.com/advisories/GHSA-rfgv-xxqx-mfg5, https://github.com/advisories/GHSA-qhr7-859c-m2p7, https://github.com/advisories/GHSA-6j4f-fj2g-mc7p and https://github.com/advisories/GHSA-q2hr-2g5m-vwhr.
 
-Initial focused verification: 18 tests passed. Before the change both dependency tests failed, explicitly identifying brace-expansion 5.0.9 below floor 5.0.11 and the remaining Undici 6.28.0 entry. With the initial 5.0.11 installation, production audit counts were all zero and full audit counts were moderate=1, high=0, critical=0. The separate GitHub alert inspection found no open Dependabot alerts and one pre-existing main code-scanning alert, #42 (`js/insufficient-password-hash`) at `packages/config/src/build-identity.ts:36`, created 2026-09-28; it has not been suppressed or dismissed and is outside this dependency-only change.
+Initial focused verification: 18 tests passed. Before the change both dependency tests failed, explicitly identifying brace-expansion 5.0.9 below floor 5.0.11 and the remaining Undici 6.28.0 entry. With the initial 5.0.11 installation, production audit counts were all zero and full audit counts were moderate=1, high=0, critical=0. The separate GitHub alert inspection found no open Dependabot alerts and one pre-existing main code-scanning alert, #42 (`js/insufficient-password-hash`) at `packages/config/src/build-identity.ts:36`, created 2026-09-28. It was initially outside the dependency-only stage; the later user-authorized follow-up now includes it without suppression or dismissal.
 
 Final focused verification with brace-expansion 5.0.12: all 18 tests passed and both production/full audit counts are info=0, low=0, moderate=0, high=0, critical=0. The lockfile diff still changes only Undici, brace-expansion and their dependent references.
 
 Final `pnpm verify:all` exited zero on Windows using Node 24.21.0 and pnpm 12.5.1. Vitest: 72 files, 513 passed/1 skipped. Node: 210 tests, 204 passed/6 skipped. Node coverage suite: 128 tests, 123 passed/5 skipped. Vitest coverage: statements 83.08%, branches 74.09%, functions 85.82%, lines 84.08%. Node coverage: statements/lines 80.06%, branches 73.38%, functions 86.52%. Both audits are zero at every severity. Local Windows skips include Bash/platform-dependent paths; hosted Linux/macOS checks provide their own evidence. The complete local transcript is retained at `%TEMP%/openassist-ci-391-verify-final.log`.
 
 PR handoff: https://github.com/openassistuk/openassist/pull/68, implementation commit `07a78857b9347502b70d7309996cad55241c5727`. Initial hosted runs: CI `36722772998`, CodeQL `36722772839`, macOS Live Launchd `36722773006`, Release Artifacts `36722772874`. These runs belong to the implementation head; later documentation reconciliation may cause new current-head runs, so consult the PR checks rather than treating an earlier green run as final certification. The review-thread query returned no threads and review decision `REVIEW_REQUIRED`. A successful CodeQL workflow must not be confused with closure of the separately open main alert #42.
+
+CodeQL follow-up local evidence: config typecheck passed; the focused Vitest suites passed 28 tests/1 skip; Node OAuth and live installer regression suites passed all 5 tests; docs-truth passed all 10 tests. Full `pnpm verify:all` then exited zero on Windows/Node 24.21.0/pnpm 12.5.1 with Vitest 515 passed/1 skipped and Node 204 passed/6 skipped. Coverage suite: 123 passed/5 skipped. Vitest coverage remains statements 83.08%, branches 74.09%, functions 85.82%, lines 84.08%; Node coverage remains statements/lines 80.06%, branches 73.38%, functions 86.52%. Both audits report zero findings. The skips are the existing platform/Bash-dependent and hosted-only paths.
 
 ## Interfaces and Dependencies
 
@@ -115,3 +142,9 @@ Revision note (2026-09-30, final focused checks): Recorded the final two-package
 Revision note (2026-09-30, final local verification): Recorded successful full verification, actual test/coverage counts and platform limitations before committing and opening the PR.
 
 Revision note (2026-09-30, PR handoff): Reconciled actual PR creation, initial hosted checks, required review and the separate open scanner alert. Final hosted outcomes remain attached to the PR's current revision; no merge or publication is claimed.
+
+Revision note (2026-09-30, authorized CodeQL follow-up): Expanded the same PR to alert #42, recorded original SARIF/source heuristics, preserved production fingerprints, constrained all affected fixture allocations and added identity compatibility tests. Full local/current-branch scanner evidence remains to be recorded.
+
+Revision note (2026-09-30, candidate review): Recorded the separate single-agent review, unchanged production callers, removal of all seven misclassified fixture sources and successful focused/docs-truth checks before full verification.
+
+Revision note (2026-09-30, expanded local gate): Recorded successful full local verification of the CodeQL follow-up while keeping scanner closure pending fresh full branch analysis.

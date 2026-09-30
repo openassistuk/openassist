@@ -11,8 +11,9 @@ import {
   runSetupQuickstart
 } from "../../apps/openassist-cli/src/lib/setup-quickstart.js";
 
-function tempDir(prefix: string): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+function tempDir(): string {
+  // Filesystem fixture allocation accepts no credential or account-link labels.
+  return fs.mkdtempSync(path.join(os.tmpdir(), "openassist-node-quickstart-fixture-"));
 }
 
 async function getFreePort(): Promise<number> {
@@ -138,7 +139,7 @@ function validCodexQuickstartAnswers(bindPort: number, extra: string[] = []): st
 
 describe("cli setup quickstart oauth coverage", () => {
   it("supports Codex device-code linking during quickstart after daemon health checks pass", async () => {
-    const root = tempDir("openassist-node-quickstart-oauth-");
+    const root = tempDir();
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;

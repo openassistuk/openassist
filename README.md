@@ -299,6 +299,8 @@ That gate includes a docs-truth validation pass, so unregistered command names i
 
 The source dependency policy includes patched Undici `6.28.1` for provider/Discord dependency paths and brace-expansion `5.0.12` for coverage tooling, addressing the denial-of-service advisories detected by scheduled CI #391, including the related moderate brace-expansion finding. These fixes apply to subsequent builds; the published `v0.2.0-rc.1` preview is unchanged. See the [repair evidence](docs/execplans/ci-391-dependency-audit-2026-09-30.md).
 
+Daemon health reports a stable instance fingerprint derived only from the resolved configuration path. Configuration and environment-file contents do not affect it, and it grants no authentication or access rights. Compatibility tests preserve existing instance IDs; account-link test fixtures allocate independent directories without credential labels.
+
 Node coverage now excludes `tests/**` from reported totals, and Vitest coverage intentionally targets the CLI library plus selected daemon, config, runtime, provider, and web-tool modules instead of claiming full-repo source coverage. The exact measured source list lives in [`docs/testing/test-matrix.md`](docs/testing/test-matrix.md).
 
 Setup readiness rejects malformed bind addresses before attempting network probes. Repair guidance is in [common troubleshooting](docs/operations/common-troubleshooting.md#invalid-bind-address).

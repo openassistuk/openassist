@@ -46,6 +46,12 @@ Out of scope:
 
 The source dependency overrides require Undici `6.28.1` on the existing 6.x provider/Discord paths to address an uncaught WebSocket-handshake exception from a malicious or compromised server ([GHSA-rfgv-xxqx-mfg5](https://github.com/advisories/GHSA-rfgv-xxqx-mfg5)). Coverage tooling resolves brace-expansion `5.0.12` to address stack exhaustion from nested brace groups and comma parsing ([GHSA-qhr7-859c-m2p7](https://github.com/advisories/GHSA-qhr7-859c-m2p7), [GHSA-6j4f-fj2g-mc7p](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p)), plus a moderate CPU-exhaustion advisory in brace rewriting ([GHSA-q2hr-2g5m-vwhr](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr)). Regression tests reject older affected resolutions; production and full audits remain mandatory and fail on high/critical findings or registry errors. These floors protect subsequent builds and do not alter already published preview artifacts.
 
+### Runtime instance identity
+
+`runtimeInstanceId` in `packages/config/src/build-identity.ts` returns the first 24 lowercase hex characters of SHA-256 over the resolved configuration path. This identifies which daemon instance answered health checks; it is not a password hash, credential, authentication token or grant of access. It reads no configuration or env-file contents. Existing IDs remain stable through credential changes, restarts and upgrades at the same path. Activation requires matching build and instance health, and retains its separate lifecycle controls.
+
+CodeQL alert #42 classified account-link test directory labels as password inputs and followed their paths into this fingerprint. Those fixture factories now accept no caller-provided labels and use a fixed non-secret prefix with `mkdtemp` uniqueness. The production fingerprint algorithm and health checks are preserved. Verification requires the full reported trace and a fresh full branch CodeQL analysis, rather than an alert dismissal, suppression or PR-diff-only result.
+
 ### Privileged host action misuse
 
 Controls:

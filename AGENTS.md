@@ -276,6 +276,7 @@ When touching channel/runtime/provider attachment behavior:
 - Keep `pkg.install` elevation behavior explicit (`sudo -n` semantics where applicable).
 - Preserve env-reference secret handling (`env:VAR_NAME`) and env-file permissions guidance.
 - Preserve redaction behavior when touching auth/config/logging.
+- Runtime instance IDs fingerprint only resolved config paths; they are not credentials or authentication tokens. Preserve existing fingerprint values and keep credential contents out of that path. Test directory factories should use fixed non-secret prefixes instead of accepting credential/account-link labels. For existing CodeQL alerts, inspect the full reported trace and verify with a full branch analysis; a green PR diff analysis alone does not prove closure of a baseline alert.
 
 ## Reliability Rules
 

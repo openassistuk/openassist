@@ -6,6 +6,10 @@ The format follows Keep a Changelog conventions and this project currently track
 
 ## [Unreleased]
 
+- 2026-09-30: Address CodeQL #42's misclassification of account-link test directory labels as password inputs to the runtime instance fingerprint. Constrain Node/Vitest fixture factories to fixed non-secret prefixes, document path-only instance identity, and add Windows/Unix fingerprint and credential-content independence checks. Preserve the existing SHA-256 path fingerprints, daemon health identity checks and authentication boundaries; verify with full branch CodeQL analysis without suppressing or dismissing the alert.
+
+- 2026-09-30: Repair scheduled CI #391 dependency-audit failures with scoped Undici `6.28.1` and brace-expansion `5.0.12` resolutions. Address high-severity WebSocket-handshake and brace-recursion denial-of-service advisories on provider/Discord and coverage-tool dependency paths, plus the related moderate brace-rewriting advisory; strengthen lockfile regression floors and synchronize security/testing guidance. Preserve audit and coverage gates. The published `v0.2.0-rc.1` preview remains unchanged; fixes apply to subsequent builds.
+
 - Follow-up artifact evidence: support macOS Bash 3 empty argument arrays in the piped handoff, and resolve the packaged release trust anchor above nested pnpm deployment workspace markers. Signature checks remain mandatory; no trust-anchor fallback or bypass is introduced.
 
 - 2026-09-28 Ubuntu regression candidate: fix the piped installer stdin handoff, seeded first-time onboarding selection and private-runtime packaged setup without Git/npm/pnpm. Setup verifies build and instance before completing activation; recovery dry runs report pending verification. Timezone confirmation refreshes clock health, and systemd/launchd PATH includes the managed command and selected Node directories.

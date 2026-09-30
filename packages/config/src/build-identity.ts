@@ -32,6 +32,7 @@ export function cachedUpdateStatus(): string | undefined {
   } catch { return undefined; }
 }
 
+/** Stable fingerprint of the resolved config path, not a credential or authentication token. */
 export function runtimeInstanceId(configPath: string): string {
   return createHash("sha256").update(path.resolve(configPath)).digest("hex").slice(0, 24);
 }

@@ -10,8 +10,9 @@ import {
   runSetupQuickstart
 } from "../../apps/openassist-cli/src/lib/setup-quickstart.js";
 
-function tempDir(prefix: string): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+function tempDir(): string {
+  // Filesystem fixture allocation accepts no credential or account-link labels.
+  return fs.mkdtempSync(path.join(os.tmpdir(), "openassist-quickstart-fixture-"));
 }
 
 async function getFreePort(): Promise<number> {
@@ -137,7 +138,7 @@ function validCodexQuickstartAnswers(bindPort: number, extra: string[] = []): st
 
 describe("setup quickstart oauth path", () => {
   it("guides Codex account linking through the recommended device-code path", async () => {
-    const root = tempDir("openassist-quickstart-oauth-");
+    const root = tempDir();
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
@@ -301,7 +302,7 @@ describe("setup quickstart oauth path", () => {
   });
 
   it("accepts wrapped localhost callback URLs during Codex account linking", async () => {
-    const root = tempDir("openassist-quickstart-oauth-wrapped-");
+    const root = tempDir();
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
@@ -436,7 +437,7 @@ describe("setup quickstart oauth path", () => {
   });
 
   it("accepts raw auth-code input for Codex account linking", async () => {
-    const root = tempDir("openassist-quickstart-oauth-raw-code-");
+    const root = tempDir();
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
@@ -571,7 +572,7 @@ describe("setup quickstart oauth path", () => {
   });
 
   it("retries default Codex account linking without misreporting a service failure", async () => {
-    const root = tempDir("openassist-quickstart-oauth-retry-");
+    const root = tempDir();
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
@@ -725,7 +726,7 @@ describe("setup quickstart oauth path", () => {
   });
 
   it("surfaces Codex completion errors as auth problems with actionable detail", async () => {
-    const root = tempDir("openassist-quickstart-oauth-error-");
+    const root = tempDir();
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
@@ -877,7 +878,7 @@ describe("setup quickstart oauth path", () => {
   });
 
   it("treats a stored-but-not-chat-ready codex account as an auth-readiness failure", async () => {
-    const root = tempDir("openassist-quickstart-oauth-not-ready-");
+    const root = tempDir();
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;

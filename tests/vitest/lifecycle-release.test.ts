@@ -13,7 +13,7 @@ import { DatabaseSync } from "node:sqlite";
 import { isolatedEnvironment, isolatedDaemonEnvironment, instancePath } from "../../apps/openassist-cli/src/commands/dev.js";
 import { checkHealth } from "../../apps/openassist-cli/src/lib/health-check.js";
 import { renderOperationSummary } from "../../apps/openassist-cli/src/lib/lifecycle-readiness.js";
-import { getBuildIdentity } from "../../packages/config/src/build-identity.js";
+import { getBuildIdentity, runtimeInstanceId } from "../../packages/config/src/build-identity.js";
 
 const require = createRequire(path.resolve("apps/openassist-cli/package.json"));
 const tar = require("tar");
@@ -24,6 +24,26 @@ const build={id:"0.1.0-test",version:"0.1.0",commit:"a".repeat(40),nodeVersion:"
 const manifest=()=>({schemaVersion:1,build,channel:"stable",artifacts:["linux-x64","linux-arm64","darwin-x64","darwin-arm64"].map(target=>{const[platform,arch]=target.split('-');return{platform,arch,file:`${target}.tar.gz`,sha256:"b".repeat(64),bytes:100};})});
 
 describe("verified lifecycle releases",()=>{
+  it("preserves path-only instance fingerprints and normalizes equivalent paths",()=>{
+    const configPath=process.platform==="win32" ? "C:\\OpenAssist\\config\\openassist.toml" : "/var/lib/openassist/openassist.toml";
+    const expected=process.platform==="win32" ? "6ab3c271c1ff61cb0f860905" : "3bb2c5179b37e066681c3103";
+    expect(runtimeInstanceId(configPath)).toBe(expected);
+    expect(runtimeInstanceId(path.join(path.dirname(configPath),"subdir","..","openassist.toml"))).toBe(expected);
+    expect(runtimeInstanceId(path.relative(process.cwd(),configPath))).toBe(expected);
+    expect(runtimeInstanceId(path.join(path.dirname(configPath),"other","openassist.toml"))).not.toBe(expected);
+  });
+  it("keeps instance identity independent of configuration and env-file contents",()=>{
+    const root=temp(),configPath=path.join(root,"openassist.toml"),envPath=path.join(root,"openassistd.env");
+    const expected=runtimeInstanceId(configPath);
+    fs.writeFileSync(configPath,"first configuration fixture");
+    fs.writeFileSync(envPath,"first environment fixture");
+    expect(runtimeInstanceId(configPath)).toBe(expected);
+    fs.writeFileSync(configPath,"replacement configuration fixture");
+    fs.writeFileSync(envPath,"replacement environment fixture");
+    expect(runtimeInstanceId(configPath)).toBe(expected);
+    fs.rmSync(configPath);fs.rmSync(envPath);
+    expect(runtimeInstanceId(configPath)).toBe(expected);
+  });
   it("finds the packaged trust anchor above a deployed application's workspace marker",()=>{
     const root=temp(), app=path.join(root,"apps","openassist-cli");
     fs.mkdirSync(app,{recursive:true});

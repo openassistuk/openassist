@@ -276,6 +276,7 @@ When touching channel/runtime/provider attachment behavior:
 - Keep `pkg.install` elevation behavior explicit (`sudo -n` semantics where applicable).
 - Preserve env-reference secret handling (`env:VAR_NAME`) and env-file permissions guidance.
 - Preserve redaction behavior when touching auth/config/logging.
+- Runtime instance IDs fingerprint only resolved config paths; they are not credentials or authentication tokens. Preserve existing fingerprint values and keep credential contents out of that path. Test directory factories should use fixed non-secret prefixes instead of accepting credential/account-link labels. For existing CodeQL alerts, inspect the full reported trace and verify with a full branch analysis; a green PR diff analysis alone does not prove closure of a baseline alert.
 
 ## Reliability Rules
 
@@ -470,6 +471,8 @@ Keep `@types/node` on 24.x; Dependabot must ignore its major version updates whi
 Support Node >=24.21.0 <25 only. Keep entrypoint guards, bootstrap checks, CI and service guidance synchronized. CLI command registration lives in `apps/openassist-cli/src/main.ts`; `src/index.ts` is the early runtime guard and dynamic launcher. Daemon startup uses the same separation. Reject unsupported runtimes before loading provider or storage modules.
 
 Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
+
+The 2026-09-30 dependency remediation requires Undici 6.x >=6.28.1 and brace-expansion >=5.0.12 on the existing override paths. Keep the resolved-version regression checks aligned with advisory floors; advancing dependencies must not suppress audit findings or weaken the gate. Record source/build fixes separately from already published artifact contents.
 
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 

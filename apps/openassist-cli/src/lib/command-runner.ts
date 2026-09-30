@@ -27,7 +27,7 @@ export function resolveCommandInvocation(
   args: string[],
   options: RunCommandOptions = {},
   platform: NodeJS.Platform = process.platform
-): { command: string; args: string[] } {
+): { command: string; args: string[] } | { error: string } {
   if (platform !== "win32" || command !== "pnpm") return { command, args };
 
   const env = options.env ?? process.env;
@@ -48,15 +48,16 @@ export function resolveCommandInvocation(
       return { command: fs.existsSync(node) ? node : process.execPath, args: [cli, ...args] };
     }
     // An unfamiliar first shim must not silently select another pnpm later on PATH.
-    return { command, args };
+    return { error: "Unsupported pnpm.cmd shim on the selected PATH; use the checkout's pinned npm-installed pnpm." };
   }
-  return { command, args };
+  return { error: "pnpm was not found on the selected PATH." };
 }
 
 export class SpawnCommandRunner implements CommandRunner {
   async run(command: string, args: string[] = [], options: RunCommandOptions = {}): Promise<RunCommandResult> {
+    const invocation = resolveCommandInvocation(command, args, options);
+    if ("error" in invocation) throw new Error(`Failed to start ${command}: ${invocation.error}`);
     return new Promise<RunCommandResult>((resolve, reject) => {
-      const invocation = resolveCommandInvocation(command, args, options);
       const child = spawn(invocation.command, invocation.args, {
         cwd: options.cwd,
         env: options.env ?? process.env,
@@ -90,8 +91,9 @@ export class SpawnCommandRunner implements CommandRunner {
   }
 
   async runStreaming(command: string, args: string[] = [], options: RunCommandOptions = {}): Promise<number> {
+    const invocation = resolveCommandInvocation(command, args, options);
+    if ("error" in invocation) throw new Error(`Failed to start ${command}: ${invocation.error}`);
     return new Promise<number>((resolve, reject) => {
-      const invocation = resolveCommandInvocation(command, args, options);
       const child = spawn(invocation.command, invocation.args, {
         cwd: options.cwd,
         env: options.env ?? process.env,

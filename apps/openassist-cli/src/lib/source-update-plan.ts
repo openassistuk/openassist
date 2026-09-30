@@ -23,6 +23,7 @@ export function sourceUpdatePlan(options: UpdateOptions): {ok:boolean; lines:str
   const legacy = detectLegacyDefaultLayout(installDir);
   const available = (command:string) => {
     const invocation = resolveCommandInvocation(command, ["--version"]);
+    if ("error" in invocation) return false;
     return spawnSync(invocation.command, invocation.args, {encoding:"utf8",timeout:5000,shell:false}).status === 0;
   };
   const plan = buildUpgradePlan({optionRef:options.ref,optionPr:options.pr,currentBranch,trackedRef,skipRestart:Boolean(options.skipRestart),dryRun:Boolean(options.dryRun)});

@@ -476,7 +476,7 @@ The 2026-09-30 dependency remediation requires Undici 6.x >=6.28.1, brace-expans
 
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 
-Source lifecycle command launches and prerequisite probes must keep `shell: false` and preserve literal argument boundaries. On Windows, resolve pnpm's native executable or a known npm/Corepack shim entrypoint on the selected PATH and invoke it directly; compatibility with an existing developer shim does not change the pinned CI/bootstrap installation route. Missing PATH tools must remain unavailable. Test captured/streaming launches and metacharacters; do not suppress DEP0190 to make verification appear clean.
+Source lifecycle command launches and prerequisite probes must keep `shell: false` and preserve literal argument boundaries. On Windows, resolve pnpm's native executable or a known npm/Corepack shim entrypoint on the selected PATH and invoke it directly; compatibility with an existing developer shim does not change the pinned CI/bootstrap installation route. Missing PATH tools and unsupported first shims must remain unavailable: return an explicit resolution error and never restart executable lookup through a bare command. Test actual captured/streaming launches, metacharacters and readiness failure with a later runnable executable; do not suppress DEP0190 to make verification appear clean.
 
 ## Model and authentication maintenance
 

@@ -38,7 +38,7 @@ describe("command-runner", () => {
     expect(resolveCommandInvocation("pnpm", args, {env:{PATH:`"${path.dirname(first)}";${root}/second`,Path:"missing"}}, "win32"))
       .toEqual({command:first,args});
     expect(resolveCommandInvocation("pnpm", args, {env:{PATH:"",Path:path.dirname(first)}}, "win32"))
-      .toEqual({command:"pnpm",args});
+      .toEqual({error:expect.stringContaining("not found on the selected PATH")});
   });
 
   it.each(["node_modules/pnpm/pnpm.exe", "../pnpm/pnpm.exe"])("resolves npm's native pnpm executable at %s without executing its cmd shim", relative => {
@@ -65,14 +65,14 @@ describe("command-runner", () => {
   it("does not find pnpm outside the supplied PATH or guess unfamiliar shim targets", () => {
     const root = tempDir("openassist-command-missing-");
     fixture(root, "pnpm.cmd", "@echo should not execute");
-    expect(resolveCommandInvocation("pnpm", [], {env:{}}, "win32")).toEqual({command:"pnpm",args:[]});
-    expect(resolveCommandInvocation("pnpm", [], {env:{PATH:root}}, "win32")).toEqual({command:"pnpm",args:[]});
+    expect(resolveCommandInvocation("pnpm", [], {env:{}}, "win32")).toEqual({error:expect.stringContaining("not found on the selected PATH")});
+    expect(resolveCommandInvocation("pnpm", [], {env:{PATH:root}}, "win32")).toEqual({error:expect.stringContaining("Unsupported pnpm.cmd shim")});
     const later = path.join(root,"later");
     fixture(later,"pnpm.exe");
-    expect(resolveCommandInvocation("pnpm", [], {env:{PATH:`${root};${later}`}}, "win32")).toEqual({command:"pnpm",args:[]});
+    expect(resolveCommandInvocation("pnpm", [], {env:{PATH:`${root};${later}`}}, "win32")).toEqual({error:expect.stringContaining("Unsupported pnpm.cmd shim")});
     fs.unlinkSync(path.join(root,"pnpm.cmd"));
     fixture(root,"node_modules/pnpm/bin/pnpm.cjs");
-    expect(resolveCommandInvocation("pnpm", [], {env:{PATH:root}}, "win32")).toEqual({command:"pnpm",args:[]});
+    expect(resolveCommandInvocation("pnpm", [], {env:{PATH:root}}, "win32")).toEqual({error:expect.stringContaining("not found on the selected PATH")});
   });
 
   it.runIf(process.platform === "win32")("preserves shell metacharacters in captured and streaming pnpm launches", async () => {
@@ -89,6 +89,20 @@ describe("command-runner", () => {
     const output = path.join(root,"args.json");
     expect(await runner.runStreaming("pnpm",args,{env:{...env,ARGV_FILE:output}})).toBe(0);
     expect(JSON.parse(fs.readFileSync(output,"utf8"))).toEqual(args);
+  });
+
+  it.runIf(process.platform === "win32").each(["run", "runStreaming"] as const)("never launches a later executable through %s when the first pnpm shim is unsupported", async method => {
+    const root = tempDir("openassist-command-unsupported-");
+    const first = path.join(root,"first");
+    const later = path.join(root,"later");
+    fixture(first,"pnpm.cmd","@exit /b 99\r\n");
+    fs.mkdirSync(later,{recursive:true});
+    // A real executable must be present so a second PATH search would succeed.
+    fs.copyFileSync(process.execPath,path.join(later,"pnpm.exe"));
+    const search = `${first};${later}`;
+    const runner = new SpawnCommandRunner();
+    await expect(runner[method]("pnpm",["--version"],{env:{...process.env,PATH:search,Path:search}}))
+      .rejects.toThrow("Unsupported pnpm.cmd shim");
   });
 
   it("captures stdout/stderr and exit code", async () => {

@@ -150,6 +150,44 @@ describe("cli command integration", () => {
     assert.ok(result.stdout.includes("node=missing"), result.stdout);
   });
 
+  it("reports an unsupported first pnpm shim as unavailable despite a later executable", {skip:process.platform !== "win32"}, async () => {
+    const root = tempDir("openassist-upgrade-unsupported-shim-");
+    const cloneDir = path.join(root,"repo");
+    const homeDir = path.join(root,"home");
+    const first = path.join(root,"first");
+    const later = path.join(root,"later");
+    try {
+      const cloned = await runCommand("git",["clone","--depth","1",repoRoot(),cloneDir],repoRoot());
+      assert.equal(cloned.code,0,cloned.stderr || cloned.stdout);
+      fs.mkdirSync(path.join(cloneDir,"apps","openassistd","dist"),{recursive:true});
+      fs.writeFileSync(path.join(cloneDir,"apps","openassistd","dist","index.js"),"// built for dry-run\n");
+      const operatorPaths = resolveOperatorPaths({homeDir,installDir:cloneDir});
+      const config = createDefaultConfigObject();
+      config.runtime.paths.dataDir = operatorPaths.dataDir;
+      config.runtime.paths.logsDir = operatorPaths.logsDir;
+      config.runtime.paths.skillsDir = operatorPaths.skillsDir;
+      saveConfigObject(operatorPaths.configPath,config);
+      fs.mkdirSync(path.dirname(operatorPaths.envFilePath),{recursive:true});
+      fs.writeFileSync(operatorPaths.envFilePath,"");
+      saveInstallState({installDir:cloneDir,configPath:operatorPaths.configPath,envFilePath:operatorPaths.envFilePath,trackedRef:"main"},operatorPaths.installStatePath);
+      fs.mkdirSync(first,{recursive:true});
+      fs.mkdirSync(later,{recursive:true});
+      fs.writeFileSync(path.join(first,"pnpm.cmd"),"@exit /b 99\r\n");
+      // The old fallback would execute this real binary and accept its successful --version exit.
+      fs.copyFileSync(process.execPath,path.join(later,"pnpm.exe"));
+      const search = `${first};${later};${process.env.PATH ?? process.env.Path ?? ""}`;
+      const result = await runCli(["upgrade","--dry-run","--install-dir",cloneDir,"--ref","HEAD"],repoRoot(),
+        childHomeEnv(homeDir,{PATH:search,Path:search}));
+      assert.equal(result.code,1,result.stderr || result.stdout);
+      assert.match(result.stdout,/Update prerequisites/);
+      assert.match(result.stdout,/git=ok/);
+      assert.match(result.stdout,/pnpm=missing/);
+      assert.match(result.stdout,/node=ok/);
+    } finally {
+      fs.rmSync(root,{recursive:true,force:true});
+    }
+  });
+
   it("requires an explicit PR target when a detached install is tracking a pull request", async () => {
     const root = tempDir("openassist-upgrade-pr-track-");
     const cloneDir = path.join(root, "repo");

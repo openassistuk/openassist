@@ -18,7 +18,8 @@ Restore the required Linux, macOS and Windows quality gates after scheduled CI #
 - [x] (2026-09-30) Initial full verification passed with brace-expansion 5.0.11; traced the remaining moderate finding to `GHSA-q2hr-2g5m-vwhr` and verified compatible patch 5.0.12 is available.
 - [x] (2026-09-30) Applied brace-expansion 5.0.12, repeated all 18 focused tests successfully, and confirmed both retained audits have zero findings at every severity.
 - [x] (2026-09-30) Final `pnpm verify:all` passed on Windows with Node 24.21.0/pnpm 12.5.1: Vitest 513 passed/1 skipped; Node 204 passed/6 skipped; both coverage gates passed and both audits have zero findings.
-- [ ] Review and commit the final diff, publish the branch, open and attach the PR, and record hosted check/review/security status separately from local evidence.
+- [x] (2026-09-30) Reviewed and committed the scoped fix as `07a78857b9347502b70d7309996cad55241c5727`, published the branch, and opened/attached PR #68 against main. No unresolved review threads were present; GitHub reports `REVIEW_REQUIRED`.
+- [x] (2026-09-30) Reconciled local evidence and PR creation separately from hosted results. Workflow lint and CodeQL preflight passed on the implementation head; quality, CodeQL analysis, native packaging and live macOS jobs were still running at PR handoff. Final hosted results are recorded on the PR's current head rather than inferred here.
 
 ## Surprises & Discoveries
 
@@ -41,7 +42,9 @@ Decision (2026-09-30, Codex): supersede the initial brace-expansion 5.0.11 floor
 ## Outcomes & Retrospective
 
 
-The final implementation resolves Undici 6.28.1 and brace-expansion 5.0.12. Both old-lockfile regression checks failed before the dependency change, all 18 targeted tests pass, full local verification passes and both audits have zero findings at every severity. PR publication and hosted verification remain pending. The existing main CodeQL alert #42 is separately recorded and remains outside this dependency change. No merge or release publication is authorized by this task.
+The final implementation resolves Undici 6.28.1 and brace-expansion 5.0.12. Both old-lockfile regression checks failed before the dependency change, all 18 targeted tests pass, full local verification passes and both audits have zero findings at every severity. [PR #68](https://github.com/openassistuk/openassist/pull/68) is open against main; its current-head checks and reviews are the authoritative hosted handoff. At creation, workflow lint and CodeQL preflight passed while the remaining hosted jobs were running. Review is required; the PR is not merged and no release artifacts were published. The existing main CodeQL alert #42 is separately recorded and remains outside this dependency change.
+
+The lesson from CI #391 is that a previously verified dependency floor can become vulnerable when new advisories are catalogued. Keeping the audits active caught this drift; updating only the affected patch versions restored the gate without suppressions or weaker policy.
 
 ## Context and Orientation
 
@@ -94,6 +97,8 @@ Final focused verification with brace-expansion 5.0.12: all 18 tests passed and 
 
 Final `pnpm verify:all` exited zero on Windows using Node 24.21.0 and pnpm 12.5.1. Vitest: 72 files, 513 passed/1 skipped. Node: 210 tests, 204 passed/6 skipped. Node coverage suite: 128 tests, 123 passed/5 skipped. Vitest coverage: statements 83.08%, branches 74.09%, functions 85.82%, lines 84.08%. Node coverage: statements/lines 80.06%, branches 73.38%, functions 86.52%. Both audits are zero at every severity. Local Windows skips include Bash/platform-dependent paths; hosted Linux/macOS checks provide their own evidence. The complete local transcript is retained at `%TEMP%/openassist-ci-391-verify-final.log`.
 
+PR handoff: https://github.com/openassistuk/openassist/pull/68, implementation commit `07a78857b9347502b70d7309996cad55241c5727`. Initial hosted runs: CI `36722772998`, CodeQL `36722772839`, macOS Live Launchd `36722773006`, Release Artifacts `36722772874`. These runs belong to the implementation head; later documentation reconciliation may cause new current-head runs, so consult the PR checks rather than treating an earlier green run as final certification. The review-thread query returned no threads and review decision `REVIEW_REQUIRED`. A successful CodeQL workflow must not be confused with closure of the separately open main alert #42.
+
 ## Interfaces and Dependencies
 
 
@@ -108,3 +113,5 @@ Revision note (2026-09-30, related advisory): Selected brace-expansion 5.0.12 to
 Revision note (2026-09-30, final focused checks): Recorded the final two-package dependency state, repeated targeted tests and zero findings in both audits before completing the final full gate.
 
 Revision note (2026-09-30, final local verification): Recorded successful full verification, actual test/coverage counts and platform limitations before committing and opening the PR.
+
+Revision note (2026-09-30, PR handoff): Reconciled actual PR creation, initial hosted checks, required review and the separate open scanner alert. Final hosted outcomes remain attached to the PR's current revision; no merge or publication is claimed.

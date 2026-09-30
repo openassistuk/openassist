@@ -219,6 +219,7 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 ## Managed release lifecycle
 
 - [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
+- [v0.2.0 stable release notes](releases/v0.2.0.md): prepared stable changes, preview/source migration, security controls and testing limits; publication and fresh-host retesting remain pending.
 - [v0.2.0-rc.1 release notes](releases/v0.2.0-rc.1.md): the published signed preview, installation, migration and testing limits. Public installation passed on all four supported targets; select `--channel preview` explicitly because no stable release is published yet.
 - [Developer testing](operations/developer-testing.md): main/branch/PR/local isolated tests and explicit primary-install switching.
 - [Uninstall](operations/uninstall.md): owned application removal, retained state and explicit purge.
@@ -234,4 +235,4 @@ Native release jobs include a separate signing contract check using ephemeral te
 - [Native reminder interfaces](interfaces/scheduler-and-time.md#managed-one-shot-reminders): tools, CLI/API, ownership, persistence and delivery states.
 - [Implementation ExecPlan](execplans/ubuntu-live-test-fixes.md): current work and verification status.
 
-Stable v0.2.0 remains a future release-preparation PR. Baseline passes do not certify the candidate.
+Stable v0.2.0 is prepared in a separate release PR after merged fixes #67 and #68. The [stable preparation ExecPlan](execplans/stable-0.2.0-release.md) records current checks and remaining fresh-host/publication gates. Baseline passes do not certify the candidate.

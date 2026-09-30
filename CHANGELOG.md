@@ -2,9 +2,13 @@
 
 All notable changes to OpenAssist are documented in this file.
 
-The format follows Keep a Changelog conventions and this project currently tracks an in-development release line.
+The format follows Keep a Changelog conventions. Release preparation and actual publication are recorded separately.
 
 ## [Unreleased]
+
+## [0.2.0] - Pending publication
+
+- 2026-09-30: Prepare the first stable packaged release after merged PRs #67 and #68: align root/CLI/daemon versions at `0.2.0`, collect the development history below, and add reviewed stable installation, migration, security and testing notes at `docs/releases/v0.2.0.md`. The signed preview remains unchanged. Fresh-host candidate retesting, protected publication and post-publication public-install checks remain outstanding; this version bump does not claim that stable assets are published.
 
 - 2026-09-30: Address CodeQL #42's misclassification of account-link test directory labels as password inputs to the runtime instance fingerprint. Constrain Node/Vitest fixture factories to fixed non-secret prefixes, document path-only instance identity, and add Windows/Unix fingerprint and credential-content independence checks. Preserve the existing SHA-256 path fingerprints, daemon health identity checks and authentication boundaries; verify with full branch CodeQL analysis without suppressing or dismissing the alert.
 

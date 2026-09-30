@@ -631,6 +631,22 @@ describe("docs truth", () => {
     assert.deepEqual(documentedNode, actualNode);
   });
 
+  it("keeps release versions, executable versions and reviewed notes aligned", () => {
+    const version = (JSON.parse(readText("package.json")) as { version: string }).version;
+    for (const app of ["openassist-cli", "openassistd"]) {
+      const manifest = JSON.parse(readText(`apps/${app}/package.json`)) as { version: string };
+      assert.equal(manifest.version, version, `${app} must match the release version`);
+      const output = execFileSync(process.execPath, [path.join(repoRoot(), `apps/${app}/dist/index.js`), "--version"], { encoding: "utf8" });
+      assert.equal(output.trim(), version, `${app} must report the release version`);
+    }
+    const notesPath = `docs/releases/v${version}.md`;
+    assert.ok(readText(notesPath).startsWith(`# OpenAssist v${version} `));
+    for (const file of ["README.md", "docs/README.md", "docs/operations/release-maintenance.md"]) {
+      assert.ok(readText(file).includes(`releases/v${version}.md`), `${file} must link the current release notes`);
+    }
+    assert.ok(readText("CHANGELOG.md").includes(`## [${version}]`));
+  });
+
   it("keeps lifecycle flags, release gates and trust boundaries aligned with the executable CLI", () => {
     const cli = path.join(repoRoot(), "apps/openassist-cli/dist/index.js");
     for (const [command, flags] of [

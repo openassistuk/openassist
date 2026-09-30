@@ -161,6 +161,7 @@ Current housekeeping and release-evidence records:
 - [Completed Dependabot follow-up](execplans/dependabot-follow-up-2026-09.md)
 - [CI #391 and CodeQL #42 repair](execplans/ci-391-dependency-audit-2026-09-30.md): patched Undici `6.28.1` and brace-expansion `5.0.12`, account-link fixture allocation and path-only instance identity checks, with local and hosted verification evidence.
 - [Post-release Axios audit repair](execplans/post-release-axios-audit-2026-09-30.md): Axios `1.20.0`, seven production dependency advisories, actual release-documentation merges and the boundary between source fixes and unchanged published packages.
+- [v0.2.1 patch preparation](execplans/stable-0.2.1-release.md): merged repair checks, shell-free Windows source commands and separate candidate/publication verification.
 - [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
 
 Historical implementation plans (retain their original evidence and read any reconciliation notes):
@@ -221,6 +222,7 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 
 - [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
 - [v0.2.0 stable release notes](releases/v0.2.0.md): the published signed stable release, verified four-target public installation, preview/source migration, security controls and remaining live-testing limits. The default installer selects stable.
+- [v0.2.1 security patch notes](releases/v0.2.1.md): candidate Axios repair and stable-track update guidance; signed publication and public-install verification remain pending.
 - [v0.2.0-rc.1 release notes](releases/v0.2.0-rc.1.md): the older signed preview, selected explicitly with `--channel preview`; its immutable assets remain unchanged.
 - [Developer testing](operations/developer-testing.md): main/branch/PR/local isolated tests and explicit primary-install switching.
 - [Uninstall](operations/uninstall.md): owned application removal, retained state and explicit purge.

@@ -8,6 +8,7 @@ import { loadInstallState, detectInstallStateFromRepo, detectCurrentBranchFromRe
 import { classifyGitDirtyState } from "./git-dirty.js";
 import { detectLegacyDefaultLayout } from "./operator-layout.js";
 import type { UpdateOptions } from "./lifecycle-engine.js";
+import { resolveCommandInvocation } from "./command-runner.js";
 
 export function sourceUpdatePlan(options: UpdateOptions): {ok:boolean; lines:string[]; targetRef?:string} {
   const state = loadInstallState();
@@ -20,7 +21,10 @@ export function sourceUpdatePlan(options: UpdateOptions): {ok:boolean; lines:str
   const repoBacked = fs.existsSync(path.join(installDir,".git"));
   const dirty = repoBacked ? classifyGitDirtyState(installDir).hasRealCodeChanges : false;
   const legacy = detectLegacyDefaultLayout(installDir);
-  const available = (command:string) => spawnSync(command,["--version"],{encoding:"utf8",timeout:5000,shell:process.platform === "win32"}).status === 0;
+  const available = (command:string) => {
+    const invocation = resolveCommandInvocation(command, ["--version"]);
+    return spawnSync(invocation.command, invocation.args, {encoding:"utf8",timeout:5000,shell:false}).status === 0;
+  };
   const plan = buildUpgradePlan({optionRef:options.ref,optionPr:options.pr,currentBranch,trackedRef,skipRestart:Boolean(options.skipRestart),dryRun:Boolean(options.dryRun)});
   const config = fs.existsSync(configPath) ? loadConfig({baseFile:configPath,overlaysDir:resolveConfigOverlaysDir(configPath)}).config : undefined;
   const report = buildLifecycleReport({installDir,configPath,envFilePath,installStatePresent:Boolean(state),repoBacked,configExists:Boolean(config),envExists:fs.existsSync(envFilePath),trackedRef,currentBranch,config,explicitUpgradeTargetProvided:Boolean(options.ref || options.pr),hasGit:available("git"),hasPnpm:available("pnpm"),hasNode:available("node"),daemonBuildExists:fs.existsSync(path.join(installDir,"apps/openassistd/dist/index.js")),dirtyWorkingTree:dirty,legacyDefaultLayoutStatus:legacy.status === "none" ? undefined : legacy.status === "ready" ? "ready" : "blocked",legacyDefaultLayoutReason:legacy.reason});

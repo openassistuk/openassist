@@ -1,18 +1,95 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   SpawnCommandRunner,
+  resolveCommandInvocation,
   runOrThrow,
   runStreamingOrThrow
 } from "../../apps/openassist-cli/src/lib/command-runner.js";
 
+const roots: string[] = [];
 function tempDir(prefix: string): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  roots.push(root);
+  return root;
+}
+afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); });
+
+function fixture(root: string, relative: string, content = ""): string {
+  const file = path.join(root, relative);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, content);
+  return file;
 }
 
 describe("command-runner", () => {
+  it("leaves Unix commands and Windows commands other than pnpm unchanged", () => {
+    expect(resolveCommandInvocation("pnpm", ["--version"], {}, "linux")).toEqual({command:"pnpm",args:["--version"]});
+    expect(resolveCommandInvocation("git", ["--version"], {}, "win32")).toEqual({command:"git",args:["--version"]});
+  });
+
+  it("honors PATH order, quoting and Node's Windows environment-key precedence", () => {
+    const root = tempDir("openassist-command-path-");
+    const first = fixture(path.join(root, "first bin"), "pnpm.exe");
+    fixture(path.join(root, "second"), "pnpm.exe");
+    const args = ["a & b", "space value"];
+    expect(resolveCommandInvocation("pnpm", args, {env:{PATH:`"${path.dirname(first)}";${root}/second`,Path:"missing"}}, "win32"))
+      .toEqual({command:first,args});
+    expect(resolveCommandInvocation("pnpm", args, {env:{PATH:"",Path:path.dirname(first)}}, "win32"))
+      .toEqual({command:"pnpm",args});
+  });
+
+  it("resolves npm's pnpm native executable without executing its cmd shim", () => {
+    const root = tempDir("openassist-command-native-");
+    fixture(root, "pnpm.cmd");
+    const executable = fixture(root, "node_modules/pnpm/bin/pnpm.exe");
+    expect(resolveCommandInvocation("pnpm", ["--version"], {env:{Path:root}}, "win32"))
+      .toEqual({command:executable,args:["--version"]});
+  });
+
+  it.each(["node_modules/pnpm/bin/pnpm.cjs", "node_modules/corepack/dist/pnpm.js"])("runs %s with Node and literal arguments", relative => {
+    const root = tempDir("openassist-command-script-");
+    fixture(root, "pnpm.cmd");
+    const script = fixture(root, relative);
+    const args = ["a & b", "$value", "space value"];
+    expect(resolveCommandInvocation("pnpm", args, {env:{PATH:`${root}/absent;${root}`}}, "win32"))
+      .toEqual({command:process.execPath,args:[script,...args]});
+    const node = fixture(root, "node.exe");
+    expect(resolveCommandInvocation("pnpm", args, {env:{PATH:root}}, "win32"))
+      .toEqual({command:node,args:[script,...args]});
+  });
+
+  it("does not find pnpm outside the supplied PATH or guess unfamiliar shim targets", () => {
+    const root = tempDir("openassist-command-missing-");
+    fixture(root, "pnpm.cmd", "@echo should not execute");
+    expect(resolveCommandInvocation("pnpm", [], {env:{}}, "win32")).toEqual({command:"pnpm",args:[]});
+    expect(resolveCommandInvocation("pnpm", [], {env:{PATH:root}}, "win32")).toEqual({command:"pnpm",args:[]});
+    const later = path.join(root,"later");
+    fixture(later,"pnpm.exe");
+    expect(resolveCommandInvocation("pnpm", [], {env:{PATH:`${root};${later}`}}, "win32")).toEqual({command:"pnpm",args:[]});
+    fs.unlinkSync(path.join(root,"pnpm.cmd"));
+    fixture(root,"node_modules/pnpm/bin/pnpm.cjs");
+    expect(resolveCommandInvocation("pnpm", [], {env:{PATH:root}}, "win32")).toEqual({command:"pnpm",args:[]});
+  });
+
+  it.runIf(process.platform === "win32")("preserves shell metacharacters in captured and streaming pnpm launches", async () => {
+    const root = tempDir("openassist-command-literal-");
+    fixture(root, "pnpm.cmd", "@echo should not execute");
+    fixture(root, "node_modules/pnpm/bin/pnpm.cjs", "const fs=require('node:fs'); const args=process.argv.slice(2); if(process.env.ARGV_FILE) fs.writeFileSync(process.env.ARGV_FILE,JSON.stringify(args)); else process.stdout.write(JSON.stringify(args));");
+    const args = ["spaces here", "a & echo injected", "%PATH%", "$(echo injected)"];
+    const runner = new SpawnCommandRunner();
+    const env = {...process.env,PATH:root,Path:root};
+    const result = await runner.run("pnpm",args,{env});
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toEqual(args);
+    const output = path.join(root,"args.json");
+    expect(await runner.runStreaming("pnpm",args,{env:{...env,ARGV_FILE:output}})).toBe(0);
+    expect(JSON.parse(fs.readFileSync(output,"utf8"))).toEqual(args);
+  });
+
   it("captures stdout/stderr and exit code", async () => {
     const root = tempDir("openassist-command-runner-");
     const scriptPath = path.join(root, "ok.js");

@@ -476,6 +476,8 @@ The 2026-09-30 dependency remediation requires Undici 6.x >=6.28.1, brace-expans
 
 pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 
+Source lifecycle command launches and prerequisite probes must keep `shell: false` and preserve literal argument boundaries. On Windows, resolve pnpm's native executable or a known npm/Corepack shim entrypoint on the selected PATH and invoke it directly; compatibility with an existing developer shim does not change the pinned CI/bootstrap installation route. Missing PATH tools must remain unavailable. Test captured/streaming launches and metacharacters; do not suppress DEP0190 to make verification appear clean.
+
 ## Model and authentication maintenance
 
 Current model maintenance must verify each route independently. GPT-6 API/Azure reasoningMode is separate from effort; do not copy it to Codex account-login. The Azure GPT-6 table permits Astra none while OpenAI does not: preserve the explicit route distinction and source date. Claude Opus 5.5/Fable 5.1/Mythos 5.1 require adaptive thinking and prefix-binding controls during replay. Keep internal stream folding, empty signed blocks, output budgets, setup/status and request tests synchronized. Never enable raw thinking display or vendor beta tools implicitly.
@@ -491,6 +493,8 @@ Use `release.yml` with `verify_published=true` to validate existing public asset
 Release publication uses reviewed notes at `docs/releases/<tag>.md`. Candidate root/CLI/daemon versions must agree, and source CLI version output must follow its workspace manifest when no immutable build identity exists. Never commit private signing material or machine-specific maintainer notes. Restrict publication to approved tags plus explicit maintainer review.
 
 Stable preparation must collect the included changes under the matching changelog version and synchronize release notes, migration commands and package versions. Keep availability notices on the actually published release until protected publication and public-install verification succeed. Record fresh-host testing gaps explicitly; neither the version bump nor previous PR checks certify the stable candidate. See [v0.2.0 preparation](docs/execplans/stable-0.2.0-release.md).
+
+The [v0.2.1 security patch preparation](docs/execplans/stable-0.2.1-release.md) delivers the merged Axios repair through a new immutable version. Require exact-candidate audits, native artifacts, signing and public-install evidence before advertising availability; successful PR #71/main checks do not update existing packages.
 
 Validate daemon installation facts against the executing application during activation and rollback, before install-state commit. Isolated env-file credentials belong only to the daemon environment, never builds; preserve forced instance routing and private-runtime variables. Packaged bootstrap owns only the exact shell PATH blocks it inserts, and uninstall must preserve surrounding text, edited blocks and unknown profiles. Archive admission must resolve complete link chains before interpreting parent traversal; test forward references, cycles and ordinary internal package links before extraction.
 

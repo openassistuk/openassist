@@ -260,7 +260,8 @@ describe("managed lifecycle command contracts", () => {
     fs.writeFileSync(path.join(local,"pnpm-workspace.yaml"),"packages: []\n");
     fs.writeFileSync(path.join(local,"local-changes.txt"),"uncommitted content stays intact");
     fs.writeFileSync(path.join(local,"apps","openassistd","dist","index.js"),`const fs=require('node:fs'); const path=require('node:path'); fs.writeFileSync(path.join(process.env.OPENASSIST_STATE_ROOT,'child-check.json'),JSON.stringify({secretPresent:'OPENASSIST_FIXTURE_SECRET' in process.env,dedicated:process.env.CUSTOM_TEST_KEY,stateRoot:process.env.OPENASSIST_STATE_ROOT,envFile:process.env.OPENASSIST_ENV_FILE}));`);
-    const stub=path.join(bin,"pnpm-stub.cjs");
+    const stub=path.join(bin,"node_modules","pnpm","bin","pnpm.cjs");
+    fs.mkdirSync(path.dirname(stub),{recursive:true});
     fs.writeFileSync(stub,"if(process.env.CUSTOM_TEST_KEY) process.exit(9); if(process.argv.includes('--version')) process.stdout.write('12.5.1');\n");
     const quote=(value:string)=>`'${value.replaceAll("'","'\\''")}'`;
     if(process.platform==="win32")fs.writeFileSync(path.join(bin,"pnpm.cmd"),`@"${process.execPath}" "${stub}" %*\r\n`);

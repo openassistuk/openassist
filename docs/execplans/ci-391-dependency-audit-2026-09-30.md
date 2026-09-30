@@ -33,6 +33,8 @@ The user expanded this same branch/PR on 2026-09-30 to address CodeQL alert #42.
 
 ## Surprises & Discoveries
 
+Final reconciliation (September 30): PR #68 merged at `fa3968b`; CodeQL #42 is fixed on main without dismissal. A later merged-main audit detected separate Axios advisories after the original clean runs; the post-release repair and existing signed packages are tracked separately in current outcomes.
+
 
 The failure is advisory-driven rather than a failing product test. The original logs report production dependencies high=1 and all dependencies high=3 after successful tests and coverage. All three advisory entries were added to GitHub's advisory database on 2026-09-29. The existing overrides pin Undici 6.28.0 and brace-expansion 5.0.9, so resolving unchanged constraints cannot repair the failure.
 
@@ -58,7 +60,7 @@ Decision (2026-09-30, verification): perform the required independent investigat
 ## Outcomes & Retrospective
 
 
-The dependency implementation resolves Undici 6.28.1 and brace-expansion 5.0.12 with zero audit findings. [PR #68](https://github.com/openassistuk/openassist/pull/68) also addresses CodeQL #42's false-positive fixture flow. Production instance IDs and health checks are preserved; focused compatibility/OAuth tests, expanded full local verification and all hosted gates pass on source revision `b7f8dad`. Full branch CodeQL analysis independently confirms zero findings. Main alert #42 remains open until the fix is merged and a main analysis observes it; no alert was dismissed or suppressed. Review is required; the PR is not merged and no release artifacts were published. This evidence-only plan reconciliation changes no tested code; any subsequent current-head hosted results are recorded on the PR with their exact revision.
+The dependency implementation resolves Undici 6.28.1 and brace-expansion 5.0.12; both audits reported zero findings during that implementation's checks. [PR #68](https://github.com/openassistuk/openassist/pull/68) also addresses CodeQL #42's false-positive fixture flow. Production instance IDs and health checks are preserved; focused compatibility/OAuth tests, expanded full local verification and all hosted gates passed on source revision `b7f8dad`. Full branch CodeQL independently confirmed zero findings. The maintainer merged #68 on September 30 at `fa3968bd3d3fee64cb1776c219076bc53ef473cd`; main alert #42 became fixed at 14:48:22Z, with no dismissal or suppression. Subsequent stable `v0.2.0` publication includes those repairs, as recorded in the [release plan](stable-0.2.0-release.md). A later merged-main audit reported separate Axios advisories; the [post-release source repair](post-release-axios-audit-2026-09-30.md) addresses them without changing either published package. Earlier clean audits remain dated evidence, not a current clean-tree claim.
 
 The lesson from CI #391 is that a previously verified dependency floor can become vulnerable when new advisories are catalogued. Keeping the audits active caught this drift; updating only the affected patch versions restored the gate without suppressions or weaker policy.
 
@@ -153,3 +155,5 @@ Revision note (2026-09-30, candidate review): Recorded the separate single-agent
 Revision note (2026-09-30, expanded local gate): Recorded successful full local verification of the CodeQL follow-up while keeping scanner closure pending fresh full branch analysis.
 
 Revision note (2026-09-30, full scanner and hosted reconciliation): Recorded the pushed follow-up, zero-result full branch SARIF, zero open branch alerts, successful platform/release gates and outstanding review/main-scan boundary. Subsequent evidence-only commit checks are reconciled in the PR rather than attributed to the earlier source revision.
+
+Revision note (2026-09-30, final merge reconciliation): Verified the actual #68 merge and main alert #42's fixed state without dismissal; linked later stable publication and the separate Axios audit repair while retaining historical verification results.

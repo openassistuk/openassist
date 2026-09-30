@@ -32,6 +32,8 @@ not certification of this implementation or stable v0.2.0.
 
 ## Surprises & Discoveries
 
+Final reconciliation (September 30): PR #67 merged at `9004841`; later stable `v0.2.0` publication includes these fixes. Current outcomes below retain the unperformed replacement-host/second-account tests and link the subsequent Axios source repair separately from immutable published packages.
+
 Hosted PR #67 checks found two platform-specific issues: macOS Bash 3 treats an empty forwarded-argument array as unset under nounset, and packaged release discovery stopped at a nested pnpm-deploy workspace marker before reaching the build identity/trust anchor. Fix both and retain the actual PTY and signed rc.1 upgrade tests. The 256-task durable limit test exceeded Vitest's five-second default on hosted Windows; give this fsync-heavy test a 60-second timeout without changing product bounds or coverage gates. Final review also moved the clock refresh into confirmTimezone itself and added runtime-level checks for all three clock states.
 
 Existing shell tests assert source text rather than exercising a piped PTY.
@@ -59,11 +61,11 @@ outcome; ambiguous sends are not blindly retried.
 
 ## Outcomes & Retrospective
 
-All eight fixes and native reminder interfaces are implemented with regression coverage. Local verification and all required hosted implementation checks passed; PR #67 is the review handoff. Baseline evidence and reusable settings are in
+All eight fixes and native reminder interfaces are implemented with regression coverage. Local verification and all required hosted implementation checks passed; [PR #67](https://github.com/openassistuk/openassist/pull/67) merged on September 28 at `9004841df1038bff77daa1763dfd00312c2509be`. Baseline evidence and reusable settings are in
 `docs/testing/2026-09-28-ubuntu-live-test-*` and `docs/testing/default-test-settings.json`.
 Only sanitized evidence and synthetic operator identifiers belong in this PR.
 
-The candidate has not been tested on a replacement clean Ubuntu host. The live second-account test remains unverified. No merge, stable-version change, tag or publication has occurred. After review and merge, the fresh live test and separate stable-release preparation PR remain required. Passing automated checks does not certify those later gates.
+The candidate has not been tested on a replacement clean Ubuntu host. The live second-account test remains unverified. Subsequent PRs #68/#69 merged the dependency repair and stable preparation; the maintainer authorized stable publication with the testing gap disclosed. Signed `v0.2.0` was published from `10c1c20` and passed all four native/public-install targets. [The release plan](stable-0.2.0-release.md) records those later gates separately. PR #70 merged publication documentation at `9842237`; its later main audit detected Axios advisories, now addressed in the separate [source repair](post-release-axios-audit-2026-09-30.md). Published packages remain unchanged. Passing automated checks does not certify the unperformed live integration checks.
 
 ## Context and Orientation
 
@@ -161,3 +163,5 @@ delivery. Daemon/CLI share those runtime contracts without bypassing modules.
 
 Revision 2026-09-28: initialized from the approved implementation plan and
 baseline findings before production edits.
+
+Revision 2026-09-30 final reconciliation: recorded the actual #67 merge and subsequent stable publication/documentation, retained dated implementation checks and unverified live tests, and linked the later Axios source repair without attributing it to immutable packages.

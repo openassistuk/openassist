@@ -166,7 +166,7 @@ overrides:
   undici@>=6.0.0 <6.28.1: 6.28.1
   protobufjs@<7.6.5: 7.6.5
   sharp@<0.35.4: 0.35.4
-  axios@<1.18.0: 1.18.0
+  axios@<1.20.0: 1.20.0
   ws@>=8.0.0 <8.21.0: 8.21.0
   lodash@<4.18.1: 4.18.1
   picomatch@<2.3.2: 2.3.2
@@ -1649,8 +1649,8 @@ packages:
     resolution: {integrity: sha512-En9AY6EG1qYqEy5L/quryzbA4akBpJrnBZNxeKTqGHC2xT9Qc4aZ8b7CcbOMFTTc/MGdoNyp+SN4zInZNKxMYA==}
     engines: {node: '>=14'}
 
-  axios@1.18.0:
-    resolution: {integrity: sha512-E32NzpYKp++W7XRe52rHiXV2ehxmh3wbdgO7MHeFM+vqxLBYHzt0ElkiImtOBxtOmyp0yoC8C6uESVV84Y2/hw==}
+  axios@1.20.0:
+    resolution: {integrity: sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==}
 
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
@@ -3511,7 +3511,7 @@ snapshots:
       '@cacheable/node-cache': 1.7.6
       '@hapi/boom': 9.1.4
       async-mutex: 0.5.0
-      axios: 1.18.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+      axios: 1.20.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
       libsignal: 6.0.0
       music-metadata: 11.12.3(supports-color@7.2.0)
       pino: 9.14.0
@@ -3576,7 +3576,7 @@ snapshots:
   audio-type@2.2.1:
     optional: true
 
-  axios@1.18.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0):
+  axios@1.20.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0):
     dependencies:
       follow-redirects: 1.16.0(debug@4.4.3(supports-color@7.2.0))
       form-data: 4.0.6

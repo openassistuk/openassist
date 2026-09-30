@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- 2026-09-30: Repair the post-release production/full dependency-audit failure by raising the scoped WhatsApp/Baileys Axios resolution to `1.20.0`, covering five high and two moderate advisories affecting denial of service, polluted option handling and network controls. Strengthen resolved-version regressions without weakening audit/coverage gates. Correct stable migration guidance and reconcile actual PR #67/#68/#70 merges and later audit/scanner evidence. Published `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`; the source repair requires a subsequent signed release for packaged delivery.
+
 ## [0.2.0] - 2026-09-30
 
 - Publish the signed stable release from reviewed main `10c1c20` with all 16 assets, private Node runtimes and unchanged mandatory signature controls. Verify both production signatures independently and pass public stable-channel/exact-version installation plus data-preserving uninstall on Linux/macOS x64/arm64. Make stable the primary operator install path and retain explicit preview/source migration. Additional replacement-host provider/channel and second-account live testing remain unverified; no broader live certification is claimed.

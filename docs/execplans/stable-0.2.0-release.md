@@ -24,6 +24,8 @@ Prepare the first stable packaged OpenAssist release with the fixes already merg
 
 ## Surprises & Discoveries
 
+Final reconciliation (September 30): publication documentation PR #70 merged at `9842237` after green PR checks. Its subsequent main CI failed the Axios audit, while builds/tests/coverage and full CodeQL passed; current outcomes and the final reconciliation below record those distinct results.
+
 
 The published preview is immutable and lacks the fixes now on main. Packaging requires root/CLI/daemon versions to agree, a clean committed checkout and a native Linux/macOS host. This Windows workspace can run quality checks but cannot build the four release artifacts. The manual release workflow defaults to preview, so stable publication must explicitly select `channel=stable`.
 

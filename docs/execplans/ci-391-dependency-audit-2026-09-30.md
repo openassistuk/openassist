@@ -33,6 +33,8 @@ The user expanded this same branch/PR on 2026-09-30 to address CodeQL alert #42.
 
 ## Surprises & Discoveries
 
+Final reconciliation (September 30): PR #68 merged at `fa3968b`; CodeQL #42 is fixed on main without dismissal. A later merged-main audit detected separate Axios advisories after the original clean runs; the post-release repair and existing signed packages are tracked separately in current outcomes.
+
 
 The failure is advisory-driven rather than a failing product test. The original logs report production dependencies high=1 and all dependencies high=3 after successful tests and coverage. All three advisory entries were added to GitHub's advisory database on 2026-09-29. The existing overrides pin Undici 6.28.0 and brace-expansion 5.0.9, so resolving unchanged constraints cannot repair the failure.
 

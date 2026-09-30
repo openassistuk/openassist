@@ -19,8 +19,8 @@ Restore the dependency security gate after the final merged-main check for OpenA
 - [x] Full `pnpm verify:all` passed; Vitest 515 passed/1 skipped, Node 207 passed/4 skipped, coverage Node 126 passed/3 skipped, unchanged coverage gates and zero findings in production/full audits.
 - [x] Baileys-resolved Axios 1.20.0 passed loopback JSON GET, redirected streamed download and streamed POST compatibility checks; no live WhatsApp session was used.
 - [x] Reviewed the final source/docs diff for accidental edits, regressions, secret exposure and unnecessary changes; all 11 final docs-truth checks and `git diff --check` passed.
-- [ ] Commit, push and open the PR.
-- [ ] Inspect exact-revision hosted checks, open code-scanning alerts and unresolved review threads independently; record results and hand off for maintainer review.
+- [x] (2026-09-30 17:10Z) Committed/pushed source revision `157341a7aa6b8bc0b8206177af137b91d4d16bda` and opened/attached [PR #71](https://github.com/openassistuk/openassist/pull/71) against main.
+- [x] All 13 required source-revision hosted checks passed; publication/public-install skipped by design. Separate queries found zero open code-scanning alerts and no unresolved review threads. Recorded results for maintainer review; final documentation evidence has its own current-head checks on the PR.
 
 ## Surprises & Discoveries
 
@@ -43,7 +43,7 @@ Decision: Reconcile living outcomes while retaining dated preparation/check evid
 ## Outcomes & Retrospective
 
 
-The source dependency repair and documentation reconciliation are implemented and full local verification passed with zero audit findings. Axios is the only changed dependency version. Strengthened regressions reject the old lockfile and HTTP compatibility checks exercise the actual Baileys-resolved Axios. PR handoff and exact-revision hosted checks remain pending. Published 0.2.0/rc.1 packages remain affected until a later reviewed release; no new live integration certification is part of this change.
+The source dependency repair and documentation reconciliation are complete in [PR #71](https://github.com/openassistuk/openassist/pull/71). Full local verification passed with zero audit findings. All 13 required hosted checks passed on source revision `157341a7aa6b8bc0b8206177af137b91d4d16bda`, including three-platform quality/coverage/audits, full CodeQL, live macOS LaunchAgent, four native artifacts and the signing contract. Separate scanner/review-thread queries returned no open findings; maintainer review is required. Axios is the only changed dependency version. Strengthened regressions reject the old lockfile and HTTP compatibility checks exercise the actual Baileys-resolved Axios. Subsequent documentation-evidence revisions are checked separately on the PR's actual head, not inferred from source-revision results. Published 0.2.0/rc.1 packages remain affected until a later reviewed release; no new live integration certification is claimed.
 
 ## Context and Orientation
 
@@ -94,6 +94,8 @@ Regression evidence: both dependency-security checks failed against the old lock
 
 Full local evidence: `pnpm verify:all` exited zero on Windows/Node 24.21.0/pnpm 12.5.1 with Git Bash available. Vitest: 72 files, 515 passed/1 skipped; Node: 207 passed/4 skipped; coverage Node: 126 passed/3 skipped. Vitest coverage is statements 83.08%, branches 74.09%, functions 85.82%, lines 84.08%; Node coverage is statements/lines 80.06%, branches 73.38%, functions 86.52%. Both retained audits report zero vulnerabilities at every severity. The ignored log is `coverage/post-release-axios-verify.log`. An independent loopback check resolved Axios through Baileys, asserted version 1.20.0, and passed JSON GET, redirected stream download and stream upload behavior; this is local transport validation, not live channel certification.
 
+Hosted source-revision evidence: [CI 36749502938](https://github.com/openassistuk/openassist/actions/runs/36749502938), [CodeQL 36749502781](https://github.com/openassistuk/openassist/actions/runs/36749502781), [live macOS 36749502789](https://github.com/openassistuk/openassist/actions/runs/36749502789) and [artifacts/signing 36749502840](https://github.com/openassistuk/openassist/actions/runs/36749502840) all concluded success at `157341a7aa6b8bc0b8206177af137b91d4d16bda`. The PR reports 13 successes and two intentional publication/public-install skips. Open code-scanning alerts and unresolved review threads were queried independently and both returned empty lists. GitHub reports `REVIEW_REQUIRED`. This final plan reconciliation changes only documentation; its current-head checks remain recorded separately on PR #71.
+
 ## Interfaces and Dependencies
 
 
@@ -104,3 +106,5 @@ Revision 2026-09-30: Created for the approved post-release Axios repair and docu
 Revision 2026-09-30 implementation: Recorded failing-before/passing-after regressions, Axios-only lockfile changes, focused validation and actual prior merges/scanner closure; full local verification remains in progress.
 
 Revision 2026-09-30 local verification: Recorded complete quality/coverage/audit and local HTTP compatibility evidence; current operator guidance now exposes the unchanged published-package dependency limitation before installation commands. Hosted PR validation remains separate.
+
+Revision 2026-09-30 hosted reconciliation: Recorded actual PR creation, source revision, all successful hosted workflows, expected publication skips and separate scanner/review checks; retained maintainer review, subsequent-revision checks and later packaged delivery as explicit boundaries.

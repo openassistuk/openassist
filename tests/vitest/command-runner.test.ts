@@ -41,15 +41,16 @@ describe("command-runner", () => {
       .toEqual({command:"pnpm",args});
   });
 
-  it("resolves npm's pnpm native executable without executing its cmd shim", () => {
+  it.each(["node_modules/pnpm/pnpm.exe", "../pnpm/pnpm.exe"])("resolves npm's native pnpm executable at %s without executing its cmd shim", relative => {
     const root = tempDir("openassist-command-native-");
-    fixture(root, "pnpm.cmd");
-    const executable = fixture(root, "node_modules/pnpm/bin/pnpm.exe");
-    expect(resolveCommandInvocation("pnpm", ["--version"], {env:{Path:root}}, "win32"))
+    const bin = path.join(root,"bin");
+    fixture(bin, "pnpm.cmd");
+    const executable = fixture(bin, relative);
+    expect(resolveCommandInvocation("pnpm", ["--version"], {env:{Path:bin}}, "win32"))
       .toEqual({command:executable,args:["--version"]});
   });
 
-  it.each(["node_modules/pnpm/bin/pnpm.cjs", "node_modules/corepack/dist/pnpm.js"])("runs %s with Node and literal arguments", relative => {
+  it.each(["node_modules/pnpm/bin/pnpm.mjs", "node_modules/pnpm/bin/pnpm.cjs", "node_modules/corepack/dist/pnpm.js"])("runs %s with Node and literal arguments", relative => {
     const root = tempDir("openassist-command-script-");
     fixture(root, "pnpm.cmd");
     const script = fixture(root, relative);

@@ -40,7 +40,7 @@ export function resolveCommandInvocation(
     if (!fs.existsSync(path.join(directory, "pnpm.cmd"))) continue;
 
     // npm/Corepack shims need a shell; invoke their known entrypoint directly.
-    for (const relative of ["node_modules/pnpm/bin/pnpm.exe", "node_modules/pnpm/bin/pnpm.cjs", "node_modules/corepack/dist/pnpm.js"]) {
+    for (const relative of ["node_modules/pnpm/pnpm.exe", "../pnpm/pnpm.exe", "node_modules/pnpm/bin/pnpm.mjs", "node_modules/pnpm/bin/pnpm.cjs", "node_modules/corepack/dist/pnpm.js"]) {
       const cli = path.join(directory, relative);
       if (!fs.existsSync(cli)) continue;
       if (cli.endsWith(".exe")) return { command: cli, args };

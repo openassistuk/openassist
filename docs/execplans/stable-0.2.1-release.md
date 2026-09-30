@@ -15,7 +15,10 @@ Deliver the merged Axios security repair to packaged Linux/macOS installations t
 - [x] Reconciled root/CLI/daemon 0.2.1 versions, changelog, new release notes, README/AGENTS, docs index, test matrix, release maintenance and PR #71's final merge evidence. All 11 docs-truth checks passed, including executable version/flag checks.
 - [x] (2026-09-30 18:53Z) Full `pnpm verify:all` passed: Vitest 522 passed/1 skipped; Node 205 passed/6 skipped; coverage Node 124 passed/5 skipped. Vitest statements 83.13%, branches 74.19%, functions 85.85%, lines 84.10%; Node statements/lines 80.11%, branches 73.44%, functions 86.54%. Both audits report zero at every severity; the log contains no DEP0190 warning. Two Node skips require Git Bash on PATH and receive supplementary checks below; remaining skips are explicit platform exclusions.
 - [x] Supplementary Git Bash checks passed both previously skipped public-installer syntax/failure cases. Reviewed the final code/docs/test changes for regressions, secrets and unrelated edits; dependency lock and published assets are unchanged.
-- [ ] Open the preparation PR and verify its exact-head hosted checks.
+- [x] Opened and attached [PR #72](https://github.com/openassistuk/openassist/pull/72), source revision `3938affee8d1c4c2fbeb1295e796cb23051bb489`.
+- [x] Corrected the hosted Windows npm layout: pnpm 12.5.1 install.js writes native pnpm.exe at the package root. Covered both global/local npm paths plus its mjs wrapper; 17 focused command-runner/setup-hub tests passed. An actual isolated npm install of pinned pnpm 12.5.1 passed captured/streaming commands and the shell-free prerequisite probe with empty stderr.
+- [x] (2026-09-30 19:07Z) Full verification with actual native pnpm 12.5.1 and Git Bash passed: Vitest 524 passed/1 skipped, Node 207 passed/4 skipped, coverage Node 126 passed/3 skipped. Vitest statements 83.13%, branches 74.19%, functions 85.85%, lines 84.10%; Node statements/lines 80.11%, branches 73.43%, functions 86.54%. Both audits are zero at every severity; no DEP0190 warning in `coverage/release-0.2.1-native-verify.log`.
+- [ ] Push the corrected native-path revision and verify its exact-head hosted checks; initial source-head Windows failure remains historical evidence.
 - [ ] Obtain required maintainer review/merge, verify actual merged main, tag its exact revision and authorize only v0.2.1 in the protected release environment.
 - [ ] Publish from v0.2.1 with stable selected; verify all four public installs and production signatures, then reconcile availability/evidence through a PR.
 
@@ -29,7 +32,7 @@ Use 0.2.1 rather than changing existing signed artifacts. The user requested pro
 
 ## Outcomes & Retrospective
 
-Main cleanup, merged repair verification, candidate implementation/docs and full local verification are complete. The new candidate passes existing coverage/audit gates without DEP0190. The ignored evidence log is `coverage/release-0.2.1-verify.log`; both JSON audits remain under `coverage/audit`. Preparation PR/hosted checks, required review and signed publication remain pending. Historical public releases are intact; fresh live provider/channel certification remains unverified and upstream audio-decode install deprecation remains disclosed.
+Main cleanup, merged repair verification, candidate implementation/docs and corrected native-PATH full local verification are complete. The candidate passes existing coverage/audit gates without DEP0190. Ignored evidence logs are `coverage/release-0.2.1-verify.log` and the final `coverage/release-0.2.1-native-verify.log`; both JSON audits remain under `coverage/audit`. [PR #72](https://github.com/openassistuk/openassist/pull/72) is open. Corrected-head hosted checks, required review and signed publication remain pending. Historical public releases are intact; fresh live provider/channel certification remains unverified and upstream audio-decode install deprecation remains disclosed.
 
 ## Context and Orientation
 
@@ -78,3 +81,9 @@ Revision note (2026-09-30): initialized from actual merged-main evidence, immuta
 Revision note (2026-09-30 integration): full verification revealed a custom test shim; preserve PATH precedence at unknown shims and use a realistic npm fixture before rerunning the gate.
 
 Revision note (2026-09-30 local gate): recorded actual passing counts/coverage/audits and separate docs checks; explicitly distinguished Bash availability skips and outstanding hosted/publication evidence.
+
+Revision note (2026-09-30 hosted Windows failure): source CI failed three setup-hub tests because the assumed npm native path was wrong. The pinned pnpm 12.5.1 tarball's install.js places pnpm.exe at the package root, not bin/. Add that global/local npm layout and the wrapper's bin/pnpm.mjs script entrypoint; verify a real isolated installation before rerunning checks. Linux artifacts, macOS ARM artifacts, CodeQL and live macOS passed on the initial revision; do not infer corrected-head results from those successes.
+
+Revision note (2026-09-30 native validation): an isolated npm-installed pnpm 12.5.1 verified the corrected native path and all three invocation surfaces; all four first-revision artifacts and signing contract passed in [run 36761995528](https://github.com/openassistuk/openassist/actions/runs/36761995528). The full native-PATH gate and corrected-head hosted results remain separate requirements.
+
+Revision note (2026-09-30 native full gate): recorded complete final local counts/coverage and zero audits/warnings using the same npm native layout as hosted Windows, with Git Bash tests included. Hosted checks must validate the pushed correction independently.

@@ -2,7 +2,8 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as setupValidation from "../../apps/openassist-cli/src/lib/setup-validation.js";
 import type { ServiceManagerAdapter } from "../../apps/openassist-cli/src/lib/service-manager.js";
 import type { PromptAdapter } from "../../apps/openassist-cli/src/lib/setup-wizard.js";
 import {
@@ -417,7 +418,7 @@ describe("setup quickstart branch behavior", () => {
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
     const installDir = root;
-    const bindPort = await getFreePort();
+    const bindPort = 3344;
     fs.mkdirSync(path.join(installDir, "apps", "openassistd", "dist"), { recursive: true });
     fs.writeFileSync(path.join(installDir, "apps", "openassistd", "dist", "index.js"), "// test", "utf8");
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
@@ -449,42 +450,52 @@ describe("setup quickstart branch behavior", () => {
       ...validationContinuationAnswers
     ]);
 
-    const result = await runSetupQuickstart(
-      state,
-      {
-        configPath,
-        envFilePath: envPath,
-        installDir,
-        allowIncomplete: true,
-        skipService: false,
-        requireTty: false,
-        preflightCommandChecks: false
-      },
-      prompts,
-      {
-        createServiceManagerFn: () => createFakeService(),
-        waitForHealthyFn: async (baseUrl) => {
-          healthArg = baseUrl;
-          return {
-            ok: true,
-            status: 200,
-            bodyText: "{\"status\":\"ok\"}"
-          };
+    // This test simulates service/health responses and checks URL selection. A
+    // released "free" socket cannot reserve a port against concurrent tests.
+    // Skip only its unrelated bind probe; real busy-port recovery stays below.
+    const validateReadiness = setupValidation.validateSetupReadiness;
+    const validationSpy = vi.spyOn(setupValidation, "validateSetupReadiness")
+      .mockImplementation((input) => validateReadiness({ ...input, skipBindAvailabilityCheck: true }));
+    try {
+      const result = await runSetupQuickstart(
+        state,
+        {
+          configPath,
+          envFilePath: envPath,
+          installDir,
+          allowIncomplete: true,
+          skipService: false,
+          requireTty: false,
+          preflightCommandChecks: false
         },
-        requestJsonFn: async (_method, url) => {
-          requestUrls.push(url);
-          return {
-            status: 200,
-            data: { status: "ok" }
-          };
+        prompts,
+        {
+          createServiceManagerFn: () => createFakeService(),
+          waitForHealthyFn: async (baseUrl) => {
+            healthArg = baseUrl;
+            return {
+              ok: true,
+              status: 200,
+              bodyText: "{\"status\":\"ok\"}"
+            };
+          },
+          requestJsonFn: async (_method, url) => {
+            requestUrls.push(url);
+            return {
+              status: 200,
+              data: { status: "ok" }
+            };
+          }
         }
-      }
-    );
+      );
 
-    expect(result.saved).toBe(true);
-    expect(Array.isArray(healthArg)).toBe(true);
-    expect((healthArg as string[]).some((entry) => entry.includes("127.0.0.1"))).toBe(true);
-    expect(requestUrls.some((url) => url.startsWith(`http://127.0.0.1:${bindPort}`))).toBe(true);
+      expect(result.saved).toBe(true);
+      expect(Array.isArray(healthArg)).toBe(true);
+      expect((healthArg as string[]).some((entry) => entry.includes("127.0.0.1"))).toBe(true);
+      expect(requestUrls.some((url) => url.startsWith(`http://127.0.0.1:${bindPort}`))).toBe(true);
+    } finally {
+      validationSpy.mockRestore();
+    }
   });
 
   it("re-enters runtime to fix a busy port before saving", async () => {

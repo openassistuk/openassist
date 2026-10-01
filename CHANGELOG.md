@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- Make the simulated quickstart wildcard-address health-URL test independent of host port availability while preserving real occupied-port validation and recovery coverage. Require successful CI on Linux/macOS/Windows and full main-branch CodeQL analysis for the exact release-tag commit before production signing/publication; recheck after protected approval and reject missing, pending, failed or skipped evidence without accepting an older green run. PR artifact builds and existing-publication verification retain their separate behavior; published assets remain unchanged.
+
 ## [0.2.1] - 2026-09-30
 
 - Publish the signed stable security patch from reviewed main `a30ebc1` with all 16 assets. Pass native builds, unchanged quality/coverage/audit gates, production signing and stable-channel/exact-version public installation plus data-preserving uninstall on Linux/macOS x64/arm64. Independently verify both production signatures and asset digests; confirm Axios `1.20.0` in the downloaded Linux package. Existing `0.2.0`/rc.1 installations must explicitly update to receive the repair; exact pins do not advance automatically. Additional fresh-host provider/channel and second-account testing remain unverified.

@@ -26,6 +26,26 @@ permissions:
   contents: read
 
 jobs:
+  publication-checks:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && !inputs.verify_published && inputs.tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - name: Require exact-commit CI and CodeQL
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/release/check-publication-checks.mjs
   package:
     if: github.event_name != 'workflow_dispatch' || !inputs.verify_published
     strategy:
@@ -95,10 +115,11 @@ jobs:
         run: node scripts/release/test-signing.mjs release-output
   publish:
     if: github.event_name == 'workflow_dispatch' && inputs.publish && !inputs.verify_published && inputs.tag != ''
-    needs: [package, signing-contract]
+    needs: [publication-checks, package, signing-contract]
     runs-on: ubuntu-24.04
     environment: release
     permissions:
+      actions: read
       contents: write
     steps:
       - uses: actions/checkout@v7
@@ -113,6 +134,11 @@ jobs:
           pattern: release-*
           merge-multiple: true
           path: release-output
+      - name: Recheck exact-commit CI and CodeQL before signing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/release/check-publication-checks.mjs
       - name: Validate and sign
         env:
           OPENASSIST_RELEASE_SIGNING_KEY: ${{ secrets.OPENASSIST_RELEASE_SIGNING_KEY }}

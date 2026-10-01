@@ -661,7 +661,12 @@ describe("docs truth", () => {
     }
     const workflow = readText(".github/workflows/release.yml");
     for (const target of ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64"]) assert(workflow.includes(`target: ${target}`));
-    assert.match(workflow, /needs: \[package, signing-contract\]/);
+    assert.match(workflow, /needs: \[publication-checks, package, signing-contract\]/);
+    assert.match(workflow, /publication-checks:\s+if: github.event_name == 'workflow_dispatch' && inputs.publish && !inputs.verify_published && inputs.tag != ''/);
+    assert.equal((workflow.match(/run: node scripts\/release\/check-publication-checks\.mjs/g) ?? []).length, 2);
+    for (const file of ["README.md", "AGENTS.md", "docs/README.md", "docs/operations/release-maintenance.md", "docs/testing/test-matrix.md"]) {
+      assert(readText(file).includes("publication-checks"), `${file} must explain the automated publication prerequisite`);
+    }
     assert.match(workflow, /--notes-file "docs\/releases\/\$RELEASE_TAG\.md"/);
     assert.match(workflow, /public-install:\s+needs: publish/);
     assert.match(workflow, /public-install-smoke\.sh/);

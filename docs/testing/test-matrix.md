@@ -203,6 +203,7 @@ Current suite files under `tests/node/`:
 - `runtime-tool-audit.test.ts`
 - `runtime.test.ts`
 - `runtime-version.test.ts`
+- `release-publication-checks.test.ts`
 - `whatsapp-signal-compatibility.test.ts`
 - `scheduler-runtime.test.ts`
 - `storage.test.ts`
@@ -212,6 +213,8 @@ Current suite files under `tests/node/`:
 ## Docs-Truth Validation
 
 `setup-quickstart-validation.test.ts` verifies that invalid bind addresses never create a network probe, while valid-address busy-port tests remain active. Dependabot ignores major `@types/node` updates to match the Node 24 runtime; 24.x minor/patch updates remain enabled.
+
+The wildcard health-URL case in `setup-quickstart-branches.test.ts` simulates service/HTTP results and skips only the unrelated bind probe through a test-scoped readiness spy, restored in `finally`. It uses a fixed port without opening a socket; the real occupied-port validation and quickstart repair cases still use actual sockets and production readiness.
 
 `tests/node/cli-docs-truth.test.ts` now validates:
 
@@ -374,6 +377,8 @@ PR #61 harness follow-up updates Vitest and coverage-v8 together to 5.0.2. Exist
 ## Release artifacts and lifecycle modernization
 
 `.github/workflows/release.yml` runs native package/relocation smoke tests on Linux glibc x64/arm64 and macOS x64/arm64 for PRs and manual dispatch. Only explicit publication dispatch uses the protected release environment and signing secret. Existing scheduled/manual service and lifecycle smoke workflows retain their trigger semantics. The public runner label macos-15-intel is explicitly declared for the bundled actionlint version.
+
+The read-only `publication-checks` job requires the latest matching main-branch CI and CodeQL runs for the exact tag commit, including workflow lint, all three OS quality jobs and actual analysis. It is rechecked in `publish` before signing; missing, pending, failed or skipped checks block publication. PR artifacts and existing-publication verification skip it. `release-publication-checks.test.ts` covers commit/branch/event identity, latest-run selection, current-attempt jobs, every required job, missing/skipped/duplicate evidence, bounded pagination, API failures/redaction and tag/dispatch agreement. Docs-truth checks keep the workflow wiring and documentation aligned.
 
 The release `signing-contract` job validates all four real archives with an ephemeral test key through the production signing script, OpenSSL and the packaged Node verifier; production trust must reject the test signature. Scheduled/manual service and lifecycle workflows also build and smoke packaged releases; lifecycle E2E additionally runs live Linux service activation, update, rollback and data-preserving uninstall. Deterministic integration tests exercise WAL-backed conversation preservation across activation failure and rollback, isolated local builds with credentials removed, locks, and explicit instance cleanup. Hosted native jobs remain necessary even when Windows quality and simulated host tests pass.
 

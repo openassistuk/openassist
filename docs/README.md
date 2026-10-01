@@ -137,6 +137,7 @@ GitHub automation:
 
 - `CI` runs on pushes to `main`, pull requests, manual dispatch, and a daily `04:30 UTC` schedule for workflow lint plus the `quality-and-coverage` matrix. The workflow lint leg also enforces the tracked action-version floors for `actions/checkout@v6`, `actions/setup-node@v6`, `actions/upload-artifact@v7`, and `github/codeql-action/*@v4`.
 - `CodeQL` runs on pushes to `main`, pull requests to `main`, manual dispatch, and a weekly `Mon` at `05:15 UTC` schedule. In this public repo it runs `CodeQL preflight` plus `analyze (javascript-typescript)`.
+- Release publication requires `publication-checks` for successful workflow lint, Linux/macOS/Windows CI and full CodeQL on the exact tagged main commit, rechecked before signing. Missing, pending, failed or skipped evidence blocks publication; PR artifact builds and `verify_published` skip this prerequisite.
 - `.github/workflows/macos-live-launchd.yml` runs on `pull_request` targeting `main` and `workflow_dispatch`
 - it provides required `launchd-live-smoke (macos-latest)` proof of live LaunchAgent install, health, status, stop/start recovery, restart, logs, and uninstall on hosted macOS
 
@@ -162,6 +163,7 @@ Current housekeeping and release-evidence records:
 - [CI #391 and CodeQL #42 repair](execplans/ci-391-dependency-audit-2026-09-30.md): patched Undici `6.28.1` and brace-expansion `5.0.12`, account-link fixture allocation and path-only instance identity checks, with local and hosted verification evidence.
 - [Post-release Axios audit repair](execplans/post-release-axios-audit-2026-09-30.md): Axios `1.20.0`, seven production dependency advisories, actual release-documentation merges and the boundary between source fixes and unchanged published packages.
 - [v0.2.1 patch release evidence](execplans/stable-0.2.1-release.md): reviewed main/tag, shell-free Windows source commands, protected signing, four-target public installation and independent production-signature verification.
+- [Deterministic setup test and publication prerequisites](execplans/release-ci-gates-2026-10-01.md): scoped bind-probe isolation and automated exact-commit CI/CodeQL verification.
 - [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
 
 Historical implementation plans (retain their original evidence and read any reconciliation notes):

@@ -25,7 +25,8 @@ Deliver the complete provider model refresh to packaged installations as signed 
 - [x] Independently verified both production RSA/SHA-256 signatures against `release-public.pem`, exact version/commit/channel, database/feature compatibility and all 16 GitHub asset digests against downloaded metadata or signed indexes/manifests. Ignored evidence: `coverage/check-v0.2.2-release.mjs`, `coverage/release-0.2.2-public-assets.json` and signed metadata under `coverage/current-public-release-check/v0.2.2`.
 - [x] (2026-10-01 14:48Z verification) Initial publication public checks passed Linux x64/arm64 and Intel Mac. Apple Silicon passed channel install/uninstall but exact-version download timed out connecting to GitHub (curl 28 after 75 seconds); diagnostics also showed exhausted public API quota. [Verification-only 36878438133](https://github.com/openassistuk/openassist/actions/runs/36878438133) subsequently passed all four stable-channel/exact-version public installations, update planning and data-preserving uninstalls against the unchanged assets. It skipped builds, signing and publication and received no production signing credential. Initial run 36876557261 retains its failure conclusion; the successful retry is separate evidence.
 - [x] Reconciled README/AGENTS, changelog, release notes/index, platform/quickstart/update guides, test matrix and both model/release ExecPlans with actual publication/verification. Older immutable releases and historical evidence remain intact; fresh provider/channel and second-account live-testing gaps remain explicit.
-- [ ] Run the documentation PR's local verification, record exact-head hosted results and merge after required review. This follow-up does not alter the immutable tag or published assets.
+- [x] (2026-10-01 15:02Z) Documentation source `5e7f21a` passed `pnpm verify:all`: workflow lint, build/lint/types, docs truth, 577 Vitest passes/one skipped, 229 Node passes/six skipped, 126 Node coverage passes/five skipped, unchanged coverage gates and zero production/full audit findings. Two Bash-unavailable installer cases separately passed with Git Bash on PATH. Final diff/whitespace inspection passed. Record final documentation-head hosted results in its PR body without changing the immutable tag or assets.
+- [ ] Complete the documentation PR's exact-head hosted checks and required review/merge. This follow-up does not alter the immutable tag or published assets.
 
 ## Surprises & Discoveries
 
@@ -56,7 +57,7 @@ Decision (2026-10-01 publication): the maintainer's stable 0.2.2 request, review
 
 Signed stable v0.2.2 is published from reviewed PR #75/main `2f8b2dced95ea6a8b7770d7a7fb7d16308fab61a` and is GitHub latest stable. Local/final PR checks, actual main CI/full CodeQL, all native artifacts, Linux candidate quality/audits, signing contracts and protected production signing passed. Both production signatures and all 16 asset digests independently verified. Initial Apple Silicon public verification failed on network connection; successful verification-only run 36878438133 then validated all four supported targets against unchanged assets. The first run's failed overall conclusion is retained, not relabeled as green.
 
-Local main was fast-forwarded and stale merged branches were removed with ancestry/PR proof. Availability/evidence documentation is prepared on `codex/published-0.2.2-evidence` for its separate local/hosted checks and required review. Source checks do not establish live provider/channel performance; fresh-host and second-account sessions remain unverified. No local signing key or operator state is changed.
+Local main was fast-forwarded and stale merged branches were removed with ancestry/PR proof. Availability/evidence documentation on `codex/published-0.2.2-evidence` passed full local verification at `5e7f21a`; its final hosted checks and required review are separate and tracked in the PR body. Source checks do not establish live provider/channel performance; fresh-host and second-account sessions remain unverified. No local signing key or operator state is changed.
 
 ## Context and Orientation
 
@@ -115,6 +116,8 @@ Candidate local log: `coverage/release-0.2.2-verify.log` (ignored). All 72 Vites
 
 Exact-tag Linux publication verification passed 575 Vitest tests/three platform skips, 234 Node tests/one skip and 130 Node coverage tests/one skip, all unchanged coverage gates and zero production/full audits. Node lines/statements were 80.83%, functions 86.46% and branches 73.61%. Logs are retained under ignored `.tmp/`: main quality, original publication/candidate quality, Apple Silicon failure and successful verification-only matrix. Independent verification source/public metadata live under ignored `coverage/`; no private signing material is retained there.
 
+Documentation verification log: ignored `coverage/release-0.2.2-publication-docs-verify.log`, source `5e7f21a`. Vitest coverage: lines 84.22%, statements 83.24%, functions 85.85%, branches 74.35%; Node lines/statements 80.15%, functions 86.07%, branches 73.67%. All thresholds remain unchanged. Final hosted run IDs/conclusions belong to the actual pushed documentation head in its PR validation section; this local evidence-only reconciliation is not a claim of hosted success or merge.
+
 ## Interfaces and Dependencies
 
 
@@ -131,3 +134,5 @@ Revision note (2026-10-01 reviewed-main publication start): reconciled the maint
 Revision note (2026-10-01 publication and public retry): recorded protected production publication, latest-stable selection, independent signature/digest verification and the initial Apple Silicon network/quota diagnostics. Verification-only mode checks unchanged public assets; no successful four-platform claim is made while Mac checks remain pending.
 
 Revision note (2026-10-01 public verification completion): all four verification-only targets passed on unchanged assets. Reconciled current availability and actual exact-tag candidate counts while preserving the failed original run and outstanding separate documentation review/live provider checks.
+
+Revision note (2026-10-01 publication-documentation validation): recorded the full successful local gate, zero audits, unchanged coverage and supplemental installer checks. The documentation PR still needs its own final-head hosted results and required review; public release validation is already complete and independent.

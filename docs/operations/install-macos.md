@@ -1,8 +1,6 @@
 # Install on macOS
 
-**Release availability:** the signed [v0.2.1 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.1) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.1`. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys.
-
-The [v0.2.2 model-refresh candidate](../releases/v0.2.2.md) is in preparation; protected publication and public-installer checks must pass before these availability commands select it.
+**Release availability:** the signed [v0.2.2 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.2) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.2`. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys. [Release evidence](../execplans/stable-0.2.2-release.md) separates protected publication, the initial Mac download failure and successful four-target verification-only checks.
 
 Packaged bootstrap adds a marked `~/.local/bin` PATH block to Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`), or Bash's `.bashrc` and `.profile`. Open a new terminal after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved. Uninstall removes only an unchanged block whose ownership was recorded.
 
@@ -22,7 +20,7 @@ Explicit source bootstrap can install missing prerequisites automatically with H
 
 For source builds, if Homebrew is not already available, install it first from `https://brew.sh`.
 
-The [v0.2.1 stable release](../releases/v0.2.1.md) delivers the Axios security repair alongside the earlier lifecycle fixes. Existing installations should use the explicit stable update commands in the release notes; exact pins do not advance automatically. Replacement-host provider/channel retesting remains unverified separately from public-install validation.
+The [v0.2.2 stable release](../releases/v0.2.2.md) delivers the model refresh and retains the earlier Axios security and lifecycle fixes. Existing installations should use the explicit stable update commands in the release notes; exact pins and saved provider settings do not advance automatically. Replacement-host provider/channel retesting remains unverified separately from public-install validation.
 
 ## Install Commands
 

@@ -2,13 +2,11 @@
 
 After packaged installation, open a new shell so its saved PATH block takes effect. If `openassist` is not yet found, run `~/.local/bin/openassist setup`; the installer also prints this fallback. Existing or edited shell-profile blocks are preserved rather than overwritten.
 
-The signed [v0.2.1 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.1) is published and public installation passed on all four supported targets. The default installer selects this security patch. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
+The signed [v0.2.2 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.2) is published and public installation passed on all four supported targets. The default installer selects this model refresh. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
 
 This is the canonical operator runbook for a public OpenAssist install.
 
-The [v0.2.1 stable notes](../releases/v0.2.1.md) describe the delivered Axios repair, earlier lifecycle fixes, explicit preview/source migration and testing limits. Existing installations need an explicit stable update to receive the patch. Replacement-host provider/channel retesting remains unverified separately from the successful public-install checks.
-
-The [v0.2.2 candidate](../releases/v0.2.2.md) prepares the model refresh and new setup recommendations. Signed publication and public-install verification remain pending; use the published stable commands below until the [release evidence](../execplans/stable-0.2.2-release.md) records completion.
+The [v0.2.2 stable notes](../releases/v0.2.2.md) describe the model refresh, new setup recommendations, retained security/lifecycle fixes, explicit preview/source migration and testing limits. Existing installations need an explicit stable update to receive it; saved provider settings remain intact. [Release evidence](../execplans/stable-0.2.2-release.md) records production signatures/digests and all four successful public-install targets after the initial Mac download failure. Replacement-host provider/channel retesting remains unverified separately.
 
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
 
@@ -53,7 +51,7 @@ Install the published packaged stable release:
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin this release, use `bash -s -- --version 0.2.1` in the piped installer. For source development, explicitly build main instead:
+To pin this release, use `bash -s -- --version 0.2.2` in the piped installer. For source development, explicitly build main instead:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main

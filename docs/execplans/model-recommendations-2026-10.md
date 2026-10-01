@@ -13,7 +13,8 @@ Fresh OpenAI and Codex setup should suggest GPT-6.1 Sol with xhigh reasoning for
 - [x] (2026-10-01) Confirmed official OpenAI, Codex, Microsoft and Anthropic model documentation, inspected the shared catalog, setup flows, defaults and relevant tests; created `codex/current-model-recommendations` from current main `f5e811b`.
 - [x] (2026-10-01) Implemented catalog entries, fresh default reasoning, route-specific recommendations and generic setup prompts.
 - [x] (2026-10-01) Added transport/catalog, quickstart/wizard creation and saved-effort tests; synchronized affected documentation and examples. `pnpm -r build` passed; eight focused Vitest files passed 98 tests.
-- [ ] Run targeted checks and `pnpm verify:all`, review final changes, and create the requested PR.
+- [x] (2026-10-01) Reviewed final changes and passed `pnpm verify:all` on implementation commit `4245c91131ae96f178ee0612a8e65a02a0e68b50`: build/workflow lint/lint/types, 544 Vitest passes (one skipped), 228 Node passes (six skipped), both coverage gates, and zero production/full audit findings.
+- [ ] Push the verified branch and create the requested PR.
 - [ ] Record actual hosted check results separately from local verification.
 
 ## Surprises & Discoveries
@@ -27,7 +28,7 @@ Generic setup previously reused the OpenAI model default despite calling Chat Co
 
 The OpenClaw importer classified the exact openai-compatible type as OpenAI because it matched an OpenAI substring first. Corrected that exact route mapping and added a visible placeholder/warning for a missing generic model. The regression verifies current absent-model defaults alongside preservation of a saved GPT-6 Sol ID.
 
-The first full gate passed build, lint, types and all 544 Vitest tests but stopped at the clean-source upgrade integration test. That test clones committed HEAD while running the current working-tree CLI; the clone retained the pre-change model sample and the CLI's default changed. Commit the reviewed model update before rerunning so fixture and CLI agree. Do not weaken the readiness assertion or change lifecycle production logic to hide this mismatch.
+The first full gate passed build, lint, types and all 544 Vitest tests but stopped at the clean-source upgrade integration test. That test clones committed HEAD while running the current working-tree CLI; the clone retained the pre-change model sample and the CLI's default changed. Committing the reviewed update made fixture and CLI agree, and the complete gate then passed without weakening readiness assertions or changing lifecycle production logic.
 
 ## Decision Log
 
@@ -41,7 +42,7 @@ On 2026-10-01, keep capability metadata exact and route-specific. Add Sonnet 5.5
 ## Outcomes & Retrospective
 
 
-Implementation, synchronized documentation and 98 focused tests are complete. Full verification and PR/hosted evidence remain in progress. No paid provider call, operator service restart, release publication or merge was performed. Transport contracts use fake responses; distinguish successful local/hosted checks from live account certification.
+Implementation, synchronized documentation, 98 focused tests and full local verification are complete. Vitest coverage is 84.19% lines, 83.21% statements, 85.85% functions and 74.33% branches. Node coverage is 80.11% lines/statements, 86.38% functions and 73.45% branches. All thresholds are unchanged. Both audit reports contain zero findings. GitHub returned no open code-scanning alerts on 2026-10-01. PR creation and hosted evidence remain pending. No paid provider call, operator service restart, release publication or merge was performed; fake transport tests do not certify live account availability.
 
 ## Context and Orientation
 
@@ -89,3 +90,5 @@ Revision (2026-10-01): created after official source review and initial targeted
 Revision (2026-10-01, implementation): recorded targeted build/test evidence, documentation reconciliation and the exact generic-import route correction. Full quality verification is running.
 
 Revision (2026-10-01, verification): recorded the initial cloned-HEAD fixture mismatch before committing and rerunning the full gate.
+
+Revision (2026-10-01, local completion): recorded the successful complete gate on implementation commit 4245c91, unchanged coverage thresholds and zero audit/code-scanning findings. This evidence-only update does not change product behavior.

@@ -14,8 +14,8 @@ Fresh OpenAI and Codex setup should suggest GPT-6.1 Sol with xhigh reasoning for
 - [x] (2026-10-01) Implemented catalog entries, fresh default reasoning, route-specific recommendations and generic setup prompts.
 - [x] (2026-10-01) Added transport/catalog, quickstart/wizard creation and saved-effort tests; synchronized affected documentation and examples. `pnpm -r build` passed; eight focused Vitest files passed 98 tests.
 - [x] (2026-10-01) Reviewed final changes and passed `pnpm verify:all` on implementation commit `4245c91131ae96f178ee0612a8e65a02a0e68b50`: build/workflow lint/lint/types, 544 Vitest passes (one skipped), 228 Node passes (six skipped), both coverage gates, and zero production/full audit findings.
-- [ ] Push the verified branch and create the requested PR.
-- [ ] Record actual hosted check results separately from local verification.
+- [x] (2026-10-01) Pushed `codex/current-model-recommendations`, created [PR #75](https://github.com/openassistuk/openassist/pull/75) against main, and attached it to the task. No merge was performed.
+- [x] (2026-10-01) Recorded the initial hosted checkpoint separately: CodeQL preflight succeeded; analysis, all three quality jobs, live macOS and four package builds were queued/running. Publication checks are correctly skipped on a PR. No review threads or open code-scanning alerts were returned. Final hosted results for the latest documentation-only head must be reconciled in PR #75's validation section; this checkpoint is not a claim that remaining jobs passed.
 
 ## Surprises & Discoveries
 
@@ -42,7 +42,7 @@ On 2026-10-01, keep capability metadata exact and route-specific. Add Sonnet 5.5
 ## Outcomes & Retrospective
 
 
-Implementation, synchronized documentation, 98 focused tests and full local verification are complete. Vitest coverage is 84.19% lines, 83.21% statements, 85.85% functions and 74.33% branches. Node coverage is 80.11% lines/statements, 86.38% functions and 73.45% branches. All thresholds are unchanged. Both audit reports contain zero findings. GitHub returned no open code-scanning alerts on 2026-10-01. PR creation and hosted evidence remain pending. No paid provider call, operator service restart, release publication or merge was performed; fake transport tests do not certify live account availability.
+Implementation, synchronized documentation, 98 focused tests and full local verification are complete, and PR #75 is open. Vitest coverage is 84.19% lines, 83.21% statements, 85.85% functions and 74.33% branches. Node coverage is 80.11% lines/statements, 86.38% functions and 73.45% branches. All thresholds are unchanged. Both audit reports contain zero findings. GitHub returned no open code-scanning alerts or review threads on 2026-10-01. The initial CodeQL preflight passed; other hosted jobs remain pending and final-head results are tracked in the PR. No paid provider call, operator service restart, release publication or merge was performed; fake transport tests do not certify live account availability.
 
 ## Context and Orientation
 
@@ -92,3 +92,5 @@ Revision (2026-10-01, implementation): recorded targeted build/test evidence, do
 Revision (2026-10-01, verification): recorded the initial cloned-HEAD fixture mismatch before committing and rerunning the full gate.
 
 Revision (2026-10-01, local completion): recorded the successful complete gate on implementation commit 4245c91, unchanged coverage thresholds and zero audit/code-scanning findings. This evidence-only update does not change product behavior.
+
+Revision (2026-10-01, PR reconciliation): recorded actual PR creation and the initial hosted checkpoint. Subsequent final-head results belong in PR #75's validation section so recording them does not repeatedly invalidate that head's checks. No merge, release or live-provider certification is inferred.

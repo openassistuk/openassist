@@ -293,7 +293,7 @@ function validateProviderReasoningRequirements(
         warnings,
         "provider.codex_reasoning_model_unsupported",
         `Provider '${provider.id}' sets Codex reasoning effort '${provider.reasoningEffort}', but model '${provider.defaultModel}' is not on the built-in reasoning-effort allow-list.`,
-        "Use a cataloged current Codex model such as gpt-6-sol for Codex reasoning effort, or leave the setting unset so OpenAssist can rely on provider defaults."
+        "Use a cataloged current Codex model such as gpt-6.1-sol for Codex reasoning effort, or leave the setting unset so OpenAssist can rely on provider defaults."
       );
     }
 
@@ -302,7 +302,7 @@ function validateProviderReasoningRequirements(
         warnings,
         "provider.codex_model_unsupported",
         `Provider '${provider.id}' uses the Codex account-login route, but model '${provider.defaultModel}' is not on the built-in Codex route allow-list.`,
-        "Use a cataloged current Codex model such as gpt-6-sol on the codex route."
+        "Use a cataloged current Codex model such as gpt-6.1-sol on the codex route."
       );
     }
 

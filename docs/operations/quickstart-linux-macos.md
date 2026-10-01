@@ -221,7 +221,7 @@ Provider and channel guidance:
 - OpenAI stays the standard API-key route.
 - Codex stays the separate OpenAI account-login route.
 - Codex does not ask for a custom base URL in normal quickstart or wizard flows.
-- OpenAI and Codex quickstart offer `Default (recommended)` plus choices from the selected route/model's catalog entry. GPT-6 OpenAI Sol/Luna offer `none`, `low`, `medium`, `high`, `xhigh`, `max`; OpenAI Astra and all three Codex GPT-6 models exclude `none`. See [model compatibility](../providers/model-compatibility.md#gpt-6-settings-by-route).
+- OpenAI and Codex fresh quickstart suggest GPT-6.1 Sol with `xhigh`; `Default` omits the reasoning parameter. Choices come from the exact route/model catalog. Older OpenAI Sol/Luna offer `none` through `max`; OpenAI GPT-6.1 Sol/Astra and Codex GPT-6 models exclude `none`. Saved IDs and effort, including omission, are retained. See [model compatibility](../providers/model-compatibility.md#gpt-6-settings-by-route).
 - Leaving that quickstart choice on `Default` omits the effort parameter. It does not disable model-default reasoning, clear an independently saved execution mode, or disable opaque reasoning replay.
 - If you choose Codex, quickstart guides the account-link flow after the daemon is healthy, prints the authorization URL, pauses so you can copy or open it on this host or another device, accepts either the full callback URL or a pasted code, and requires that linked account before the first reply can use the default provider.
 - For Codex on a VPS or other remote host, quickstart now recommends the device-code flow first and keeps browser callback/manual paste as a fallback.

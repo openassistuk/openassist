@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, modelCapabilities, providerTuningErrors, type OpenAssistConfig } from "@openassist/config";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, modelCapabilities, recommendedReasoningEffort, providerTuningErrors, type OpenAssistConfig } from "@openassist/config";
 import { SpawnCommandRunner } from "./command-runner.js";
 import {
   isUntouchedDefaultConfigObject,
@@ -169,7 +169,7 @@ function defaultProviderForType(type: ProviderType): { id: string; model: string
   if (type === "openai-compatible") {
     return {
       id: "compat-main",
-      model: DEFAULT_OPENAI_MODEL,
+      model: "",
       baseUrl: "http://127.0.0.1:11434/v1"
     };
   }
@@ -515,7 +515,7 @@ async function promptProvider(
     const baseUrl = baseUrlInput.trim();
     const reasoningEffort = await promptAzureFoundryReasoningEffort(
       prompts,
-      existingAzure?.reasoningEffort,
+      existingAzure ? existingAzure.reasoningEffort : recommendedReasoningEffort(underlyingModel ?? "", "azure-foundry"),
       underlyingModel ?? ""
     );
 
@@ -567,9 +567,9 @@ async function promptProvider(
     : existing?.baseUrl?.trim() ?? "";
   const reasoningEffort =
     type === "openai"
-      ? await promptReasoningEffort(prompts, "OpenAI", existing?.type === "openai" ? existing.reasoningEffort : undefined, defaultModel)
+      ? await promptReasoningEffort(prompts, "OpenAI", existing?.type === "openai" ? existing.reasoningEffort : recommendedReasoningEffort(defaultModel), defaultModel)
       : type === "codex"
-        ? await promptReasoningEffort(prompts, "Codex", existing?.type === "codex" ? existing.reasoningEffort : undefined, defaultModel)
+        ? await promptReasoningEffort(prompts, "Codex", existing?.type === "codex" ? existing.reasoningEffort : recommendedReasoningEffort(defaultModel, "codex"), defaultModel)
         : undefined;
 
   const workspaceId = type === "anthropic"

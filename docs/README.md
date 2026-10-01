@@ -57,7 +57,7 @@ Provider truth that stays consistent across setup and docs:
 - OpenAI is the public API-key route.
 - Codex is the separate OpenAI account-login route.
 - Codex is intentionally documented as Codex-only in this release.
-- Reasoning efforts are filtered by route and model. GPT-6 OpenAI Sol/Luna and Azure Astra/Sol/Luna include `none` through `max`; OpenAI Astra and Codex GPT-6 models exclude `none`. API/Azure execution mode is independent of effort and is not a Codex setting.
+- Reasoning efforts are filtered by route and model. Fresh OpenAI/Codex recommend GPT-6.1 Sol with xhigh. Older OpenAI Sol/Luna and Azure GPT-6.1 Sol/Astra/Sol/Luna include `none` through `max`; OpenAI GPT-6.1 Sol/Astra and Codex GPT-6 models exclude `none`. API/Azure execution mode is independent of effort and is not a Codex setting.
 - Anthropic uses model-specific adaptive/manual/disabled thinking and effort controls, with explicit output limits. Manual budgets remain available only on compatible models. Multi-workspace keys can select `workspaceId` in setup.
 - Azure Foundry is the Azure resource-style `/openai/v1/` route with API-key or Entra host auth and a required deployed Azure deployment name.
 
@@ -241,3 +241,5 @@ Native release jobs include a separate signing contract check using ephemeral te
 - [Implementation ExecPlan](execplans/ubuntu-live-test-fixes.md): current work and verification status.
 
 Stable v0.2.0 is published from merged preparation PR #69. The [release ExecPlan](execplans/stable-0.2.0-release.md) records exact-revision checks, signing/publication and four-target public-install evidence. Additional fresh-host provider/channel retesting remains unverified; baseline passes do not certify every integration.
+
+October 2026 model recommendations and verification are tracked in the [model recommendation ExecPlan](execplans/model-recommendations-2026-10.md). Opus 5.5 is the Anthropic recommendation; Sonnet 5.5 is the cheaper alternative with adaptive thinking support. Generic setup requires the model ID actually served by its backend.

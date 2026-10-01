@@ -41,7 +41,7 @@ Built-in public provider-route expectations:
 - `azure-foundry`: Azure resource-style `/openai/v1/` route with API-key or Entra host auth
 - `openai-compatible`: API-compatible route
 
-`codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: fresh setup recommends `gpt-6-sol`; saved retired models require explicit operator replacement.
+`codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: fresh setup recommends `gpt-6.1-sol` with xhigh; saved retired models require explicit operator replacement.
 
 Provider OAuth config requirements:
 
@@ -149,6 +149,8 @@ OpenAI adapter endpoint behavior:
 - Chat-completions remains supported for chat-capable OpenAI models.
 - Cataloged Responses models, including GPT-6 and supported GPT-5/Codex entries, are routed through the OpenAI Responses API; custom names do not imply capabilities.
 - If chat-completions returns a model/endpoint mismatch (for example "not a chat model"), adapter falls back to Responses API automatically.
+- Fresh OpenAI defaults use GPT-6.1 Sol and xhigh; Default still omits effort. GPT-6.1 Sol tool calls require Responses, with no temperature and no none effort on OpenAI/Codex. Azure verifies optional controls using the underlying-model hint, retaining deployment names and its separate documented none option.
+- Sonnet 5.5 uses the existing adaptive thinking, bounded stream folding and prefix-binding replay path. Opus 5.5 remains the recommended Anthropic model; unsupported manual/disabled settings fail locally.
 - `reasoningEffort` is only attached on the supported Responses API path. It is never sent on chat-completions requests.
 
 Azure Foundry adapter endpoint behavior:
@@ -167,7 +169,7 @@ Codex adapter behavior:
 - The current public route keeps one linked account per provider instance.
 - The Codex route is account-login only in operator-facing setup and docs; it is not the generic OpenAI API-key route.
 - The Codex route blocks known retired model IDs with explicit replacement guidance; custom IDs remain accepted without inferred optional capabilities.
-- Codex uses the same `reasoningEffort` field with route-specific choices. Its GPT-6 models exclude `none`; it has no `reasoningMode`. Unknown model IDs receive no inferred effort, while known incompatible explicit values fail validation.
+- Codex uses the same `reasoningEffort` field with route-specific choices. Its GPT-6 models, including GPT-6.1 Sol, exclude `none`; it has no `reasoningMode`. Unknown model IDs receive no inferred effort, while known incompatible explicit values fail validation.
 - Device code is the recommended Codex headless login path, while browser callback/manual paste remains a supported fallback.
 - New Codex login flows default to `http://localhost:1455/auth/callback` instead of the daemon callback route because that matches the supported public account-login redirect shape.
 - CLI and setup guidance must make the pasted callback path explicit on remote hosts: if the localhost page cannot load after browser approval, operators copy the full URL from the browser address bar and paste it back into OpenAssist.
@@ -209,7 +211,7 @@ Changes to provider contract require synchronized updates across:
 
 OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.
 
-Current GPT-6 models use Responses; API/Azure optional reasoningMode is independently validated and mapped. Claude always-thinking models stream internally to the existing ChatResponse contract and replay complete signed blocks with the binding-controls beta header. A larger configured maxOutputTokens also enables internal streaming on older Claude models. This does not expose streaming or thinking to channels.
+Current GPT-6 models use Responses; API/Azure optional reasoningMode is independently validated and mapped. Claude models with prefix-bound thinking, including Sonnet 5.5, stream internally to the existing ChatResponse contract and replay complete signed blocks with the binding-controls beta header. A larger configured maxOutputTokens also enables internal streaming on older Claude models. This does not expose streaming or thinking to channels.
 
 Responses adapters preserve output items in `providerReplayKind=openai-responses-items`, `providerReplayScope` and `providerReplayJson`; scope includes route/provider/model (plus Azure model hint). Records are limited to 1 MiB/256 items. Replaying skips duplicate tool audit messages and falls back to normalized history for invalid/oversized/mismatched metadata. Explicit Anthropic auth selects exactly one SDK credential type and optionally sends workspaceId as a header.
 

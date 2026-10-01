@@ -38,7 +38,8 @@ Examples:
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-6-sol"
+defaultModel = "gpt-6.1-sol"
+reasoningEffort = "xhigh"
 ```
 
 ```text
@@ -101,7 +102,8 @@ promptOnFirstContact = false
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-6-sol"
+defaultModel = "gpt-6.1-sol"
+reasoningEffort = "xhigh"
 
 [[runtime.channels]]
 id = "telegram-main"

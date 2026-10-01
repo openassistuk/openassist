@@ -128,3 +128,5 @@ Before rolling back this refresh, remove the additive Anthropic workspaceId fiel
 Managed one-shot reminders live in additive SQLite tables, not the TOML recurring-task list. Preserve those tables during backup and rollback. Managed rollback blocks applications lacking one-shot support until active tasks and dispatches terminate.
 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
+
+The October 2026 defaults apply to fresh setup: GPT-6.1 Sol with xhigh on OpenAI/Codex, and Opus 5.5 on Anthropic. Saved IDs and omission remain intact. GPT-6.1 Sol excludes none on OpenAI/Codex; Azure follows its own feature matrix. Sonnet 5.5 supports adaptive thinking in OpenAssist and rejects disabled/manual settings. Back up TOML before explicit model changes and restore compatible model/effort settings before rolling back to an older catalog. See [model compatibility](../providers/model-compatibility.md).

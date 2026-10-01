@@ -2,7 +2,7 @@ import type { OpenAssistConfig } from "@openassist/config";
 import { completeOnboarding } from "./onboarding.js";
 import type { OpenAIReasoningEffort } from "@openassist/core-types";
 import { confirm as inqConfirm, input as inqInput, password as inqPassword, select as inqSelect } from "@inquirer/prompts";
-import { OPENAI_MODEL_ALTERNATIVES, ANTHROPIC_MODEL_ALTERNATIVES, DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, modelCapabilities, reasoningEfforts, retiredModelReplacement, parseConfig } from "@openassist/config";
+import { OPENAI_MODEL_ALTERNATIVES, ANTHROPIC_MODEL_ALTERNATIVES, DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, modelCapabilities, reasoningEfforts, recommendedReasoningEffort, retiredModelReplacement, parseConfig } from "@openassist/config";
 import {
   loadWizardState,
   saveWizardState,
@@ -135,6 +135,7 @@ export async function promptReasoningEffort(
 ): Promise<OpenAIReasoningEffort | undefined> {
   const route = routeLabel === "Codex" ? "codex" : routeLabel === "Azure Foundry" ? "azure-foundry" : "openai";
   const supported = reasoningEfforts(model, route);
+  const recommended = recommendedReasoningEffort(model, route);
   if (!supported.length) {
     console.log("- This model has no cataloged reasoning controls; no reasoning parameter will be sent.");
     return undefined;
@@ -142,7 +143,7 @@ export async function promptReasoningEffort(
   const selected = await prompts.select<ReasoningEffortPromptChoice>(
     `${routeLabel} reasoning effort`,
     [{ name: "Default (do not send a reasoning parameter)", value: "default" },
-      ...supported.map(value => ({ name: value, value }))],
+      ...supported.map(value => ({ name: value === recommended ? `${value} (recommended for OpenAssist; more reasoning time and token usage)` : value, value }))],
     initial && supported.includes(initial) ? initial : "default"
   );
   return selected === "default" ? undefined : selected;
@@ -175,6 +176,7 @@ export async function promptReasoningMode(prompts: PromptAdapter, route: "openai
 export function describeModelChoices(type: ProviderType, currentModel?: string): void {
   if (type === "openai" || type === "codex") console.log(`Recommended: ${DEFAULT_OPENAI_MODEL}. Alternatives: ${OPENAI_MODEL_ALTERNATIVES.join(", ")}. Custom model IDs remain supported.`);
   if (type === "anthropic") console.log(`Recommended: ${DEFAULT_ANTHROPIC_MODEL}. Alternatives: ${ANTHROPIC_MODEL_ALTERNATIVES.join(", ")}. Custom model IDs remain supported.`);
+  if (type === "openai-compatible") console.log("Enter the model ID served by your backend. This route uses Chat Completions; GPT-6.1 Sol tool calling requires the OpenAI Responses route.");
   const replacement = currentModel && retiredModelReplacement(type, currentModel);
   if (replacement) console.log(`Saved model ${currentModel} retired on the Codex route. Enter ${replacement} explicitly to replace it; keeping the old ID leaves readiness blocked.`);
 }
@@ -619,7 +621,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       ""
     );
     const trimmedBaseUrl = baseUrl.trim();
-    const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts, undefined, underlyingModel ?? "");
+    const reasoningEffort = await promptAzureFoundryReasoningEffort(prompts, recommendedReasoningEffort(underlyingModel ?? "", "azure-foundry"), underlyingModel ?? "");
     const reasoningMode = await promptReasoningMode(prompts, "azure-foundry", underlyingModel ?? "");
     state.config.runtime.providers.push({
       id: providerId,
@@ -661,13 +663,13 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
   const defaultModel = await promptRequiredText(
     prompts,
     "Default model",
-    providerType === "anthropic" ? DEFAULT_ANTHROPIC_MODEL : DEFAULT_OPENAI_MODEL
+    providerType === "anthropic" ? DEFAULT_ANTHROPIC_MODEL : providerType === "openai-compatible" ? "" : DEFAULT_OPENAI_MODEL
   );
   const baseUrl = providerSupportsCustomBaseUrl(providerType)
     ? await prompts.input("Base URL (optional)", "")
     : "";
   if (providerType === "openai") {
-    const reasoningEffort = await promptOpenAIReasoningEffort(prompts, undefined, defaultModel);
+    const reasoningEffort = await promptOpenAIReasoningEffort(prompts, recommendedReasoningEffort(defaultModel), defaultModel);
     const reasoningMode = await promptReasoningMode(prompts, "openai", defaultModel);
     state.config.runtime.providers.push({
       id: providerId,
@@ -678,7 +680,7 @@ async function addProvider(state: SetupWizardState, prompts: PromptAdapter): Pro
       ...(reasoningMode ? { reasoningMode } : {})
     });
   } else if (providerType === "codex") {
-    const reasoningEffort = await promptCodexReasoningEffort(prompts, undefined, defaultModel);
+    const reasoningEffort = await promptCodexReasoningEffort(prompts, recommendedReasoningEffort(defaultModel, "codex"), defaultModel);
     state.config.runtime.providers.push({
       id: providerId,
       type: providerType,

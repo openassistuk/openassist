@@ -39,7 +39,7 @@ openassist setup quickstart \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Quickstart will prompt for the backend URL and the auth material the backend expects.
+Quickstart and wizard require the model ID served by your backend, with no vendor model prefilled. They also prompt for the backend URL and auth material. GPT-6.1 Sol requires Responses for tool calling; use the OpenAI route with a compatible custom base URL for that contract. Generic Chat Completions endpoints keep their own model and parameter requirements.
 
 ## Manual TOML Setup
 

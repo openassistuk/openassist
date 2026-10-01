@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PromptAdapter } from "../../apps/openassist-cli/src/lib/setup-wizard.js";
 import {
   loadSetupWizardState,
@@ -26,8 +26,9 @@ class ScriptedPromptAdapter implements PromptAdapter {
     return this.queue.shift() ?? "";
   }
 
-  async input(): Promise<string> {
-    return this.next();
+  async input(_message: string, initial = ""): Promise<string> {
+    const value = this.next();
+    return value === "<default>" ? initial : value;
   }
 
   async password(): Promise<string> {
@@ -38,8 +39,9 @@ class ScriptedPromptAdapter implements PromptAdapter {
     return this.next() === "true";
   }
 
-  async select<T extends string>(): Promise<T> {
-    return this.next() as T;
+  async select<T extends string>(_message: string, _choices: unknown[], initial?: T): Promise<T> {
+    const value = this.next();
+    return (value === "<default>" ? initial : value) as T;
   }
 }
 
@@ -48,6 +50,39 @@ function linuxOnlyAnswers(answers: string[]): string[] {
 }
 
 describe("setup wizard runtime flow", () => {
+  it.each(["openai", "codex", "openai-compatible", "azure-foundry"])("uses current recommendations only for verified new %s providers", async type => {
+    const root = tempDir("openassist-wizard-suggestions-");
+    try {
+      const state = loadSetupWizardState(path.join(root, "config.toml"), path.join(root, "env"));
+      const setupAnswers = type === "openai" ? ["<default>", "", "<default>", "default", "false"]
+        : type === "codex" ? ["<default>", "<default>"]
+        : type === "azure-foundry" ? ["resource", "openai-resource", "api-key", "operator-deployment", "gpt-6.1-sol", "", "<default>", "default", "false"]
+        : ["backend-model", "http://127.0.0.1:1234/v1", "false"];
+      const prompts = new ScriptedPromptAdapter(["providers", "add", "new-main", type, ...setupAnswers, "back", "save"]);
+      const input = vi.spyOn(prompts, "input");
+      expect((await runSetupWizard(state, prompts, { requireTty: false })).saved).toBe(true);
+      const provider = state.config.runtime.providers.find(item => item.id === "new-main");
+      if (type === "openai-compatible") {
+        expect(provider).toMatchObject({ defaultModel: "backend-model" });
+        expect(provider).not.toHaveProperty("reasoningEffort");
+        expect(input.mock.calls.find(call => call[0] === "Default model")?.[1]).toBe("");
+      } else {
+        expect(provider).toMatchObject({ defaultModel: type === "azure-foundry" ? "operator-deployment" : "gpt-6.1-sol", reasoningEffort: "xhigh" });
+      }
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("retains omitted reasoning when editing a saved GPT-6.1 Sol provider", async () => {
+    const root = tempDir("openassist-wizard-saved-effort-");
+    try {
+      const state = loadSetupWizardState(path.join(root, "config.toml"), path.join(root, "env"));
+      state.config.runtime.providers = [{ id: "openai-main", type: "openai", defaultModel: "gpt-6.1-sol" }];
+      const prompts = new ScriptedPromptAdapter(["providers", "edit", "openai-main", "<default>", "", "<default>", "default", "false", "back", "save"]);
+      expect((await runSetupWizard(state, prompts, { requireTty: false })).saved).toBe(true);
+      expect(state.config.runtime.providers[0]).not.toHaveProperty("reasoningEffort");
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  });
+
   it("applies full multi-section edits and saves state", async () => {
     const root = tempDir("openassist-vitest-setup-wizard-");
     const configPath = path.join(root, "openassist.toml");

@@ -26,6 +26,9 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function mapProviderType(name: string): "openai" | "codex" | "anthropic" | "openai-compatible" {
   const lowered = name.toLowerCase();
+  if (lowered === "openai-compatible") {
+    return "openai-compatible";
+  }
   if (lowered.includes("codex")) {
     return "codex";
   }
@@ -83,10 +86,13 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
         const record = asRecord(value);
         const baseUrl = typeof record.baseUrl === "string" ? record.baseUrl : undefined;
         const type = mapProviderType(String(record.type ?? id));
+        if (type === "openai-compatible" && typeof record.model !== "string") {
+          warnings.push(`Provider ${id} needs the model ID served by its compatible backend; replace your-model-name in setup wizard before use.`);
+        }
         return {
           id,
           type,
-          defaultModel: typeof record.model === "string" ? record.model : type === "anthropic" ? DEFAULT_ANTHROPIC_MODEL : DEFAULT_OPENAI_MODEL,
+          defaultModel: typeof record.model === "string" ? record.model : type === "anthropic" ? DEFAULT_ANTHROPIC_MODEL : type === "openai-compatible" ? "your-model-name" : DEFAULT_OPENAI_MODEL,
           ...(baseUrl ? { baseUrl } : {})
         };
       })

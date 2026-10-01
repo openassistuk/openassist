@@ -75,3 +75,5 @@ After migration check `openassist service health`, `openassist doctor`, existing
 Managed one-shot tables are additive at database version 1. A candidate lacking managed-one-shots-v1 cannot be selected for managed rollback while reminders are pending, executing, ready or delivering. Complete or cancel tasks and wait for in-flight work; do not downgrade or delete state to bypass the guard.
 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
+
+Model recommendations: fresh OpenAI/Codex setup suggests GPT-6.1 Sol with xhigh; Anthropic suggests Opus 5.5. Updates and restarts preserve saved model IDs and tuning. Review [route-specific compatibility](../providers/model-compatibility.md) before explicitly changing models in `openassist setup wizard`; verify with `openassist doctor` and a real reply.

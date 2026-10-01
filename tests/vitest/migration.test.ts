@@ -17,6 +17,22 @@ describe("OpenClaw migration", () => {
     }
   });
 
+  it("uses current absent-model defaults without rewriting saved IDs or assuming a generic backend model", () => {
+    const root = tempDir("openassist-migration-");
+    roots.push(root);
+    fs.writeFileSync(path.join(root, "openclaw.json"), JSON.stringify({ providers: {
+      openai: { type: "openai" }, anthropic: { type: "anthropic" },
+      saved: { type: "openai", model: "gpt-6-sol" },
+      generic: { type: "openai-compatible", baseUrl: "http://127.0.0.1:1234/v1" }
+    } }));
+    const result = migrateOpenClawConfig(root);
+    expect(result.config.runtime.providers.map(provider => provider.defaultModel)).toEqual([
+      "gpt-6.1-sol", "claude-opus-5-5", "gpt-6-sol", "your-model-name"
+    ]);
+    expect(result.warnings.some(warning => warning.includes("model ID served by its compatible backend"))).toBe(true);
+    expect(result.config.runtime.providers[0]).not.toHaveProperty("reasoningEffort");
+  });
+
   it("converts provider and channel config", () => {
     const root = tempDir("openassist-migration-");
     roots.push(root);

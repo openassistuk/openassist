@@ -78,7 +78,7 @@ describe("azure foundry provider", () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ id: "r", output: [], usage: { input_tokens: 1, output_tokens: 1 } }), { headers: { "content-type": "application/json" } }));
     try {
       const createTokenProvider = vi.fn().mockReturnValue(async () => "dummy-entra-token");
-      for (const underlyingModel of ["gpt-6-sol", "gpt-6-luna", "gpt-6-astra"]) {
+      for (const underlyingModel of ["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-6-astra"]) {
         const adapter = new AzureFoundryProviderAdapter({ id: "test", defaultModel: "operator-deployment", resourceName: "test-resource", endpointFlavor: "foundry-resource", authMode, underlyingModel, reasoningEffort: "max", reasoningMode: "pro" }, { createTokenProvider });
         await adapter.chat({ ...baseRequest(), model: "operator-deployment", temperature: 0.4 }, authMode === "entra" ? { providerId: "test", kind: "entra" } : { providerId: "test", apiKey: "dummy-api-key" });
         const [url, options] = fetch.mock.calls.at(-1)!;
@@ -89,7 +89,7 @@ describe("azure foundry provider", () => {
         expect(body).not.toHaveProperty("temperature");
         expect(body.tools[0].type).toBe("function");
       }
-      expect(createTokenProvider).toHaveBeenCalledTimes(authMode === "entra" ? 3 : 0);
+      expect(createTokenProvider).toHaveBeenCalledTimes(authMode === "entra" ? 4 : 0);
       const unknown = new AzureFoundryProviderAdapter({ id: "test", defaultModel: "gpt-6-sol", resourceName: "test-resource", endpointFlavor: "openai-resource", authMode: "api-key", reasoningMode: "pro" });
       expect((await unknown.validateConfig({ id: "test", defaultModel: "gpt-6-sol", resourceName: "test-resource", endpointFlavor: "openai-resource", authMode: "api-key", reasoningMode: "pro" })).valid).toBe(false);
       const count = fetch.mock.calls.length;

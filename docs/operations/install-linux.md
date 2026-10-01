@@ -239,3 +239,5 @@ When quickstart changes an Anthropic model, incompatible saved thinking settings
 The public piped entrypoint attaches /dev/tty only when handing off to the downloaded bootstrap file. Packaged setup uses private Node with no system Node/Git/npm/pnpm requirement. Seeded installs select First-time setup. systemd system/user units contain explicit PATH entries for the wrapper and selected runtime.
 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
+
+Model recommendations: fresh OpenAI/Codex setup suggests GPT-6.1 Sol with xhigh; Anthropic suggests Opus 5.5. Updates and restarts preserve saved model IDs and tuning. Review [route-specific compatibility](../providers/model-compatibility.md) before explicitly changing models in `openassist setup wizard`; verify with `openassist doctor` and a real reply.

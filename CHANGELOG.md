@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- 2026-10-01: Recommend GPT-6.1 Sol with xhigh for fresh OpenAI/Codex setup and Opus 5.5 for Anthropic, retaining saved IDs and tuning. Add exact GPT-6.1 Sol route controls (including Azure's separate none support) and Sonnet 5.5 adaptive/prefix-bound thinking replay. Keep Azure deployment/auth boundaries and generic backend model IDs explicit; GPT-6.1 Sol tools use Responses. Synchronize setup, status, migration warnings, docs/examples and transport/onboarding regression tests. Xhigh may increase reasoning-token cost and latency; no access, context or tool-loop limits change.
+
 - Make the simulated quickstart wildcard-address health-URL test independent of host port availability while preserving real occupied-port validation and recovery coverage. Require successful CI on Linux/macOS/Windows and full main-branch CodeQL analysis for the exact release-tag commit before production signing/publication; recheck after protected approval and reject missing, pending, failed or skipped evidence without accepting an older green run. PR artifact builds and existing-publication verification retain their separate behavior; published assets remain unchanged.
 
 ## [0.2.1] - 2026-09-30

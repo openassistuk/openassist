@@ -49,7 +49,7 @@ openassist setup quickstart \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Quickstart offers `Default` plus the efforts supported by the selected Codex model. GPT-6 Astra/Sol/Luna offer `low`, `medium`, `high`, `xhigh`, and `max`; they do not offer `none`. Default omits the parameter. These choices differ from the OpenAI API route; use the [route-specific matrix](model-compatibility.md#gpt-6-settings-by-route). Codex has no `reasoningMode` field.
+Quickstart offers `Default` plus the efforts supported by the selected Codex model. GPT-6.1 Sol and GPT-6 Astra/older Sol/Luna offer `low`, `medium`, `high`, `xhigh`, and `max`; they do not offer `none`. Default omits the parameter. These choices differ from the OpenAI API route; use the [route-specific matrix](model-compatibility.md#gpt-6-settings-by-route). Codex has no `reasoningMode` field.
 
 ## Manual TOML Setup
 
@@ -59,9 +59,9 @@ Provider entry:
 [[runtime.providers]]
 id = "codex-main"
 type = "codex"
-defaultModel = "gpt-6-sol"
+defaultModel = "gpt-6.1-sol"
 # Optional for supported Codex Responses-model families:
-# reasoningEffort = "medium"
+reasoningEffort = "xhigh"
 ```
 
 There is no API-key env entry required for the normal Codex route. Instead, link the account after the daemon is healthy:
@@ -179,9 +179,9 @@ Start with:
 
 ## Modernization compatibility
 
-Fresh setup recommends `gpt-6-sol`; Astra and Luna are alternatives. Saved `gpt-5.4` and `gpt-5.4-mini` selections are preserved but block readiness with explicit replacement guidance. Use `openassist setup wizard` to choose GPT-6 Sol or Luna respectively. Login and token refresh do not repair a retired model selection.
+Fresh setup recommends `gpt-6.1-sol` with `xhigh` effort; Astra, Luna and older Sol are alternatives. Account/workspace rollout can limit availability; retain an available saved model until explicitly changing it. Saved `gpt-5.4` and `gpt-5.4-mini` selections are preserved but block readiness with explicit replacement guidance. Use `openassist setup wizard` to choose GPT-6.1 Sol or Luna respectively. Login and token refresh do not repair a retired model selection.
 
-GPT-6 Astra/Sol/Luna expose the documented account-login efforts low, medium, high, xhigh and max. API/Azure reasoningMode and API-only none are not exposed for these Codex selections. Ultra is client orchestration, not a supported wire effort here. Existing account headers, streaming, token refresh and bounded sequential tools remain unchanged. Availability depends on the signed-in account.
+GPT-6.1 Sol and GPT-6 Astra/older Sol/Luna expose the documented account-login efforts low, medium, high, xhigh and max. API/Azure reasoningMode and API-only none are not exposed for these Codex selections. Ultra is client orchestration, not a supported wire effort here. Existing account headers, streaming, token refresh and bounded sequential tools remain unchanged. Availability depends on the signed-in account.
 
 Default effort also requests opaque reasoning for cataloged Codex models. Bounded Responses replay preserves reasoning, message phase and tool items through local persistence. A delayed 401 reuses credentials already refreshed by a concurrent turn. Browser/device authentication remains unchanged; new enterprise access-token flows are not enabled. See [harness/auth readiness](../operations/provider-channel-readiness.md).
 

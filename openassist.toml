@@ -66,17 +66,17 @@ systemdFilesystemAccess = "hardened"
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-6-sol"
+defaultModel = "gpt-6.1-sol"
 # Optional for supported OpenAI Responses-model families:
-# reasoningEffort = "medium"
+reasoningEffort = "xhigh"
 
 # Example Codex provider with OpenAI account login:
 # [[runtime.providers]]
 # id = "codex-main"
 # type = "codex"
-# defaultModel = "gpt-6-sol"
+# defaultModel = "gpt-6.1-sol"
 # Optional for supported Codex Responses-model families:
-# reasoningEffort = "medium"
+# reasoningEffort = "xhigh"
 # Link later with:
 # openassist auth start --provider codex-main --account default --open-browser
 # Or on headless or remote hosts:

@@ -121,3 +121,5 @@ When quickstart changes an Anthropic model, incompatible saved thinking settings
 Restart recovers persisted one-shot intent once, with a visible original deadline when late. Saved prompt output survives retries. Recorded successful sends are not repeated; a crash during send becomes uncertain instead of being resent automatically. Generation retries are durable and bounded.
 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
+
+Model recommendations: fresh OpenAI/Codex setup suggests GPT-6.1 Sol with xhigh; Anthropic suggests Opus 5.5. Updates and restarts preserve saved model IDs and tuning. Review [route-specific compatibility](../providers/model-compatibility.md) before explicitly changing models in `openassist setup wizard`; verify with `openassist doctor` and a real reply.

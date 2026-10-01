@@ -73,7 +73,7 @@ describe("current GPT-6 routes", () => {
     expect(await preserveReasoningMode(prompts, "azure-foundry", "", "pro")).toEqual({ model: "" });
     expect(confirm.mock.calls.every(call => call[1] === false)).toBe(true);
   });
-  it.each(["gpt-6-sol", "gpt-6-luna", "gpt-6-astra"])("maps %s through Responses with model-specific sampling and independent pro mode", async model => {
+  it.each(["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-6-astra"])("maps %s through Responses with model-specific sampling and independent pro mode", async model => {
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => json(openaiReply));
     const efforts = reasoningEfforts(model);
     for (const effort of efforts) {
@@ -86,7 +86,7 @@ describe("current GPT-6 routes", () => {
       expect(body.temperature).toBe(effort === "none" ? 0.5 : undefined);
       expect(body.tools[0].type).toBe("function");
     }
-    expect(efforts.includes("none")).toBe(model !== "gpt-6-astra");
+    expect(efforts.includes("none")).toBe(!["gpt-6-astra", "gpt-6.1-sol"].includes(model));
     expect(reasoningEfforts(model, "codex")).toEqual(["low", "medium", "high", "xhigh", "max"]);
     expect(modelCapabilities(model, "codex")?.reasoningModes).toBeUndefined();
   });
@@ -112,7 +112,25 @@ describe("current GPT-6 routes", () => {
     expect(temperatureForModel("gpt-6-astra", "none", 0.4, "azure-foundry")).toBe(0.4);
   });
 
-  it.each(["gpt-6-sol", "gpt-6-luna", "gpt-6-astra"])("preserves Codex streaming and tool contracts for %s", async model => {
+  it("keeps GPT-6.1 Sol default omission and Azure none separate from OpenAI/Codex restrictions", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(json(openaiReply));
+    const adapter = new OpenAIProviderAdapter({ id: "test", defaultModel: "gpt-6.1-sol" });
+    await adapter.chat({ ...request, model: "gpt-6.1-sol" }, auth);
+    const body = JSON.parse(fetch.mock.calls[0][1]?.body as string);
+    expect(String(fetch.mock.calls[0][0])).toContain("/responses");
+    expect(body).not.toHaveProperty("reasoning");
+    expect(body).not.toHaveProperty("temperature");
+    for (const type of ["openai", "codex"] as const) {
+      const provider = { id: "test", type, defaultModel: "gpt-6.1-sol", reasoningEffort: "none" as const };
+      expect(providerTuningErrors(provider)).not.toEqual([]);
+      expect(reasoningPayload(provider.defaultModel, "none", type)).toBeUndefined();
+    }
+    expect(reasoningPayload("gpt-6.1-sol", "none", "azure-foundry")).toEqual({ effort: "none" });
+    expect(temperatureForModel("gpt-6.1-sol", "none", 0.4, "azure-foundry")).toBe(0.4);
+    expect(temperatureForModel("gpt-6.1-sol", "none", 0.4, "openai")).toBeUndefined();
+  });
+
+  it.each(["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-6-astra"])("preserves Codex streaming and tool contracts for %s", async model => {
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(`event: response.completed\ndata: ${JSON.stringify({ type: "response.completed", response: openaiReply })}\n\n`));
     const adapter = new CodexProviderAdapter({ id: "test", defaultModel: model, reasoningEffort: "max" });
     expect((await adapter.chat({ ...request, model }, auth)).output.content).toBe("hello");
@@ -147,7 +165,7 @@ describe("current Claude thinking", () => {
     expect(parseConfig(withProvider("wrkspc_test123")).runtime.providers[0]).toMatchObject({ workspaceId: "wrkspc_test123" });
     expect(() => parseConfig(withProvider("bad\r\nheader"))).toThrow();
   });
-  it.each(["claude-opus-5-5", "claude-fable-5-1", "claude-mythos-5-1"])("validates all efforts and mandatory adaptive thinking for %s", async model => {
+  it.each(["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-mythos-5-1"])("validates all efforts and supported adaptive thinking for %s", async model => {
     const provider = { id: "test", type: "anthropic" as const, defaultModel: model };
     for (const thinkingEffort of ["low", "medium", "high", "xhigh", "max"] as const) {
       expect(anthropicThinking({ ...provider, thinkingEffort })).toEqual({ output_config: { effort: thinkingEffort } });
@@ -161,7 +179,7 @@ describe("current Claude thinking", () => {
     expect(select.mock.calls[0][1].map((choice: { value: string }) => choice.value)).toEqual(["default", "adaptive"]);
   });
 
-  it.each(["claude-opus-5-5", "claude-fable-5-1", "claude-mythos-5-1"])("replays empty signed thinking and tool results after adapter restart and context changes for %s", async model => {
+  it.each(["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-mythos-5-1"])("replays empty signed thinking and tool results after adapter restart and context changes for %s", async model => {
     const blocks = [{ type: "thinking", thinking: "", signature: "opaque-signature" }, { type: "tool_use", id: "tool-1", name: "fs.read", input: {} }];
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => anthropicStream(blocks));
     const config = { id: "test", defaultModel: model, thinkingEffort: "max" as const };

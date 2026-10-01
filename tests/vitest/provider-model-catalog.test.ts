@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseConfig } from "../../packages/config/src/schema.js";
-import { anthropicThinking, modelCapabilities, providerTuningErrors, reasoningEfforts, retiredModelReplacement } from "../../packages/config/src/provider-models.js";
+import { DEFAULT_ANTHROPIC_MODEL, anthropicThinking, modelCapabilities, providerTuningErrors, reasoningEfforts, recommendedReasoningEffort, retiredModelReplacement } from "../../packages/config/src/provider-models.js";
 import { reasoningPayload, shouldPreferResponsesApi } from "../../packages/providers-openai-shared/src/index.js";
 import { AnthropicProviderAdapter } from "../../packages/providers-anthropic/src/index.js";
 import { CodexProviderAdapter } from "../../packages/providers-codex/src/index.js";
@@ -21,10 +21,13 @@ afterEach(() => vi.restoreAllMocks());
 describe("shared model capabilities", () => {
   it("recommends current models while retaining saved IDs", () => {
     const config = createDefaultConfigObject();
-    expect(config.runtime.providers[0].defaultModel).toBe("gpt-6-sol");
+    expect(config.runtime.providers[0]).toMatchObject({ defaultModel: "gpt-6.1-sol", reasoningEffort: "xhigh" });
+    expect(DEFAULT_ANTHROPIC_MODEL).toBe("claude-opus-5-5");
+    config.runtime.providers = [{ id: "openai-main", type: "openai", defaultModel: "gpt-6-sol" }];
+    expect(parseConfig(config).runtime.providers[0]).toEqual(config.runtime.providers[0]);
     config.runtime.providers = [{ id: "openai-main", type: "codex", defaultModel: "gpt-5.4" }];
     expect(parseConfig(config).runtime.providers[0].defaultModel).toBe("gpt-5.4");
-    expect(retiredModelReplacement("codex", "gpt-5.4")).toBe("gpt-6-sol");
+    expect(retiredModelReplacement("codex", "gpt-5.4")).toBe("gpt-6.1-sol");
     expect(retiredModelReplacement("openai", "gpt-5.4")).toBeUndefined();
     expect(retiredModelReplacement("codex", "constructor")).toBeUndefined();
     expect(retiredModelReplacement("codex", "__proto__")).toBeUndefined();
@@ -60,7 +63,7 @@ describe("shared model capabilities", () => {
       config.runtime.providers = [{ id: "openai-main", type: "codex", defaultModel: "gpt-5.4" }];
       const before = JSON.stringify(config);
       const result = await validateSetupReadiness({ config, env: {}, configPath: path.join(root, "config.toml"), envFilePath: path.join(root, "env"), installDir: root, skipService: true, skipBindAvailabilityCheck: true, timezoneConfirmed: true });
-      expect(result.errors.find(item => item.code === "provider.codex_model_retired")?.hint).toContain("gpt-6-sol");
+      expect(result.errors.find(item => item.code === "provider.codex_model_retired")?.hint).toContain("gpt-6.1-sol");
       expect(JSON.stringify(config)).toBe(before);
       const fetch = vi.spyOn(globalThis, "fetch");
       const adapter = new CodexProviderAdapter({ id: "c", defaultModel: "gpt-5.4" });
@@ -112,6 +115,20 @@ describe("shared model capabilities", () => {
     expect(select.mock.calls[1][1].map((choice: { value: string }) => choice.value)).not.toContain("none");
     expect(await promptReasoningEffort(prompts, "Azure Foundry", "high", "custom-deployment")).toBeUndefined();
     expect(select).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["OpenAI", "Codex", "Azure Foundry"])("labels the GPT-6.1 Sol recommendation and preserves saved/default effort for %s", async label => {
+    const route = label === "OpenAI" ? "openai" : label === "Codex" ? "codex" : "azure-foundry";
+    const select = vi.fn().mockImplementation(async (_message, _choices, initial) => initial);
+    const prompts = { select } as unknown as PromptAdapter;
+    expect(recommendedReasoningEffort("gpt-6.1-sol", route)).toBe("xhigh");
+    expect(recommendedReasoningEffort("gpt-6.1-sol", "openai-compatible")).toBeUndefined();
+    expect(recommendedReasoningEffort("my-gpt-6.1-sol", route)).toBeUndefined();
+    expect(recommendedReasoningEffort("gpt-6-sol", route)).toBeUndefined();
+    expect(await promptReasoningEffort(prompts, label, "xhigh", "gpt-6.1-sol")).toBe("xhigh");
+    expect(select.mock.calls[0][1].find((choice: { value: string }) => choice.value === "xhigh").name).toContain("recommended for OpenAssist");
+    expect(await promptReasoningEffort(prompts, label, "low", "gpt-6.1-sol")).toBe("low");
+    expect(await promptReasoningEffort(prompts, label, undefined, "gpt-6.1-sol")).toBeUndefined();
   });
 
   it("edits adaptive controls, legacy budgets, and disabled thinking", async () => {

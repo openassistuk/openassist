@@ -53,10 +53,10 @@ Provider entry:
 [[runtime.providers]]
 id = "anthropic-main"
 type = "anthropic"
-defaultModel = "claude-sonnet-5"
+defaultModel = "claude-opus-5-5"
 # Optional for supported thinking-capable Claude families:
 # thinkingMode = "adaptive"
-# thinkingEffort = "high"
+# thinkingEffort = "medium"
 ```
 
 Env file entry:
@@ -136,7 +136,9 @@ Troubleshooting runbook:
 
 ## Modernization compatibility
 
-Fresh setup recommends `claude-sonnet-5`, with `claude-opus-5-5`, `claude-fable-5-1` and `claude-haiku-4-5-20251001` alternatives. Sonnet 5 and Opus 5 support adaptive thinking and all five effort values. Haiku 4.5 supports manual budgets, not adaptive thinking or effort. Opus 5 cannot disable thinking at xhigh/max effort. Output tokens remain bounded: 4096 for the earlier catalog, or manual budget plus 1024 when larger; the new always-thinking models use 16384; an explicit output limit must exceed a manual budget. Thinking replay and tool results remain durable and hidden from channel-visible output.
+Fresh setup recommends `claude-opus-5-5` for complex autonomous work, with `claude-sonnet-5-5`, `claude-fable-5-1` and `claude-haiku-4-5-20251001` alternatives. Opus 5.5 retains upstream medium effort and mandatory adaptive thinking. Anthropic reports Sonnet 5.5 as a faster, cheaper complement and Opus stronger for complex open-ended judgment; this recommendation is based on vendor evidence, not an OpenAssist live comparison. Sonnet 5.5 uses adaptive thinking with low through max effort, upstream high effort and a 16384-token default output limit. Disabled/manual thinking and the new between_tools mode are not supported for Sonnet 5.5 in OpenAssist. See [Anthropic's Sonnet 5.5 announcement](https://www.anthropic.com/claude-sonnet-5-5) and [our compatibility matrix](model-compatibility.md).
+
+Sonnet 5 and Opus 5 support adaptive thinking and all five effort values. Haiku 4.5 supports manual budgets, not adaptive thinking or effort. Opus 5 cannot disable thinking at xhigh/max effort. Output tokens remain bounded: 4096 for the earlier catalog, or manual budget plus 1024 when larger; the new always-thinking models use 16384; an explicit output limit must exceed a manual budget. Thinking replay and tool results remain durable and hidden from channel-visible output.
 
 OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.
 
@@ -155,3 +157,5 @@ Optional `workspaceId = "wrkspc_..."` selects the workspace required by newer mu
 - [Configuration File Guide](../configuration/config-file-guide.md)
 
 Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).
+
+The complete Claude inventory also recognizes Opus 4.7/4.8, Fable/Mythos 5 and deprecated Mythos Preview. Opus 4.7/4.8 accepts adaptive/disabled thinking with five efforts; thinking stays off when omitted, manual budgets and non-default sampling are unsupported. Fable/Mythos 5 requires adaptive thinking and defaults to high effort; it does not receive the 5.1 prefix-binding controls. Opus 4.5 pin/alias retains manual budgets with low/medium/high effort and a 64000-token output limit. Sonnet/Haiku 4.5 also has that output limit and no effort parameter. Mythos Preview retains adaptive/manual thinking and low/medium/high/max effort, with invitation-only access. Sonnet 4.5 was deprecated September 30 and retires November 30; active Haiku 4.5 has no announced retirement. Retired Sonnet 3.7, Sonnet/Opus 4 and Opus 4.1 IDs remain readable but block readiness/requests. See the [complete thinking and lifecycle matrices](model-compatibility.md#claude-settings-and-replay).

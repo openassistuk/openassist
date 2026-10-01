@@ -272,7 +272,7 @@ describe("setup quickstart oauth path", () => {
       });
       expect(state.config.runtime.providers[0]).not.toHaveProperty("reasoningEffort");
       expect(
-        result.summary.some((line) => line.includes("Provider tuning: Reasoning effort: Default (recommended)"))
+        result.summary.some((line) => line.includes("Provider tuning: Reasoning effort: Default (provider default)"))
       ).toBe(true);
       expect(
         requestCalls.some(

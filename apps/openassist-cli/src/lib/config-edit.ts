@@ -1,4 +1,4 @@
-import { DEFAULT_OPENAI_MODEL } from "@openassist/config";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_REASONING_EFFORT } from "@openassist/config";
 import fs from "node:fs";
 import path from "node:path";
 import TOML from "@iarna/toml";
@@ -62,7 +62,8 @@ function defaultConfigObjectRaw(): Record<string, unknown> {
         {
           id: "openai-main",
           type: "openai",
-          defaultModel: DEFAULT_OPENAI_MODEL
+          defaultModel: DEFAULT_OPENAI_MODEL,
+          reasoningEffort: DEFAULT_OPENAI_REASONING_EFFORT
         }
       ],
       channels: [],

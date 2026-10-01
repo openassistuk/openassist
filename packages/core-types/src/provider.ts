@@ -82,7 +82,7 @@ export interface ProviderCapabilities {
   supportedModels?: string[];
 }
 
-export type OpenAIReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
+export type OpenAIReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type OpenAIReasoningMode = "standard" | "pro";
 
 export interface ChatRequest {
@@ -187,6 +187,7 @@ export interface ModelCapabilities {
   responses: boolean;
   reasoningEfforts: readonly OpenAIReasoningEffort[];
   reasoningModes?: readonly OpenAIReasoningMode[];
+  reasoningReplay?: boolean;
   temperatureRequiresNoReasoning?: boolean;
   thinkingModes?: readonly AnthropicThinkingMode[];
   thinkingEfforts?: readonly AnthropicThinkingEffort[];
@@ -196,4 +197,10 @@ export interface ModelCapabilities {
   thinkingPrefixBinding?: boolean;
   defaultMaxOutputTokens?: number;
   maxOutputTokens?: number;
+}
+
+export interface ModelLifecycle {
+  status: "deprecated" | "retired";
+  retirementDate?: string;
+  replacementModel: string;
 }

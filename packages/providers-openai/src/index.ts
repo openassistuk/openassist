@@ -1,4 +1,4 @@
-import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, reasoningEfforts, providerTuningErrors } from "@openassist/config";
+import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, modelCapabilities, reasoningEfforts, providerTuningErrors, providerModelAvailabilityErrors } from "@openassist/config";
 import OpenAI from "openai";
 import { z } from "zod";
 import type {
@@ -185,7 +185,8 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
   async validateConfig(config: unknown): Promise<ValidationResult> {
     const parsed = configSchema.safeParse(config);
     if (parsed.success) {
-      const errors = providerTuningErrors({ ...parsed.data, type: "openai" });
+      const provider = { ...parsed.data, type: "openai" as const };
+      const errors = [...providerTuningErrors(provider), ...providerModelAvailabilityErrors(provider)];
       return { valid: errors.length === 0, errors };
     }
 
@@ -207,6 +208,8 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
     });
 
     const model = req.model || this.config.defaultModel;
+    const availabilityErrors = providerModelAvailabilityErrors({ ...this.config, type: "openai", defaultModel: model });
+    if (availabilityErrors.length) throw new Error(availabilityErrors.join(" "));
     const useResponsesApi = shouldPreferResponsesApi(model) || hasImageInputs(req.messages);
 
     if (useResponsesApi) {
@@ -214,7 +217,7 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
         model,
         temperature: temperatureForModel(model, this.config.reasoningEffort, req.temperature),
         max_output_tokens: req.maxTokens,
-        include: reasoningEfforts(model, "openai").length ? ["reasoning.encrypted_content"] : undefined,
+        include: reasoningEfforts(model, "openai").length || modelCapabilities(model)?.reasoningReplay ? ["reasoning.encrypted_content"] : undefined,
         reasoning: reasoningPayload(model, this.config.reasoningEffort, "openai", this.config.reasoningMode),
         input: await mapResponsesInput(req.messages, `openai:${this.config.id}:${model}`) as any,
         tools: mapResponsesTools(req.tools) as any,

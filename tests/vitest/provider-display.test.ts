@@ -134,7 +134,7 @@ describe("provider display helpers", () => {
       tuningLabel: "Reasoning effort: high"
     });
     expect(formatProviderMenuLabel(config.runtime.providers[1]!)).toBe(
-      "codex-main (Codex (OpenAI account login), gpt-5.6-terra, Reasoning effort: Default (recommended))"
+      "codex-main (Codex (OpenAI account login), gpt-5.6-terra, Reasoning effort: Default (provider default))"
     );
 
     config.runtime.providers.push({
@@ -147,7 +147,7 @@ describe("provider display helpers", () => {
       underlyingModel: "gpt-5.6-terra"
     });
     expect(formatProviderMenuLabel(config.runtime.providers[2]!)).toBe(
-      "azure-foundry-main (Azure Foundry, gpt-5-deployment, Auth: API key; Underlying model: gpt-5.6-terra; Reasoning effort: Default (recommended))"
+      "azure-foundry-main (Azure Foundry, gpt-5-deployment, Auth: API key; Underlying model: gpt-5.6-terra; Reasoning effort: Default (provider default))"
     );
   });
 });

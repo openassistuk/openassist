@@ -60,12 +60,12 @@ Provider route rules that matter at a glance:
 - OpenAI remains the public API-key route.
 - Codex remains the separate public account-login route.
 - Codex is intentionally documented as Codex-only in this release.
-- Fresh OpenAI and Codex setup recommends `gpt-6-sol`, with Astra and Luna alternatives. Reasoning choices are model-specific and include `none` and `max` where supported; `Default` omits the parameter.
-- Fresh Anthropic setup recommends `claude-sonnet-5`. Wizard exposes adaptive thinking and effort controls, plus manual budgets for compatible older models.
+- Fresh OpenAI and Codex setup recommends `gpt-6.1-sol` with `xhigh` reasoning, with Astra, Luna and older Sol alternatives. GPT-6.1 Sol excludes `none` on these routes; `Default` omits the parameter. Saved model IDs and tuning remain unchanged.
+- Fresh Anthropic setup recommends `claude-opus-5-5` for complex autonomous work; `claude-sonnet-5-5` is a faster, cheaper alternative. Wizard exposes verified adaptive thinking and effort controls, plus manual budgets for compatible older models.
 - Saved model IDs remain unchanged. Retired Codex `gpt-5.4` selections block readiness until you explicitly choose a replacement in `openassist setup wizard`. See [model compatibility](docs/providers/model-compatibility.md).
 - Azure Foundry is the Azure resource-style `/openai/v1/` route, uses the Responses API only, and requires a deployed Azure deployment name plus either API-key or Entra host auth.
 
-Current models include GPT-6 Astra/Sol/Luna and Claude Opus 5.5/Fable 5.1, alongside Sonnet 5 and Haiku 4.5. Azure keeps your deployment name and requires a known underlying model for tuning. Wizard exposes API/Azure Standard/Pro execution and Claude output budgets. [Model compatibility](docs/providers/model-compatibility.md) lists exact controls, availability limits and preserved-thinking behavior.
+The full conversational catalog includes GPT-6/6.1, GPT-5.6 and its alias, GPT-5.5/Pro, older GPT/Pro/o-series families and verified API pins; Claude includes Opus 5.5, Sonnet 5.5, Fable/Mythos 5/5.1, Opus 4.7/4.8 and retained compatible families. Retired IDs require explicit repair; announced deprecations appear in setup readiness and status with their dates. Azure keeps your deployment name and requires a known underlying model for tuning. Wizard exposes API/Azure Standard/Pro execution and Claude output budgets. [Model compatibility](docs/providers/model-compatibility.md) lists exact controls, availability limits and preserved-thinking behavior.
 
 Anthropic quickstart/wizard supports optional `workspaceId` for multi-workspace keys. Current stable SDK versions, credential handling and remaining live checks are recorded in the [provider/channel readiness guide](docs/operations/provider-channel-readiness.md).
 
@@ -85,6 +85,8 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 The [stable release notes](docs/releases/v0.2.1.md) cover the Axios security repair and Windows source-command correction alongside the earlier lifecycle/reminder fixes. Publication from reviewed main, independent signature checks and four-target public installation are recorded in the [release evidence](docs/execplans/stable-0.2.1-release.md). Additional fresh-host provider/channel retesting remains unverified.
 
+**Next stable candidate:** [v0.2.2 notes](docs/releases/v0.2.2.md) cover the complete OpenAI/Anthropic model refresh, GPT-6.1 Sol with xhigh and Opus 5.5 setup recommendations, Azure/generic compatibility and stronger publication prerequisites. [Release preparation](docs/execplans/stable-0.2.2-release.md) tracks its separate review, checks and signing gates. It is not yet published; the default installer continues to select `v0.2.1`.
+
 The [post-release repair](docs/execplans/post-release-axios-audit-2026-09-30.md) resolves Axios `1.20.0`, covering five high and two moderate advisories through WhatsApp/Baileys. Signed `v0.2.1` delivers this repair to packaged installations. Older immutable `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`; existing installations must update to receive the fix. Inspect `openassist update --release --channel stable --dry-run`, then run `openassist update --release --channel stable`. Exact-version pins do not advance automatically.
 
 ### Install the packaged stable release
@@ -99,7 +101,7 @@ Run this in a terminal on Linux or macOS, using your normal login account unless
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin this release, use the piped installer with `bash -s -- --version 0.2.0`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.0.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
+To pin the current published release, use the piped installer with `bash -s -- --version 0.2.1`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.1.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
 
 For unattended packaged installation without setup prompts or service installation:
 

@@ -39,7 +39,7 @@ openassist setup quickstart \
   --env-file "$HOME/.config/openassist/openassistd.env"
 ```
 
-Quickstart will prompt for the backend URL and the auth material the backend expects.
+Quickstart and wizard require the model ID served by your backend, with no vendor model prefilled. They also prompt for the backend URL and auth material. GPT-6.1 Sol requires Responses for tool calling; use the OpenAI route with a compatible custom base URL for that contract. Generic Chat Completions endpoints keep their own model and parameter requirements.
 
 ## Manual TOML Setup
 
@@ -126,3 +126,5 @@ The current harness refresh does not add Responses replay or vendor-specific wor
 - [Common Troubleshooting](../operations/common-troubleshooting.md)
 
 Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).
+
+The vendor catalog audit does not change the generic backend contract: configure the exact served ID and verify its Chat Completions tool support with that backend. Official OpenAI/Claude aliases, reasoning controls, standalone Pro IDs and retirement dates do not establish gateway capabilities. Use OpenAI or Azure Responses for Responses-only tool models and the Anthropic route for Claude Messages. See [model compatibility](model-compatibility.md#other-endpoints-and-migration).

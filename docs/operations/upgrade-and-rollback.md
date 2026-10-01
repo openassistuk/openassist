@@ -25,7 +25,7 @@ openassist update --source --pr 123 --yes
 
 Exact versions remain pinned until changed. Release/source selectors cannot be combined. `--ref` and `--pr` keep their source meanings through the `upgrade` alias. PR tracks require an explicit target each time. Source builds record the resolved commit; dirty original checkouts are preserved and block migration.
 
-Packaged apps include private Node. Source builds need the pinned development toolchain. Until the production key and first signed release exist, release selection fails closed. See [release maintenance](release-maintenance.md).
+Packaged apps include private Node. Source builds need the pinned development toolchain. Signed `v0.2.1` is the current stable publication; [v0.2.2](../releases/v0.2.2.md) prepares the model refresh and remains pending its separate publication gates. After it is published, select stable explicitly or use `openassist update --version 0.2.2 --dry-run` followed by `openassist update --version 0.2.2` for an exact pin. Updating preserves saved model IDs and tuning; use `openassist setup wizard` to adopt new recommendations or repair retired selections. Release selection fails closed when an asset, signature or prerequisite is unavailable. See [release maintenance](release-maintenance.md).
 
 ## Activation and health
 
@@ -75,3 +75,7 @@ After migration check `openassist service health`, `openassist doctor`, existing
 Managed one-shot tables are additive at database version 1. A candidate lacking managed-one-shots-v1 cannot be selected for managed rollback while reminders are pending, executing, ready or delivering. Complete or cancel tasks and wait for in-flight work; do not downgrade or delete state to bypass the guard.
 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
+
+Model recommendations: fresh OpenAI/Codex setup suggests GPT-6.1 Sol with xhigh; Anthropic suggests Opus 5.5. Updates and restarts preserve saved model IDs and tuning. Review [route-specific compatibility](../providers/model-compatibility.md) before explicitly changing models in `openassist setup wizard`; verify with `openassist doctor` and a real reply.
+
+Model lifecycle checks preserve saved IDs while warning for announced deprecations and blocking retired cataloged models during readiness and requests. Choose a replacement explicitly through `openassist setup wizard`; service restart or credential relinking does not restore a retired model. Check the [route-specific model matrix](../providers/model-compatibility.md#other-endpoints-and-migration), including Codex GPT-5.5 on October 14 and Claude Sonnet 4.5 on November 30.

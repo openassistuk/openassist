@@ -41,7 +41,7 @@ Built-in public provider-route expectations:
 - `azure-foundry`: Azure resource-style `/openai/v1/` route with API-key or Entra host auth
 - `openai-compatible`: API-compatible route
 
-`codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: fresh setup recommends `gpt-6-sol`; saved retired models require explicit operator replacement.
+`codex` is intentionally a separate route so account-login auth does not collide with OpenAI API-key auth on the same provider ID. In this release it is Codex-only: fresh setup recommends `gpt-6.1-sol` with xhigh; saved retired models require explicit operator replacement.
 
 Provider OAuth config requirements:
 
@@ -137,7 +137,7 @@ Current image-input rule:
 Provider-native reasoning controls:
 
 - `@openassist/config` exports the bounded exact-ID model catalog and tuning validation; core-types owns the interfaces.
-- OpenAI, Codex, and Azure accept model-specific `none|low|medium|high|xhigh|max` reasoning effort on Responses requests. Default omits it. Unknown model IDs remain accepted but receive no inferred optional controls.
+- OpenAI, Codex, and Azure accept model-specific `none|minimal|low|medium|high|xhigh|max` reasoning effort on Responses requests. Minimal is limited to original GPT-5 on OpenAI/Azure. Default omits it. Unknown model IDs remain accepted but receive no inferred optional controls.
 - Azure's `defaultModel` remains a deployment name. Reasoning uses only its cataloged `underlyingModel`; an overridden deployment has no inferred tuning.
 - Anthropic accepts optional `thinkingMode` and `thinkingEffort`; budget-only configurations still mean manual thinking on compatible models. Adaptive/disabled plus a manual budget is invalid. Unsupported combinations fail config validation.
 - Sonnet 5 and Opus 5 default to adaptive thinking. Unset fields omit request parameters. Sampling parameters are omitted where the catalog marks them unsupported, even when thinking is disabled.
@@ -149,6 +149,8 @@ OpenAI adapter endpoint behavior:
 - Chat-completions remains supported for chat-capable OpenAI models.
 - Cataloged Responses models, including GPT-6 and supported GPT-5/Codex entries, are routed through the OpenAI Responses API; custom names do not imply capabilities.
 - If chat-completions returns a model/endpoint mismatch (for example "not a chat model"), adapter falls back to Responses API automatically.
+- Fresh OpenAI defaults use GPT-6.1 Sol and xhigh; Default still omits effort. GPT-6.1 Sol tool calls require Responses, with no temperature and no none effort on OpenAI/Codex. Azure verifies optional controls using the underlying-model hint, retaining deployment names and its separate documented none option.
+- Sonnet 5.5 uses the existing adaptive thinking, bounded stream folding and prefix-binding replay path. Opus 5.5 remains the recommended Anthropic model; unsupported manual/disabled settings fail locally.
 - `reasoningEffort` is only attached on the supported Responses API path. It is never sent on chat-completions requests.
 
 Azure Foundry adapter endpoint behavior:
@@ -167,7 +169,7 @@ Codex adapter behavior:
 - The current public route keeps one linked account per provider instance.
 - The Codex route is account-login only in operator-facing setup and docs; it is not the generic OpenAI API-key route.
 - The Codex route blocks known retired model IDs with explicit replacement guidance; custom IDs remain accepted without inferred optional capabilities.
-- Codex uses the same `reasoningEffort` field with route-specific choices. Its GPT-6 models exclude `none`; it has no `reasoningMode`. Unknown model IDs receive no inferred effort, while known incompatible explicit values fail validation.
+- Codex uses the same `reasoningEffort` field with route-specific choices. Its GPT-6 models, including GPT-6.1 Sol, exclude `none`; it has no `reasoningMode`. Unknown model IDs receive no inferred effort, while known incompatible explicit values fail validation.
 - Device code is the recommended Codex headless login path, while browser callback/manual paste remains a supported fallback.
 - New Codex login flows default to `http://localhost:1455/auth/callback` instead of the daemon callback route because that matches the supported public account-login redirect shape.
 - CLI and setup guidance must make the pasted callback path explicit on remote hosts: if the localhost page cannot load after browser approval, operators copy the full URL from the browser address bar and paste it back into OpenAssist.
@@ -209,7 +211,7 @@ Changes to provider contract require synchronized updates across:
 
 OpenAI and Anthropic OAuth token-exchange failures expose only a sanitized HTTP status or validation error. Upstream response bodies and status text are never included in these errors; malformed token fields are rejected before credentials are stored. Existing callback, PKCE, refresh-token and expiry metadata remain supported.
 
-Current GPT-6 models use Responses; API/Azure optional reasoningMode is independently validated and mapped. Claude always-thinking models stream internally to the existing ChatResponse contract and replay complete signed blocks with the binding-controls beta header. A larger configured maxOutputTokens also enables internal streaming on older Claude models. This does not expose streaming or thinking to channels.
+Current GPT-6 models use Responses; API/Azure optional reasoningMode is independently validated and mapped. Claude models with prefix-bound thinking, including Sonnet 5.5, stream internally to the existing ChatResponse contract and replay complete signed blocks with the binding-controls beta header. A larger configured maxOutputTokens also enables internal streaming on older Claude models. This does not expose streaming or thinking to channels.
 
 Responses adapters preserve output items in `providerReplayKind=openai-responses-items`, `providerReplayScope` and `providerReplayJson`; scope includes route/provider/model (plus Azure model hint). Records are limited to 1 MiB/256 items. Replaying skips duplicate tool audit messages and falls back to normalized history for invalid/oversized/mismatched metadata. Explicit Anthropic auth selects exactly one SDK credential type and optionally sends workspaceId as a header.
 
@@ -218,3 +220,7 @@ Responses adapters preserve output items in `providerReplayKind=openai-responses
 Managed one-shot prompt tasks use the existing scheduled provider request contract with tools: []. Saved text reminders make no provider call. Generation results persist before rendering/delivery retries, so a transport retry does not call the model again. Confirmations distinguish generation deadlines from delivery time.
 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
+
+The shared catalog now includes the full audited conversational inventory, exact API aliases/snapshot pins and dated lifecycle records. Lifecycle validation is separate from schema parsing so old IDs remain readable. Retired OpenAI/Anthropic/Codex model requests fail before transport; readiness blocks them, and status/deprecation warnings show replacements and dates. Azure and generic route availability remains deployment/backend-specific. Manual Opus 4.5 effort composes with its budget; catalog output limits and sampling rules are applied per model, including the 4.7/4.8 and Fable/Mythos 5 generations. See the [full route/model matrices](../providers/model-compatibility.md).
+
+Restricted Daybreak models declare reasoning replay independently of effort controls: Responses requests ask for encrypted reasoning content and retain it through the existing bounded, session/model-scoped replay path without exposing raw reasoning.

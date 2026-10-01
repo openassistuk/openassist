@@ -136,13 +136,13 @@ Common fields for all providers:
 [[runtime.providers]]
 id = "openai-main"
 type = "openai"
-defaultModel = "gpt-6-sol"
-# reasoningEffort = "medium"
+defaultModel = "gpt-6.1-sol"
+reasoningEffort = "xhigh"
 ```
 
 Additional fields:
 
-- `reasoningEffort`: `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
+- `reasoningEffort`: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent; `minimal` is offered only for original GPT-5 API/Azure models)
 - `reasoningMode`: optional `standard` or `pro`, only for cataloged supporting models; independent of effort, with omission preserving the provider default
 - optional `oauth` object for advanced provider-managed OAuth configuration
 
@@ -152,13 +152,13 @@ Additional fields:
 [[runtime.providers]]
 id = "codex-main"
 type = "codex"
-defaultModel = "gpt-6-sol"
-# reasoningEffort = "medium"
+defaultModel = "gpt-6.1-sol"
+reasoningEffort = "xhigh"
 ```
 
 Additional fields:
 
-- `reasoningEffort`: `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
+- `reasoningEffort`: `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent; no `minimal` on the Codex route)
 
 Codex is the separate account-login route. Linked-account auth is managed through `openassist auth ...`, not by storing a normal API key in the TOML.
 
@@ -168,9 +168,9 @@ Codex is the separate account-login route. Linked-account auth is managed throug
 [[runtime.providers]]
 id = "anthropic-main"
 type = "anthropic"
-defaultModel = "claude-sonnet-5"
+defaultModel = "claude-opus-5-5"
 # thinkingMode = "adaptive"
-# thinkingEffort = "high"
+# thinkingEffort = "medium"
 ```
 
 Additional fields:
@@ -178,7 +178,7 @@ Additional fields:
 - `thinkingMode`: optional `adaptive`, `enabled` (manual), or `disabled`
 - `thinkingEffort`: optional `low`, `medium`, `high`, `xhigh`, or `max`, where supported
 - `thinkingBudgetTokens`: integer `1024..32000`, only for manual-thinking models
-- `maxOutputTokens`: optional integer `1..128000`, covering thinking plus visible output; model-specific limits also apply (Haiku 4.5: `64000`). Must exceed a configured manual budget. Default is `16384` for Opus 5.5/Fable 5.1/Mythos 5.1; earlier models use `4096` or manual budget plus `1024`, whichever is larger.
+- `maxOutputTokens`: optional integer `1..128000`, covering thinking plus visible output; model-specific limits also apply (Opus/Sonnet/Haiku 4.5: `64000`; Opus/Sonnet 4.6 and later: `128000`). Must exceed a configured manual budget. Default is `16384` for Opus 5.5/Sonnet 5.5/Fable 5/5.1/Mythos 5/5.1/Preview; earlier models use `4096` or manual budget plus `1024`, whichever is larger.
 - `workspaceId`: optional Claude Console ID matching `wrkspc_` followed by letters or numbers; sent as `anthropic-workspace-id` for multi-workspace keys. Omit for workspace-scoped keys. This is an identifier, not a credential.
 - optional `oauth` object for advanced provider-managed OAuth configuration
 
@@ -193,9 +193,9 @@ authMode = "entra"
 resourceName = "your-resource-name"
 endpointFlavor = "openai-resource"
 # Optional but recommended when the deployment name hides the model family:
-# underlyingModel = "gpt-6-sol"
+# underlyingModel = "gpt-6.1-sol"
 # Optional for supported Responses-model families:
-# reasoningEffort = "medium"
+# reasoningEffort = "xhigh"
 # Optional advanced override:
 # baseUrl = "https://your-resource-name.openai.azure.com/openai/v1"
 ```
@@ -206,7 +206,7 @@ Additional fields:
 - `resourceName`: Azure resource host prefix used to derive the endpoint
 - `endpointFlavor`: `openai-resource` or `foundry-resource`
 - `underlyingModel`: optional model-family hint used for reasoning and compatibility guidance
-- `reasoningEffort`: optional, `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
+- `reasoningEffort`: optional, `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent; `minimal` is offered only for original GPT-5 API/Azure models)
 - `reasoningMode`: optional `standard` or `pro`; requires a cataloged supporting `underlyingModel`. An Azure deployment name never establishes capabilities.
 
 Azure Foundry sends the deployment name in `defaultModel`. This route uses Azure resource-style `/openai/v1/` endpoints only and the Responses API only. For Entra host auth, the optional service-principal env vars are global process settings: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`.
@@ -374,9 +374,9 @@ openassist doctor
 
 ## Modernization compatibility
 
-Reasoning options are filtered by the exact cataloged route/model. OpenAI API GPT-6 Sol/Luna accept `none` through `max`; OpenAI Astra excludes `none`. Codex GPT-6 Astra/Sol/Luna all exclude `none`. Azure GPT-6 Astra/Sol/Luna all include `none`, using a verified `underlyingModel`. See the [route-specific matrix](../providers/model-compatibility.md#gpt-6-settings-by-route), including compatibility caveats. `reasoningMode` belongs only to OpenAI API and Azure; Codex rejects it.
+Reasoning options are filtered by the exact cataloged route/model. Older OpenAI API GPT-6 Sol/Luna accept `none` through `max`; OpenAI GPT-6.1 Sol/Astra exclude `none`. Codex GPT-6.1 Sol and GPT-6 Astra/older Sol/Luna exclude `none`. Azure GPT-6.1 Sol and GPT-6 Astra/older Sol/Luna include `none`, using a verified `underlyingModel`. See the [route-specific matrix](../providers/model-compatibility.md#gpt-6-settings-by-route), including compatibility caveats. `reasoningMode` belongs only to OpenAI API and Azure; Codex rejects it.
 
-Sonnet 5 and Opus 5 support adaptive or disabled thinking and reject manual budgets; Opus 5 requires adaptive thinking at `xhigh`/`max`. Opus 5.5/Fable 5.1/Mythos 5.1 require adaptive thinking at every effort. Haiku 4.5 supports manual thinking and no effort. Budget-only settings on compatible older models retain their manual meaning. `Default` leaves the operator override unset; it does not turn off provider-default thinking or remove required replay/binding controls. Unknown models remain accepted without inferred optional capabilities; explicit unsupported Anthropic tuning and unverified `reasoningMode` are rejected.
+Sonnet 5.5 supports adaptive thinking only in OpenAssist; disabled/manual settings are rejected. Sonnet 5 and Opus 5 support adaptive or disabled thinking and reject manual budgets; Opus 5 requires adaptive thinking at `xhigh`/`max`. Opus 5.5/Fable 5.1/Mythos 5.1 require adaptive thinking at every effort. Haiku 4.5 supports manual thinking and no effort. Budget-only settings on compatible older models retain their manual meaning. `Default` leaves the operator override unset; it does not turn off provider-default thinking or remove required replay/binding controls. Unknown models remain accepted without inferred optional capabilities; explicit unsupported Anthropic tuning and unverified `reasoningMode` are rejected.
 
 Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.
 

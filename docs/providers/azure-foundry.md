@@ -72,8 +72,8 @@ defaultModel = "gpt-5-deployment"
 authMode = "api-key"
 resourceName = "your-resource-name"
 endpointFlavor = "openai-resource"
-underlyingModel = "gpt-6-sol"
-# reasoningEffort = "medium"
+underlyingModel = "gpt-6.1-sol"
+# reasoningEffort = "xhigh"
 ```
 
 Env file:
@@ -92,8 +92,8 @@ defaultModel = "gpt-5-deployment"
 authMode = "entra"
 resourceName = "your-resource-name"
 endpointFlavor = "foundry-resource"
-underlyingModel = "gpt-6-sol"
-# reasoningEffort = "medium"
+underlyingModel = "gpt-6.1-sol"
+# reasoningEffort = "xhigh"
 ```
 
 Optional service-principal env vars:
@@ -179,9 +179,11 @@ Start with:
 
 A deployment name never establishes model capabilities, even if it resembles a model ID. Optional reasoning is sent only when `underlyingModel` is a cataloged model and the request uses that configured deployment. API-key and Entra authentication remain separate from linked accounts.
 
-GPT-6 Astra/Sol/Luna hints are cataloged for this Responses route. Azure documents none through max for all three, including Astra; this differs from the OpenAI API catalog. Optional reasoningMode selects standard/pro, with Default omitting mode and Pro potentially increasing cost. Wizard exposes it only for known hints. No hint means no inferred effort; explicit mode without a verified hint fails validation. Region, deployment version and quota still determine availability. Claude on Microsoft Foundry uses a Messages endpoint and is not supported by this Azure OpenAI Responses adapter.
+GPT-6.1 Sol and GPT-6 Astra/older Sol/Luna hints are cataloged for this Responses route. Azure documents none through max for all four, including Astra and GPT-6.1 Sol; this differs from the OpenAI API catalog. Optional reasoningMode selects standard/pro, with Default omitting mode and Pro potentially increasing cost. Wizard exposes it only for known hints. No hint means no inferred effort; explicit mode without a verified hint fails validation. Region, deployment version and quota still determine availability. Claude on Microsoft Foundry uses a Messages endpoint and is not supported by this Azure OpenAI Responses adapter.
 
 Azure Identity 4.13.3 and OpenAI SDK 7.23.0 remain current stable. Entra scope stays `https://ai.azure.com/.default`. Responses replay is bounded and scoped to this provider, deployment and underlying-model hint, preserving opaque reasoning alongside tool results. See [authentication/harness readiness](../operations/provider-channel-readiness.md).
+
+GPT-6.1 Sol is cataloged for Azure through `underlyingModel = "gpt-6.1-sol"`. New setup suggests xhigh only when that exact hint is supplied; deployment names stay operator-defined and saved effort (including omission) stays intact. Microsoft's feature table permits none on this Azure model, while OpenAI's API model excludes it. Azure still requires an available deployment in the operator's region and quota. See [route-specific compatibility and sources](model-compatibility.md).
 
 ## Related Docs
 
@@ -191,3 +193,5 @@ Azure Identity 4.13.3 and OpenAI SDK 7.23.0 remain current stable. Entra scope s
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
 
 Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).
+
+The updated Azure hint catalog includes GPT-5.5, GPT-5.4 Nano/Pro, GPT-5 Pro, o3-pro and verified legacy Codex deployments alongside GPT-6/6.1 and GPT-5.6. These hints choose the documented Responses controls while the outgoing model remains the deployment name. Standalone API-only GPT-5.5 Pro/GPT-5.2 Pro, OpenAI aliases/snapshot pins and restricted research aliases are not assumed to exist on Azure. OpenAI API retirement schedules do not automatically retire Azure deployments; verify availability on the resource. See the [complete route matrix](model-compatibility.md#full-conversational-catalog).

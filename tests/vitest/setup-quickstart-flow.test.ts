@@ -50,8 +50,9 @@ class ScriptedPromptAdapter implements PromptAdapter {
     return this.queue.shift() ?? "";
   }
 
-  async input(): Promise<string> {
-    return this.next();
+  async input(_message: string, initial = ""): Promise<string> {
+    const value = this.next();
+    return value === "<default>" ? initial : value;
   }
 
   async password(): Promise<string> {
@@ -62,8 +63,9 @@ class ScriptedPromptAdapter implements PromptAdapter {
     return this.next() === "true";
   }
 
-  async select<T extends string>(): Promise<T> {
-    return this.next() as T;
+  async select<T extends string>(_message: string, _choices: unknown[], initial?: T): Promise<T> {
+    const value = this.next();
+    return (value === "<default>" ? initial : value) as T;
   }
 }
 
@@ -200,6 +202,33 @@ function minimalAzureFoundryEntraAnswers(bindPort: number, extra: string[] = [])
 }
 
 describe("setup quickstart flow", () => {
+  it.each(["openai", "codex", "anthropic", "openai-compatible"])("uses route-specific model and effort suggestions on fresh %s setup", async route => {
+    const root = tempDir("openassist-quickstart-suggestions-");
+    const configPath = path.join(root, "openassist.toml");
+    const envFilePath = path.join(root, "openassistd.env");
+    const state = loadSetupQuickstartState(configPath, envFilePath, root);
+    const port = await getFreePort();
+    state.config.runtime.bindPort = port;
+    const answers = route === "openai" ? minimalTelegramAnswers(port) : route === "codex" ? minimalCodexAnswers()
+      : route === "anthropic" ? minimalWhatsAppAnthropicAnswers() : minimalDiscordCompatAnswers();
+    const typeIndex = answers.indexOf(route);
+    if (route === "anthropic") answers.splice(answers.lastIndexOf("save"), 0, "true");
+    answers[typeIndex + 2] = route === "openai-compatible" ? "backend-model" : "<default>";
+    if (route === "openai") answers[typeIndex + 4] = "<default>";
+    if (route === "codex") answers[typeIndex + 3] = "<default>";
+    const prompts = new ScriptedPromptAdapter(answers);
+    const input = vi.spyOn(prompts, "input");
+    const result = await runSetupQuickstart(state, { configPath, envFilePath, installDir: root,
+      allowIncomplete: true, skipService: true, requireTty: false, preflightCommandChecks: false }, prompts);
+    expect(result.saved).toBe(true);
+    expect(state.config.runtime.providers).toHaveLength(1);
+    const provider = state.config.runtime.providers[0];
+    expect(provider.defaultModel).toBe(route === "anthropic" ? "claude-opus-5-5" : route === "openai-compatible" ? "backend-model" : "gpt-6.1-sol");
+    if (route === "openai" || route === "codex") expect(provider).toHaveProperty("reasoningEffort", "xhigh");
+    else expect(provider).not.toHaveProperty("reasoningEffort");
+    if (route === "openai-compatible") expect(input.mock.calls.find(call => call[0] === "Default model")?.[1]).toBe("");
+  });
+
   it.each([
     { name: "unchanged model", selected: "claude-sonnet-4-6", repair: [], expected: "claude-sonnet-4-6", budget: 4096 },
     { name: "compatible model change", selected: "claude-opus-4-5", repair: [], expected: "claude-opus-4-5", budget: 4096 },
@@ -397,7 +426,7 @@ describe("setup quickstart flow", () => {
     expect(result.summary.some((line) => line.includes("Assistant identity: OpenAssist"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Primary provider: openai-main (OpenAI (API Key))"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Provider model: gpt-5.6-terra"))).toBe(true);
-    expect(result.summary.some((line) => line.includes("Provider tuning: Reasoning effort: Default (recommended)"))).toBe(true);
+    expect(result.summary.some((line) => line.includes("Provider tuning: Reasoning effort: Default (provider default)"))).toBe(true);
     expect(result.summary.some((line) => line.includes("First reply checklist:"))).toBe(true);
     expect(result.summary.some((line) => line.includes("Primary channel: telegram-main"))).toBe(true);
     expect(result.summary.some((line) => line.includes("PATH fallback:"))).toBe(true);
@@ -735,7 +764,8 @@ describe("setup quickstart flow", () => {
         {
           id: "openai-main",
           type: "openai",
-          defaultModel: "gpt-6-sol"
+          defaultModel: "gpt-6.1-sol",
+          reasoningEffort: "xhigh"
         },
         {
           id: "compat-main",

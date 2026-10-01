@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "purpose": "Reusable answers for user-guided OpenAssist installation smoke tests.",
   "status": "selected-live-tests-completed-eight-issues-recorded",
-  "lastUpdated": "2026-09-28",
+  "lastUpdated": "2026-10-01",
   "reuse": {
     "instructions": "Read this file before a future authorized test run and reuse confirmed settings without repeating answered prompts. Obtain credentials separately from the operator; ask only for missing values, invalid or revoked credentials, unexpected failures, or changes beyond the authorized test scope. Never copy credential values into this repository. This is a test answer profile, not an OpenAssist config file or a native CLI import format.",
     "pendingValue": null,
@@ -39,7 +39,7 @@
     "type": "openai",
     "authMode": "api-key",
     "displayName": "openai-main",
-    "model": "gpt-6-sol",
+    "model": "gpt-6.1-sol",
     "baseUrl": "default",
     "reasoningEffort": "xhigh",
     "credentialEnvVar": "OPENASSIST_PROVIDER_OPENAI_MAIN_API_KEY",

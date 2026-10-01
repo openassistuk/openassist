@@ -8,6 +8,8 @@ This is the canonical operator runbook for a public OpenAssist install.
 
 The [v0.2.1 stable notes](../releases/v0.2.1.md) describe the delivered Axios repair, earlier lifecycle fixes, explicit preview/source migration and testing limits. Existing installations need an explicit stable update to receive the patch. Replacement-host provider/channel retesting remains unverified separately from the successful public-install checks.
 
+The [v0.2.2 candidate](../releases/v0.2.2.md) prepares the model refresh and new setup recommendations. Signed publication and public-install verification remain pending; use the published stable commands below until the [release evidence](../execplans/stable-0.2.2-release.md) records completion.
+
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
 
 Deeper references for the choices you make during quickstart:
@@ -221,7 +223,7 @@ Provider and channel guidance:
 - OpenAI stays the standard API-key route.
 - Codex stays the separate OpenAI account-login route.
 - Codex does not ask for a custom base URL in normal quickstart or wizard flows.
-- OpenAI and Codex quickstart offer `Default (recommended)` plus choices from the selected route/model's catalog entry. GPT-6 OpenAI Sol/Luna offer `none`, `low`, `medium`, `high`, `xhigh`, `max`; OpenAI Astra and all three Codex GPT-6 models exclude `none`. See [model compatibility](../providers/model-compatibility.md#gpt-6-settings-by-route).
+- OpenAI and Codex fresh quickstart suggest GPT-6.1 Sol with `xhigh`; `Default` omits the reasoning parameter. Choices come from the exact route/model catalog. Older OpenAI Sol/Luna offer `none` through `max`; OpenAI GPT-6.1 Sol/Astra and Codex GPT-6 models exclude `none`. Saved IDs and effort, including omission, are retained. See [model compatibility](../providers/model-compatibility.md#gpt-6-settings-by-route).
 - Leaving that quickstart choice on `Default` omits the effort parameter. It does not disable model-default reasoning, clear an independently saved execution mode, or disable opaque reasoning replay.
 - If you choose Codex, quickstart guides the account-link flow after the daemon is healthy, prints the authorization URL, pauses so you can copy or open it on this host or another device, accepts either the full callback URL or a pasted code, and requires that linked account before the first reply can use the default provider.
 - For Codex on a VPS or other remote host, quickstart now recommends the device-code flow first and keeps browser callback/manual paste as a fallback.
@@ -452,7 +454,7 @@ Fresh setup recommends Terra for OpenAI/Codex and Sonnet 5 for Anthropic, and pr
 
 Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.
 
-Fresh OpenAI/Codex onboarding recommends GPT-6 Sol; Anthropic keeps balanced Sonnet 5. Use wizard for Astra/Luna, Opus 5.5/Fable 5.1, API/Azure Standard/Pro execution, or a new Claude output budget. Existing selections remain saved until explicitly changed. Check [model compatibility](../providers/model-compatibility.md) before carrying old thinking settings to a new model.
+Fresh OpenAI/Codex onboarding recommends GPT-6.1 Sol with xhigh; Anthropic recommends Opus 5.5. Use wizard for Astra/Luna, Opus 5.5/Fable 5.1, API/Azure Standard/Pro execution, or a new Claude output budget. Existing selections remain saved until explicitly changed. Check [model compatibility](../providers/model-compatibility.md) before carrying old thinking settings to a new model.
 
 Anthropic onboarding asks for an optional Claude workspace ID (`wrkspc_...`). Enter it for a multi-workspace key; leave blank for a workspace-scoped key. Invalid IDs re-prompt. Existing Discord/Telegram bot tokens and WhatsApp pairing do not need replacement just because a model changes. See [provider/channel readiness](provider-channel-readiness.md).
 
@@ -461,3 +463,5 @@ Anthropic onboarding asks for an optional Claude workspace ID (`wrkspc_...`). En
 Fresh packaged onboarding now defaults to First-time setup using an explicit pending marker, and runs on the private Node without Git/npm/pnpm. A validated successful save clears pending onboarding. Post-start checks finalize activation only for the expected build and instance. Timezone confirmation immediately refreshes clock health. Generated service environments include the managed wrapper and selected Node directories.
 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
+
+Model readiness also checks announced lifecycle dates. Deprecated models warn with a replacement/date; retired cataloged OpenAI, Claude and Codex selections block readiness until explicitly replaced. Saved IDs/settings are not rewritten, and compatible manual budgets remain intact. See the [full model catalog](../providers/model-compatibility.md).

@@ -8,6 +8,8 @@ The Release Artifacts workflow also has a post-publication `public-install` matr
 
 Manual `verify_published=true` with a published tag and matching channel reruns only public installation from the dispatched test revision. It takes precedence over publishing and skips packaging, signing and uploads. Failed checks include bounded public-download diagnostics without credentials.
 
+Stable `0.2.2` preparation reuses the version/executable/release-notes assertions in `cli-docs-truth.test.ts` and the existing model, transport, setup, lifecycle and publication-check contracts. [Candidate evidence](../execplans/stable-0.2.2-release.md) must distinguish local and PR results from exact merged-main CI/CodeQL, production signing and post-publication `public-install` verification. Earlier release checks do not certify this candidate or live provider/channel sessions.
+
 The normal Node integration gate now includes docs-truth validation, so stale live-doc links or anchors, incomplete docs indexing, mismatched workflow statements, stale threshold references, and stale test inventories are expected to fail before merge instead of waiting for release review.
 
 Linux and macOS are the first-class operator platforms for lifecycle and service validation in this release. Windows remains part of the required quality matrix, but it is not the service-manager parity target.
@@ -389,3 +391,5 @@ New lifecycle suites exercise manifest signatures, download/archive bounds, targ
 `update-discovery.test.ts` checks fixed public request routes with locally selected versions/refs, pagination and byte/deadline bounds, old pins, missing/ambiguous refs, annotated tags, immutable commits and HEAD. It verifies initial and redirected destinations, approved artifact CDNs, URL credential/port rejection and no per-selector fallback. `cli-lifecycle-modernization.test.ts` exercises the same discovery through real installation records and notification state. CodeQL closure requires the reopened original alert to become fixed on a fresh analysis, without a rule exclusion or dismissal.
 
 Lifecycle engine and Node integration tests inspect actual cache files to prove only local status fields are persisted. They cover legacy/malformed/future caches, omission of server-supplied version strings, cached PR guidance, notification opt-out and fresh explicit-check details.
+
+The shared model-catalog and current-provider-model tests also cover the complete October 1 conversational inventory, exact API pins/aliases, standalone Pro Responses mapping, legacy minimal effort, Azure deployment hints, Claude 4.7/4.8 and Fable/Mythos 5 controls, Opus 4.5 effort plus manual budgets, UTC retirement boundaries, deprecated readiness notices and retired request rejection before network transport. Fake transport verifies request behavior; it does not certify account/deployment availability.

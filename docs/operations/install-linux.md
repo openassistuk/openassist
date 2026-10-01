@@ -2,6 +2,8 @@
 
 **Release availability:** the signed [v0.2.1 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.1) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.1`. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys.
 
+The [v0.2.2 model-refresh candidate](../releases/v0.2.2.md) is in preparation; protected publication and public-installer checks must pass before these availability commands select it.
+
 Packaged bootstrap adds a marked `~/.local/bin` PATH block to Bash's `.bashrc` and `.profile`, or Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`). Open a new shell after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved; other shells receive `.profile` guidance. Uninstall removes only an unchanged block whose ownership was recorded.
 
 Normal Linux installation downloads a signed release with private Node into `~/.local/share/openassist/install`. Git/pnpm/system-Node prerequisites and package-manager remediation below apply only to explicit source bootstrap (`--source --ref main`, `--ref`, or `--pr`). Release bootstrap requires curl, gzip and OpenSSL. Unavailable releases and failed verification stop installation. See [release maintenance](release-maintenance.md) and [developer testing](developer-testing.md).
@@ -239,3 +241,7 @@ When quickstart changes an Anthropic model, incompatible saved thinking settings
 The public piped entrypoint attaches /dev/tty only when handing off to the downloaded bootstrap file. Packaged setup uses private Node with no system Node/Git/npm/pnpm requirement. Seeded installs select First-time setup. systemd system/user units contain explicit PATH entries for the wrapper and selected runtime.
 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
+
+Model recommendations: fresh OpenAI/Codex setup suggests GPT-6.1 Sol with xhigh; Anthropic suggests Opus 5.5. Updates and restarts preserve saved model IDs and tuning. Review [route-specific compatibility](../providers/model-compatibility.md) before explicitly changing models in `openassist setup wizard`; verify with `openassist doctor` and a real reply.
+
+Model lifecycle checks preserve saved IDs while warning for announced deprecations and blocking retired cataloged models during readiness and requests. Choose a replacement explicitly through `openassist setup wizard`; service restart or credential relinking does not restore a retired model. Check the [route-specific model matrix](../providers/model-compatibility.md#other-endpoints-and-migration), including Codex GPT-5.5 on October 14 and Claude Sonnet 4.5 on November 30.

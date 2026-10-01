@@ -57,7 +57,7 @@ Provider truth that stays consistent across setup and docs:
 - OpenAI is the public API-key route.
 - Codex is the separate OpenAI account-login route.
 - Codex is intentionally documented as Codex-only in this release.
-- Reasoning efforts are filtered by route and model. GPT-6 OpenAI Sol/Luna and Azure Astra/Sol/Luna include `none` through `max`; OpenAI Astra and Codex GPT-6 models exclude `none`. API/Azure execution mode is independent of effort and is not a Codex setting.
+- Reasoning efforts are filtered by route and model. Fresh OpenAI/Codex recommend GPT-6.1 Sol with xhigh. Older OpenAI Sol/Luna and Azure GPT-6.1 Sol/Astra/Sol/Luna include `none` through `max`; OpenAI GPT-6.1 Sol/Astra and Codex GPT-6 models exclude `none`. API/Azure execution mode is independent of effort and is not a Codex setting.
 - Anthropic uses model-specific adaptive/manual/disabled thinking and effort controls, with explicit output limits. Manual budgets remain available only on compatible models. Multi-workspace keys can select `workspaceId` in setup.
 - Azure Foundry is the Azure resource-style `/openai/v1/` route with API-key or Entra host auth and a required deployed Azure deployment name.
 
@@ -163,6 +163,7 @@ Current housekeeping and release-evidence records:
 - [CI #391 and CodeQL #42 repair](execplans/ci-391-dependency-audit-2026-09-30.md): patched Undici `6.28.1` and brace-expansion `5.0.12`, account-link fixture allocation and path-only instance identity checks, with local and hosted verification evidence.
 - [Post-release Axios audit repair](execplans/post-release-axios-audit-2026-09-30.md): Axios `1.20.0`, seven production dependency advisories, actual release-documentation merges and the boundary between source fixes and unchanged published packages.
 - [v0.2.1 patch release evidence](execplans/stable-0.2.1-release.md): reviewed main/tag, shell-free Windows source commands, protected signing, four-target public installation and independent production-signature verification.
+- [v0.2.2 stable preparation](execplans/stable-0.2.2-release.md): model refresh, synchronized candidate versions/notes and separate review, exact-main CI/CodeQL, signing and public-install gates; publication remains pending.
 - [Deterministic setup test and publication prerequisites](execplans/release-ci-gates-2026-10-01.md): scoped bind-probe isolation and automated exact-commit CI/CodeQL verification.
 - [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
 
@@ -223,6 +224,7 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 ## Managed release lifecycle
 
 - [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
+- [v0.2.2 candidate notes](releases/v0.2.2.md): full OpenAI/Anthropic catalogs, fresh setup recommendations, route-specific compatibility and explicit update guidance for use after signed publication. The candidate is not yet the published stable release.
 - [v0.2.1 security patch notes](releases/v0.2.1.md): the current signed stable release, delivered Axios repair, stable-track update guidance, verified four-target public installation and remaining live-testing limits. The default installer selects this patch.
 - [v0.2.0 release notes](releases/v0.2.0.md): the older immutable stable release, lifecycle/reminder fixes and dated verification; its packages retain affected Axios and should be updated to v0.2.1.
 - [v0.2.0-rc.1 release notes](releases/v0.2.0-rc.1.md): the older signed preview, selected explicitly with `--channel preview`; its immutable assets remain unchanged.
@@ -241,3 +243,5 @@ Native release jobs include a separate signing contract check using ephemeral te
 - [Implementation ExecPlan](execplans/ubuntu-live-test-fixes.md): current work and verification status.
 
 Stable v0.2.0 is published from merged preparation PR #69. The [release ExecPlan](execplans/stable-0.2.0-release.md) records exact-revision checks, signing/publication and four-target public-install evidence. Additional fresh-host provider/channel retesting remains unverified; baseline passes do not certify every integration.
+
+The complete October 1 conversational catalog audit, exact aliases/pins and route-specific retirement handling are documented in [model compatibility](providers/model-compatibility.md). October 2026 model recommendations and verification are tracked in the [model recommendation ExecPlan](execplans/model-recommendations-2026-10.md). Opus 5.5 is the Anthropic recommendation; Sonnet 5.5 is the cheaper alternative with adaptive thinking support. Generic setup requires the model ID actually served by its backend.

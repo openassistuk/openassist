@@ -13,9 +13,10 @@ Deliver the complete provider model refresh to packaged installations as signed 
 
 - [x] (2026-10-01 13:40Z) Confirmed current latest stable is immutable `v0.2.1`; no `v0.2.2` tag exists. Root/CLI/daemon were 0.2.1. PR #75 is open on `codex/current-model-recommendations`, with all 13 applicable checks successful at `d8a02d6438c7c808faea2235e08ac97e2c49a3a6`.
 - [x] Confirmed the maintainer requested stable 0.2.2 rollout. Inspected release workflow, publication prerequisites, current environment protection and main ruleset; publication credentials are provisioned without inspecting secret values.
-- [x] Reconcile root/CLI/daemon candidate versions, versioned changelog, release notes, README/AGENTS, docs index, install/update guides and test matrix; retain current 0.2.1 availability.
-- [ ] Run candidate `pnpm verify:all`, inspect final diff and record the exact local result.
-- [ ] Update PR #75 and record all candidate-head hosted checks, scanner alerts and unresolved review threads.
+- [x] Reconciled root/CLI/daemon candidate versions, versioned changelog, release notes, README/AGENTS, docs index, install/update guides and test matrix; retained current 0.2.1 availability.
+- [x] (2026-10-01 13:51Z) Candidate `pnpm verify:all` passed on `7c1d85cb1cf0e3426640a907c21d5e9953c52009`: workflow lint, build/lint/types, 577 Vitest passes/one skipped, 229 Node passes/six skipped, 126 Node coverage passes/five skipped, unchanged coverage gates and zero production/full audit findings. Vitest lines 84.22%, statements 83.24%, functions 85.85%, branches 74.35%; Node lines/statements 80.15%, functions 86.07%, branches 73.67%. Both executables report 0.2.2. Two Bash-unavailable installer cases separately passed with Git Bash on the invocation PATH; remaining skips are platform exclusions. Final diff/whitespace inspection passed; no signing or operator-state changes.
+- [x] Reconciled actual PR #74 merge and main checks: `f5e811b39fe9d092b6ac9e32ce1c97a757e7049d`, CI 36853073983 (workflow lint and all three quality jobs), full CodeQL 36798890562 (preflight and actual analysis), and Service Smoke 36860087242 all succeeded. This is parent evidence only; the future 0.2.2 merge needs its own exact-main checks.
+- [ ] Update PR #75 and record all candidate-head hosted checks, scanner alerts and unresolved review threads in its validation section; later evidence-only commits require their own hosted checks.
 - [ ] Obtain required PR review and merge the checked preparation; verify normal main-branch CI and full CodeQL on that exact merge commit.
 - [ ] Create immutable `v0.2.2` at reviewed, checked main; authorize only that tag in the release environment while retaining reviewer protection; dispatch stable protected publication.
 - [ ] Record approval, signing and all four public-install results; independently verify production signatures and all public asset digests, then update availability through a reviewed documentation change.
@@ -41,7 +42,7 @@ Decision (2026-10-01): retain 0.2.1 public availability until 0.2.2 protected pu
 ## Outcomes & Retrospective
 
 
-Preparation is implemented locally; candidate verification and final PR checks remain to be recorded. Reviewed merge and protected publication are outstanding. The existing 0.2.1 publication stays available. No tag, release asset, environment policy or private signing material has been changed during preparation.
+Preparation and full local verification are complete at source commit `7c1d85cb1cf0e3426640a907c21d5e9953c52009`; final PR checks are recorded separately for the actual pushed head. Reviewed merge and protected publication are outstanding. The existing 0.2.1 publication stays available. No tag, release asset, environment policy or private signing material has been changed during preparation. Retain exact-head hosted evidence in PR #75 rather than triggering repeated evidence-only runs.
 
 ## Context and Orientation
 
@@ -96,9 +97,13 @@ Preparation edits are reversible and stay on the existing branch. Never move exi
 
 Initial observed evidence on 2026-10-01: latest stable v0.2.1, PR #74 merged at `f5e811b39fe9d092b6ac9e32ce1c97a757e7049d`, PR #75 head `d8a02d6438c7c808faea2235e08ac97e2c49a3a6` with 13 successful applicable checks, zero open scanner alerts and zero unresolved review threads. PR #75 still requires an approving review. These prior checks do not certify the version-preparation revision.
 
+Candidate local log: `coverage/release-0.2.2-verify.log` (ignored). All 72 Vitest suites, version/executable/docs-truth assertions, source-upgrade version checks and both zero-finding dependency audits passed. Supplementary `pnpm exec tsx --test --test-name-pattern='keeps public' tests/node/install-bootstrap-idempotence.test.ts` passed two installer cases with Git Bash available. Final candidate-head hosted run IDs and conclusions are retained in PR #75's validation section; no earlier head or parent result certifies that revision.
+
 ## Interfaces and Dependencies
 
 
 No additional production dependency, schema migration, provider auth change or endpoint rewrite is introduced by release preparation. Preserve the existing shared catalog and adapter contracts; generic backend IDs and Azure deployment/auth boundaries remain explicit. Keep Axios 1.20.0, Undici 6.28.1 and brace-expansion 5.0.12 advisory floors, Node 24.21.0, pnpm 12.5.1 and mandatory production signature checks unchanged.
 
 Revision note (2026-10-01): initialized stable 0.2.2 preparation from actual publication/PR/protection evidence and maintainer rollout authorization. Review, candidate checks and protected publication remain distinct gates.
+
+Revision note (2026-10-01 local validation): recorded complete candidate verification, actual executable versions, supplemental Bash checks and merged-parent CI/CodeQL evidence. This evidence-only revision requires separate hosted checks and does not establish merged-main or publication success.

@@ -11,6 +11,8 @@ Fresh OpenAI and Codex setup should suggest GPT-6.1 Sol with xhigh reasoning for
 
 ## Progress
 
+- [x] (2026-10-01 final model checkpoint) All 13 applicable checks passed at `d8a02d6438c7c808faea2235e08ac97e2c49a3a6`: CI 36868205444, full CodeQL 36868205531, live macOS 36868205385 and four-target artifacts/signing 36868205467. Scanner/review-thread queries were clear; required approving review remained outstanding. The maintainer subsequently requested stable 0.2.2, so PR #75 now also contains version/notes preparation under [separate release evidence](stable-0.2.2-release.md). Final candidate checks and actual publication must be recorded independently.
+
 - [x] (2026-10-01) Pushed the expanded audit and local verification evidence to PR #75. The updated PR validation section tracks hosted checks and will record the exact final head/results before handoff; merge/publication remain separate.
 
 - [x] (2026-10-01) Completed the reopened audit after operator review: audit every current OpenAI/Anthropic conversational family, verified aliases/snapshots, route-specific controls and announced retirements; update PR #75 with catalog, transport, setup/status, docs and regression coverage.

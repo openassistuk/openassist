@@ -11,10 +11,10 @@ Fresh OpenAI and Codex setup should suggest GPT-6.1 Sol with xhigh reasoning for
 
 ## Progress
 
-- [ ] (2026-10-01) Push the expanded audit to PR #75 and reconcile hosted checks for the latest exact head; keep merge/publication separate.
+- [x] (2026-10-01) Pushed the expanded audit and local verification evidence to PR #75. The updated PR validation section tracks hosted checks and will record the exact final head/results before handoff; merge/publication remain separate.
 
 - [x] (2026-10-01) Completed the reopened audit after operator review: audit every current OpenAI/Anthropic conversational family, verified aliases/snapshots, route-specific controls and announced retirements; update PR #75 with catalog, transport, setup/status, docs and regression coverage.
-- [x] (2026-10-01, expanded scope) Implemented exact family/alias/pin entries, minimal effort, Claude 4.5/4.6 output/effort limits and per-route lifecycle checks. Build, product typecheck and lint passed; seven focused suites passed 118 tests. All 72 Vitest files passed 577 tests (one skipped), and targeted Node readiness/docs-truth passed 17 tests. Subsequent restricted-replay edits passed a rebuilt 76-test transport/catalog run. Full verification passed on e0faf09; updated hosted checks remain pending.
+- [x] (2026-10-01, expanded scope) Implemented exact family/alias/pin entries, minimal effort, Claude 4.5/4.6 output/effort limits and per-route lifecycle checks. Build, product typecheck and lint passed; seven focused suites passed 118 tests. All 72 Vitest files passed 577 tests (one skipped), and targeted Node readiness/docs-truth passed 17 tests. Subsequent restricted-replay edits passed a rebuilt 76-test transport/catalog run. Full verification passed on e0faf09; exact-head hosted reconciliation is maintained in PR #75.
 
 
 - [x] (2026-10-01) Confirmed official OpenAI, Codex, Microsoft and Anthropic model documentation, inspected the shared catalog, setup flows, defaults and relevant tests; created `codex/current-model-recommendations` from current main `f5e811b`.
@@ -52,7 +52,7 @@ On 2026-10-01, keep capability metadata exact and route-specific. Add Sonnet 5.5
 
 ## Outcomes & Retrospective
 
-The expanded implementation passed pnpm verify:all on e0faf093bc530fce8a39e000dc98051cd955b0e8, including workflow lint, build, lint/types, 577 Vitest passes (one skipped), 229 Node passes (six skipped), both unchanged coverage gates and zero production/full audit findings. Exact-head hosted verification for the expanded scope remains pending; earlier counts below describe the initial implementation only. The complete conversational inventory and lifecycle evidence are now in the model compatibility document.
+The expanded implementation passed pnpm verify:all on e0faf093bc530fce8a39e000dc98051cd955b0e8, including workflow lint, build, lint/types, 577 Vitest passes (one skipped), 229 Node passes (six skipped), both unchanged coverage gates and zero production/full audit findings. Vitest coverage is 84.22% lines, 83.24% statements, 85.85% functions and 74.35% branches. Node coverage is 80.15% lines/statements, 86.07% functions and 73.67% branches. The exact-head hosted outcome is tracked in PR #75; earlier counts below describe the initial implementation only. The complete conversational inventory and lifecycle evidence are now in the model compatibility document.
 
 
 Implementation, synchronized documentation, 98 focused tests and full local verification are complete, and PR #75 is open. Vitest coverage is 84.19% lines, 83.21% statements, 85.85% functions and 74.33% branches. Node coverage is 80.11% lines/statements, 86.38% functions and 73.45% branches. All thresholds are unchanged. Both audit reports contain zero findings. GitHub returned no open code-scanning alerts or review threads on 2026-10-01. The initial CodeQL preflight passed; other hosted jobs remain pending and final-head results are tracked in the PR. No paid provider call, operator service restart, release publication or merge was performed; fake transport tests do not certify live account availability.
@@ -111,3 +111,5 @@ Revision (2026-10-01, PR reconciliation): recorded actual PR creation and the in
 Revision (2026-10-01, expanded audit): reopened after operator feedback, audited full vendor inventories and lifecycle tables, implemented omitted current families/verified pins and retirement handling, corrected stale recommendation prose, and recorded focused evidence before the full gate.
 
 Revision (2026-10-01, expanded local verification): recorded the complete successful gate on e0faf09, including zero audit findings and unchanged coverage thresholds. This evidence-only revision does not alter product behavior; latest-head hosted results will be recorded in PR #75.
+
+Revision (2026-10-01, expanded PR reconciliation): recorded the pushed implementation, complete local gate and coverage totals. Workflow lint, CodeQL preflight and Linux arm64 packaging passed on the initial pushed head 30b9135; remaining hosted jobs were running. Final results must be recorded for the exact latest head in PR #75; this checkpoint is not a claim of hosted success, publication, merge or paid-provider certification.

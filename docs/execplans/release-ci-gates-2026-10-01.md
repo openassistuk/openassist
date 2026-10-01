@@ -14,7 +14,7 @@ Release publication must automatically reject incomplete or unsuccessful CI and 
 - [x] (2026-10-01 00:26Z) Targeted setup suites: 34 passed. Release prerequisite and docs-truth contracts: 33 passed. All six workflows pass lint.
 - [x] (2026-10-01 00:26Z) `pnpm verify:all` passed: 526 Vitest passed/1 skipped, 228 Node passed/6 skipped, 125 Node coverage passed/5 skipped. Unchanged coverage thresholds pass; both dependency audits report zero findings. Windows cannot run the skipped Bash/Unix host cases; hosted gates remain separate.
 - [x] (2026-10-01 00:26Z) Read-only live API checks accept v0.2.1 commit `a30ebc1` with CI 36787999719 and CodeQL 36787999708, and correctly block main `62c0cb2` because CI 36793298463 failed. Open code-scanning alerts queried separately: none.
-- [ ] Review the final diff, create the branch PR and record its hosted results.
+- [x] (2026-10-01 00:33Z) Review the complete diff and open [PR #74](https://github.com/openassistuk/openassist/pull/74) on `codex/release-ci-gates`. Implementation commit `9beb3e1` passed all 13 checks: CI [36796334771](https://github.com/openassistuk/openassist/actions/runs/36796334771), CodeQL [36796334759](https://github.com/openassistuk/openassist/actions/runs/36796334759), live macOS [36796334737](https://github.com/openassistuk/openassist/actions/runs/36796334737) and native/signing [36796334726](https://github.com/openassistuk/openassist/actions/runs/36796334726). Publication-only jobs were correctly skipped. This documentation-only reconciliation triggers separate final PR checks, whose results are recorded in the PR body.
 
 ## Surprises & Discoveries
 
@@ -32,7 +32,7 @@ Check before protected publication is eligible and again immediately before prod
 
 ## Outcomes & Retrospective
 
-Both authorized changes are implemented and pass targeted plus full local validation. The live read-only checker accepts known successful exact-commit evidence and rejects the actual failed main run. No publication or modification of existing tags/assets is part of this change. Hosted PR evidence remains pending; no new protected signing/publication dispatch has been performed.
+Both authorized changes are implemented and pass targeted plus full local validation and the hosted checks at implementation commit `9beb3e1`. The live read-only checker accepts known successful exact-commit evidence and rejects the actual failed main run. The health-URL case no longer depends on a released host port, while real occupied-port recovery remains covered. Future publication dispatches from tags containing this workflow must pass the automated prerequisite twice. No production readiness behavior, existing tag or published asset was changed, and no new protected signing/publication dispatch was performed. The PR supplies the final reviewed revision and follow-up check results; merging it remains a maintainer action.
 
 ## Context and Orientation
 
@@ -65,4 +65,4 @@ The checker performs GET requests only and never reruns workflows, moves tags, u
 
 The module exports `checkPublicationChecks({ repository, commit, request })` for deterministic API fixtures, `githubRequest(token, fetchFn)` for authenticated bounded GET requests and `checkedOutReleaseCommit({ tag, dispatchCommit, resolveCommit })` for tag identity. The CLI uses the existing Git tool plus `GH_TOKEN`, `GITHUB_REPOSITORY`, `GITHUB_SHA` and `RELEASE_TAG`. Only built-in Node modules are added.
 
-Revision note: created on 2026-10-01 for the two authorized repairs; updated with targeted/full local and live read-only API validation evidence.
+Revision note: created on 2026-10-01 for the two authorized repairs; updated with targeted/full local, live read-only API and exact implementation-commit hosted validation evidence.

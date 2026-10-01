@@ -85,6 +85,8 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 The [stable release notes](docs/releases/v0.2.1.md) cover the Axios security repair and Windows source-command correction alongside the earlier lifecycle/reminder fixes. Publication from reviewed main, independent signature checks and four-target public installation are recorded in the [release evidence](docs/execplans/stable-0.2.1-release.md). Additional fresh-host provider/channel retesting remains unverified.
 
+**Next stable candidate:** [v0.2.2 notes](docs/releases/v0.2.2.md) cover the complete OpenAI/Anthropic model refresh, GPT-6.1 Sol with xhigh and Opus 5.5 setup recommendations, Azure/generic compatibility and stronger publication prerequisites. [Release preparation](docs/execplans/stable-0.2.2-release.md) tracks its separate review, checks and signing gates. It is not yet published; the default installer continues to select `v0.2.1`.
+
 The [post-release repair](docs/execplans/post-release-axios-audit-2026-09-30.md) resolves Axios `1.20.0`, covering five high and two moderate advisories through WhatsApp/Baileys. Signed `v0.2.1` delivers this repair to packaged installations. Older immutable `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`; existing installations must update to receive the fix. Inspect `openassist update --release --channel stable --dry-run`, then run `openassist update --release --channel stable`. Exact-version pins do not advance automatically.
 
 ### Install the packaged stable release
@@ -99,7 +101,7 @@ Run this in a terminal on Linux or macOS, using your normal login account unless
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin this release, use the piped installer with `bash -s -- --version 0.2.0`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.0.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
+To pin the current published release, use the piped installer with `bash -s -- --version 0.2.1`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.1.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
 
 For unattended packaged installation without setup prompts or service installation:
 

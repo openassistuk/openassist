@@ -8,6 +8,8 @@ This is the canonical operator runbook for a public OpenAssist install.
 
 The [v0.2.1 stable notes](../releases/v0.2.1.md) describe the delivered Axios repair, earlier lifecycle fixes, explicit preview/source migration and testing limits. Existing installations need an explicit stable update to receive the patch. Replacement-host provider/channel retesting remains unverified separately from the successful public-install checks.
 
+The [v0.2.2 candidate](../releases/v0.2.2.md) prepares the model refresh and new setup recommendations. Signed publication and public-install verification remain pending; use the published stable commands below until the [release evidence](../execplans/stable-0.2.2-release.md) records completion.
+
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
 
 Deeper references for the choices you make during quickstart:

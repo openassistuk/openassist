@@ -2,6 +2,8 @@
 
 **Release availability:** the signed [v0.2.1 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.1) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.1`. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys.
 
+The [v0.2.2 model-refresh candidate](../releases/v0.2.2.md) is in preparation; protected publication and public-installer checks must pass before these availability commands select it.
+
 Packaged bootstrap adds a marked `~/.local/bin` PATH block to Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`), or Bash's `.bashrc` and `.profile`. Open a new terminal after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved. Uninstall removes only an unchanged block whose ownership was recorded.
 
 Normal macOS installation downloads a signed release with private Node into `~/.local/share/openassist/install`. Git/pnpm/system-Node prerequisite guidance below applies only to explicit source bootstrap (`--source --ref main`, `--ref`, or `--pr`). Release bootstrap requires curl, gzip and OpenSSL. Unavailable releases and failed verification stop installation. See [release maintenance](release-maintenance.md) and [developer testing](developer-testing.md).

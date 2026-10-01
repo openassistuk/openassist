@@ -163,6 +163,7 @@ Current housekeeping and release-evidence records:
 - [CI #391 and CodeQL #42 repair](execplans/ci-391-dependency-audit-2026-09-30.md): patched Undici `6.28.1` and brace-expansion `5.0.12`, account-link fixture allocation and path-only instance identity checks, with local and hosted verification evidence.
 - [Post-release Axios audit repair](execplans/post-release-axios-audit-2026-09-30.md): Axios `1.20.0`, seven production dependency advisories, actual release-documentation merges and the boundary between source fixes and unchanged published packages.
 - [v0.2.1 patch release evidence](execplans/stable-0.2.1-release.md): reviewed main/tag, shell-free Windows source commands, protected signing, four-target public installation and independent production-signature verification.
+- [v0.2.2 stable preparation](execplans/stable-0.2.2-release.md): model refresh, synchronized candidate versions/notes and separate review, exact-main CI/CodeQL, signing and public-install gates; publication remains pending.
 - [Deterministic setup test and publication prerequisites](execplans/release-ci-gates-2026-10-01.md): scoped bind-probe isolation and automated exact-commit CI/CodeQL verification.
 - [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
 
@@ -223,6 +224,7 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 ## Managed release lifecycle
 
 - [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
+- [v0.2.2 candidate notes](releases/v0.2.2.md): full OpenAI/Anthropic catalogs, fresh setup recommendations, route-specific compatibility and explicit update guidance for use after signed publication. The candidate is not yet the published stable release.
 - [v0.2.1 security patch notes](releases/v0.2.1.md): the current signed stable release, delivered Axios repair, stable-track update guidance, verified four-target public installation and remaining live-testing limits. The default installer selects this patch.
 - [v0.2.0 release notes](releases/v0.2.0.md): the older immutable stable release, lifecycle/reminder fixes and dated verification; its packages retain affected Axios and should be updated to v0.2.1.
 - [v0.2.0-rc.1 release notes](releases/v0.2.0-rc.1.md): the older signed preview, selected explicitly with `--channel preview`; its immutable assets remain unchanged.

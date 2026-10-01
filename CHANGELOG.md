@@ -6,6 +6,10 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-01
+
+- Prepare stable `0.2.2`: align root/CLI/daemon versions, collect the model refresh and exact-commit publication safeguards below, and add release notes with explicit stable/exact-version update guidance. Preparation remains separate from reviewed-main CI/CodeQL, protected signing and four-platform public-install verification; current public stable availability stays at `v0.2.1` until those gates pass. Saved model IDs and settings require explicit operator changes; live provider/channel and fresh-host testing remain unverified.
+
 - 2026-10-01: Audit the full OpenAI/Anthropic conversational catalogs: add missing GPT-5.5/Pro, GPT-5.4 Nano/Pro, Responses-only Pro variants, GPT-5.6 alias and verified API pins, restricted Daybreak transport, Claude Fable/Mythos 5, Opus 4.7/4.8 and Mythos Preview. Correct legacy minimal effort, sampling, Opus 4.5 effort/budget and output limits. Surface route-specific deprecation dates and block retired requests/readiness without rewriting saved settings; do not apply OpenAI API retirement dates to Azure deployments. Synchronize catalog/docs and transport, onboarding and lifecycle regressions.
 
 - 2026-10-01: Recommend GPT-6.1 Sol with xhigh for fresh OpenAI/Codex setup and Opus 5.5 for Anthropic, retaining saved IDs and tuning. Add exact GPT-6.1 Sol route controls (including Azure's separate none support) and Sonnet 5.5 adaptive/prefix-bound thinking replay. Keep Azure deployment/auth boundaries and generic backend model IDs explicit; GPT-6.1 Sol tools use Responses. Synchronize setup, status, migration warnings, docs/examples and transport/onboarding regression tests. Xhigh may increase reasoning-token cost and latency; no access, context or tool-loop limits change.

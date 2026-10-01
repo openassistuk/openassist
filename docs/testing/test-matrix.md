@@ -8,6 +8,8 @@ The Release Artifacts workflow also has a post-publication `public-install` matr
 
 Manual `verify_published=true` with a published tag and matching channel reruns only public installation from the dispatched test revision. It takes precedence over publishing and skips packaging, signing and uploads. Failed checks include bounded public-download diagnostics without credentials.
 
+Stable `0.2.2` preparation reuses the version/executable/release-notes assertions in `cli-docs-truth.test.ts` and the existing model, transport, setup, lifecycle and publication-check contracts. [Candidate evidence](../execplans/stable-0.2.2-release.md) must distinguish local and PR results from exact merged-main CI/CodeQL, production signing and post-publication `public-install` verification. Earlier release checks do not certify this candidate or live provider/channel sessions.
+
 The normal Node integration gate now includes docs-truth validation, so stale live-doc links or anchors, incomplete docs indexing, mismatched workflow statements, stale threshold references, and stale test inventories are expected to fail before merge instead of waiting for release review.
 
 Linux and macOS are the first-class operator platforms for lifecycle and service validation in this release. Windows remains part of the required quality matrix, but it is not the service-manager parity target.

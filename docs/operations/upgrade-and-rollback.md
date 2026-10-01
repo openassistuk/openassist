@@ -25,7 +25,7 @@ openassist update --source --pr 123 --yes
 
 Exact versions remain pinned until changed. Release/source selectors cannot be combined. `--ref` and `--pr` keep their source meanings through the `upgrade` alias. PR tracks require an explicit target each time. Source builds record the resolved commit; dirty original checkouts are preserved and block migration.
 
-Packaged apps include private Node. Source builds need the pinned development toolchain. Until the production key and first signed release exist, release selection fails closed. See [release maintenance](release-maintenance.md).
+Packaged apps include private Node. Source builds need the pinned development toolchain. Signed `v0.2.1` is the current stable publication; [v0.2.2](../releases/v0.2.2.md) prepares the model refresh and remains pending its separate publication gates. After it is published, select stable explicitly or use `openassist update --version 0.2.2 --dry-run` followed by `openassist update --version 0.2.2` for an exact pin. Updating preserves saved model IDs and tuning; use `openassist setup wizard` to adopt new recommendations or repair retired selections. Release selection fails closed when an asset, signature or prerequisite is unavailable. See [release maintenance](release-maintenance.md).
 
 ## Activation and health
 

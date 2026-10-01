@@ -33,7 +33,7 @@ Check before protected publication is eligible and again immediately before prod
 
 ## Outcomes & Retrospective
 
-Both authorized changes are implemented and pass targeted plus full local validation and the hosted checks at implementation commit `9beb3e1`. The live read-only checker accepts known successful exact-commit evidence and rejects the actual failed main run. The health-URL case no longer depends on a released host port, while real occupied-port recovery remains covered. Future publication dispatches from tags containing this workflow must pass the automated prerequisite twice. No production readiness behavior, existing tag or published asset was changed, and no new protected signing/publication dispatch was performed. The PR supplies the final reviewed revision and follow-up check results; merging it remains a maintainer action.
+Both authorized changes are implemented and pass targeted plus full local validation and the hosted checks at implementation commit `9beb3e1`. The live read-only checker accepts known successful exact-commit evidence and rejects the actual failed main run. The health-URL case no longer depends on a released host port, while real occupied-port recovery remains covered. Future publication dispatches from tags containing this workflow must pass the automated prerequisite twice. No production readiness behavior, existing tag or published asset was changed, and no new protected signing/publication dispatch was performed. Final reconciliation on 2026-10-01 confirms PR #74 merged at `f5e811b`; actual main CI and full CodeQL passed as recorded above. These safeguards are now included in separate 0.2.2 preparation, which requires its own reviewed merge and publication evidence.
 
 ## Context and Orientation
 
@@ -67,3 +67,5 @@ The checker performs GET requests only and never reruns workflows, moves tags, u
 The module exports `checkPublicationChecks({ repository, commit, request })` for deterministic API fixtures, `githubRequest(token, fetchFn)` for authenticated bounded GET requests and `checkedOutReleaseCommit({ tag, dispatchCommit, resolveCommit })` for tag identity. The CLI uses the existing Git tool plus `GH_TOKEN`, `GITHUB_REPOSITORY`, `GITHUB_SHA` and `RELEASE_TAG`. Only built-in Node modules are added.
 
 Revision note: created on 2026-10-01 for the two authorized repairs; updated with targeted/full local, live read-only API and exact implementation-commit hosted validation evidence.
+
+Revision note (2026-10-01 merge reconciliation): retain the original dated PR evidence and record the actual PR #74 merge, main CI/full CodeQL and separate Service Smoke result. Include these source changes in 0.2.2 preparation without claiming a new publication.

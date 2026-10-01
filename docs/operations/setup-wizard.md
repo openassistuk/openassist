@@ -156,9 +156,9 @@ Use wizard for:
   - Azure Foundry
   - OpenAI-compatible
 - advanced provider-native reasoning controls:
-  - OpenAI `reasoningEffort` (model-filtered `Default`, `none`, `low`, `medium`, `high`, `xhigh`, `max`)
+  - OpenAI `reasoningEffort` (model-filtered `Default`, `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`)
   - Codex `reasoningEffort` (model-filtered `Default`, `none`, `low`, `medium`, `high`, `xhigh`, `max`)
-  - Azure Foundry `reasoningEffort` (model-filtered `Default`, `none`, `low`, `medium`, `high`, `xhigh`, `max`)
+  - Azure Foundry `reasoningEffort` (model-filtered `Default`, `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`)
   - OpenAI/Azure `reasoningMode` (`Default`, `standard`, `pro`) when the selected model or Azure hint supports it; Pro can increase cost and latency. Codex has no mode field.
   - Anthropic `thinkingMode` / `thinkingEffort`, plus `thinkingBudgetTokens` on compatible manual-thinking models (blank clears the manual budget; thinking defaults remain model-specific)
   - Anthropic `maxOutputTokens` for total thinking plus visible output; blank uses the model-specific default
@@ -326,3 +326,5 @@ A successful validated wizard save marks recorded onboarding complete. Default p
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
 
 New OpenAI/Codex providers suggest GPT-6.1 Sol with xhigh. Azure suggests xhigh only for the exact GPT-6.1 Sol underlying-model hint; it still sends the deployment name. Editing a saved provider retains its effort, including omission. New Anthropic providers suggest Opus 5.5 with provider-default medium effort; Sonnet 5.5 is available with adaptive thinking. See [model compatibility](../providers/model-compatibility.md) for supported choices and cost tradeoffs.
+
+The October 1 full-catalog audit includes missing older current generations, exact aliases/API pins and lifecycle dates. Original GPT-5 API/Azure alone offers minimal effort. Retired cataloged models require an explicit edit; upcoming retirements warn in readiness/status. Azure deployment names and generic backend IDs remain operator-defined. Opus 4.5 effort works alongside manual thinking, with a 64000-token total-output maximum. See the [complete model matrix](../providers/model-compatibility.md).

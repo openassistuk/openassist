@@ -77,3 +77,5 @@ Managed one-shot tables are additive at database version 1. A candidate lacking 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
 
 Model recommendations: fresh OpenAI/Codex setup suggests GPT-6.1 Sol with xhigh; Anthropic suggests Opus 5.5. Updates and restarts preserve saved model IDs and tuning. Review [route-specific compatibility](../providers/model-compatibility.md) before explicitly changing models in `openassist setup wizard`; verify with `openassist doctor` and a real reply.
+
+Model lifecycle checks preserve saved IDs while warning for announced deprecations and blocking retired cataloged models during readiness and requests. Choose a replacement explicitly through `openassist setup wizard`; service restart or credential relinking does not restore a retired model. Check the [route-specific model matrix](../providers/model-compatibility.md#other-endpoints-and-migration), including Codex GPT-5.5 on October 14 and Claude Sonnet 4.5 on November 30.

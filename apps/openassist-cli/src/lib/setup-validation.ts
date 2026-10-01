@@ -1,4 +1,4 @@
-import { modelCapabilities, reasoningEfforts, retiredModelReplacement } from "@openassist/config";
+import { modelCapabilities, modelLifecycle, reasoningEfforts } from "@openassist/config";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -582,8 +582,11 @@ export async function validateSetupReadiness(input: SetupValidationInput): Promi
     warnings
   );
   for (const provider of input.config.runtime.providers) {
-    const replacement = retiredModelReplacement(provider.type, provider.defaultModel);
-    if (replacement) pushIssue(errors, "provider.codex_model_retired", `Codex model '${provider.defaultModel}' has retired. Saved configuration has not been changed.`, `Run openassist setup wizard and select '${replacement}' for provider '${provider.id}'.`);
+    const lifecycle = modelLifecycle(provider.defaultModel, provider.type);
+    if (!lifecycle) continue;
+    const hint = `Run openassist setup wizard and select '${lifecycle.replacementModel}' for provider '${provider.id}'.`;
+    if (lifecycle.status === "retired") pushIssue(errors, provider.type === "codex" ? "provider.codex_model_retired" : "provider.model_retired", `${provider.type} model '${provider.defaultModel}' retired on ${lifecycle.retirementDate}. Saved configuration has not been changed.`, hint);
+    else pushIssue(warnings, "provider.model_deprecated", `${provider.type} model '${provider.defaultModel}' is deprecated${lifecycle.retirementDate ? ` and retires on ${lifecycle.retirementDate}` : ""}.`, hint);
   }
   validateProviderReasoningRequirements(input.config, warnings);
   validateChannelRequirements(input.config, input.env, errors, warnings);

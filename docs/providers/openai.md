@@ -161,3 +161,7 @@ Responses output items with opaque reasoning or message phase are now retained i
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
 
 Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).
+
+The full October 1 catalog includes GPT-6/6.1, GPT-5.6 (including the verified `gpt-5.6` Sol alias), GPT-5.5/Pro, GPT-5.4 Nano/Pro, the other standalone Pro/o-series families, `chat-latest` and exact API snapshot pins. Original GPT-5/Mini/Nano offers `minimal`; later models do not. Standalone Pro IDs use Responses and their own effort ranges. Restricted Daybreak IDs use verified Responses/tool transport without inferred tuning. Setup readiness/status warn before announced retirements; retired API IDs reject requests before transport. Saved IDs remain readable. See the [full inventory and dated lifecycle matrix](model-compatibility.md#full-conversational-catalog).
+
+Restricted Daybreak models declare reasoning replay independently of effort controls: Responses requests ask for encrypted reasoning content and retain it through the existing bounded, session/model-scoped replay path without exposing raw reasoning.

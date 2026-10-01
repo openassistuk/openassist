@@ -193,3 +193,5 @@ GPT-6.1 Sol is cataloged for Azure through `underlyingModel = "gpt-6.1-sol"`. Ne
 - [Setup Quickstart and Setup Wizard](../operations/setup-wizard.md)
 
 Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).
+
+The updated Azure hint catalog includes GPT-5.5, GPT-5.4 Nano/Pro, GPT-5 Pro, o3-pro and verified legacy Codex deployments alongside GPT-6/6.1 and GPT-5.6. These hints choose the documented Responses controls while the outgoing model remains the deployment name. Standalone API-only GPT-5.5 Pro/GPT-5.2 Pro, OpenAI aliases/snapshot pins and restricted research aliases are not assumed to exist on Azure. OpenAI API retirement schedules do not automatically retire Azure deployments; verify availability on the resource. See the [complete route matrix](model-compatibility.md#full-conversational-catalog).

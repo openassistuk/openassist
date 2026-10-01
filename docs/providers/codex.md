@@ -194,3 +194,5 @@ Default effort also requests opaque reasoning for cataloged Codex models. Bounde
 - [Common Troubleshooting](../operations/common-troubleshooting.md)
 
 Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).
+
+Account-login lifecycle dates differ from the API. GPT-5.3-Codex-Spark retired September 14; GPT-5.4/Mini retired August 31; GPT-5.5 retires October 14 while remaining available on the OpenAI API. Readiness/status warn for upcoming retirement and require an explicit wizard edit after retirement. Saved model IDs are preserved. Deprecated GPT-5.2/GPT-5.3-Codex remain labeled without an invented shutdown date. No `minimal` effort or standalone API Pro-model support is inferred for account login. See the [route-specific lifecycle matrix](model-compatibility.md#other-endpoints-and-migration).

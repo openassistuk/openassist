@@ -1,4 +1,4 @@
-import { ANTHROPIC_THINKING_MODES, ANTHROPIC_THINKING_EFFORTS, anthropicThinking, modelCapabilities, providerTuningErrors } from "@openassist/config";
+import { ANTHROPIC_THINKING_MODES, ANTHROPIC_THINKING_EFFORTS, anthropicThinking, modelCapabilities, providerTuningErrors, providerModelAvailabilityErrors } from "@openassist/config";
 import fs from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
@@ -358,7 +358,8 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
   async validateConfig(config: unknown): Promise<ValidationResult> {
     const parsed = configSchema.safeParse(config);
     if (parsed.success) {
-      const errors = providerTuningErrors({ ...parsed.data, type: "anthropic" });
+      const provider = { ...parsed.data, type: "anthropic" as const };
+      const errors = [...providerTuningErrors(provider), ...providerModelAvailabilityErrors(provider)];
       return { valid: errors.length === 0, errors };
     }
 
@@ -383,6 +384,8 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
 
     const mapped = await mapMessages(req.messages);
     const model = req.model || this.config.defaultModel;
+    const availabilityErrors = providerModelAvailabilityErrors({ ...this.config, type: "anthropic", defaultModel: model });
+    if (availabilityErrors.length) throw new Error(availabilityErrors.join(" "));
     const tuning = anthropicThinking({ ...this.config, type: "anthropic", defaultModel: model });
     // Runtime guidance, access-controlled tools and bounded history can change between
     // requests. Let the API retain valid signed blocks and drop only stale ones.

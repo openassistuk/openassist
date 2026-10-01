@@ -137,7 +137,7 @@ Current image-input rule:
 Provider-native reasoning controls:
 
 - `@openassist/config` exports the bounded exact-ID model catalog and tuning validation; core-types owns the interfaces.
-- OpenAI, Codex, and Azure accept model-specific `none|low|medium|high|xhigh|max` reasoning effort on Responses requests. Default omits it. Unknown model IDs remain accepted but receive no inferred optional controls.
+- OpenAI, Codex, and Azure accept model-specific `none|minimal|low|medium|high|xhigh|max` reasoning effort on Responses requests. Minimal is limited to original GPT-5 on OpenAI/Azure. Default omits it. Unknown model IDs remain accepted but receive no inferred optional controls.
 - Azure's `defaultModel` remains a deployment name. Reasoning uses only its cataloged `underlyingModel`; an overridden deployment has no inferred tuning.
 - Anthropic accepts optional `thinkingMode` and `thinkingEffort`; budget-only configurations still mean manual thinking on compatible models. Adaptive/disabled plus a manual budget is invalid. Unsupported combinations fail config validation.
 - Sonnet 5 and Opus 5 default to adaptive thinking. Unset fields omit request parameters. Sampling parameters are omitted where the catalog marks them unsupported, even when thinking is disabled.
@@ -220,3 +220,7 @@ Responses adapters preserve output items in `providerReplayKind=openai-responses
 Managed one-shot prompt tasks use the existing scheduled provider request contract with tools: []. Saved text reminders make no provider call. Generation results persist before rendering/delivery retries, so a transport retry does not call the model again. Confirmations distinguish generation deadlines from delivery time.
 
 See the [native reminder contract](../interfaces/scheduler-and-time.md#managed-one-shot-reminders) and [resolution matrix](../testing/ubuntu-live-test-resolution.md).
+
+The shared catalog now includes the full audited conversational inventory, exact API aliases/snapshot pins and dated lifecycle records. Lifecycle validation is separate from schema parsing so old IDs remain readable. Retired OpenAI/Anthropic/Codex model requests fail before transport; readiness blocks them, and status/deprecation warnings show replacements and dates. Azure and generic route availability remains deployment/backend-specific. Manual Opus 4.5 effort composes with its budget; catalog output limits and sampling rules are applied per model, including the 4.7/4.8 and Fable/Mythos 5 generations. See the [full route/model matrices](../providers/model-compatibility.md).
+
+Restricted Daybreak models declare reasoning replay independently of effort controls: Responses requests ask for encrypted reasoning content and retain it through the existing bounded, session/model-scoped replay path without exposing raw reasoning.

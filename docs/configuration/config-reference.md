@@ -142,7 +142,7 @@ reasoningEffort = "xhigh"
 
 Additional fields:
 
-- `reasoningEffort`: `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
+- `reasoningEffort`: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent; `minimal` is offered only for original GPT-5 API/Azure models)
 - `reasoningMode`: optional `standard` or `pro`, only for cataloged supporting models; independent of effort, with omission preserving the provider default
 - optional `oauth` object for advanced provider-managed OAuth configuration
 
@@ -158,7 +158,7 @@ reasoningEffort = "xhigh"
 
 Additional fields:
 
-- `reasoningEffort`: `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
+- `reasoningEffort`: `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent; no `minimal` on the Codex route)
 
 Codex is the separate account-login route. Linked-account auth is managed through `openassist auth ...`, not by storing a normal API key in the TOML.
 
@@ -178,7 +178,7 @@ Additional fields:
 - `thinkingMode`: optional `adaptive`, `enabled` (manual), or `disabled`
 - `thinkingEffort`: optional `low`, `medium`, `high`, `xhigh`, or `max`, where supported
 - `thinkingBudgetTokens`: integer `1024..32000`, only for manual-thinking models
-- `maxOutputTokens`: optional integer `1..128000`, covering thinking plus visible output; model-specific limits also apply (Haiku 4.5: `64000`). Must exceed a configured manual budget. Default is `16384` for Opus 5.5/Sonnet 5.5/Fable 5.1/Mythos 5.1; earlier models use `4096` or manual budget plus `1024`, whichever is larger.
+- `maxOutputTokens`: optional integer `1..128000`, covering thinking plus visible output; model-specific limits also apply (Opus/Sonnet/Haiku 4.5: `64000`; Opus/Sonnet 4.6 and later: `128000`). Must exceed a configured manual budget. Default is `16384` for Opus 5.5/Sonnet 5.5/Fable 5/5.1/Mythos 5/5.1/Preview; earlier models use `4096` or manual budget plus `1024`, whichever is larger.
 - `workspaceId`: optional Claude Console ID matching `wrkspc_` followed by letters or numbers; sent as `anthropic-workspace-id` for multi-workspace keys. Omit for workspace-scoped keys. This is an identifier, not a credential.
 - optional `oauth` object for advanced provider-managed OAuth configuration
 
@@ -206,7 +206,7 @@ Additional fields:
 - `resourceName`: Azure resource host prefix used to derive the endpoint
 - `endpointFlavor`: `openai-resource` or `foundry-resource`
 - `underlyingModel`: optional model-family hint used for reasoning and compatibility guidance
-- `reasoningEffort`: optional, `none`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent)
+- `reasoningEffort`: optional, `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent; `minimal` is offered only for original GPT-5 API/Azure models)
 - `reasoningMode`: optional `standard` or `pro`; requires a cataloged supporting `underlyingModel`. An Azure deployment name never establishes capabilities.
 
 Azure Foundry sends the deployment name in `defaultModel`. This route uses Azure resource-style `/openai/v1/` endpoints only and the Responses API only. For Entra host auth, the optional service-principal env vars are global process settings: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`.

@@ -36,6 +36,30 @@ async function getFreePort(): Promise<number> {
 }
 
 describe("cli setup validation and summary coverage", () => {
+  it("renders retired-model repair and dated Claude lifecycle without changing saved config", async () => {
+    const root = tempDir("openassist-node-model-lifecycle-");
+    try {
+      const config = createDefaultConfigObject();
+      config.runtime.providers = [
+        { id: "retired-openai", type: "openai", defaultModel: "gpt-5.2-codex" },
+        { id: "retired-claude", type: "anthropic", defaultModel: "claude-3-7-sonnet-latest", thinkingBudgetTokens: 4096 },
+        { id: "deprecated-claude", type: "anthropic", defaultModel: "claude-sonnet-4-5", thinkingBudgetTokens: 4096 }
+      ];
+      config.runtime.defaultProviderId = "deprecated-claude";
+      const before = JSON.stringify(config);
+      const result = await validateSetupReadiness({ config, env: {}, configPath: path.join(root, "openassist.toml"), envFilePath: path.join(root, "openassistd.env"), installDir: root, skipService: true, skipBindAvailabilityCheck: true, timezoneConfirmed: true });
+      const retired = result.errors.filter(issue => issue.code === "provider.model_retired");
+      const sonnetRetired = new Date().getTime() >= Date.parse("2026-11-30T00:00:00Z");
+      assert.equal(retired.length, sonnetRetired ? 3 : 2);
+      assert.match(renderValidationIssues(retired).join("\n"), /openassist setup wizard/);
+      assert.match(renderValidationIssues(retired).join("\n"), /claude-sonnet-4-6/);
+      assert.match(renderValidationIssues([...result.errors, ...result.warnings]).join("\n"), /2026-11-30/);
+      assert.equal(JSON.stringify(config), before);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("handles schema-invalid config early return", async () => {
     const root = tempDir("openassist-node-validation-schema-");
     const result = await validateSetupReadiness({

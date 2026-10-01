@@ -178,7 +178,7 @@ export function describeModelChoices(type: ProviderType, currentModel?: string):
   if (type === "anthropic") console.log(`Recommended: ${DEFAULT_ANTHROPIC_MODEL}. Alternatives: ${ANTHROPIC_MODEL_ALTERNATIVES.join(", ")}. Custom model IDs remain supported.`);
   if (type === "openai-compatible") console.log("Enter the model ID served by your backend. This route uses Chat Completions; GPT-6.1 Sol tool calling requires the OpenAI Responses route.");
   const replacement = currentModel && retiredModelReplacement(type, currentModel);
-  if (replacement) console.log(`Saved model ${currentModel} retired on the Codex route. Enter ${replacement} explicitly to replace it; keeping the old ID leaves readiness blocked.`);
+  if (replacement) console.log(`Saved model ${currentModel} retired on the ${type} route. Enter ${replacement} explicitly to replace it; keeping the old ID leaves readiness blocked.`);
 }
 
 export async function promptAzureFoundryEndpointFlavor(

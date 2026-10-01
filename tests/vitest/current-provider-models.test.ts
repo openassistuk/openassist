@@ -24,6 +24,51 @@ const openaiReply = { id: "r", output: [{ type: "message", role: "assistant", co
 afterEach(() => vi.restoreAllMocks());
 
 describe("current GPT-6 routes", () => {
+  it.each(["gpt-5.5", "gpt-5.5-2026-04-23", "gpt-5.4-nano", "gpt-5.5-pro", "gpt-5.4-pro", "gpt-5.2-pro", "gpt-5-pro", "o3-pro", "gpt-5.6", "chat-latest", "gpt-daybreak-blue-latest", "gpt-daybreak-red-latest", "gpt-5.6-cyber"])("routes %s to Responses with tools and verified controls", async model => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => json(openaiReply));
+    const effort = reasoningEfforts(model)[0];
+    await new OpenAIProviderAdapter({ id: "test", defaultModel: model, reasoningEffort: effort }).chat({ ...request, model }, auth);
+    const [url, options] = fetch.mock.calls[0];
+    const body = JSON.parse(options?.body as string);
+    expect(String(url)).toContain("/responses");
+    expect(body.tools[0]).toMatchObject({ type: "function", name: "oa__ZnMucmVhZA" });
+    expect(body.reasoning).toEqual(effort ? { effort } : undefined);
+    if (["gpt-daybreak-blue-latest", "gpt-daybreak-red-latest", "gpt-5.6-cyber"].includes(model)) expect(body.include).toEqual(["reasoning.encrypted_content"]);
+    if ((effort && effort !== "none") || (model !== "chat-latest" && !effort)) expect(body).not.toHaveProperty("temperature");
+  });
+
+  it("maps legacy minimal effort without exposing it on modern models", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(json(openaiReply));
+    const provider = { id: "test", type: "openai" as const, defaultModel: "gpt-5-mini", reasoningEffort: "minimal" as const };
+    expect(providerTuningErrors(provider)).toEqual([]);
+    expect(parseConfig({ ...createDefaultConfigObject(), runtime: { ...createDefaultConfigObject().runtime, providers: [provider] } }).runtime.providers[0]).toEqual(provider);
+    await new OpenAIProviderAdapter(provider).chat({ ...request, model: "gpt-5-mini" }, auth);
+    expect(JSON.parse(fetch.mock.calls[0][1]?.body as string)).toMatchObject({ reasoning: { effort: "minimal" } });
+    expect(JSON.parse(fetch.mock.calls[0][1]?.body as string)).not.toHaveProperty("temperature");
+    expect(providerTuningErrors({ ...provider, defaultModel: "gpt-6.1-sol" })).not.toEqual([]);
+    expect(providerTuningErrors({ ...provider, defaultModel: "gpt-5.5-pro", reasoningEffort: "low" })).not.toEqual([]);
+  });
+
+  it.each(["gpt-5.5", "gpt-5.4-nano", "gpt-5.4-pro", "gpt-5-pro", "o3-pro", "gpt-5.3-codex", "gpt-5.1-codex-max"])("maps Azure %s hints while retaining the deployment name", async underlyingModel => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(json(openaiReply));
+    const effort = reasoningEfforts(underlyingModel, "azure-foundry")[0];
+    await new AzureFoundryProviderAdapter({ id: "test", defaultModel: "deployment", underlyingModel, resourceName: "test", endpointFlavor: "openai-resource", authMode: "api-key", reasoningEffort: effort }).chat({ ...request, model: "deployment" }, auth);
+    const body = JSON.parse(fetch.mock.calls[0][1]?.body as string);
+    expect(body.model).toBe("deployment");
+    expect(body.reasoning).toEqual({ effort });
+    expect(String(fetch.mock.calls[0][0])).toContain("/openai/v1/responses");
+  });
+
+  it.each(["openai", "anthropic"] as const)("rejects retired %s requests and validation before transport", async route => {
+    const fetch = vi.spyOn(globalThis, "fetch");
+    const model = route === "openai" ? "gpt-5.2-codex" : "claude-3-7-sonnet-latest";
+    const config = { id: "test", defaultModel: model };
+    const adapter = route === "openai" ? new OpenAIProviderAdapter(config) : new AnthropicProviderAdapter(config);
+    expect((await adapter.validateConfig(config)).valid).toBe(false);
+    await expect(adapter.chat({ ...request, model }, auth)).rejects.toThrow("retired");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it.each(["openai", "codex", "azure-foundry"])("persists opaque reasoning across a tool turn for %s with default effort", async route => {
     const output = [
       { type: "reasoning", id: "rs_1", summary: [], encrypted_content: "opaque-ciphertext" },
@@ -155,6 +200,18 @@ describe("current GPT-6 routes", () => {
 });
 
 describe("current Claude thinking", () => {
+  it.each(["claude-fable-5", "claude-mythos-5", "claude-opus-4-7", "claude-opus-4-8"])("maps %s without unsupported sampling or prefix-binding controls", async model => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ id: "reply", type: "message", role: "assistant", model, content: [{ type: "text", text: "hello" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } }));
+    await new AnthropicProviderAdapter({ id: "test", defaultModel: model, thinkingMode: "adaptive", thinkingEffort: "xhigh" }).chat({ ...request, model }, auth);
+    const options = fetch.mock.calls[0][1]!;
+    const body = JSON.parse(options.body as string);
+    expect(body.thinking).toEqual({ type: "adaptive" });
+    expect(body.output_config).toEqual({ effort: "xhigh" });
+    expect(body).not.toHaveProperty("temperature");
+    expect(new Headers(options.headers).get("anthropic-beta")).toBeNull();
+    expect(body.max_tokens).toBe(model.includes("opus") ? 4096 : 16384);
+  });
+
   it("validates workspace IDs and supports explicit clearing in setup", async () => {
     const input = vi.fn().mockResolvedValueOnce("invalid workspace").mockResolvedValueOnce(" wrkspc_test123 ").mockResolvedValueOnce("");
     const prompts = { input } as unknown as PromptAdapter;

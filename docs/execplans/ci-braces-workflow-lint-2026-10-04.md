@@ -17,7 +17,8 @@ Restore the repository's three-platform quality gate after a newly reviewed deve
 - [x] (2026-10-04) Reproduce an extra Azure Foundry entry in the documented Vitest coverage scope; strengthen the existing docs-truth assertion and correct the list without altering coverage configuration.
 - [x] (2026-10-05) Synchronize README/AGENTS, docs index, threat model, test matrix and changelog; all 28 focused checks pass. Correct the stale docs-check inventory description alongside the excess coverage claim.
 - [x] (2026-10-05) `pnpm verify:all` passes: workflow lint, build, lint, typecheck, 577 Vitest passes/1 skip, 234 Node passes/6 skips, both unchanged coverage gates and both clean audits. `git diff --check` passes.
-- [ ] Review the diff, commit, push, open and attach a PR, and reconcile exact-head checks and unresolved reviews.
+- [x] (2026-10-05) Review the diff, commit implementation `5f3676b07d3a41e2584446c168bc9c165c4ec23a`, push the new branch, and open/attach [PR #77](https://github.com/openassistuk/openassist/pull/77).
+- [x] (2026-10-05) All 13 hosted checks pass on implementation `5f3676b`; three production-publication jobs skip as expected. Separate scanner queries return zero open CodeQL/Dependabot alerts and PR review threads are empty. Record the final evidence revision's recheck in PR #77's validation section.
 
 ## Surprises & Discoveries
 
@@ -42,7 +43,7 @@ Decision: Correct the excess documented Azure coverage entry and strengthen exac
 ## Outcomes & Retrospective
 
 
-Implementation, documentation and local validation are complete. Frozen installation prunes only the unused development glob subtree, all 28 focused dependency/workflow/audit/docs checks pass, and `pnpm verify:all` passes with both audits at zero findings. PR creation and hosted verification remain. No new live provider/channel certification, release publication or merge is claimed.
+Implementation, documentation and local/hosted validation are complete in [PR #77](https://github.com/openassistuk/openassist/pull/77). Frozen installation prunes only the unused development glob subtree, all 28 focused dependency/workflow/audit/docs checks pass, and `pnpm verify:all` passes with both audits at zero findings. All 13 checks on implementation `5f3676b` pass, including three-platform quality/coverage/audits, full JavaScript/TypeScript analysis, live macOS LaunchAgent, four native artifact jobs and ephemeral signing. Three publication-related jobs skip intentionally. Final evidence-only revision results are maintained in the PR's validation section and must be checked separately; this source evidence does not certify a later head automatically. Review approval is required and no merge has been performed. No new live provider/channel certification or release publication is claimed.
 
 ## Context and Orientation
 
@@ -89,6 +90,8 @@ Baseline evidence is retained in `coverage/ci-repair/baseline-all.json`, `baseli
 
 Full local verification is retained in `coverage/ci-repair/verify-all.log`. Vitest coverage is statements 83.24%, branches 74.35%, functions 85.85%, lines 84.22%. Node coverage is statements/lines 80.15%, branches 73.67%, functions 86.07%. These exceed unchanged thresholds. Windows skips six Unix-only Node cases in the full suite and five in the narrower coverage suite; one pre-existing Vitest case is skipped. Frozen installation reports the changed linter dependency instance and 18 removed packages; the lockfile diff only adds the removal override and prunes unreachable development packages, without advancing versions.
 
+Hosted implementation evidence at full commit `5f3676b07d3a41e2584446c168bc9c165c4ec23a`: [CI 37242380375](https://github.com/openassistuk/openassist/actions/runs/37242380375), [CodeQL 37242380308](https://github.com/openassistuk/openassist/actions/runs/37242380308), [macOS Live Launchd 37242380405](https://github.com/openassistuk/openassist/actions/runs/37242380405) and [Release Artifacts 37242380309](https://github.com/openassistuk/openassist/actions/runs/37242380309) all succeed. CI logs confirm both audits at zero findings on each OS. Separate final scanner queries return zero open alerts; PR #77 has no review threads. Publication prerequisites, production signing/publish and public installation skip on the PR; ephemeral signing succeeds. Hosted artifacts are test evidence, not new published packages.
+
 ## Interfaces and Dependencies
 
 
@@ -101,3 +104,7 @@ Revision note (2026-10-04): Record three baseline failures, repaired focused che
 Revision note (2026-10-05): Record all 28 focused checks, completed documentation synchronization and ongoing full verification.
 
 Revision note (2026-10-05): Record successful full local verification, exact test/coverage/audit results and remaining PR/hosted evidence.
+
+Revision note (2026-10-05): Record the actual implementation commit and attached PR #77; keep hosted completion pending until every relevant job concludes.
+
+Revision note (2026-10-05): Reconcile 13 successful implementation checks, expected publication skips, clean three-platform audits and independent scanner/review results. Final evidence-only commits require a separate current-head recheck recorded in the PR body; leave review/merge and publication to their authorized workflows.

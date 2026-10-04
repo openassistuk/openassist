@@ -473,6 +473,13 @@ describe("docs truth", () => {
     for (const include of vitestIncludes) {
       assert.match(testMatrix, new RegExp(`- \`${escapeRegExp(include)}\``));
     }
+    const vitestScopeSection = testMatrix
+      .split("Vitest coverage is intentionally targeted and currently measures:")[1]
+      .split("Node coverage is also targeted and currently measures:")[0];
+    const documentedVitestIncludes = [...vitestScopeSection.matchAll(/^- `([^`]+)`$/gm)]
+      .map(match => match[1]);
+    assert.deepEqual(documentedVitestIncludes.sort(), [...vitestIncludes].sort(),
+      "Documented Vitest scope must not claim modules absent from the coverage config");
     for (const src of nodeSources) {
       assert.match(testMatrix, new RegExp(`- \`${escapeRegExp(src)}\``));
     }

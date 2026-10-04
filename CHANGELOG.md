@@ -6,6 +6,10 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- 2026-10-05: Preserve native/Docker workflow-lint options such as `-ignore 'SC.*'` by excluding option operands from workflow matching and retaining default targets for options-only invocations. Cover literal forwarding, repeated/inline options, missing values and unchanged action-version enforcement in executable wrapper regressions.
+
+- 2026-10-04: Restore scheduled Linux/macOS/Windows CI audits by removing the unused actionlint CLI fast-glob/micromatch/braces development dependency path affected by unpatched high-severity stack-exhaustion advisory GHSA-vfj7-8cjw-p6xm. Keep the bundled WASM syntax linter, runner-label checks, production dependencies and audit/coverage gates intact. Workflow lint now rejects unmatched targets, checks action-version policy on actual glob-selected files and accepts multiple targets without Docker fallback. Correct the documented Vitest coverage scope and reject extra scope claims in docs-truth validation; published packages remain unchanged.
+
 ## [0.2.2] - 2026-10-01
 
 - Publish signed stable `v0.2.2` from reviewed main `2f8b2dc` with all 16 assets, successful exact-main CI/full CodeQL, native candidate quality/audits and protected signing. Independently verify production signatures and signed asset digests. Verify stable-channel/exact-version public installation and data-preserving uninstall on Linux/macOS x64/arm64 in verification-only run 36878438133 after the initial Apple Silicon download timeout; retain the failed run and unchanged assets. Update availability and explicit pin/update guidance while preserving saved provider settings and disclosing unverified live provider/channel sessions.

@@ -56,3 +56,10 @@ test("dependency policy rejects the previously vulnerable dependency floors", ()
   assert.match(policy, /'@whiskeysockets\/baileys>libsignal': '6.0.0'/);
   assert.ok(!lock.includes("libsignal-node"), "Baileys must use registry libsignal rather than a Git snapshot");
 });
+
+test("workflow lint omits the unused CLI glob tree affected by GHSA-vfj7-8cjw-p6xm", () => {
+  const lock = fs.readFileSync("pnpm-lock.yaml", "utf8");
+  for (const name of ["fast-glob", "micromatch", "braces"]) {
+    assert.deepEqual(resolvedVersions(lock, name), [], `Unused vulnerable glob dependency remains: ${name}`);
+  }
+});

@@ -40,7 +40,13 @@ pnpm test:coverage:node
 pnpm audit:dependencies
 ```
 
-For a documentation-only iteration, run `pnpm exec tsx --test tests/node/cli-docs-truth.test.ts` first. Its nine checks cover the documented command names, live-doc links/anchors and index, coverage, platform wording, workflows, lifecycle report version and test inventory. They do not prove every prose claim or command flag correct; manually compare changed guidance with its source. The full local gate above remains required before PR publication.
+For a documentation-only iteration, run `pnpm exec tsx --test tests/node/cli-docs-truth.test.ts` first. Its checks cover the documented command names, live-doc links/anchors and index, coverage, platform wording, workflows, lifecycle report version, test inventory, release versions/notes and executable lifecycle flags/trust boundaries. They do not prove every prose claim or command flag correct; manually compare changed guidance with its source. The full local gate above remains required before PR publication.
+
+`workflow-lint-script.test.ts` exercises the bundled WASM library after removal of its unused upstream CLI glob dependencies. It covers repository lint, action-version floors on explicit glob matches, unmatched targets, multiple/deduplicated targets, syntax diagnostics, configured additional runner labels and unrelated unknown labels. `dependency-security-overrides.test.ts` rejects the removed fast-glob/micromatch/braces subtree affected by [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm); no patched braces release was published at the October 4 repair. Use `pnpm lint:workflows`, which performs file matching with Node, rather than the upstream standalone CLI. Production/full audit failure semantics and coverage thresholds stay intact.
+
+The workflow wrapper option regression simulates successful native actionlint and Docker subprocesses while executing the real wrapper and filesystem policy checks. It verifies literal values for every string-taking flag in pinned actionlint 1.7.11, repeated flags, inline values, boolean flags, `--`, options-only default workflows, missing values and rejection of outdated actions. This validates wrapper parsing and forwarding; it does not claim a live Docker execution. Option parsing follows the upstream [flag definitions](https://github.com/rhysd/actionlint/blob/v1.7.11/command.go).
+
+The coverage-scope docs-truth check compares the documented Vitest list exactly with `vitest.config.ts`, including rejection of extra entries. Azure Foundry has provider regression tests in the normal suite, but its adapter is not included in the configured Vitest coverage report.
 
 ## Coverage Gates
 
@@ -68,7 +74,6 @@ Vitest coverage is intentionally targeted and currently measures:
 - `packages/core-runtime/src/{attachments,clock-health,context,memory,scheduler,one-shot,self-knowledge}.ts`
 - `packages/storage-sqlite/src/one-shot.ts`
 - `packages/providers-anthropic/src/index.ts`
-- `packages/providers-azure-foundry/src/index.ts`
 - `packages/providers-codex/src/index.ts`
 - `packages/providers-openai/src/index.ts`
 - `packages/providers-openai-compatible/src/index.ts`

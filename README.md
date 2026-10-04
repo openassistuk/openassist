@@ -301,6 +301,8 @@ The source dependency policy includes patched Undici `6.28.1` for provider/Disco
 
 Daemon health reports a stable instance fingerprint derived only from the resolved configuration path. Configuration and environment-file contents do not affect it, and it grants no authentication or access rights. Compatibility tests preserve existing instance IDs; account-link test fixtures allocate independent directories without credential labels.
 
+Workflow lint uses the bundled actionlint library with Node's built-in file matching. A scoped override removes its unused CLI glob dependency and the unpatched development-only `braces` advisory [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm). Use `pnpm lint:workflows`: it accepts multiple file/glob targets, rejects unmatched targets and enforces action-version policy on the selected files. Native/Docker option values such as `-ignore 'SC.*'` stay outside file matching; options alone retain the default workflow set. Audit and coverage gates remain unchanged; see the [October 4 repair evidence](docs/execplans/ci-braces-workflow-lint-2026-10-04.md).
+
 Node coverage now excludes `tests/**` from reported totals, and Vitest coverage intentionally targets the CLI library plus selected daemon, config, runtime, provider, and web-tool modules instead of claiming full-repo source coverage. The exact measured source list lives in [`docs/testing/test-matrix.md`](docs/testing/test-matrix.md).
 
 Setup readiness rejects malformed bind addresses before attempting network probes. Repair guidance is in [common troubleshooting](docs/operations/common-troubleshooting.md#invalid-bind-address).

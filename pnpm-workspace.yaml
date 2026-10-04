@@ -12,6 +12,9 @@ allowBuilds:
 
 # Narrow patched floors for transitive packages that upstream ranges still allow.
 overrides:
+  # Our WASM library adapter uses node:fs globbing, not the upstream CLI globber.
+  # Remove its unused braces dependency path (GHSA-vfj7-8cjw-p6xm; no patch).
+  '@tktco/node-actionlint@1.6.0>fast-glob': '-'
   'undici@>=6.0.0 <6.28.1': '6.28.1'
   'protobufjs@<7.6.5': '7.6.5'
   'sharp@<0.35.4': '0.35.4'

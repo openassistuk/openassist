@@ -4,15 +4,18 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { describe, it } from "node:test";
+import { pathToFileURL } from "node:url";
 
 async function runCommand(
   command: string,
   args: string[],
-  cwd: string
+  cwd: string,
+  env?: NodeJS.ProcessEnv
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return await new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
+      env,
       stdio: ["ignore", "pipe", "pipe"],
       shell: false
     });
@@ -200,6 +203,63 @@ describe("workflow lint script", () => {
       const missing = await runCommand(process.execPath, [script, ...files, path.join(root, "missing.yml")], path.resolve("."));
       assert.notEqual(missing.code, 0, missing.stdout);
       assert.match(missing.stderr, /No workflow files matched/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves native and Docker option operands without treating them as workflow targets", async () => {
+    const root = tempDir("openassist-workflow-lint-options-");
+    try {
+      const preload = path.join(root, "native-tools.mjs");
+      fs.writeFileSync(preload, `
+        import childProcess from "node:child_process";
+        import { syncBuiltinESMExports } from "node:module";
+        childProcess.spawnSync = (command, args) => {
+          if (command !== "actionlint" && command !== "docker") throw new Error("Unexpected tool: " + command);
+          const probe = args[0] === "-version" || args[0] === "version";
+          if (!probe) console.log("LINT_ARGS=" + JSON.stringify(command === "docker" ? args.slice(7) : args));
+          return { status: 0, stdout: "", stderr: "" };
+        };
+        syncBuiltinESMExports();
+      `);
+      const preloadUrl = pathToFileURL(preload).href;
+      const script = path.resolve("scripts", "dev", "lint-workflows.mjs");
+      const file = writeWorkflow(root, "valid.yml", [
+        "name: Valid", "on: push", "jobs:", "  test:", "    runs-on: ubuntu-latest",
+        "    steps:", "      - uses: actions/checkout@v7"
+      ].join("\n"));
+      const options = [
+        ["-ignore", "SC.*"], ["-ignore", "SC.*", "-ignore", "-literal"],
+        ["--ignore=SC.*"], ["-format", "{{json .}}"], ["-config-file", "custom.yaml"],
+        ["-shellcheck", ""], ["-pyflakes", "custom command"], ["-stdin-filename", "input.yml"],
+        ["-color=false", "-oneline"], ["--"]
+      ];
+      for (const mode of ["path", "docker"]) {
+        const env = { ...process.env, OPENASSIST_ACTIONLINT_MODE: mode };
+        for (const flags of options) {
+          const args = [...flags, file];
+          const result = await runCommand(process.execPath, ["--import", preloadUrl, script, ...args], path.resolve("."), env);
+          assert.equal(result.code, 0, `${mode} ${JSON.stringify(args)}: ${result.stderr}`);
+          assert.deepEqual(JSON.parse(result.stdout.split("LINT_ARGS=")[1].trim()), args);
+        }
+        const defaults = await runCommand(process.execPath, ["--import", preloadUrl, script, "-ignore", "SC.*"], path.resolve("."), env);
+        assert.equal(defaults.code, 0, defaults.stderr);
+        const forwarded = JSON.parse(defaults.stdout.split("LINT_ARGS=")[1].trim());
+        assert.deepEqual(forwarded.slice(0, 2), ["-ignore", "SC.*"]);
+        assert.ok(forwarded.slice(2).every((target: string) => target.startsWith(".github/workflows/")));
+        assert.ok(forwarded.length > 2, "Options alone must still lint default workflows");
+
+        const missing = await runCommand(process.execPath, ["--import", preloadUrl, script, "-ignore"], path.resolve("."), env);
+        assert.notEqual(missing.code, 0, missing.stdout);
+        assert.match(missing.stderr, /Missing value for actionlint option: -ignore/);
+        assert.doesNotMatch(missing.stdout, /LINT_ARGS=/);
+
+        const outdated = writeWorkflow(root, "old.yml", fs.readFileSync(file, "utf8").replace("checkout@v7", "checkout@v5"));
+        const oldResult = await runCommand(process.execPath, ["--import", preloadUrl, script, "-ignore", "SC.*", outdated], path.resolve("."), env);
+        assert.notEqual(oldResult.code, 0, oldResult.stdout);
+        assert.match(oldResult.stderr, /actions\/checkout@v5/);
+      }
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

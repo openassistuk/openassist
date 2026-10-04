@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveWorkflowTargets } from "./workflow-targets.mjs";
+import { resolveWorkflowTargets, workflowTargetPatterns } from "./workflow-targets.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..");
@@ -30,11 +30,14 @@ const defaultTargets = fs.existsSync(workflowDir)
       .map((name) => `.github/workflows/${name}`)
   : [];
 
-const hasExplicitTarget = lintArgs.some((arg) => !arg.startsWith("-"));
-const effectiveArgs =
-  lintArgs.length === 0 || !hasExplicitTarget
-    ? [...lintArgs, ...defaultTargets]
-    : lintArgs;
+let targetPatterns;
+try {
+  targetPatterns = workflowTargetPatterns(lintArgs);
+} catch (error) {
+  fail(error.message);
+}
+const effectiveArgs = targetPatterns.length === 0 ? [...lintArgs, ...defaultTargets] : lintArgs;
+const effectiveTargets = targetPatterns.length === 0 ? defaultTargets : targetPatterns;
 
 if (defaultTargets.length === 0) {
   fail("No workflow files found under .github/workflows.");
@@ -66,7 +69,7 @@ function fail(message) {
 
 function workflowTargetsForPolicy() {
   try {
-    return resolveWorkflowTargets(effectiveArgs.filter((arg) => !arg.startsWith("-")), repoRoot);
+    return resolveWorkflowTargets(effectiveTargets, repoRoot);
   } catch (error) {
     fail(error.message);
   }

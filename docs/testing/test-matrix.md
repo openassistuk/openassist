@@ -44,6 +44,8 @@ For a documentation-only iteration, run `pnpm exec tsx --test tests/node/cli-doc
 
 `workflow-lint-script.test.ts` exercises the bundled WASM library after removal of its unused upstream CLI glob dependencies. It covers repository lint, action-version floors on explicit glob matches, unmatched targets, multiple/deduplicated targets, syntax diagnostics, configured additional runner labels and unrelated unknown labels. `dependency-security-overrides.test.ts` rejects the removed fast-glob/micromatch/braces subtree affected by [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm); no patched braces release was published at the October 4 repair. Use `pnpm lint:workflows`, which performs file matching with Node, rather than the upstream standalone CLI. Production/full audit failure semantics and coverage thresholds stay intact.
 
+The workflow wrapper option regression simulates successful native actionlint and Docker subprocesses while executing the real wrapper and filesystem policy checks. It verifies literal values for every string-taking flag in pinned actionlint 1.7.11, repeated flags, inline values, boolean flags, `--`, options-only default workflows, missing values and rejection of outdated actions. This validates wrapper parsing and forwarding; it does not claim a live Docker execution. Option parsing follows the upstream [flag definitions](https://github.com/rhysd/actionlint/blob/v1.7.11/command.go).
+
 The coverage-scope docs-truth check compares the documented Vitest list exactly with `vitest.config.ts`, including rejection of extra entries. Azure Foundry has provider regression tests in the normal suite, but its adapter is not included in the configured Vitest coverage report.
 
 ## Coverage Gates

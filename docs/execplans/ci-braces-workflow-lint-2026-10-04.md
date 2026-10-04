@@ -19,15 +19,20 @@ Restore the repository's three-platform quality gate after a newly reviewed deve
 - [x] (2026-10-05) `pnpm verify:all` passes: workflow lint, build, lint, typecheck, 577 Vitest passes/1 skip, 234 Node passes/6 skips, both unchanged coverage gates and both clean audits. `git diff --check` passes.
 - [x] (2026-10-05) Review the diff, commit implementation `5f3676b07d3a41e2584446c168bc9c165c4ec23a`, push the new branch, and open/attach [PR #77](https://github.com/openassistuk/openassist/pull/77).
 - [x] (2026-10-05) All 13 hosted checks pass on implementation `5f3676b`; three production-publication jobs skip as expected. Separate scanner queries return zero open CodeQL/Dependabot alerts and PR review threads are empty. Record the final evidence revision's recheck in PR #77's validation section.
+- [x] (2026-10-05) Delegated read-only review finds option operands misclassified as targets. New executable regression reproduces `No workflow files matched: SC.*` before repair; implement option-aware file selection while forwarding original arguments.
+- [x] (2026-10-05) All 20 focused workflow/docs tests pass after the repair; native/Docker simulations also verify missing values, default files and retained outdated-action failures.
+- [x] (2026-10-05) Review follow-up passes `pnpm verify:all`: 577 Vitest passes/1 skip, 235 Node passes/6 skips, unchanged passing coverage and both audits at zero findings. Review the final diff and retain current-head hosted results separately in PR #77's validation section after pushing.
 
 ## Surprises & Discoveries
 
 
 Scheduled CI runs 37114809510 (October 3) and 37196152345 (October 4) fail only in the final full dependency audit on Linux/macOS/Windows; builds, tests and coverage pass. Baseline audits show zero production findings and one high development finding: `GHSA-vfj7-8cjw-p6xm`, stack-exhaustion denial of service in `braces <=3.0.3`. The registry and GitHub advisory both report no published patch. The path is `@tktco/node-actionlint@1.6.0 -> fast-glob -> micromatch -> braces`.
 
-The linter's CommonJS library exports `runLint` and `getLintLog` without importing its standalone CLI's glob module. `scripts/dev/lint-workflows-node.mjs` already uses Node 24 `fs.globSync`; removing the unused CLI dependency preserves the actually used library. The wrapper currently filters wildcard targets out of action-version policy validation, falling back to tracked workflows, and the adapter reports success for zero glob matches.
+The linter's CommonJS library exports `runLint` and `getLintLog` without importing its standalone CLI's glob module. `scripts/dev/lint-workflows-node.mjs` already uses Node 24 `fs.globSync`; removing the unused CLI dependency preserves the actually used library. Before repair, the wrapper filtered wildcard targets out of action-version policy validation, falling back to tracked workflows, and the adapter reported success for zero glob matches.
 
 The existing coverage docs-truth assertion only required configured entries to be present. The test matrix additionally claimed the Azure Foundry adapter was measured, although it is absent from `vitest.config.ts`. Exact list equality reproduces that mismatch; correction removes only the extra documentation claim.
+
+The delegated review identified that filtering only leading-dash arguments retains `-ignore`'s `SC.*` operand as a glob. It also prevents option-only invocations from choosing default files. An executable wrapper test with simulated successful external commands reproduces the failure. Inspecting actionlint 1.7.11's `command.go` confirms six string-valued flags and Go's stop-at-first-positional parsing. The follow-up separates target discovery from unchanged argument forwarding.
 
 ## Decision Log
 
@@ -40,13 +45,16 @@ Decision: Preserve package versions, production dependencies and published relea
 
 Decision: Correct the excess documented Azure coverage entry and strengthen exact-list comparison rather than expand the coverage configuration. Rationale: the observed defect is a false documentation claim; provider behavior and existing coverage scope/thresholds remain intact. Date/author: 2026-10-05, Codex.
 
+Decision: Parse operands for the pinned upstream string flags, including repeatable/inline forms, double dashes and the end-of-options marker, before deciding default targets and policy files. Rationale: native/Docker receives original arguments and handles its own flags; only actual positional targets should reach filesystem matching. Reject missing option values before appending defaults. Tests simulate external subprocesses but exercise the real wrapper and filesystem policy on both paths. Date/author: 2026-10-05, Codex.
+
 ## Outcomes & Retrospective
 
 
 Implementation, documentation and local/hosted validation are complete in [PR #77](https://github.com/openassistuk/openassist/pull/77). Frozen installation prunes only the unused development glob subtree, all 28 focused dependency/workflow/audit/docs checks pass, and `pnpm verify:all` passes with both audits at zero findings. All 13 checks on implementation `5f3676b` pass, including three-platform quality/coverage/audits, full JavaScript/TypeScript analysis, live macOS LaunchAgent, four native artifact jobs and ephemeral signing. Three publication-related jobs skip intentionally. Final evidence-only revision results are maintained in the PR's validation section and must be checked separately; this source evidence does not certify a later head automatically. Review approval is required and no merge has been performed. No new live provider/channel certification or release publication is claimed.
 
-## Context and Orientation
+The completed hosted validation above records the original repair. The review follow-up passes all 20 focused tests and full `pnpm verify:all` (577 Vitest passes, 235 Node passes, unchanged coverage and clean audits). Its current-head hosted verification is recorded separately in PR #77's validation section; no previous green check certifies this newer revision. Native/Docker option regressions simulate external commands and exercise the real wrapper/policy filesystem checks; no live Docker test is claimed.
 
+## Context and Orientation
 
 `pnpm-workspace.yaml` holds dependency policy; `pnpm-lock.yaml` records exact installed dependencies. `scripts/dev/lint-workflows.mjs` selects native actionlint, the bundled WebAssembly library (a compiled linter that Node runs), or Docker, and applies action-version policy. `scripts/dev/lint-workflows-node.mjs` feeds file text into that library and honors explicit additional runner labels. `scripts/dev/audit-dependencies.mjs` retains registry reports and rejects high/critical findings or incomplete responses. `tests/node/dependency-security-overrides.test.ts` and `tests/node/workflow-lint-script.test.ts` provide regression coverage. `tests/node/cli-docs-truth.test.ts` validates documentation against real commands, workflows and coverage configuration.
 
@@ -58,6 +66,8 @@ Milestone 1 adds a resolved-tree absence regression and executable workflow case
 Milestone 2 fixes target matching in the adapter and policy checker, keeping actual actionlint diagnostics and custom runner labels intact. Validate real invalid workflow syntax and unknown runner labels alongside accepted configured labels. Support multiple plain file/glob targets through the existing library if target handling requires it; unsupported flags retain fallback behavior. Update README, AGENTS, docs index, test matrix, threat model and Unreleased changelog with the dependency boundary and validation behavior.
 
 Milestone 3 runs focused regressions and the full local gate, reviews accidental edits and security/reliability boundaries, and creates the requested PR. Inspect all actual final-head hosted jobs, scanner alerts and review threads independently. Record passing, failed and skipped checks accurately; never treat publication skips as publication evidence.
+
+The review follow-up adds `workflowTargetPatterns(args)` in `scripts/dev/workflow-targets.mjs` and uses it for both default selection and policy targeting in `scripts/dev/lint-workflows.mjs`. Test native/Docker invocations through temporary Node preload fixtures that simulate successful subprocesses; verify the requested targets still face action-version policy. Keep forwarding literal arguments, unchanged dependency removals and the bundled no-flags route. Synchronize the affected developer docs and changelog, run focused/full verification, and push the correction to PR #77.
 
 ## Concrete Steps
 
@@ -92,6 +102,8 @@ Full local verification is retained in `coverage/ci-repair/verify-all.log`. Vite
 
 Hosted implementation evidence at full commit `5f3676b07d3a41e2584446c168bc9c165c4ec23a`: [CI 37242380375](https://github.com/openassistuk/openassist/actions/runs/37242380375), [CodeQL 37242380308](https://github.com/openassistuk/openassist/actions/runs/37242380308), [macOS Live Launchd 37242380405](https://github.com/openassistuk/openassist/actions/runs/37242380405) and [Release Artifacts 37242380309](https://github.com/openassistuk/openassist/actions/runs/37242380309) all succeed. CI logs confirm both audits at zero findings on each OS. Separate final scanner queries return zero open alerts; PR #77 has no review threads. Publication prerequisites, production signing/publish and public installation skip on the PR; ephemeral signing succeeds. Hosted artifacts are test evidence, not new published packages.
 
+Review follow-up evidence is retained in `coverage/ci-repair/options-before.log` (reproduces the reported missing SC.* workflow), `options-focused.log` (20 passes) and `options-verify-all.log` (full gate succeeds with 235 Node passes and the same coverage/audit results). Final correction-commit check URLs and independent scanner/review results belong in PR #77's validation section; the previous implementation/evidence commits' successes remain historical records.
+
 ## Interfaces and Dependencies
 
 
@@ -108,3 +120,9 @@ Revision note (2026-10-05): Record successful full local verification, exact tes
 Revision note (2026-10-05): Record the actual implementation commit and attached PR #77; keep hosted completion pending until every relevant job concludes.
 
 Revision note (2026-10-05): Reconcile 13 successful implementation checks, expected publication skips, clean three-platform audits and independent scanner/review results. Final evidence-only commits require a separate current-head recheck recorded in the PR body; leave review/merge and publication to their authorized workflows.
+
+Revision note (2026-10-05): Reopen follow-up verification for the delegated review finding, preserve original evidence and document upstream-aligned option parsing plus native/Docker wrapper regressions.
+
+Revision note (2026-10-05): Record 20 passing focused tests and retain pending full verification separately from historical green checks.
+
+Revision note (2026-10-05): Record successful full follow-up verification and its regression evidence; current-head hosted reconciliation is maintained separately in PR #77's validation section without treating older green runs as certification.

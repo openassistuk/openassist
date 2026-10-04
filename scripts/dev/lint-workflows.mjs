@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveWorkflowTargets } from "./workflow-targets.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..");
@@ -64,12 +65,11 @@ function fail(message) {
 }
 
 function workflowTargetsForPolicy() {
-  const explicitTargets = effectiveArgs
-    .filter((arg) => !arg.startsWith("-"))
-    .filter((arg) => !arg.includes("*") && !arg.includes("?"));
-  const targets = explicitTargets.length > 0 ? explicitTargets : defaultTargets;
-  return targets
-    .map((target) => (path.isAbsolute(target) ? target : path.join(repoRoot, target)));
+  try {
+    return resolveWorkflowTargets(effectiveArgs.filter((arg) => !arg.startsWith("-")), repoRoot);
+  } catch (error) {
+    fail(error.message);
+  }
 }
 
 function parseTaggedActionMajor(ref) {
@@ -129,28 +129,17 @@ function runPathActionlint() {
   finishLint(run("actionlint", effectiveArgs));
 }
 
-function hasNodeActionlintBin() {
-  return fs.existsSync(path.join(repoRoot, "node_modules", "@tktco", "node-actionlint", "bin", "node-actionlint.js"));
+function hasNodeActionlintLibrary() {
+  return fs.existsSync(path.join(repoRoot, "node_modules", "@tktco", "node-actionlint", "build", "index.js"));
 }
 
 function runNodeActionlint() {
-  const target = resolveNodeActionlintTarget();
-  if (!target) {
+  if (lintArgs.some(arg => arg.startsWith("-"))) {
     runDockerActionlint();
     return;
   }
   const cliPath = path.join(repoRoot, "scripts", "dev", "lint-workflows-node.mjs");
-  finishLint(run(process.execPath, [cliPath, target]));
-}
-
-function resolveNodeActionlintTarget() {
-  if (lintArgs.length === 0) {
-    return ".github/workflows/*.y*ml";
-  }
-  if (lintArgs.length === 1 && !lintArgs[0].startsWith("-")) {
-    return lintArgs[0];
-  }
-  return null;
+  finishLint(run(process.execPath, [cliPath, ...effectiveArgs]));
 }
 
 function runDockerActionlint() {
@@ -181,7 +170,7 @@ if (canRun("actionlint", ["-version"])) {
   runPathActionlint();
 }
 
-if (hasNodeActionlintBin()) {
+if (hasNodeActionlintLibrary()) {
   runNodeActionlint();
 }
 

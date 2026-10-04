@@ -2,9 +2,16 @@
 // repository's explicit additional runner labels without suppressing other rules.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { resolveWorkflowTargets } from './workflow-targets.mjs';
 const require=createRequire(import.meta.url);
 const {runLint,getLintLog}=require('@tktco/node-actionlint');
-const files=fs.globSync(process.argv[2]).map(file=>({path:file,data:fs.readFileSync(file,'utf8')}));
+let files;
+try {
+  files=resolveWorkflowTargets(process.argv.slice(2)).map(file=>({path:file,data:fs.readFileSync(file,'utf8')}));
+} catch(error) {
+  console.error(error.message);
+  process.exit(1);
+}
 const config=fs.existsSync('.github/actionlint.yaml')?fs.readFileSync('.github/actionlint.yaml','utf8'):'';
 const labels=new Set([...config.matchAll(/^\s+- ([a-z0-9-]+)\s*$/gm)].map(m=>m[1]));
 const results=[];

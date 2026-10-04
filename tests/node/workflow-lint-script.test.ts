@@ -129,4 +129,79 @@ describe("workflow lint script", () => {
     assert.match(result.stderr, /github\/codeql-action\/init@v3/);
     assert.match(result.stderr, /github\/codeql-action\/analyze@v3/);
   });
+
+  it("rejects an unmatched workflow glob instead of reporting a clean lint", async () => {
+    const root = tempDir("openassist-workflow-lint-missing-");
+    try {
+      for (const script of ["lint-workflows.mjs", "lint-workflows-node.mjs"]) {
+        const result = await runCommand(process.execPath, [
+          path.resolve("scripts", "dev", script), path.join(root, "*.yml")
+        ], path.resolve("."));
+        assert.notEqual(result.code, 0, result.stdout);
+        assert.match(result.stderr, /No workflow files matched/);
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("enforces action versions on the actual files selected by an explicit glob", async () => {
+    const root = tempDir("openassist-workflow-lint-glob-");
+    try {
+      writeWorkflow(root, "old.yml", [
+        "name: Old", "on: push", "jobs:", "  test:", "    runs-on: ubuntu-latest",
+        "    steps:", "      - uses: actions/checkout@v5"
+      ].join("\n"));
+      const result = await runCommand(process.execPath, [
+        path.resolve("scripts", "dev", "lint-workflows.mjs"), path.join(root, "*.yml")
+      ], path.resolve("."));
+      assert.notEqual(result.code, 0, result.stdout);
+      assert.match(result.stderr, /Workflow action version policy failed/);
+      assert.match(result.stderr, /actions\/checkout@v5/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps WASM syntax checks and configured runner-label validation active", async () => {
+    const root = tempDir("openassist-workflow-lint-wasm-");
+    try {
+      for (const [runner, step, success, diagnostic] of [
+        ["macos-15-intel", "run: echo ok", true, /passed lint checks/],
+        ["openassist-unknown-runner", "run: echo ok", false, /runner-label/],
+        ["ubuntu-latest", "uses: actions/checkout@v7\n        invalid-field: true", false, /invalid-field/]
+      ] as const) {
+        const file = writeWorkflow(root, "fixture.yml", [
+          "name: Fixture", "on: push", "jobs:", "  test:", `    runs-on: ${runner}`,
+          "    steps:", `      - ${step}`
+        ].join("\n"));
+        const result = await runCommand(process.execPath, [
+          path.resolve("scripts", "dev", "lint-workflows-node.mjs"), file
+        ], path.resolve("."));
+        assert.equal(result.code === 0, success, result.stderr || result.stdout);
+        assert.match(result.stdout + result.stderr, diagnostic);
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("checks multiple targets, deduplicates matches and rejects a missing target among valid ones", async () => {
+    const root = tempDir("openassist-workflow-lint-targets-");
+    try {
+      const files = ["first.yml", "second.yaml"].map(name => writeWorkflow(root, name, [
+        "name: Valid", "on: push", "jobs:", "  test:", "    runs-on: ubuntu-latest",
+        "    steps:", "      - uses: actions/checkout@v7"
+      ].join("\n")));
+      const script = path.resolve("scripts", "dev", "lint-workflows.mjs");
+      const valid = await runCommand(process.execPath, [script, ...files, path.join(root, "*.yml")], path.resolve("."));
+      assert.equal(valid.code, 0, valid.stderr || valid.stdout);
+      assert.match(valid.stdout, /Checking 2 workflow file\(s\)/);
+      const missing = await runCommand(process.execPath, [script, ...files, path.join(root, "missing.yml")], path.resolve("."));
+      assert.notEqual(missing.code, 0, missing.stdout);
+      assert.match(missing.stderr, /No workflow files matched/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

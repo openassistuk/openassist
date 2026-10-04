@@ -165,6 +165,7 @@ Current housekeeping and release-evidence records:
 - [v0.2.1 patch release evidence](execplans/stable-0.2.1-release.md): reviewed main/tag, shell-free Windows source commands, protected signing, four-target public installation and independent production-signature verification.
 - [v0.2.2 stable release evidence](execplans/stable-0.2.2-release.md): model refresh, reviewed main/tag, exact-main CI/CodeQL, protected signing, independent production signatures/digests and four-target public installation; retain the initial Mac network failure and successful verification-only retry separately.
 - [Deterministic setup test and publication prerequisites](execplans/release-ci-gates-2026-10-01.md): scoped bind-probe isolation and automated exact-commit CI/CodeQL verification.
+- [October 4 CI audit and workflow lint repair](execplans/ci-braces-workflow-lint-2026-10-04.md): remove unused development-only glob dependencies affected by an unpatched braces advisory, reject unmatched lint targets, enforce policy on actual glob matches and reconcile the exact documented coverage scope.
 - [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
 
 Historical implementation plans (retain their original evidence and read any reconciliation notes):

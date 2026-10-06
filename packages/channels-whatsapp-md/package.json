@@ -17,7 +17,7 @@
   "dependencies": {
     "@openassist/core-types": "workspace:*",
     "@whiskeysockets/baileys": "6.7.24",
-    "pino": "^10.3.1",
+    "pino": "^10.4.0",
     "zod": "^4.6.5"
   }
 }

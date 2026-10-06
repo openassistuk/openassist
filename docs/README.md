@@ -167,6 +167,7 @@ Current housekeeping and release-evidence records:
 - [Deterministic setup test and publication prerequisites](execplans/release-ci-gates-2026-10-01.md): scoped bind-probe isolation and automated exact-commit CI/CodeQL verification.
 - [October 4 CI audit and workflow lint repair](execplans/ci-braces-workflow-lint-2026-10-04.md): remove unused development-only glob dependencies affected by an unpatched braces advisory, reject unmatched lint targets, enforce policy on actual glob matches, preserve native/Docker option operands and reconcile the exact documented coverage scope.
 - [October 6 source-map tooling audit repair](execplans/ci-source-map-audit-2026-10-06.md): resolve development-only source-map-js to patched `1.2.2`, enforce its lockfile regression floor and retain unchanged audit/coverage gates with separate local and hosted evidence.
+- [Dependency PR #78 preparation](execplans/dependabot-pr-78-2026-10-06.md): rebase six routine SDK/type/test-tool updates onto the CI repair, preserve patched floors and validate existing provider contracts and unchanged gates before reviewed merging.
 - [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
 
 Historical implementation plans (retain their original evidence and read any reconciliation notes):

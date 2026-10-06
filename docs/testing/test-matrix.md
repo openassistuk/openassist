@@ -26,6 +26,8 @@ pnpm verify:all
 
 `verify:all` executes workflow lint, build, lint, typecheck, both test runners, both coverage gates, and production/full dependency audits. Audit reports are retained under `coverage/audit`; high/critical findings and registry failures fail the gate.
 
+`dependency-security-overrides.test.ts` also requires every locked `source-map-js` version to meet patched floor `1.2.2` for [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q). The affected paths belong to Vite/PostCSS and coverage-v8/magicast development tooling. The regression fails on the prior `1.2.1` resolution; production dependency scope and all coverage/audit thresholds remain unchanged. See the [October 6 repair evidence](../execplans/ci-source-map-audit-2026-10-06.md).
+
 ## Local Command Breakdown
 
 ```bash

@@ -15,6 +15,7 @@ overrides:
   # Our WASM library adapter uses node:fs globbing, not the upstream CLI globber.
   # Remove its unused braces dependency path (GHSA-vfj7-8cjw-p6xm; no patch).
   '@tktco/node-actionlint@1.6.0>fast-glob': '-'
+  'source-map-js@>=1.0.0 <1.2.2': '1.2.2'
   'undici@>=6.0.0 <6.28.1': '6.28.1'
   'protobufjs@<7.6.5': '7.6.5'
   'sharp@<0.35.4': '0.35.4'

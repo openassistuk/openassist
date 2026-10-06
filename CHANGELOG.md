@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- 2026-10-06: Refresh seven routine dependencies after the CI audit repair: OpenAI SDK `7.27.0`, Anthropic SDK `0.131.0`, paired Vitest/coverage-v8 `5.0.3`, Luxon types `3.7.6`, Node types `24.19.1` and Pino `10.4.0`. Retain Node 24 support, source-map-js `1.2.2` and existing security overrides. Validate provider/auth/replay contracts, real JSON logger output and configured credential redaction with unchanged coverage/audit gates; additional vendor SDK capabilities remain outside OpenAssist's advertised model/tool surfaces. Published `v0.2.2` assets are unchanged.
+
 - 2026-10-06: Restore scheduled Linux/macOS/Windows full dependency audits by resolving development-only `source-map-js` to `1.2.2` through a scoped affected-version override. Address high-severity indexed source-map event-loop denial-of-service advisory GHSA-68fv-2mgg-jv7q on Vite/PostCSS and coverage-v8/magicast paths; add a lockfile regression floor and synchronize contributor/security/testing guidance. Preserve production dependencies, published packages and audit/coverage gates.
 
 - 2026-10-05: Preserve native/Docker workflow-lint options such as `-ignore 'SC.*'` by excluding option operands from workflow matching and retaining default targets for options-only invocations. Cover literal forwarding, repeated/inline options, missing values and unchanged action-version enforcement in executable wrapper regressions.

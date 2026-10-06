@@ -16,7 +16,7 @@ Restore Linux, macOS and Windows quality checks by removing the vulnerable devel
 - [x] (2026-10-06 12:31Z) Demonstrate the patched-floor regression failing before repair; update only source-map-js to `1.2.2`, complete frozen installation and synchronize documentation.
 - [x] (2026-10-06 12:34Z) Pass all 14 focused dependency/docs-truth checks and review the dependency, regression and documentation diff.
 - [x] (2026-10-06 12:35Z) Pass `pnpm verify:all`, both unchanged coverage gates and zero-finding production/full audits; no additional concrete repository errors found.
-- [ ] Open a PR and reconcile current-head hosted CI, CodeQL, artifact and macOS service results in the PR validation notes.
+- [x] (2026-10-06 12:46Z) Publish [PR #79](https://github.com/openassistuk/openassist/pull/79); implementation `9ee87b9` passes all 13 hosted checks after the artifact rerun. Track the later evidence-only head separately in the PR validation notes.
 
 ## Surprises & Discoveries
 
@@ -29,6 +29,8 @@ The new floor fails on the original lockfile with `source-map-js@1.2.1 is below 
 
 Separate queries on October 6 found zero open CodeQL alerts, zero open Dependabot alerts, zero open issues and no review threads on the one open dependency PR #78. Its previous green checks predate this audit finding and do not certify the current registry state. Recent main CodeQL and service smoke runs passed; historical failures already repaired by PR #77 remain historical evidence.
 
+PR #79's first Intel macOS artifact attempt failed before repository code at `npm install`: `getaddrinfo ENOTFOUND registry.npmjs.org`. Rerunning the failed workflow succeeds on the unchanged implementation head, including all four artifact targets and the signing-contract check. Retain the initial infrastructure failure separately from attempt 2; no workflow retry loop or audit bypass was added.
+
 ## Decision Log
 
 
@@ -38,6 +40,10 @@ Separate queries on October 6 found zero open CodeQL alerts, zero open Dependabo
 
 The user's request authorizes fixes and a new PR. Work as one agent; the previous review delegation does not authorize delegation for this task.
 
+- Decision: Rerun the failed hosted artifact workflow without changing source or adding retries.
+  Rationale: The failure was DNS lookup during pnpm installation, and the unchanged-head rerun passed. A registry outage is not a source-code defect.
+  Date/Author: 2026-10-06 / Codex.
+
 ## Outcomes & Retrospective
 
 
@@ -45,7 +51,9 @@ Diagnosis, implementation and local validation are complete: all 14 focused chec
 
 Vitest statements/branches/functions/lines are 83.24/74.35/85.85/84.22 percent. Node coverage is 80.15/73.67/86.07/80.15 percent. All existing thresholds remain intact. Build, lint, types, docs-truth, test inventory, workflow lint and dependency checks reveal no additional actionable repository failures. Published packages are unchanged.
 
-PR publication and current-head hosted verification remain pending. Record exact heads and run links in the PR body, independently of the source plan snapshot; a green historical run or local result alone does not certify a new PR head.
+[PR #79](https://github.com/openassistuk/openassist/pull/79) implementation `9ee87b9a1c7cc9de909d4d1173c1fa27a3678fe2` passes all 13 hosted checks: [CI](https://github.com/openassistuk/openassist/actions/runs/37464530918), [CodeQL](https://github.com/openassistuk/openassist/actions/runs/37464530887), [live macOS LaunchAgent](https://github.com/openassistuk/openassist/actions/runs/37464531053) and [release artifacts/signing contract, attempt 2](https://github.com/openassistuk/openassist/actions/runs/37464530961/attempts/2). Both audits report zero findings on every quality-matrix platform. The three production-publication jobs skip as expected for a PR. Separate post-analysis queries find zero open security alerts and no unresolved PR review threads.
+
+This reconciliation adds documentation after the tested implementation. Its own exact-head checks are maintained in PR #79's validation notes; the implementation results above do not certify that later revision. No merge, production signing/publication or live provider/channel certification is performed by this repair.
 
 ## Context and Orientation
 
@@ -86,11 +94,11 @@ The override and frozen installation can be repeated. No operator state, service
 ## Artifacts and Notes
 
 
-Main/base: `b95f04b3a02c54242f46bec52b37324ad3a4f6da`. Failed hosted run: 37456157419. Local pre-repair audit: `coverage/ci-repair-2026-10-06/audit-before.json`. Hosted audit: `coverage/ci-repair-2026-10-06/ubuntu-before/audit/all.json`. Before-repair regression log: `regression-before.log`; passing 14-check log: `focused.log`; passing complete gate: `verify-all.log`, all in the same ignored evidence directory. Final review found no accidental source edits, new dependencies, secrets, debug code or gate changes.
+Main/base: `b95f04b3a02c54242f46bec52b37324ad3a4f6da`. Failed hosted run: 37456157419. Local pre-repair audit: `coverage/ci-repair-2026-10-06/audit-before.json`. Hosted audit: `coverage/ci-repair-2026-10-06/ubuntu-before/audit/all.json`. Before-repair regression log: `regression-before.log`; passing 14-check log: `focused.log`; passing complete gate: `verify-all.log`; source CI's zero-finding audits: `source-ci.log`; initial DNS failure: `artifacts-failed.log`, all in the same ignored evidence directory. Final review found no accidental source edits, new dependencies, secrets, debug code or gate changes.
 
 ## Interfaces and Dependencies
 
 
 No runtime interfaces or new production dependencies are introduced. Keep the existing pnpm patched-floor mechanism, Node regression helper and audit entrypoint.
 
-Revision note (2026-10-06): create the plan from actual scheduled failure, local audit, advisory and independent repository-state evidence before repair; then record the failing regression, scoped dependency diff, frozen installation, 14 passing focused checks and complete local verification/coverage/audit results.
+Revision note (2026-10-06): create the plan from actual scheduled failure, local audit, advisory and independent repository-state evidence before repair; then record the failing regression, scoped dependency diff, frozen installation, 14 passing focused checks and complete local verification/coverage/audit results. Reconcile PR #79's exact implementation checks, retain the initial artifact DNS failure and successful rerun separately, and require separate validation for this evidence-only revision.

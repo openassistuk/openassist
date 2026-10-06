@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- 2026-10-06: Restore scheduled Linux/macOS/Windows full dependency audits by resolving development-only `source-map-js` to `1.2.2` through a scoped affected-version override. Address high-severity indexed source-map event-loop denial-of-service advisory GHSA-68fv-2mgg-jv7q on Vite/PostCSS and coverage-v8/magicast paths; add a lockfile regression floor and synchronize contributor/security/testing guidance. Preserve production dependencies, published packages and audit/coverage gates.
+
 - 2026-10-05: Preserve native/Docker workflow-lint options such as `-ignore 'SC.*'` by excluding option operands from workflow matching and retaining default targets for options-only invocations. Cover literal forwarding, repeated/inline options, missing values and unchanged action-version enforcement in executable wrapper regressions.
 
 - 2026-10-04: Restore scheduled Linux/macOS/Windows CI audits by removing the unused actionlint CLI fast-glob/micromatch/braces development dependency path affected by unpatched high-severity stack-exhaustion advisory GHSA-vfj7-8cjw-p6xm. Keep the bundled WASM syntax linter, runner-label checks, production dependencies and audit/coverage gates intact. Workflow lint now rejects unmatched targets, checks action-version policy on actual glob-selected files and accepts multiple targets without Docker fallback. Correct the documented Vitest coverage scope and reject extra scope claims in docs-truth validation; published packages remain unchanged.

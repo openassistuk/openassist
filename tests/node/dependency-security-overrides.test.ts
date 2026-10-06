@@ -8,9 +8,9 @@ function resolvedVersions(lock: string, name: string): string[] {
   return [...new Set([...lock.matchAll(pattern)].map(match => match[1]))];
 }
 
-test("the resolved tree covers the Dependabot snapshot, CI #391 and post-release Axios advisories", () => {
+test("the resolved tree covers the Dependabot snapshot and subsequent CI audit advisories", () => {
   const lock = fs.readFileSync("pnpm-lock.yaml", "utf8");
-  // Patched floors for the 72-alert snapshot, CI #391 and the final 0.2.0 audit.
+  // Patched floors for the 72-alert snapshot and subsequent dependency audits.
   const floors: Record<string, string> = {
     "@protobufjs/utf8": "1.1.1",
     "@vitest/mocker": "4.1.11",
@@ -24,6 +24,7 @@ test("the resolved tree covers the Dependabot snapshot, CI #391 and post-release
     postcss: "8.5.23",
     protobufjs: "7.6.5",
     sharp: "0.35.4",
+    "source-map-js": "1.2.2",
     undici: "6.28.1",
     vite: "6.4.3",
     vitest: "4.1.11",

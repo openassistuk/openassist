@@ -28,7 +28,7 @@ pnpm verify:all
 
 `dependency-security-overrides.test.ts` also requires every locked `source-map-js` version to meet patched floor `1.2.2` for [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q). The affected paths belong to Vite/PostCSS and coverage-v8/magicast development tooling. The regression fails on the prior `1.2.1` resolution; production dependency scope and all coverage/audit thresholds remain unchanged. See the [October 6 repair evidence](../execplans/ci-source-map-audit-2026-10-06.md).
 
-Routine SDK upgrades use the existing OpenAI, Codex, Azure Foundry, compatible-endpoint and Anthropic provider suites plus Node runtime provider-contract/auth tests. Check request mapping, stream folding/replay, auth boundaries and catalog gating without enabling new vendor helpers. Keep Vitest and coverage-v8 versions paired and run both existing coverage gates after test-tool updates; [PR #78 preparation](../execplans/dependabot-pr-78-2026-10-06.md) records the October 6 dependency validation.
+Routine SDK upgrades use the existing OpenAI, Codex, Azure Foundry, compatible-endpoint and Anthropic provider suites plus Node runtime provider-contract/auth tests. Check request mapping, stream folding/replay, auth boundaries and catalog gating without enabling new vendor helpers. Keep Vitest and coverage-v8 versions paired and run both existing coverage gates after test-tool updates; [PR #80 preparation](../execplans/dependabot-pr-80-2026-10-06.md), including its replacement of #78, records the October 6 dependency validation. `observability-logger.test.ts` checks real built-logger JSON output, quoted child bindings and configured credential redaction during the Pino update, complementing the existing deep-redaction helper tests.
 
 ## Local Command Breakdown
 
@@ -216,6 +216,7 @@ Current suite files under `tests/node/`:
 - `runtime-version.test.ts`
 - `release-publication-checks.test.ts`
 - `whatsapp-signal-compatibility.test.ts`
+- `observability-logger.test.ts`
 - `scheduler-runtime.test.ts`
 - `storage.test.ts`
 - `systemd-template-contract.test.ts`

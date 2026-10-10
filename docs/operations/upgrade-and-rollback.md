@@ -1,6 +1,6 @@
 # Upgrade and rollback
 
-The [v0.2.3 patch](../releases/v0.2.3.md) is prepared but unpublished. Stable updates currently select `v0.2.2`; the new notes' exact-version commands apply only after protected publication and public verification. Follow the [release plan](../execplans/stable-0.2.3-release.md) for that evidence; existing exact pins remain unchanged until explicitly selected.
+The signed [v0.2.3 patch](../releases/v0.2.3.md) is published and stable updates select it. The [release evidence](../execplans/stable-0.2.3-release.md) records exact-main checks, protected signing, independent signatures/digests and four-target public installation. Existing exact pins remain unchanged until explicitly selected.
 
 Activation and rollback derive daemon identity from the executing application's build metadata. The successful install record is still committed only after verification; the daemon refreshes its update track from that matching record. Archive preparation resolves complete link chains before extraction and rejects links that escape the installation, including traversal hidden behind another link.
 
@@ -27,7 +27,7 @@ openassist update --source --pr 123 --yes
 
 Exact versions remain pinned until changed. Release/source selectors cannot be combined. `--ref` and `--pr` keep their source meanings through the `upgrade` alias. PR tracks require an explicit target each time. Source builds record the resolved commit; dirty original checkouts are preserved and block migration.
 
-Packaged apps include private Node. Source builds need the pinned development toolchain. Signed [v0.2.2](../releases/v0.2.2.md) is the current stable publication, with model refresh and verified public installation on all four targets. Select stable explicitly or use `openassist update --version 0.2.2 --dry-run` followed by `openassist update --version 0.2.2` for an exact pin. Updating preserves saved model IDs and tuning; use `openassist setup wizard` to adopt new recommendations or repair retired selections. Release selection fails closed when an asset, signature or prerequisite is unavailable. See [release maintenance](release-maintenance.md).
+Packaged apps include private Node. Source builds need the pinned development toolchain. Signed [v0.2.3](../releases/v0.2.3.md) is the current stable publication, with media-security repairs and verified public installation on all four targets. Select stable explicitly or use `openassist update --version 0.2.3 --dry-run` followed by `openassist update --version 0.2.3` for an exact pin. Updating preserves saved model IDs and tuning; use `openassist setup wizard` for deliberate configuration changes or repair. Release selection fails closed when an asset, signature or prerequisite is unavailable. See [release maintenance](release-maintenance.md).
 
 ## Activation and health
 

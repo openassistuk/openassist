@@ -18,7 +18,7 @@ Linux and macOS are the first-class operator platforms for lifecycle and service
 
 ## Primary Local Gate
 
-Stable `0.2.3` preparation reuses existing executable/version/release-notes assertions, dependency security floors, real WhatsApp media/logger/provider contracts and unchanged full quality/coverage/audit gates. The [release plan](../execplans/stable-0.2.3-release.md) records actual candidate and exact-main outcomes separately from future signing/public-install results; no publication or live provider/channel certification is inferred from preparation.
+Stable `0.2.3` reuses existing executable/version/release-notes assertions, dependency security floors, real WhatsApp media/logger/provider contracts and unchanged full quality/coverage/audit gates. The [release evidence](../execplans/stable-0.2.3-release.md) records PR #82/main/tag `cc29135`, successful exact-main CI `38076375804` and full CodeQL `38076375795`, and zero production/full audits across all three quality platforms. Publication `38076780488` passes four native packages, Linux candidate quality/lifecycle checks, signing contracts, protected production signing and all four stable-channel/exact-version public installations with update planning and data-preserving uninstall. Both production signatures and all sixteen asset digests independently verify; no retry or asset replacement was needed. These results do not certify separate fresh-host/live provider/channel sessions.
 
 Run this before merge:
 

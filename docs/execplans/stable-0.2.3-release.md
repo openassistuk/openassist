@@ -14,7 +14,7 @@ Deliver the merged media-security, dependency and CI repairs to packaged install
 - [x] (2026-10-10 preparation) Confirm latest public stable is immutable `v0.2.2`, no `v0.2.3` tag/release exists and main is `ad2146255867260d7835c9248590011baf824b32`. Its CI `38073813356` and full CodeQL `38073813376` pass, with zero production/full audit findings on all three quality platforms. Separate code-scanning/Dependabot queries return zero alerts.
 - [x] (2026-10-10 branch) Create `codex/release-0.2.3` from current clean main. Inspect project/release instructions, existing notes, executable-version contracts, publication workflow and actual main/environment protections. Work as a single agent.
 - [x] (2026-10-10 candidate edits) Align root/CLI/daemon versions, versioned changelog, release notes and affected docs; retain `v0.2.2` public availability.
-- [ ] Commit candidate metadata before source-clone tests, verify frozen installation and complete `pnpm verify:all`, executable-version checks and final diff review.
+- [x] (2026-10-10 local validation) Commit candidate metadata before source-clone tests, verify frozen installation and complete `pnpm verify:all`, executable-version checks and final diff review.
 - [ ] Open/attach the preparation PR, inspect all exact-head hosted checks and separately reconcile scanner alerts/review threads. Obtain the required approving review and merge without an admin bypass.
 - [ ] Verify the actual merged-main commit, authorize only its new exact tag, preserve environment reviewers and dispatch protected stable publication from that tag.
 - [ ] Verify production signatures/digests and four public-install targets. Reconcile actual availability/evidence through a separately reviewed documentation PR; sync main and remove stale merged branches.
@@ -38,7 +38,9 @@ Decision (2026-10-10): preserve all main/environment review rules, dependency fl
 ## Outcomes & Retrospective
 
 
-Baseline main is healthy and candidate metadata/docs are prepared on the isolated release branch. Local/hosted verification, required review/merge and publication remain in progress. No `0.2.3` tag, release or current-public-availability claim exists. Earlier releases remain immutable; fresh replacement-host and second-account provider/channel sessions are still unverified.
+Candidate `eccbd0d577f591dbd4514d73cbc4ed5b0b06df3d` passes frozen installation and `pnpm verify:all` on Windows with Node `24.21.0` and pnpm `12.5.1`: workflow lint, build/lint/typecheck, docs truth, 577 Vitest passes/one skip, 239 Node passes/six skips and both unchanged coverage gates. Vitest statements/branches/functions/lines are `83.24 / 74.35 / 85.85 / 84.22%`; Node coverage is `80.15 / 73.67 / 86.07 / 80.15%` with 126 passes/five platform skips. Production and full audit counts are zero at every severity. CLI and daemon both report `0.2.3`. Full verification output is retained under ignored `coverage/release-0.2.3-preparation-verify.log`.
+
+Final candidate review confirms that only version metadata and required docs change; the lockfile, production implementation, dependency floors, build permissions, signatures and workflow gates remain unchanged. Manual review clarifies that GitHub's latest stable selection changes at publication, while public verification and documentation reconciliation are later gates. The final documentation/evidence revision must pass its own docs-truth and hosted checks. Required review/merge and publication remain pending; no `0.2.3` tag or release exists. Earlier releases remain immutable, and fresh replacement-host/second-account provider/channel sessions are still unverified.
 
 ## Context and Orientation
 
@@ -58,7 +60,7 @@ The second milestone publishes a reviewable preparation PR. Check workflow lint,
 
 The third milestone publishes the exact reviewed main commit. Wait for its own main CI and full CodeQL, then create a new annotated `v0.2.3` tag without moving existing tags. Add only that exact tag to the release environment allowlist while preserving reviewers. Dispatch `release.yml` from `v0.2.3` with matching tag input, explicit stable channel and publication enabled. Inspect all prerequisites before the protected publish approval. Verify both production signatures, metadata version/commit/channel and every asset digest against the pinned key and signed metadata. Require successful public stable/exact installation and data-preserving uninstall on all four targets. If a public network check fails, retain the failure and retry verification-only against unchanged signed assets.
 
-The final milestone reconciles public availability through a separate documentation PR after actual public verification. Update README, notes, docs index, lifecycle guides, changelog, AGENTS, security/testing records and this plan with exact outcomes, retaining historical failures and live-testing limitations. Run appropriate checks on that documentation revision, obtain its required review and merge, then sync local main and remove only proven merged branches.
+The final milestone reconciles public availability through a separate documentation PR after actual public verification. Update README, notes, docs index, lifecycle guides, changelog, AGENTS, security/testing records and this plan with exact outcomes, retaining historical failures and live-testing limitations. Run appropriate checks on that documentation revision, obtain its required review and merge, then update only the GitHub release body from the reviewed published notes without touching signed assets. Sync local main and remove only proven merged branches.
 
 ## Concrete Steps
 
@@ -102,3 +104,5 @@ Initial base: `ad2146255867260d7835c9248590011baf824b32`, merged PR #81. Exact b
 No new dependency, runtime API, schema migration or provider/channel configuration is introduced. Preserve existing media/security floors, paired test tooling, Node/pnpm requirements, owner-only secret handling, shared catalog and application boundaries. Release preparation uses the existing version and publication contracts rather than new flags or bypass routes.
 
 Revision note (2026-10-10): initialize stable 0.2.3 from actual merged-main health, public-release state and active ruleset/environment protection. Record the user's end-to-end rollout authorization while retaining required GitHub review and separate source/public verification.
+
+Revision note (2026-10-10 local verification): record complete candidate quality/coverage/audits and actual executable versions. Clarify stable-catalog timing and preserve independent publication/public-verification gates. This evidence/docs revision requires its own docs-truth and hosted checks before review/merge.

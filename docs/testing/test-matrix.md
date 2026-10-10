@@ -18,6 +18,8 @@ Linux and macOS are the first-class operator platforms for lifecycle and service
 
 ## Primary Local Gate
 
+Stable `0.2.3` preparation reuses existing executable/version/release-notes assertions, dependency security floors, real WhatsApp media/logger/provider contracts and unchanged full quality/coverage/audit gates. The [release plan](../execplans/stable-0.2.3-release.md) records actual candidate and exact-main outcomes separately from future signing/public-install results; no publication or live provider/channel certification is inferred from preparation.
+
 Run this before merge:
 
 ```bash

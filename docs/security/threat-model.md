@@ -58,6 +58,8 @@ The same Baileys tree requires music-metadata `11.16.0` for five moderate regist
 
 ### Release publication evidence
 
+The prepared [v0.2.3 patch](../releases/v0.2.3.md) is the planned packaged delivery of the merged Sharp/librsvg and music-metadata repairs. Published `v0.2.2` remains immutable and does not receive the source fixes automatically. Keep its current availability separate from [0.2.3 preparation/publication evidence](../execplans/stable-0.2.3-release.md), and retain all dependency floors, required reviews, exact-main CI/CodeQL, protected signing and four-target public checks. Operator upgrades remain explicit after verified publication.
+
 The read-only `publication-checks` prerequisite requires successful workflow lint, Linux/macOS/Windows CI and actual full main-branch CodeQL analysis for the exact release-tag commit. It rejects missing, pending, failed or skipped evidence and does not fall back to an older green run or PR-only analysis. The protected publish job rechecks before production signing; credentials and remote error bodies are never printed. These checks supplement signatures, dependency audits and maintainer approval. They do not update existing packages or replace separate inspection of open code-scanning alerts and unresolved review threads. PR artifact builds and existing-publication verification remain separate.
 
 ### Runtime instance identity

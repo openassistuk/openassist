@@ -164,6 +164,7 @@ Current housekeeping and release-evidence records:
 - [Post-release Axios audit repair](execplans/post-release-axios-audit-2026-09-30.md): Axios `1.20.0`, seven production dependency advisories, actual release-documentation merges and the boundary between source fixes and unchanged published packages.
 - [v0.2.1 patch release evidence](execplans/stable-0.2.1-release.md): reviewed main/tag, shell-free Windows source commands, protected signing, four-target public installation and independent production-signature verification.
 - [v0.2.2 stable release evidence](execplans/stable-0.2.2-release.md): model refresh, reviewed main/tag, exact-main CI/CodeQL, protected signing, independent production signatures/digests and four-target public installation; retain the initial Mac network failure and successful verification-only retry separately.
+- [v0.2.3 patch release preparation](execplans/stable-0.2.3-release.md): deliver merged media-security/dependency/CI repairs through separately reviewed versions, exact-main checks, protected signing and four-target public verification; publication is pending.
 - [Deterministic setup test and publication prerequisites](execplans/release-ci-gates-2026-10-01.md): scoped bind-probe isolation and automated exact-commit CI/CodeQL verification.
 - [October 4 CI audit and workflow lint repair](execplans/ci-braces-workflow-lint-2026-10-04.md): remove unused development-only glob dependencies affected by an unpatched braces advisory, reject unmatched lint targets, enforce policy on actual glob matches, preserve native/Docker option operands and reconcile the exact documented coverage scope.
 - [October 6 source-map tooling audit repair](execplans/ci-source-map-audit-2026-10-06.md): resolve development-only source-map-js to patched `1.2.2`, enforce its lockfile regression floor and retain unchanged audit/coverage gates with separate local and hosted evidence.
@@ -228,6 +229,7 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 ## Managed release lifecycle
 
 - [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
+- [v0.2.3 patch notes](releases/v0.2.3.md): prepared media-security and maintenance patch with post-publication update guidance; not yet published, so stable currently selects v0.2.2.
 - [v0.2.2 stable notes](releases/v0.2.2.md): the current signed stable release, full OpenAI/Anthropic catalogs, fresh setup recommendations, route-specific compatibility, explicit update guidance and verified four-target public installation. The default installer selects it; saved provider settings remain unchanged.
 - [v0.2.1 security patch notes](releases/v0.2.1.md): the earlier immutable security patch, delivered Axios repair, stable-track update guidance, dated four-target verification and live-testing limits.
 - [v0.2.0 release notes](releases/v0.2.0.md): the older immutable stable release, lifecycle/reminder fixes and dated verification; its packages retain affected Axios and should be updated to the current stable release.

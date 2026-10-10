@@ -1,5 +1,7 @@
 # Quickstart on Linux and macOS
 
+Prepared [v0.2.3](../releases/v0.2.3.md) collects the merged media-security and maintenance fixes. Publication is pending; use the current `v0.2.2` stable instructions below until the [new release evidence](../execplans/stable-0.2.3-release.md) confirms signed public availability.
+
 After packaged installation, open a new shell so its saved PATH block takes effect. If `openassist` is not yet found, run `~/.local/bin/openassist setup`; the installer also prints this fallback. Existing or edited shell-profile blocks are preserved rather than overwritten.
 
 The signed [v0.2.2 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.2) is published and public installation passed on all four supported targets. The default installer selects this model refresh. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).

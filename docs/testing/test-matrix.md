@@ -30,6 +30,8 @@ pnpm verify:all
 
 Routine SDK upgrades use the existing OpenAI, Codex, Azure Foundry, compatible-endpoint and Anthropic provider suites plus Node runtime provider-contract/auth tests. Check request mapping, stream folding/replay, auth boundaries and catalog gating without enabling new vendor helpers. Keep Vitest and coverage-v8 versions paired and run both existing coverage gates after test-tool updates; [PR #80 preparation](../execplans/dependabot-pr-80-2026-10-06.md), including its replacement of #78, records the October 6 dependency validation. `observability-logger.test.ts` checks real built-logger JSON output, quoted child bindings and configured credential redaction during the Pino update, complementing the existing deep-redaction helper tests.
 
+`dependency-security-overrides.test.ts` also enforces Sharp `0.35.5` and music-metadata `11.16.0` floors across every locked version. `whatsapp-media-compatibility.test.ts` resolves the actual Baileys media dependencies: it checks bundled librsvg `>=2.63.2`, SVG/PNG-to-JPEG thumbnail dimensions, one-second WAV metadata through buffer/file/byte-stream inputs, and rejection of oversized APEv2 cover art and unterminated keys in a worker with guarded allocations and a ten-second timeout. This does not execute an SVG exploit or use a live WhatsApp account. See the [October 10 repair evidence](../execplans/ci-whatsapp-media-audit-2026-10-10.md).
+
 ## Local Command Breakdown
 
 ```bash
@@ -216,6 +218,7 @@ Current suite files under `tests/node/`:
 - `runtime-version.test.ts`
 - `release-publication-checks.test.ts`
 - `whatsapp-signal-compatibility.test.ts`
+- `whatsapp-media-compatibility.test.ts`
 - `observability-logger.test.ts`
 - `scheduler-runtime.test.ts`
 - `storage.test.ts`

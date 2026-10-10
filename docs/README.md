@@ -168,6 +168,7 @@ Current housekeeping and release-evidence records:
 - [October 4 CI audit and workflow lint repair](execplans/ci-braces-workflow-lint-2026-10-04.md): remove unused development-only glob dependencies affected by an unpatched braces advisory, reject unmatched lint targets, enforce policy on actual glob matches, preserve native/Docker option operands and reconcile the exact documented coverage scope.
 - [October 6 source-map tooling audit repair](execplans/ci-source-map-audit-2026-10-06.md): resolve development-only source-map-js to patched `1.2.2`, enforce its lockfile regression floor and retain unchanged audit/coverage gates with separate local and hosted evidence.
 - [Dependency PR #80 preparation](execplans/dependabot-pr-80-2026-10-06.md): reconcile its automatic replacement of #78, retain the six SDK/type/test-tool updates plus Pino, preserve patched floors and validate provider/logger contracts and unchanged gates before reviewed merging.
+- [October 10 WhatsApp media audit repair](execplans/ci-whatsapp-media-audit-2026-10-10.md): patch Sharp/librsvg and music-metadata on Baileys paths, verify normal media and bounded malformed parsing, and distinguish source checks from unchanged published assets.
 - [`docs/execplans/modernization-readiness-2026-09.md`](execplans/modernization-readiness-2026-09.md)
 
 Historical implementation plans (retain their original evidence and read any reconciliation notes):

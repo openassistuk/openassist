@@ -1,5 +1,7 @@
 # Upgrade and rollback
 
+The [v0.2.3 patch](../releases/v0.2.3.md) is prepared but unpublished. Stable updates currently select `v0.2.2`; the new notes' exact-version commands apply only after protected publication and public verification. Follow the [release plan](../execplans/stable-0.2.3-release.md) for that evidence; existing exact pins remain unchanged until explicitly selected.
+
 Activation and rollback derive daemon identity from the executing application's build metadata. The successful install record is still committed only after verification; the daemon refreshes its update track from that matching record. Archive preparation resolves complete link chains before extraction and rejects links that escape the installation, including traversal hidden behind another link.
 
 `openassist update` prepares a replacement separately before activation. `openassist upgrade` is its compatible alias. Normal installs follow signed stable releases; existing source installations keep their source track until explicitly migrated.

@@ -6,6 +6,10 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-10
+
+- Prepare stable `0.2.3`: align root/CLI/daemon versions and collect the merged WhatsApp media-security repairs, workflow-lint fixes and routine SDK/logging/test-tool updates below. Add reviewed release notes with explicit stable/exact-version update guidance, retaining current `v0.2.2` public availability until exact-main CI/full CodeQL, native candidate checks, protected signing and four-target public installation pass. Keep existing signed assets, saved settings and operator state unchanged during preparation; separate live provider/channel checks remain unverified.
+
 - 2026-10-10: Repair scheduled CI audits by resolving WhatsApp/Baileys media dependencies to Sharp `0.35.5` and music-metadata `11.16.0`. Remove the affected versions behind one high SVG-decoder memory-safety report (GHSA-wq5f-xc86-pv6w) and five moderate metadata-parser reports. Add all-version security floors, native librsvg checks, normal thumbnail/audio compatibility and bounded malformed APEv2 regressions; preserve existing build permissions and audit/coverage gates. This repairs source builds without asserting an observed OpenAssist exploit; immutable published `v0.2.2` assets are unchanged.
 
 - 2026-10-06: Refresh seven routine dependencies after the CI audit repair: OpenAI SDK `7.27.0`, Anthropic SDK `0.131.0`, paired Vitest/coverage-v8 `5.0.3`, Luxon types `3.7.6`, Node types `24.19.1` and Pino `10.4.0`. Retain Node 24 support, source-map-js `1.2.2` and existing security overrides. Validate provider/auth/replay contracts, real JSON logger output and configured credential redaction with unchanged coverage/audit gates; additional vendor SDK capabilities remain outside OpenAssist's advertised model/tool surfaces. Published `v0.2.2` assets are unchanged.

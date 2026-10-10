@@ -1,5 +1,7 @@
 # Install on macOS
 
+Prepared [v0.2.3](../releases/v0.2.3.md) includes media-security and dependency repairs; publication and public-install verification are pending. Stable installation still selects `v0.2.2`. Track the [release evidence](../execplans/stable-0.2.3-release.md) before selecting the new exact version.
+
 **Release availability:** the signed [v0.2.2 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.2) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.2`. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys. [Release evidence](../execplans/stable-0.2.2-release.md) separates protected publication, the initial Mac download failure and successful four-target verification-only checks.
 
 Packaged bootstrap adds a marked `~/.local/bin` PATH block to Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`), or Bash's `.bashrc` and `.profile`. Open a new terminal after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved. Uninstall removes only an unchanged block whose ownership was recorded.

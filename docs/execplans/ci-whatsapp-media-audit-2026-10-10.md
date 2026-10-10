@@ -16,7 +16,7 @@ Restore scheduled Linux/macOS/Windows quality checks by removing the affected Wh
 - [x] (2026-10-10 local dependency validation) Demonstrate the new dependency-floor regression fails on the old lockfile, advance the affected dependency resolutions and verify frozen installation.
 - [x] (2026-10-10 focused verification) Validate actual native SVG-library patch level, normal Baileys media operations and bounded rejection of malformed media; synchronize security/testing/maintenance documentation.
 - [x] (2026-10-10 full local verification) Complete `pnpm verify:all` and review the final candidate for bypasses, accidental edits, secrets and unnecessary changes.
-- [ ] Open the PR and reconcile exact-head hosted checks, alerts and review threads before handoff.
+- [x] (2026-10-10 hosted verification) Open PR #81 and reconcile implementation-head hosted checks, alerts and review threads. Recheck the evidence-only final revision and retain its exact-head results in the PR description.
 
 ## Surprises & Discoveries
 
@@ -41,7 +41,7 @@ Date/Author: 2026-10-10 / Codex.
 ## Outcomes & Retrospective
 
 
-Dependency repair, frozen installation, focused checks, documentation and full local verification are complete. PR publication and hosted verification remain pending. Earlier green PR/main checks certify their historical heads only. Published `v0.2.2` packages are immutable and will not receive this source repair until a separately authorized release and operator upgrade.
+Dependency repair, frozen installation, focused checks, documentation, full local verification and hosted verification of implementation head `e6c3ba54394870aa265d1bc1b12e9d97b50c5d5e` are complete in [PR #81](https://github.com/openassistuk/openassist/pull/81). Earlier green PR/main checks certify their historical heads only. Published `v0.2.2` packages are immutable and will not receive this source repair until a separately authorized release and operator upgrade.
 
 The raised lockfile floor fails before repair with `music-metadata@11.12.3 is below patched floor 11.16.0`, then all three security-policy checks pass. The bounded malformed-APE regression also fails against the retained old parser: a 134-byte fixture reaches a declared one-MiB allocation, intercepted before allocation by the worker's guard. The patched parser rejects it without that allocation. This is evidence of the parser defect and remediation, not a demonstrated live OpenAssist attack.
 
@@ -51,7 +51,9 @@ Separate candidate review traced all three parser entry points and verified that
 
 `pnpm verify:all` exits zero on Windows with Node `24.21.0` and pnpm `12.5.1`: workflow lint, build, lint, typecheck, docs-truth checks, Vitest (577 passed / one skipped), Node integration (239 passed / six skipped), both coverage gates and both audits pass. Vitest statements/branches/functions/lines are `83.24 / 74.35 / 85.85 / 84.22%`; Node coverage is `80.15 / 73.67 / 86.07 / 80.15%` (126 passed / five platform skips). Production and full audit counts are zero at every severity. Existing Windows platform skips remain visible; hosted Linux/macOS checks must cover their supported paths. `git diff --check` passes. Separate open code-scanning and Dependabot queries return zero alerts.
 
-Final merge/check reconciliation: main remains `0d76fd869004afbd4b02783fbf03c40ef431f9b7`, with its October 10 scheduled audit failure still historical evidence. No repaired PR has been merged or release published. Record the new PR head and its actual hosted outcomes separately before handoff; a green PR analysis cannot certify a future merged-main commit.
+Hosted attempt 1 confirms that exact implementation SHA in all four workflows: [CI 38057307430](https://github.com/openassistuk/openassist/actions/runs/38057307430), [CodeQL 38057307375](https://github.com/openassistuk/openassist/actions/runs/38057307375), [macOS Live Launchd 38057307463](https://github.com/openassistuk/openassist/actions/runs/38057307463) and [Release Artifacts 38057307416](https://github.com/openassistuk/openassist/actions/runs/38057307416) all succeed. The check rollup has thirteen successes and three expected production-publication skips. Linux/macOS/Windows logs each confirm passing native SVG/parser regressions and zero production/full findings at every severity. Four artifact targets and signing-contract validation pass; no production publication is launched. Separate code-scanning and Dependabot queries each return zero alerts; the PR has zero review threads and still requires human approval.
+
+Final merge/check reconciliation: main remains `0d76fd869004afbd4b02783fbf03c40ef431f9b7`, with its October 10 scheduled audit failure still historical evidence. No repaired PR has been merged or release published. This final evidence revision changes only this plan; rerun docs-truth validation and inspect its own refreshed hosted checks before handoff. The PR description records the final exact head and actual terminal outcomes separately. A green PR analysis cannot certify a future merged-main commit, which needs its own CI/full branch CodeQL and alert reconciliation after merge.
 
 ## Context and Orientation
 
@@ -104,3 +106,5 @@ Baseline: `0d76fd869004afbd4b02783fbf03c40ef431f9b7`. Latest observed failure: C
 Keep Baileys `6.7.24`, the existing OpenAssist channel contract, current Node/pnpm versions and install-script allowlist. No new application dependency family, configuration field, tool schema or public API is required. Patch the shared upstream parser/native implementations through dependency resolution, rather than duplicating validation in one caller.
 
 Revision note (2026-10-10): create the plan after confirming daily audit failures, inspecting advisory ranges and actual media callers, and creating the authorized branch. Preserve the distinction between audit evidence, application reachability, local tests, hosted certification and future release delivery.
+
+Revision note (2026-10-10 handoff): record before/after parser evidence, unchanged local gates, all three hosted zero-finding audits, exact implementation-head workflow conclusions and separate alert/review checks. Reconcile this evidence-only revision through targeted docs-truth validation and the PR's latest-head check record before handoff.

@@ -1,5 +1,7 @@
 # Configuration File Guide
 
+For Anthropic API credits, configure the `anthropic` provider through setup and keep its key in the operator env file. `claude-haiku-5-5` defaults to adaptive thinking/medium effort; wizard also offers disabled thinking with low/medium/high effort. It rejects manual budgets and disabled xhigh/max before requests. Its total output default/maximum is `16384`/`128000`. Saved Haiku 4.5 manual settings remain valid on that older model. See [Claude controls](../providers/model-compatibility.md#claude-settings-and-replay) before changing a saved model; quickstart asks before resetting incompatible settings.
+
 Named developer instances load their own `config/openassistd.env` only when starting the foreground daemon. Use their printed setup command, then stop and rerun the instance after changing credentials. Custom credential variable names are supported; env-file entries cannot replace the instance state root, env-file location, service mode or process-loader settings. Git/pnpm builds use a separate environment without these credentials.
 
 Managed releases keep the same normal TOML/env/data locations. `OPENASSIST_STATE_ROOT` explicitly redirects an isolated developer instance to its own config and share directories; never point it at primary state. Installation metadata and notification preferences live in the versioned install record, not provider configuration. See [developer testing](../operations/developer-testing.md).

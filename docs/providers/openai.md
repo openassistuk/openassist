@@ -153,6 +153,8 @@ Responses output items with opaque reasoning or message phase are now retained i
 
 ## Related Docs
 
+For Claude API-credit setup, choose the native [Anthropic provider](anthropic.md). Its source integration uses the official Anthropic SDK, verified Claude thinking/output controls and provider-native tool/replay mapping; configure its API key and optional workspace through setup.
+
 - [Codex Provider](codex.md)
 - [Anthropic Provider](anthropic.md)
 - [Azure Foundry Provider](azure-foundry.md)

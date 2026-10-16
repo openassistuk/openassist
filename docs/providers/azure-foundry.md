@@ -181,11 +181,13 @@ A deployment name never establishes model capabilities, even if it resembles a m
 
 GPT-6.1 Sol and GPT-6 Astra/older Sol/Luna hints are cataloged for this Responses route. Azure documents none through max for all four, including Astra and GPT-6.1 Sol; this differs from the OpenAI API catalog. Optional reasoningMode selects standard/pro, with Default omitting mode and Pro potentially increasing cost. Wizard exposes it only for known hints. No hint means no inferred effort; explicit mode without a verified hint fails validation. Region, deployment version and quota still determine availability. Claude on Microsoft Foundry uses a Messages endpoint and is not supported by this Azure OpenAI Responses adapter.
 
-Azure Identity 4.13.3 and OpenAI SDK 7.23.0 remain current stable. Entra scope stays `https://ai.azure.com/.default`. Responses replay is bounded and scoped to this provider, deployment and underlying-model hint, preserving opaque reasoning alongside tool results. See [authentication/harness readiness](../operations/provider-channel-readiness.md).
+The source lockfile now uses Azure Identity 4.13.3 and OpenAI SDK 7.31.0; the September 27 verification above is historical. Entra scope stays `https://ai.azure.com/.default`. Responses replay is bounded and scoped to this provider, deployment and underlying-model hint, preserving opaque reasoning alongside tool results. See [authentication/harness readiness](../operations/provider-channel-readiness.md).
 
 GPT-6.1 Sol is cataloged for Azure through `underlyingModel = "gpt-6.1-sol"`. New setup suggests xhigh only when that exact hint is supplied; deployment names stay operator-defined and saved effort (including omission) stays intact. Microsoft's feature table permits none on this Azure model, while OpenAI's API model excludes it. Azure still requires an available deployment in the operator's region and quota. See [route-specific compatibility and sources](model-compatibility.md).
 
 ## Related Docs
+
+Direct Claude API-credit usage belongs to the [Anthropic route](anthropic.md), with its native Claude model IDs, explicit API key and optional workspace. Its model controls and replay contract are verified separately from Azure deployment hints and host credentials.
 
 - [OpenAI Provider](openai.md)
 - [Configuration Reference](../configuration/config-reference.md)

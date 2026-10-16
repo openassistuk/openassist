@@ -237,6 +237,8 @@ CLI commands:
 
 ## Modernization compatibility
 
+Anthropic SDK `0.135.0` source integration maps dotted, Unicode, overlong and reserved-prefix tool names to deterministic API-safe identifiers, then restores canonical runtime names for policy/execution/audit. Complete assistant turns survive even when no thinking block is returned; result blocks are grouped before follow-up text, and persisted replay suppresses duplicate tool placeholders. New replay is scoped to provider/model, bounded to 1 MiB/256 blocks and tagged with its wire-name encoding; legacy records remain readable. Unknown returned names still reach normal advertised-tool/policy validation and grant no capability. These adapter changes retain sequential execution, durable intent/results and the configured round limit. SDK agent runners, server tools and automatic tracing are not enabled. See [provider replay contract](provider-adapter.md).
+
 Provider modernization preserves sequential runtime tool execution and the existing round budget. Adaptive Anthropic thinking blocks use the same durable replay path as manual thinking; raw thinking is never rendered to channels. Current model controls come from the shared configuration catalog.
 
 Opus 5.5/Fable 5.1/Mythos 5.1 reject forced tool choice. OpenAssist leaves tool choice at the upstream automatic default, replays complete thinking/tool_use blocks and returns matching tool_result IDs. Internal streaming does not alter the sequential runtime loop or its durable invocation records.

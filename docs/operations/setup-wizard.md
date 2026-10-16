@@ -311,6 +311,8 @@ OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must upda
 
 ## Modernization compatibility
 
+The October 16 Anthropic source update adds `claude-haiku-5-5` to the shared catalog. Default means adaptive thinking and medium effort; manual budgets are unavailable. Wizard offers all five efforts with adaptive thinking and only low/medium/high after selecting disabled. An incompatible saved xhigh/max effort is not offered as the initial disabled-mode selection. The total output default/maximum is `16384`/`128000`, including thinking and visible text. Quickstart retains compatible settings and asks before resetting an old manual budget on model change. API-key/env-file and optional workspace onboarding use the normal explicit provider configuration. See [Anthropic controls](../providers/model-compatibility.md#claude-settings-and-replay).
+
 The provider editor prints current recommendations without overwriting saved IDs. It filters reasoning choices by exact model and route, supports adaptive Anthropic thinking/effort, and preserves the legacy budget editing path. Retired Codex selections must be explicitly replaced before readiness succeeds.
 
 Anthropic compatibility: the verified `claude-opus-4-5` alias retains manual `thinkingBudgetTokens` exactly like `claude-opus-4-5-20251101`. Quickstart preserves compatible saved thinking settings. If a selected model rejects them (for example, Sonnet 5 with an old manual budget), quickstart asks before resetting to provider defaults. The default answer is No, which returns to model selection so the operator can keep the previous model/settings. Saving remains subject to normal validation; wizard provides the full thinking editor.

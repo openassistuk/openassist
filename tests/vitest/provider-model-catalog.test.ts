@@ -21,7 +21,7 @@ afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 describe("shared model capabilities", () => {
   it("covers current conversational families and exact pins without guessing routes or optional controls", () => {
     const currentOpenAI = ["gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.3-codex", "gpt-5.2", "gpt-5.2-pro", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "o3", "o3-pro", "gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini", "chat-latest"];
-    const currentClaude = ["claude-fable-5-1", "claude-mythos-5-1", "claude-fable-5", "claude-mythos-5", "claude-opus-5-5", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5-20251101", "claude-sonnet-5-5", "claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"];
+    const currentClaude = ["claude-fable-5-1", "claude-mythos-5-1", "claude-fable-5", "claude-mythos-5", "claude-opus-5-5", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5-20251101", "claude-sonnet-5-5", "claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-5-5", "claude-haiku-4-5-20251001"];
     for (const id of currentOpenAI) expect(modelCapabilities(id, "openai"), id).toBeDefined();
     for (const id of currentClaude) expect(modelCapabilities(id, "anthropic"), id).toBeDefined();
     expect(reasoningEfforts("gpt-5.6")).toEqual(reasoningEfforts("gpt-5.6-sol"));

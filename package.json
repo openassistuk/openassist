@@ -38,7 +38,7 @@
     "@types/node": "^24.19.1",
     "@vitest/coverage-v8": "^5.0.3",
     "c8": "^12.0.0",
-    "cron-parser": "^5.10.1",
+    "cron-parser": "^5.10.2",
     "esbuild": "0.28.2",
     "luxon": "^3.7.2",
     "tsx": "^4.23.15",

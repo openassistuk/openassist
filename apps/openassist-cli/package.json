@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "@inquirer/prompts": "^8.7.2",
+    "@inquirer/prompts": "^8.7.3",
     "@openassist/config": "workspace:*",
     "@openassist/core-runtime": "workspace:*",
     "@openassist/core-types": "workspace:*",

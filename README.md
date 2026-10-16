@@ -81,6 +81,8 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
+**Release preparation:** source root/CLI/daemon versions are `0.2.4`. The [candidate notes](docs/releases/v0.2.4.md) collect the Anthropic reliability and routine dependency updates; the [release plan](docs/execplans/stable-0.2.4-release.md) tracks verification. This candidate is not published. Keep using the verified stable release below until exact-main checks, authorized tagging, protected signing and four-target public installation pass. Live Anthropic API-credit testing remains deferred.
+
 **Current availability:** [v0.2.3 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.3) is published and signed. Public installation passed on Linux and macOS, each on x64 and arm64. The default installer selects this security and maintenance patch.
 
 The [stable release notes](docs/releases/v0.2.3.md) cover WhatsApp media-security fixes, routine dependency updates and CI/workflow-lint repairs. Reviewed main `cc29135`, exact-main CI/full CodeQL, protected production signing, independent signatures/digests and four-target public installation are recorded in the [release evidence](docs/execplans/stable-0.2.3-release.md). Existing installations need an explicit update to receive the fixes; exact pins do not advance automatically.

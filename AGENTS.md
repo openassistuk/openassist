@@ -466,6 +466,8 @@ A change is done only when all are true:
 
 ## Node runtime discipline
 
+Candidate root/CLI/daemon versions are `0.2.4`; [candidate notes](docs/releases/v0.2.4.md) and the [release plan](docs/execplans/stable-0.2.4-release.md) collect the merged Anthropic fixes and routine dependencies. Public stable remains `v0.2.3` during preparation. A preparation PR does not authorize a new tag/environment change or certify publication/live accounts. Require the reviewed preparation merge's own latest main CI/full CodeQL, exact-tag authorization, protected signing and four-target public installation before changing availability; preserve older signed assets and reviewer rules.
+
 Keep `@types/node` on 24.x; Dependabot must ignore its major version updates while allowing minor/patch updates. Setup readiness must reject invalid bind addresses before network availability probes; test this without relying on host DNS timing.
 
 Keep Vitest and its coverage-v8 package on the same version when updating test tooling. Routine provider SDK updates must preserve existing request/authentication/replay contracts and the shared model catalog; new vendor helper APIs must not implicitly activate models, tools or privileged execution. Validate the updated dependency graph through frozen installation and the unchanged full quality/coverage/audit gate.

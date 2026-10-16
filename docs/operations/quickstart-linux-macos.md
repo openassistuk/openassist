@@ -1,5 +1,7 @@
 # Quickstart on Linux and macOS
 
+The [v0.2.4 candidate](../releases/v0.2.4.md) prepares Anthropic tool/replay fixes, Haiku controls and SDK updates for packaging. It is not published; use the verified stable installation below until protected publication and four-target public verification pass. Saved model choices remain intact, and live Anthropic credit testing is a separate operator decision.
+
 Signed [v0.2.3](../releases/v0.2.3.md) delivers the merged media-security and maintenance fixes. The [release evidence](../execplans/stable-0.2.3-release.md) confirms protected publication, independent signatures/digests and public installation on all four supported targets.
 
 After packaged installation, open a new shell so its saved PATH block takes effect. If `openassist` is not yet found, run `~/.local/bin/openassist setup`; the installer also prints this fallback. Existing or edited shell-profile blocks are preserved rather than overwritten.

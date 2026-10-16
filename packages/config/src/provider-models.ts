@@ -4,7 +4,7 @@ export const DEFAULT_OPENAI_MODEL = "gpt-6.1-sol";
 export const DEFAULT_OPENAI_REASONING_EFFORT = "xhigh";
 export const DEFAULT_ANTHROPIC_MODEL = "claude-opus-5-5";
 export const OPENAI_MODEL_ALTERNATIVES = ["gpt-6-astra", "gpt-6-luna", "gpt-6-sol", "gpt-5.6-terra"] as const;
-export const ANTHROPIC_MODEL_ALTERNATIVES = ["claude-sonnet-5-5", "claude-fable-5-1", "claude-haiku-4-5-20251001"] as const;
+export const ANTHROPIC_MODEL_ALTERNATIVES = ["claude-sonnet-5-5", "claude-fable-5-1", "claude-haiku-5-5", "claude-haiku-4-5-20251001"] as const;
 export const OPENAI_REASONING_MODES = ["standard", "pro"] as const;
 export const OPENAI_REASONING_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 export const ANTHROPIC_THINKING_MODES = ["adaptive", "enabled", "disabled"] as const;
@@ -45,6 +45,7 @@ const models: ModelCapabilities[] = [
   ...["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].map(id => ({ id, routes: ["openai"] as const, responses: false, reasoningEfforts: [] })),
   ...["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].map(id => ({ id, routes: ["azure-foundry"] as const, responses: true, reasoningEfforts: [] })),
   ...["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-mythos-5-1"].map(id => ({ id, routes: ["anthropic"] as const, responses: false, reasoningEfforts: [], thinkingModes: ["adaptive"] as const, thinkingEfforts: ANTHROPIC_THINKING_EFFORTS, supportsTemperature: false, defaultThinking: "adaptive" as const, defaultThinkingEffort: id === "claude-opus-5-5" ? "medium" as const : "high" as const, thinkingPrefixBinding: true, defaultMaxOutputTokens: 16_384, maxOutputTokens: 128_000 })),
+  { id: "claude-haiku-5-5", routes: ["anthropic"], responses: false, reasoningEfforts: [], thinkingModes: ["adaptive", "disabled"], thinkingEfforts: ANTHROPIC_THINKING_EFFORTS, supportsTemperature: false, defaultThinking: "adaptive", defaultThinkingEffort: "medium", thinkingPrefixBinding: true, defaultMaxOutputTokens: 16_384, maxOutputTokens: 128_000 },
   ...["claude-sonnet-5", "claude-opus-5"].map(id => ({ id, routes: ["anthropic"] as const, responses: false, reasoningEfforts: [], thinkingModes: ["adaptive", "disabled"] as const, thinkingEfforts: ANTHROPIC_THINKING_EFFORTS, supportsTemperature: false, defaultThinking: "adaptive" as const, defaultThinkingEffort: "high" as const, maxOutputTokens: 128_000 })),
   ...["claude-fable-5", "claude-mythos-5"].map(id => ({ id, routes: ["anthropic"] as const, responses: false, reasoningEfforts: [], thinkingModes: ["adaptive"] as const, thinkingEfforts: ANTHROPIC_THINKING_EFFORTS, supportsTemperature: false, defaultThinking: "adaptive" as const, defaultThinkingEffort: "high" as const, defaultMaxOutputTokens: 16_384, maxOutputTokens: 128_000 })),
   ...["claude-opus-4-7", "claude-opus-4-8"].map(id => ({ id, routes: ["anthropic"] as const, responses: false, reasoningEfforts: [], thinkingModes: ["adaptive", "disabled"] as const, thinkingEfforts: ANTHROPIC_THINKING_EFFORTS, supportsTemperature: false, defaultThinking: "disabled" as const, defaultThinkingEffort: "high" as const, maxOutputTokens: 128_000 })),
@@ -147,7 +148,7 @@ export function providerTuningErrors(provider: ProviderConfig): string[] {
   if (mode === "enabled" && provider.thinkingBudgetTokens === undefined) errors.push("Manual thinking requires thinkingBudgetTokens.");
   if (mode && !capabilities?.thinkingModes?.includes(mode)) errors.push(`Model '${model}' does not have verified support for thinkingMode='${mode}'. Choose a supported model or remove explicit thinking settings.`);
   if (provider.thinkingEffort && (!capabilities?.thinkingEfforts?.includes(provider.thinkingEffort))) errors.push(`Model '${model}' does not have verified support for thinkingEffort='${provider.thinkingEffort}'.`);
-  if (capabilities?.id === "claude-opus-5" && mode === "disabled" && ["xhigh", "max"].includes(provider.thinkingEffort ?? "")) errors.push("Claude Opus 5 requires adaptive thinking at xhigh or max effort; enable adaptive thinking or reduce effort.");
+  if (["claude-opus-5", "claude-haiku-5-5"].includes(capabilities?.id ?? "") && mode === "disabled" && ["xhigh", "max"].includes(provider.thinkingEffort ?? "")) errors.push(`Model '${model}' requires adaptive thinking at xhigh or max effort; enable adaptive thinking or reduce effort.`);
   return errors;
 }
 

@@ -195,6 +195,14 @@ Anthropic thinking replay behavior:
 - On later Anthropic follow-up calls, the adapter reconstructs the original assistant content blocks from replay metadata instead of relying only on synthetic tool-call placeholders.
 - Internal thinking content remains provider-side replay state only. It must never appear in channel-visible output.
 
+Anthropic source maintenance (October 16) uses official SDK `0.135.0`. Its client pins the configured/default endpoint and chosen API-key/bearer/workspace headers, with SDK logging and automatic OpenTelemetry disabled. User-defined tool names on the wire satisfy `^[a-zA-Z0-9_-]{1,128}$`: incompatible names and the reserved `oa__` namespace use a deterministic SHA-256 identifier. Request-local maps restore canonical runtime names; tool descriptions retain those names for model grounding. No provider tool runner or server tool is activated.
+
+Persist the complete assistant content on tool turns even without thinking. Keep `providerReplayKind=anthropic-content-blocks`, with bounded `providerReplayJson`, provider/model `providerReplayScope` and `anthropicToolNameEncoding=sha256-v1`. New records retain wire blocks unchanged; old unscoped/unversioned records remain readable and translate legacy literal tool names. Unknown encoding, mismatched new scope, malformed/oversized JSON or more than 256 blocks fall back to normalized audited history. Group consecutive matching tool results into one user turn and skip replayed audit placeholders. Canonical IDs, execution order and access policy stay runtime-owned; this adds no schema migration or common ChatResponse field.
+
+Haiku 5.5 uses adaptive prefix binding and internal stream folding by default. Explicit disabled thinking omits binding/beta fields and removes only opaque thinking/redacted-thinking from replay, retaining text/tool calls/results. Manual budgets and disabled xhigh/max fail before transport. See [Anthropic controls](../providers/model-compatibility.md#claude-settings-and-replay).
+
+Anthropic replay admission also checks the reconciled turn: every native `tool_use` needs a matching retained result before the next normal message, and an already replayed ID cannot be restored again. An incomplete/duplicate turn falls back to normalized history without modifying signed blocks or durable audit records. Synthetic runtime limit/disabled replies never copy tool-turn metadata; older synthetic rows carrying it retain their ordinary text. Complete valid signed-thinking and tool-only turns still replay unchanged.
+
 Legacy compatibility note:
 
 - Existing `openai` provider configs that still carry OAuth settings may remain readable for compatibility.

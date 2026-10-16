@@ -352,11 +352,11 @@ export async function promptAnthropicThinking(prompts: PromptAdapter, model: str
     const budget = await promptAnthropicThinkingBudget(prompts, existing?.thinkingBudgetTokens);
     return budget === undefined ? { thinkingMode: "disabled" } : { thinkingBudgetTokens: budget };
   }
-  if (mode === "disabled") return { thinkingMode: mode };
+  if (mode === "disabled" && capabilities.id !== "claude-haiku-5-5") return { thinkingMode: mode };
   const effort = await prompts.select<"default" | NonNullable<AnthropicProvider["thinkingEffort"]>>(
     "Anthropic thinking effort",
-    [{ name: "Default (provider default)", value: "default" }, ...(capabilities.thinkingEfforts ?? []).map(value => ({ name: value, value }))],
-    existing?.thinkingEffort ?? "default"
+    [{ name: "Default (provider default)", value: "default" }, ...(capabilities.thinkingEfforts ?? []).filter(value => mode !== "disabled" || !["xhigh", "max"].includes(value)).map(value => ({ name: value, value }))],
+    mode === "disabled" && ["xhigh", "max"].includes(existing?.thinkingEffort ?? "") ? "default" : existing?.thinkingEffort ?? "default"
   );
   return { ...(mode !== "default" ? { thinkingMode: mode } : {}), ...(effort !== "default" ? { thinkingEffort: effort } : {}) };
 }

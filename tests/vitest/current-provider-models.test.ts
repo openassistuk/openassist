@@ -23,6 +23,63 @@ const anthropicStream = (content: object[]) => new Response([
 const openaiReply = { id: "r", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: "hello" }] }], usage: { input_tokens: 1, output_tokens: 1 } };
 afterEach(() => vi.restoreAllMocks());
 
+describe("Claude Haiku 5.5 integration", () => {
+  const model = "claude-haiku-5-5";
+  const provider = { id: "test", type: "anthropic" as const, defaultModel: model };
+
+  it("uses verified adaptive/disabled thinking, medium default effort and bounded output", async () => {
+    expect(modelCapabilities(model, "anthropic")).toMatchObject({ thinkingModes: ["adaptive", "disabled"], thinkingEfforts: ["low", "medium", "high", "xhigh", "max"], defaultThinking: "adaptive", defaultThinkingEffort: "medium", defaultMaxOutputTokens: 16384, maxOutputTokens: 128000, thinkingPrefixBinding: true, supportsTemperature: false });
+    expect(providerTuningLabel(provider)).toContain("medium (provider default)");
+    for (const thinkingEffort of ["low", "medium", "high", "xhigh", "max"] as const) expect(providerTuningErrors({ ...provider, thinkingEffort })).toEqual([]);
+    expect(providerTuningErrors({ ...provider, thinkingBudgetTokens: 2048 })).not.toEqual([]);
+    expect(providerTuningErrors({ ...provider, maxOutputTokens: 128001 })).not.toEqual([]);
+    const select = vi.fn().mockResolvedValueOnce("disabled").mockResolvedValueOnce("low");
+    expect(await promptAnthropicThinking({ select } as unknown as PromptAdapter, model)).toEqual({ thinkingMode: "disabled", thinkingEffort: "low" });
+    expect(select.mock.calls[1][1].map((choice: { value: string }) => choice.value)).toEqual(["default", "low", "medium", "high"]);
+    expect(modelCapabilities("claude-haiku-5-5-unverified", "anthropic")).toBeUndefined();
+    expect(modelCapabilities("claude-haiku-4-5-20251001", "anthropic")?.thinkingModes).toEqual(["enabled", "disabled"]);
+  });
+
+  it("blocks disabled thinking at xhigh/max before transport", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch");
+    for (const thinkingEffort of ["xhigh", "max"] as const) {
+      expect(providerTuningErrors({ ...provider, thinkingMode: "disabled", thinkingEffort })).not.toEqual([]);
+      await expect(new AnthropicProviderAdapter({ ...provider, thinkingMode: "disabled", thinkingEffort }).chat({ ...request, model }, auth)).rejects.toThrow("adaptive thinking");
+    }
+    for (const thinkingEffort of ["low", "medium", "high"] as const) expect(providerTuningErrors({ ...provider, thinkingMode: "disabled", thinkingEffort })).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("streams default adaptive thinking with prefix binding and omits sampling", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => anthropicStream([{ type: "text", text: "hello" }]));
+    const reply = await new AnthropicProviderAdapter(provider).chat({ ...request, model }, auth);
+    expect(reply.output.content).toBe("hello");
+    const options = fetch.mock.calls[0][1]!;
+    const body = JSON.parse(options.body as string);
+    expect(body).toMatchObject({ model, max_tokens: 16384, stream: true, thinking: { type: "adaptive", block_binding: { prefix_mismatch_behavior: "drop_block" } } });
+    expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("output_config");
+    expect(new Headers(options.headers).get("anthropic-beta")).toContain("thinking-binding-controls-2026-08-01");
+  });
+
+  it("removes opaque thinking only when Haiku thinking is disabled, retaining tools and text", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => anthropicStream([{ type: "text", text: "done" }]));
+    const blocks = [{ type: "thinking", thinking: "", signature: "fixture-signature" }, { type: "redacted_thinking", data: "fixture-opaque" }, { type: "text", text: "checking" }, { type: "tool_use", id: "call-1", name: "read_file", input: {} }];
+    await new AnthropicProviderAdapter({ ...provider, thinkingMode: "disabled", thinkingEffort: "low" }).chat({ ...request, model, messages: [
+      { role: "system", content: "updated guidance" }, { role: "user", content: "check" },
+      { role: "assistant", content: "", metadata: { providerReplayKind: "anthropic-content-blocks", providerReplayJson: JSON.stringify(blocks) } },
+      { role: "tool", content: "result", toolCallId: "call-1" }
+    ] }, auth);
+    const options = fetch.mock.calls[0][1]!;
+    const body = JSON.parse(options.body as string);
+    expect(body.thinking).toEqual({ type: "disabled" });
+    expect(body.output_config).toEqual({ effort: "low" });
+    expect(body.messages[1].content).toEqual(blocks.slice(2));
+    expect(body.messages[2].content[0].tool_use_id).toBe("call-1");
+    expect(new Headers(options.headers).has("anthropic-beta")).toBe(false);
+  });
+});
+
 describe("current GPT-6 routes", () => {
   it.each(["gpt-5.5", "gpt-5.5-2026-04-23", "gpt-5.4-nano", "gpt-5.5-pro", "gpt-5.4-pro", "gpt-5.2-pro", "gpt-5-pro", "o3-pro", "gpt-5.6", "chat-latest", "gpt-daybreak-blue-latest", "gpt-daybreak-red-latest", "gpt-5.6-cyber"])("routes %s to Responses with tools and verified controls", async model => {
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => json(openaiReply));
@@ -237,8 +294,11 @@ describe("current Claude thinking", () => {
   });
 
   it.each(["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-mythos-5-1"])("replays empty signed thinking and tool results after adapter restart and context changes for %s", async model => {
-    const blocks = [{ type: "thinking", thinking: "", signature: "opaque-signature" }, { type: "tool_use", id: "tool-1", name: "fs.read", input: {} }];
-    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => anthropicStream(blocks));
+    const blocks: Array<Record<string, unknown>> = [{ type: "thinking", thinking: "", signature: "opaque-signature" }, { type: "tool_use", id: "tool-1", name: "", input: {} }];
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, options) => {
+      blocks[1].name = JSON.parse(options?.body as string).tools[0].name;
+      return anthropicStream(blocks);
+    });
     const config = { id: "test", defaultModel: model, thinkingEffort: "max" as const };
     const first = await new AnthropicProviderAdapter(config).chat({ ...request, model }, auth);
     expect(first.output.content).toBe("");

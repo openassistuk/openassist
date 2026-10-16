@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createRequire } from "node:module";
+import path from "node:path";
 import { OpenAIProviderAdapter } from "../../packages/providers-openai/src/index.js";
 import { AnthropicProviderAdapter } from "../../packages/providers-anthropic/src/index.js";
 import { OpenAICompatibleProviderAdapter } from "../../packages/providers-openai-compatible/src/index.js";
@@ -102,6 +104,46 @@ it("keeps custom endpoints text-only and validates endpoint/auth boundaries", as
 });
 
 describe("Anthropic workspace and credential selection", () => {
+  it("does not activate SDK tracing from a registered global tracer", async () => {
+    const sdkRequire = createRequire(path.resolve("packages/providers-anthropic/package.json"));
+    const telemetryRequire = createRequire(sdkRequire.resolve("@anthropic-ai/sdk"));
+    const { trace } = telemetryRequire("@opentelemetry/api");
+    const span = { end: vi.fn(), setAttribute: vi.fn(), setAttributes: vi.fn(), setStatus: vi.fn(), recordException: vi.fn(), isRecording: () => true, spanContext: () => ({ traceId: "1".repeat(32), spanId: "2".repeat(16), traceFlags: 1 }) };
+    const startSpan = vi.fn(() => span);
+    expect(trace.setGlobalTracerProvider({ getTracer: () => ({ startSpan }) })).toBe(true);
+    try {
+      vi.stubEnv("ANTHROPIC_OPEN_TELEMETRY", "true");
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "reply", content: [{ type: "text", text: "ok" }], usage: { input_tokens: 1, output_tokens: 1 } }), { headers: { "content-type": "application/json" } }));
+      await new AnthropicProviderAdapter({ id: "test", defaultModel: "claude-sonnet-5" }).chat({ ...request, model: "claude-sonnet-5" }, { providerId: "test", apiKey: "fixture-key" });
+      expect(startSpan).not.toHaveBeenCalled();
+    } finally {
+      trace.disable();
+    }
+  });
+
+  it.each(["api-key", "oauth"])("isolates %s endpoint, credentials and workspace from SDK environment headers", async (kind) => {
+    vi.stubEnv("ANTHROPIC_BASE_URL", "https://ambient-endpoint.invalid");
+    vi.stubEnv("ANTHROPIC_CUSTOM_HEADERS", "x-api-key: ambient-key\nAuthorization: Bearer ambient-token\nanthropic-workspace-id: wrkspc_ambient");
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "reply", content: [{ type: "text", text: "ok" }], usage: { input_tokens: 1, output_tokens: 1 } }), { headers: { "content-type": "application/json" } }));
+    await new AnthropicProviderAdapter({ id: "test", defaultModel: "claude-sonnet-5" }).chat(
+      { ...request, model: "claude-sonnet-5" }, kind === "api-key" ? { providerId: "test", apiKey: "fixture-key" } : { providerId: "test", accountId: "test", accessToken: "fixture-token" }
+    );
+    expect(String(fetch.mock.calls[0][0])).toBe("https://api.anthropic.com/v1/messages");
+    const headers = new Headers(fetch.mock.calls[0][1]?.headers);
+    expect(headers.get("x-api-key")).toBe(kind === "api-key" ? "fixture-key" : null);
+    expect(headers.get("authorization")).toBe(kind === "oauth" ? "Bearer fixture-token" : null);
+    expect(headers.has("anthropic-workspace-id")).toBe(false);
+  });
+
+  it("does not emit SDK debug logs from an ambient logging setting", async () => {
+    vi.stubEnv("ANTHROPIC_LOG", "debug");
+    const logs = ["debug", "info", "warn", "error", "log"] as const;
+    const spies = logs.map(level => vi.spyOn(console, level).mockImplementation(() => undefined));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "reply", content: [{ type: "text", text: "fixture-private-content" }], usage: { input_tokens: 1, output_tokens: 1 } }), { headers: { "content-type": "application/json" } }));
+    await new AnthropicProviderAdapter({ id: "test", defaultModel: "claude-sonnet-5" }).chat({ ...request, model: "claude-sonnet-5" }, { providerId: "test", apiKey: "fixture-key" });
+    for (const spy of spies) expect(spy).not.toHaveBeenCalled();
+  });
+
   it("sends the configured workspace and isolates API keys from ambient bearer credentials", async () => {
     vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "ambient-token-must-not-be-used");
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "reply", content: [{ type: "text", text: "ok" }], usage: {} }), { headers: { "content-type": "application/json" } }));

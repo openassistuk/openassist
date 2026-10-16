@@ -120,6 +120,8 @@ The current harness refresh does not add Responses replay or vendor-specific wor
 
 ## Related Docs
 
+Use the native [Anthropic provider](anthropic.md) for directly billed Claude API requests and its verified thinking, image, tool-name and replay behavior. Configure that route's API key/workspace through setup and select its cataloged model controls.
+
 - [OpenAI Provider](openai.md)
 - [Azure Foundry Provider](azure-foundry.md)
 - [Configuration Reference](../configuration/config-reference.md)

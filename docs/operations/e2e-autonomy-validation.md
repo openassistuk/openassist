@@ -1,5 +1,9 @@
 # E2E Autonomy Validation
 
+Replay regressions exercise a one-round cutoff followed by database reopen and a failure injected immediately after persisting the second pending call. They verify unchanged completed-file contents/audit counts, no automatic unfinished second write, matching provider call/result IDs and preserved limit text. Adapter fixtures cover incomplete signed-thinking/tool-only turns and older synthetic rows with duplicate metadata. All use local isolated fixtures.
+
+Anthropic validation now includes real-SDK offline fixtures for valid tool identifiers, decoding to canonical runtime names, complete multi-tool turns with/without thinking, grouped results, restart replay, legacy encoding, provider/model scope, bounds, explicit credential/workspace/endpoint selection and disabled SDK logging/tracing. Haiku 5.5 covers adaptive/medium defaults and disabled low/medium/high with opaque-thinking removal. Before any live credit test, the operator must choose the account/model, total output limit and spending limit explicitly; use an isolated instance with dedicated credentials and start with tools disabled, then test only approved temporary-file actions. Record actual live auth/model replies, one/multiple tool turns and restart behavior separately. The October 16 maintenance made no paid request and does not certify live account/channel performance. See [integration evidence](../execplans/anthropic-integration-2026-10-16.md).
+
 Validate release/source identity and protected lifecycle paths in awareness without changing tool privileges. An isolated dev instance starts with channels/scheduled tasks disabled; configure dedicated test accounts before autonomy checks. Packaged artifact readiness and live provider/channel certification must be recorded separately.
 
 Use this runbook to validate full chat-driven autonomous tool behavior end-to-end.

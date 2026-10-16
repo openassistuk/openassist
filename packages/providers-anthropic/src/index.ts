@@ -1,5 +1,6 @@
 import { ANTHROPIC_THINKING_MODES, ANTHROPIC_THINKING_EFFORTS, anthropicThinking, modelCapabilities, providerTuningErrors, providerModelAvailabilityErrors } from "@openassist/config";
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type {
@@ -50,6 +51,32 @@ export interface AnthropicProviderConfig extends z.infer<typeof configSchema> {}
 const ANTHROPIC_REPLAY_KIND = "anthropic-content-blocks";
 const PROVIDER_REPLAY_KIND_KEY = "providerReplayKind";
 const PROVIDER_REPLAY_JSON_KEY = "providerReplayJson";
+const PROVIDER_REPLAY_SCOPE_KEY = "providerReplayScope";
+const TOOL_NAME_ENCODING_KEY = "anthropicToolNameEncoding";
+const TOOL_NAME_ENCODING = "sha256-v1";
+const MAX_REPLAY_BYTES = 1_048_576;
+const MAX_REPLAY_ITEMS = 256;
+const SAFE_TOOL_NAME = /^[a-zA-Z0-9_-]{1,128}$/;
+
+function wireToolName(name: string): string {
+  if (SAFE_TOOL_NAME.test(name) && !name.startsWith("oa__")) return name;
+  return `oa__${createHash("sha256").update(name).digest("hex")}`;
+}
+
+function toolNamesForRequest(req: ChatRequest) {
+  const runtimeToWire = new Map<string, string>();
+  const wireToRuntime = new Map<string, string>();
+  for (const name of [...req.tools.map(tool => tool.name), ...req.messages.map(message => message.toolName)]) {
+    if (!name) continue;
+    const wireName = wireToolName(name);
+    runtimeToWire.set(name, wireName);
+    wireToRuntime.set(wireName, name);
+  }
+  return {
+    decode: (name: string) => wireToRuntime.get(name) ?? name,
+    replay: (name: string) => runtimeToWire.get(name) ?? wireToolName(name)
+  };
+}
 
 function parseToolArgs(argumentsJson: string): Record<string, unknown> {
   try {
@@ -85,7 +112,7 @@ async function toAnthropicImageBlock(
 }
 
 function parseAnthropicReplayBlocks(
-  message: ChatRequest["messages"][number]
+  message: ChatRequest["messages"][number], scope: string
 ): Array<Record<string, unknown>> | undefined {
   if (message.role !== "assistant") {
     return undefined;
@@ -93,15 +120,17 @@ function parseAnthropicReplayBlocks(
   if (message.metadata?.[PROVIDER_REPLAY_KIND_KEY] !== ANTHROPIC_REPLAY_KIND) {
     return undefined;
   }
+  if (message.metadata[PROVIDER_REPLAY_SCOPE_KEY] !== undefined && message.metadata[PROVIDER_REPLAY_SCOPE_KEY] !== scope) return undefined;
+  if (message.metadata[TOOL_NAME_ENCODING_KEY] !== undefined && message.metadata[TOOL_NAME_ENCODING_KEY] !== TOOL_NAME_ENCODING) return undefined;
 
   const raw = message.metadata?.[PROVIDER_REPLAY_JSON_KEY];
-  if (typeof raw !== "string" || raw.trim().length === 0) {
+  if (typeof raw !== "string" || raw.trim().length === 0 || Buffer.byteLength(raw, "utf8") > MAX_REPLAY_BYTES) {
     return undefined;
   }
 
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
+    if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > MAX_REPLAY_ITEMS) {
       return undefined;
     }
     return parsed.filter(
@@ -113,18 +142,48 @@ function parseAnthropicReplayBlocks(
   }
 }
 
-function replayMetadataForResponseContent(content: Array<any>): Record<string, string> | undefined {
-  if (!content.some((block) => block?.type === "thinking" || block?.type === "redacted_thinking")) {
+function replayMetadataForResponseContent(content: Array<any>, scope: string): Record<string, string> | undefined {
+  if (content.length > MAX_REPLAY_ITEMS || !content.some((block) => block?.type === "thinking" || block?.type === "redacted_thinking" || block?.type === "tool_use")) {
     return undefined;
   }
+  const raw = JSON.stringify(content);
+  if (Buffer.byteLength(raw, "utf8") > MAX_REPLAY_BYTES) return undefined;
 
   return {
     [PROVIDER_REPLAY_KIND_KEY]: ANTHROPIC_REPLAY_KIND,
-    [PROVIDER_REPLAY_JSON_KEY]: JSON.stringify(content)
+    [PROVIDER_REPLAY_JSON_KEY]: raw,
+    [PROVIDER_REPLAY_SCOPE_KEY]: scope,
+    [TOOL_NAME_ENCODING_KEY]: TOOL_NAME_ENCODING
   };
 }
 
-async function mapMessages(messages: ChatRequest["messages"]): Promise<{
+function hasCompleteToolReplay(
+  blocks: Array<Record<string, unknown>>, messages: ChatRequest["messages"], index: number, replayedIds: Set<string>
+): boolean {
+  const pending = new Set<string>();
+  for (const block of blocks) {
+    if (block.type !== "tool_use") continue;
+    if (typeof block.id !== "string" || replayedIds.has(block.id) || pending.has(block.id)) return false;
+    pending.add(block.id);
+  }
+  if (pending.size === 0) return true;
+
+  // Runtime audit rows interleave calls and results. All results must survive
+  // reconciliation in this turn before the complete native turn can be replayed.
+  for (let next = index + 1; next < messages.length; next += 1) {
+    const message = messages[next];
+    if (message.role === "system") continue;
+    if (message.role === "assistant" && message.toolCallId && message.toolName && pending.has(message.toolCallId)) continue;
+    if (message.role === "tool" && message.toolCallId && pending.delete(message.toolCallId)) {
+      if (pending.size === 0) return true;
+      continue;
+    }
+    return false;
+  }
+  return false;
+}
+
+async function mapMessages(messages: ChatRequest["messages"], names: ReturnType<typeof toolNamesForRequest>, scope: string, stripThinking = false): Promise<{
   system?: string;
   messages: Array<Record<string, unknown>>;
 }> {
@@ -132,38 +191,34 @@ async function mapMessages(messages: ChatRequest["messages"]): Promise<{
   const mapped: Array<Record<string, unknown>> = [];
   const replayedToolCalls = new Set<string>();
 
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
     if (message.role === "system") {
       systemParts.push(message.content);
       continue;
     }
 
-    const replayBlocks = parseAnthropicReplayBlocks(message);
+    const parsedReplay = parseAnthropicReplayBlocks(message, scope);
+    const replayBlocks = (parsedReplay && hasCompleteToolReplay(parsedReplay, messages, index, replayedToolCalls) ? parsedReplay : undefined)
+      ?.filter(block => !stripThinking || (block.type !== "thinking" && block.type !== "redacted_thinking"))
+      .map(block => message.metadata?.[TOOL_NAME_ENCODING_KEY] !== TOOL_NAME_ENCODING && block.type === "tool_use" && typeof block.name === "string" ? { ...block, name: names.replay(block.name) } : block);
     if (replayBlocks) {
       for (const block of replayBlocks) {
         if (block.type === "tool_use" && typeof block.id === "string") {
           replayedToolCalls.add(block.id);
         }
       }
-      mapped.push({
-        role: "assistant",
-        content: replayBlocks
-      });
+      if (replayBlocks.length > 0) mapped.push({ role: "assistant", content: replayBlocks });
       continue;
     }
 
     if (message.role === "tool") {
-      mapped.push({
-        role: "user",
-        content: [
-          {
-            type: "tool_result",
-            tool_use_id: message.toolCallId,
-            content: message.content,
-            is_error: message.metadata?.isError === "true"
-          }
-        ]
-      });
+      const result = { type: "tool_result", tool_use_id: message.toolCallId, content: message.content, is_error: message.metadata?.isError === "true" };
+      const previous = mapped.at(-1);
+      if (previous?.role === "user" && Array.isArray(previous.content) && previous.content.every(block => block.type === "tool_result")) {
+        previous.content.push(result);
+      } else {
+        mapped.push({ role: "user", content: [result] });
+      }
       continue;
     }
 
@@ -177,7 +232,7 @@ async function mapMessages(messages: ChatRequest["messages"]): Promise<{
           {
             type: "tool_use",
             id: message.toolCallId,
-            name: message.toolName,
+            name: wireToolName(message.toolName),
             input: parseToolArgs(message.metadata?.toolArgumentsJson ?? "{}")
           }
         ]
@@ -222,11 +277,10 @@ function mapTools(tools: ChatRequest["tools"]): Array<Record<string, unknown>> |
   if (tools.length === 0) {
     return undefined;
   }
-  return tools.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    input_schema: tool.inputSchema
-  }));
+  return tools.map((tool) => {
+    const name = wireToolName(tool.name);
+    return { name, description: name === tool.name ? tool.description : `${tool.description}\nRuntime tool: ${tool.name}`, input_schema: tool.inputSchema };
+  });
 }
 
 export class AnthropicProviderAdapter implements ProviderAdapter {
@@ -378,18 +432,26 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
     const client = new Anthropic({
       apiKey: "apiKey" in auth ? apiKey : null,
       authToken: "apiKey" in auth ? null : apiKey,
-      baseURL: this.config.baseUrl,
-      defaultHeaders: this.config.workspaceId ? { "anthropic-workspace-id": this.config.workspaceId } : undefined
+      baseURL: this.config.baseUrl ?? "https://api.anthropic.com",
+      logLevel: "off",
+      openTelemetry: false,
+      defaultHeaders: {
+        "x-api-key": "apiKey" in auth ? apiKey : null,
+        authorization: "apiKey" in auth ? null : `Bearer ${apiKey}`,
+        "anthropic-workspace-id": this.config.workspaceId ?? null,
+        "anthropic-beta": null,
+        "anthropic-version": "2023-06-01"
+      }
     });
 
-    const mapped = await mapMessages(req.messages);
     const model = req.model || this.config.defaultModel;
     const availabilityErrors = providerModelAvailabilityErrors({ ...this.config, type: "anthropic", defaultModel: model });
     if (availabilityErrors.length) throw new Error(availabilityErrors.join(" "));
     const tuning = anthropicThinking({ ...this.config, type: "anthropic", defaultModel: model });
     // Runtime guidance, access-controlled tools and bounded history can change between
     // requests. Let the API retain valid signed blocks and drop only stale ones.
-    const prefixBinding = modelCapabilities(model, "anthropic")?.thinkingPrefixBinding;
+    const prefixBoundModel = modelCapabilities(model, "anthropic")?.thinkingPrefixBinding;
+    const prefixBinding = prefixBoundModel && tuning.thinking?.type !== "disabled";
     const thinkingOn = tuning.thinking?.type !== "disabled" && (tuning.thinking || modelCapabilities(model, "anthropic")?.defaultThinking === "adaptive");
     const maxTokens = req.maxTokens ?? this.config.maxOutputTokens ?? Math.max(modelCapabilities(model, "anthropic")?.defaultMaxOutputTokens ?? 4096, (this.config.thinkingBudgetTokens ?? 0) + 1024);
     const maximum = modelCapabilities(model, "anthropic")?.maxOutputTokens ?? 128_000;
@@ -399,6 +461,9 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
     if (tuning.thinking?.type === "enabled" && maxTokens <= tuning.thinking.budget_tokens) {
       throw new Error("Anthropic maxTokens must be greater than thinkingBudgetTokens.");
     }
+    const names = toolNamesForRequest(req);
+    const replayScope = `anthropic:${this.config.id}:${model}`;
+    const mapped = await mapMessages(req.messages, names, replayScope, Boolean(prefixBoundModel && tuning.thinking?.type === "disabled"));
     const payload = {
       model,
       max_tokens: maxTokens,
@@ -412,7 +477,7 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
     const options = prefixBinding ? { headers: { "anthropic-beta": "thinking-binding-controls-2026-08-01" } } : undefined;
     // Fold the SDK stream into the existing completed-message contract. Large
     // reasoning budgets can exceed the SDK's non-streaming timeout estimate.
-    const response = prefixBinding || maxTokens > 16_384
+    const response = prefixBoundModel || maxTokens > 16_384
       ? await client.messages.stream(payload as any, options).finalMessage()
       : await client.messages.create(payload as any, options);
 
@@ -422,7 +487,7 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
       .filter((block: any) => block.type === "tool_use")
       .map((block: any) => ({
         id: String(block.id),
-        name: String(block.name),
+        name: names.decode(String(block.name)),
         argumentsJson: JSON.stringify(block.input ?? {})
       }));
 
@@ -430,7 +495,7 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
       output: {
         role: "assistant",
         content,
-        metadata: replayMetadataForResponseContent(response.content)
+        metadata: replayMetadataForResponseContent(response.content, replayScope)
       },
       usage: {
         inputTokens: response.usage.input_tokens,

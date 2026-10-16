@@ -51,6 +51,7 @@ Advanced developer note:
 - Provider contract: [`docs/interfaces/provider-adapter.md`](interfaces/provider-adapter.md)
 - Model recommendations and route-specific controls: [model compatibility](providers/model-compatibility.md)
 - SDK, authentication and live-test evidence: [provider/channel readiness](operations/provider-channel-readiness.md)
+- October 16 Anthropic SDK, Haiku 5.5 and durable tool replay work: [integration evidence](execplans/anthropic-integration-2026-10-16.md). Round-limit and interrupted-turn regressions cover safe continuation through database restart. Live API-credit testing remains deferred by the operator.
 
 Provider truth that stays consistent across setup and docs:
 

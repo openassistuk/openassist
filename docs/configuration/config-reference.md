@@ -164,6 +164,8 @@ Codex is the separate account-login route. Linked-account auth is managed throug
 
 ### Anthropic
 
+Source catalog update (October 16): `claude-haiku-5-5` supports adaptive/disabled thinking and all five efforts. Omitted settings mean adaptive/medium. Disabled thinking accepts only low/medium/high; manual budgets are rejected. Its total output default/maximum is `16384`/`128000`. Adaptive requests use prefix-binding controls; disabled requests remove opaque thinking from replay and retain text/tools/results. The native SDK uses configured endpoint/auth/workspace settings; SDK debug logging and automatic tracing are disabled. See [Anthropic setup and compatibility](../providers/anthropic.md).
+
 ```toml
 [[runtime.providers]]
 id = "anthropic-main"
@@ -178,7 +180,7 @@ Additional fields:
 - `thinkingMode`: optional `adaptive`, `enabled` (manual), or `disabled`
 - `thinkingEffort`: optional `low`, `medium`, `high`, `xhigh`, or `max`, where supported
 - `thinkingBudgetTokens`: integer `1024..32000`, only for manual-thinking models
-- `maxOutputTokens`: optional integer `1..128000`, covering thinking plus visible output; model-specific limits also apply (Opus/Sonnet/Haiku 4.5: `64000`; Opus/Sonnet 4.6 and later: `128000`). Must exceed a configured manual budget. Default is `16384` for Opus 5.5/Sonnet 5.5/Fable 5/5.1/Mythos 5/5.1/Preview; earlier models use `4096` or manual budget plus `1024`, whichever is larger.
+- `maxOutputTokens`: optional integer `1..128000`, covering thinking plus visible output; model-specific limits also apply (Opus/Sonnet/Haiku 4.5: `64000`; Opus/Sonnet 4.6 and later: `128000`). Must exceed a configured manual budget. Default is `16384` for Opus 5.5/Sonnet 5.5/Haiku 5.5/Fable 5/5.1/Mythos 5/5.1/Preview; earlier models use `4096` or manual budget plus `1024`, whichever is larger.
 - `workspaceId`: optional Claude Console ID matching `wrkspc_` followed by letters or numbers; sent as `anthropic-workspace-id` for multi-workspace keys. Omit for workspace-scoped keys. This is an identifier, not a credential.
 - optional `oauth` object for advanced provider-managed OAuth configuration
 

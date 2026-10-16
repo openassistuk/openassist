@@ -30,6 +30,8 @@ If you hit trouble on any of those steps, keep `docs/operations/common-troublesh
 
 ## Before You Start
 
+For Anthropic API credits, select `Anthropic (API Key)` in setup, save the key in the operator env file and optionally set the Console workspace ID. Fresh setup still recommends Opus 5.5; source builds also offer Haiku 5.5 with adaptive/medium defaults. Wizard exposes its output ceiling and disabled low/medium/high choices. Existing model IDs are preserved, and incompatible manual settings require an explicit reset/model choice. See [the Anthropic guide](../providers/anthropic.md); source SDK/catalog improvements after v0.2.3 need a later packaged release. Live account testing remains an operator decision.
+
 Packaged installation needs Bash, curl, OpenSSL, gzip and standard Unix utilities. It supports Linux glibc x64/arm64 and macOS Intel/Apple Silicon; see the [Linux](install-linux.md) and [macOS](install-macos.md) guides for minimum OS requirements.
 
 Optional source-development prerequisites (packaged releases include Node):

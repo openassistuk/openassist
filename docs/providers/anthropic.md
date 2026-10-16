@@ -21,7 +21,17 @@ This route is the fastest way to use Anthropic in quickstart, while still leavin
 
 ## Quickstart Path
 
+Source integration checked October 16, 2026 uses the official `@anthropic-ai/sdk` `0.135.0` Messages API. Quickstart saves the API key in the operator env file; the runtime supplies that explicit credential to the adapter. Optional `workspaceId` selects a multi-workspace key's workspace. Configured `baseUrl`, credentials and workspace take precedence over ambient SDK endpoint/auth/workspace headers. SDK debug logging and automatic OpenTelemetry tracing are disabled; operational diagnostics stay in OpenAssist's sanitized runtime path. Published `v0.2.3` contains SDK `0.131.0`; these newer source changes require a later packaged release.
+
+`claude-haiku-5-5` is available alongside the existing Opus 5.5 recommendation. Haiku defaults to adaptive thinking and medium effort, accepts all five efforts, and supports disabled thinking only at low/medium/high. Manual budgets and non-default sampling are unsupported. The total output allowance defaults to `16384`, bounded by `128000`, and includes thinking. Wizard offers only low/medium/high effort when Haiku thinking is disabled. Quickstart preserves compatible saved choices and asks before resetting incompatible manual settings. Haiku 4.5 remains supported with its existing manual-budget semantics.
+
+Tools retain their canonical OpenAssist names in policy and audit records. The adapter maps incompatible names to deterministic API-safe identifiers and restores the canonical name on returned calls. It retains complete assistant tool turns even when thinking is absent, groups their results and skips duplicate audit placeholders after restart. New replay metadata is provider/model-scoped and bounded to 1 MiB/256 blocks; legacy records remain readable. Adaptive Haiku uses the existing prefix-binding beta controls. Disabled Haiku omits those controls and strips opaque thinking from replay while preserving text, tools and results, preventing stale-prefix errors with changing runtime guidance.
+
+All validation for this source maintenance uses the real SDK with isolated HTTP/SSE fixtures. The operator deferred live API-credit testing; no live account, quota, model performance or channel success is certified. See [integration evidence](../execplans/anthropic-integration-2026-10-16.md), [Haiku migration](https://platform.claude.com/docs/en/models/haiku-5-5/migration-guide) and [thinking controls](https://platform.claude.com/docs/en/build-with-claude/effort).
+
 Beginner path:
+
+After a tool-round limit, a narrower follow-up retains completed results and the limit explanation without replaying the last calls twice. After an interrupted multi-tool turn, the adapter uses only reconciled completed call/result pairs when the native turn is incomplete. It does not execute an unfinished historical call automatically. Earlier synthetic replies carrying duplicate replay metadata also retain their text. No database migration is needed.
 
 ```bash
 openassist setup
@@ -136,7 +146,7 @@ Troubleshooting runbook:
 
 ## Modernization compatibility
 
-Fresh setup recommends `claude-opus-5-5` for complex autonomous work, with `claude-sonnet-5-5`, `claude-fable-5-1` and `claude-haiku-4-5-20251001` alternatives. Opus 5.5 retains upstream medium effort and mandatory adaptive thinking. Anthropic reports Sonnet 5.5 as a faster, cheaper complement and Opus stronger for complex open-ended judgment; this recommendation is based on vendor evidence, not an OpenAssist live comparison. Sonnet 5.5 uses adaptive thinking with low through max effort, upstream high effort and a 16384-token default output limit. Disabled/manual thinking and the new between_tools mode are not supported for Sonnet 5.5 in OpenAssist. See [Anthropic's Sonnet 5.5 announcement](https://www.anthropic.com/claude-sonnet-5-5) and [our compatibility matrix](model-compatibility.md).
+Fresh setup recommends `claude-opus-5-5` for complex autonomous work, with `claude-sonnet-5-5`, `claude-fable-5-1`, `claude-haiku-5-5` and `claude-haiku-4-5-20251001` alternatives. Opus 5.5 retains upstream medium effort and mandatory adaptive thinking. Anthropic reports Sonnet 5.5 as a faster, cheaper complement and Opus stronger for complex open-ended judgment; this recommendation is based on vendor evidence, not an OpenAssist live comparison. Sonnet 5.5 uses adaptive thinking with low through max effort, upstream high effort and a 16384-token default output limit. Disabled/manual thinking and the new between_tools mode are not supported for Sonnet 5.5 in OpenAssist. See [Anthropic's Sonnet 5.5 announcement](https://www.anthropic.com/claude-sonnet-5-5) and [our compatibility matrix](model-compatibility.md).
 
 Sonnet 5 and Opus 5 support adaptive thinking and all five effort values. Haiku 4.5 supports manual budgets, not adaptive thinking or effort. Opus 5 cannot disable thinking at xhigh/max effort. Output tokens remain bounded: 4096 for the earlier catalog, or manual budget plus 1024 when larger; the new always-thinking models use 16384; an explicit output limit must exceed a manual budget. Thinking replay and tool results remain durable and hidden from channel-visible output.
 

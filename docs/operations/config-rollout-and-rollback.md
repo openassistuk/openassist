@@ -1,5 +1,7 @@
 # Config Rollout and Rollback
 
+When adopting Haiku 5.5, validate its adaptive/disabled thinking and effort combination before applying config. Disabled xhigh/max and inherited manual budgets are rejected; quickstart asks before resetting incompatible settings, and wizard is the explicit repair path. The adapter reads legacy replay records and versions new provider/model-scoped wire names without a database migration. Canonical tool/audit IDs and operator state remain intact. Earlier adapters do not interpret the new wire-name marker and retain their original dotted-tool-name limitation. Before reverting, restore compatible model/tuning and use a fresh provider conversation or a matching pre-update state backup; retain the current audit history separately. See [Anthropic integration evidence](../execplans/anthropic-integration-2026-10-16.md).
+
 For an isolated developer instance, apply credential changes through its printed setup command and restart its foreground `dev test` process. Its dedicated env file is loaded only at daemon launch; changing it does not affect an already running daemon, the primary service or later build subprocesses.
 
 Application rollback is distinct from configuration/database restoration. Staged lifecycle updates back up stopped state and normalize relative operator paths without resetting provider credentials. Unsupported config/database compatibility versions block activation. Preserve newer state and review queued external actions before any manual database restoration. See [upgrade/recovery](upgrade-and-rollback.md).

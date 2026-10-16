@@ -187,6 +187,8 @@ Default effort also requests opaque reasoning for cataloged Codex models. Bounde
 
 ## Related Docs
 
+Claude API credits use the [Anthropic API-key route](anthropic.md), configured with its own provider ID and optional workspace. The shared setup catalog now offers Haiku 5.5 alongside the Opus 5.5 recommendation, with model-specific thinking and output controls.
+
 - [OpenAI Provider](openai.md)
 - [Azure Foundry Provider](azure-foundry.md)
 - [Quickstart on Linux and macOS](../operations/quickstart-linux-macos.md)

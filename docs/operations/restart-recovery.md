@@ -1,5 +1,7 @@
 # Restart and Recovery
 
+Anthropic replay uses complete native tool turns only when every call has a retained result in the reconciled turn. After interrupted multi-tool execution, it falls back to completed normalized history without replaying unmatched calls or automatically executing unfinished work. Tool-limit explanations carry no tool-turn metadata, and older explanations with duplicate metadata retain their text on continuation. Durable audit rows and database compatibility remain unchanged.
+
 During activation, daemon self-knowledge identifies the application actually running, even before the installation record is committed. The release track may briefly be unknown; later status snapshots read it from the matching successful record. Recovery must still use the lifecycle journal, not treat a candidate's startup identity as proof of successful activation.
 
 Application updates now have a durable lifecycle journal separate from runtime message replay. `openassist update recover --dry-run` inspects interrupted activation. Rollback restores compatible application/runtime files without restoring an old database, so conversation and idempotency records remain current. See [upgrade/recovery](upgrade-and-rollback.md).

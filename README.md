@@ -61,13 +61,13 @@ Provider route rules that matter at a glance:
 - Codex remains the separate public account-login route.
 - Codex is intentionally documented as Codex-only in this release.
 - Fresh OpenAI and Codex setup recommends `gpt-6.1-sol` with `xhigh` reasoning, with Astra, Luna and older Sol alternatives. GPT-6.1 Sol excludes `none` on these routes; `Default` omits the parameter. Saved model IDs and tuning remain unchanged.
-- Fresh Anthropic setup recommends `claude-opus-5-5` for complex autonomous work; `claude-sonnet-5-5` is a faster, cheaper alternative. Wizard exposes verified adaptive thinking and effort controls, plus manual budgets for compatible older models.
+- Fresh Anthropic setup recommends `claude-opus-5-5` for complex autonomous work; `claude-sonnet-5-5` and `claude-haiku-5-5` provide faster alternatives. Haiku 5.5 defaults to adaptive thinking/medium effort and accepts disabled thinking at high effort or below. Wizard exposes verified thinking/effort and output limits, plus manual budgets for compatible older models.
 - Saved model IDs remain unchanged. Retired Codex `gpt-5.4` selections block readiness until you explicitly choose a replacement in `openassist setup wizard`. See [model compatibility](docs/providers/model-compatibility.md).
 - Azure Foundry is the Azure resource-style `/openai/v1/` route, uses the Responses API only, and requires a deployed Azure deployment name plus either API-key or Entra host auth.
 
 The full conversational catalog includes GPT-6/6.1, GPT-5.6 and its alias, GPT-5.5/Pro, older GPT/Pro/o-series families and verified API pins; Claude includes Opus 5.5, Sonnet 5.5, Fable/Mythos 5/5.1, Opus 4.7/4.8 and retained compatible families. Retired IDs require explicit repair; announced deprecations appear in setup readiness and status with their dates. Azure keeps your deployment name and requires a known underlying model for tuning. Wizard exposes API/Azure Standard/Pro execution and Claude output budgets. [Model compatibility](docs/providers/model-compatibility.md) lists exact controls, availability limits and preserved-thinking behavior.
 
-Anthropic quickstart/wizard supports optional `workspaceId` for multi-workspace keys. Current stable SDK versions, credential handling and remaining live checks are recorded in the [provider/channel readiness guide](docs/operations/provider-channel-readiness.md).
+Anthropic uses the official TypeScript SDK. Quickstart/wizard saves the API key through the operator env file and supports optional `workspaceId` for multi-workspace keys. Source integration uses SDK `0.135.0`, API-safe tool-name mapping and complete bounded tool/thinking replay, including safe continuation after round limits and interrupted turns; SDK debug logging and automatic tracing are disabled. Published `v0.2.3` contains SDK `0.131.0`; these later source improvements require a future packaged release. Current source dependencies, credential handling and deferred live checks are recorded in the [provider/channel readiness guide](docs/operations/provider-channel-readiness.md).
 
 ## Pick a Channel
 

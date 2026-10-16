@@ -165,6 +165,8 @@ The active tool-loop budget is surfaced through runtime awareness, `/status`, `G
 
 If max rounds is exceeded, runtime returns safe operator-visible error text that names the configured cap, explains that completed tool results are already in conversation history, and asks the operator for a narrower or follow-up request before stopping the loop.
 
+Synthetic limit/disabled replies do not inherit provider tool-turn metadata; that metadata belongs to the tool-call audit row. Anthropic native replay requires every call's result in the same retained turn, before normal conversation resumes. Incomplete turns after interruption/context reconciliation fall back to completed normalized calls/results, while earlier duplicate replay metadata on synthetic replies is ignored so their text survives. This never retries an unfinished side effect.
+
 ## Durability and Audit
 
 Tool invocation audit table:
@@ -236,6 +238,8 @@ CLI commands:
 - no browser automation and no JavaScript page execution in this release
 
 ## Modernization compatibility
+
+Anthropic SDK `0.135.0` source integration maps dotted, Unicode, overlong and reserved-prefix tool names to deterministic API-safe identifiers, then restores canonical runtime names for policy/execution/audit. Complete assistant turns survive even when no thinking block is returned; result blocks are grouped before follow-up text, and persisted replay suppresses duplicate tool placeholders. New replay is scoped to provider/model, bounded to 1 MiB/256 blocks and tagged with its wire-name encoding; legacy records remain readable. Unknown returned names still reach normal advertised-tool/policy validation and grant no capability. These adapter changes retain sequential execution, durable intent/results and the configured round limit. SDK agent runners, server tools and automatic tracing are not enabled. See [provider replay contract](provider-adapter.md).
 
 Provider modernization preserves sequential runtime tool execution and the existing round budget. Adaptive Anthropic thinking blocks use the same durable replay path as manual thinking; raw thinking is never rendered to channels. Current model controls come from the shared configuration catalog.
 

@@ -70,7 +70,6 @@ import {
   actorScopeFromParts,
   buildMemoryExtractionMessages,
   buildPermanentMemorySystemMessage,
-  buildSessionMemorySystemMessage,
   MAX_COMPACTION_BATCHES_PER_TURN,
   MAX_RECALLED_MEMORIES,
   parseMemoryExtractionResponse,

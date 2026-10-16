@@ -160,17 +160,24 @@ describe("model context contracts", () => {
     expect(f.db.context.history(f.sessionId).messages).toHaveLength(13);
   });
 
-  it("retains the frontier on malformed, cancelled or receipt-free summaries", async () => {
-    for (const content of ["not JSON", JSON.stringify({ goals: "missing fields" }), summary.replace("call-repeat", "lost"), `${" ".repeat(131_072)}${summary}`]) {
+  it.each(["not JSON", JSON.stringify({ goals: "missing fields" }), summary.replace("call-repeat", "lost"), `${" ".repeat(131_072)}${summary}`])(
+    "retains the frontier for a rejected summary candidate (%#)", async content => {
       const f = fixture({ maxInputTokens: 4000 }, vi.fn(async () => response(content)));
       f.append("user", "x".repeat(4000)); f.append("assistant", "", "call-repeat"); f.append("tool", "receipt", "call-repeat"); f.append("user", "y".repeat(9000));
       await expect(f.manager.admit(f.provider,f.request(),auth)).rejects.toThrow(/compaction/);
       expect(f.db.context.checkpoint(f.sessionId)).toBeNull(); expect(f.enqueue).toHaveBeenCalledOnce();
     }
-    const f = fixture({ maxInputTokens: 4000 }, vi.fn(() => new Promise<ChatResponse>(() => {})));
+  );
+
+  it("retains the frontier when an in-flight summary is cancelled", async () => {
+    let started!: () => void;
+    const ready = new Promise<void>(resolve => { started = resolve; });
+    const f = fixture({ maxInputTokens: 4000 }, vi.fn(() => { started(); return new Promise<ChatResponse>(() => {}); }));
     f.append("user", "x".repeat(4000)); f.append("assistant", "done"); f.append("user", "y".repeat(9000));
-    const attempt = f.manager.admit(f.provider,f.request(),auth); const result = expect(attempt).rejects.toThrow(/compaction/);
-    await vi.waitFor(() => expect(f.summarize).toHaveBeenCalled()); f.manager.stop(); await result;
+    const result = f.manager.admit(f.provider,f.request(),auth).catch((error: unknown) => error);
+    await ready;
+    f.manager.stop();
+    await expect(result).resolves.toMatchObject({ name: "ContextAdmissionError", message: expect.stringContaining("compaction") });
     expect(f.db.context.checkpoint(f.sessionId)).toBeNull(); expect(f.enqueue).not.toHaveBeenCalled(); f.manager.start();
   });
 

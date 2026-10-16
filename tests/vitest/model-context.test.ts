@@ -20,6 +20,8 @@ const response = (content = "ok"): ChatResponse => ({ output: { role: "assistant
 const summary = JSON.stringify({ goals: "Keep FACT-NINE; corrected target Debian", constraints: "No new approval", decisions: "Debian", openWork: "finish task", completedActions: "call-repeat done", evidence: "source message references retained" });
 const roots: string[] = [];
 const databases: OpenAssistDatabase[] = [];
+// Real WAL/fsync fixtures vary on hosted Windows disks; parser CPU assertions keep their own strict bound.
+const DATABASE_TEST_TIMEOUT_MS = 15_000;
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); databases.splice(0).forEach(db => db.close()); roots.splice(0).forEach(root => fs.rmSync(root, { recursive: true, force: true })); });
 
 function fixture(policy: Partial<RuntimeConfig["context"]> = {}, summarize = vi.fn(async () => response(summary))) {
@@ -143,7 +145,7 @@ describe("model context contracts", () => {
     expect(reopened.context.reject(f.sessionId,"fingerprint")).toBe(true);
     expect(reopened.context.reject(f.sessionId,"fingerprint")).toBe(false);
     reopened.context.repaired(f.sessionId,"fingerprint",false);
-  });
+  }, DATABASE_TEST_TIMEOUT_MS);
 
   it("compacts under pressure without clipping the current request or mandatory guidance", async () => {
     const f = fixture({ maxInputTokens: 4000, summaryMaxTokens: 512 });
@@ -158,7 +160,7 @@ describe("model context contracts", () => {
     expect(projection.messages.some(message => message.content.includes("FACT-NINE"))).toBe(true);
     expect(f.provider.chat).not.toHaveBeenCalled();
     expect(f.db.context.history(f.sessionId).messages).toHaveLength(13);
-  });
+  }, DATABASE_TEST_TIMEOUT_MS);
 
   it.each(["not JSON", JSON.stringify({ goals: "missing fields" }), summary.replace("call-repeat", "lost"), `${" ".repeat(131_072)}${summary}`])(
     "retains the frontier for a rejected summary candidate (%#)", async content => {
@@ -166,7 +168,7 @@ describe("model context contracts", () => {
       f.append("user", "x".repeat(4000)); f.append("assistant", "", "call-repeat"); f.append("tool", "receipt", "call-repeat"); f.append("user", "y".repeat(9000));
       await expect(f.manager.admit(f.provider,f.request(),auth)).rejects.toThrow(/compaction/);
       expect(f.db.context.checkpoint(f.sessionId)).toBeNull(); expect(f.enqueue).toHaveBeenCalledOnce();
-    }
+    }, DATABASE_TEST_TIMEOUT_MS
   );
 
   it("retains the frontier when an in-flight summary is cancelled", async () => {
@@ -179,7 +181,7 @@ describe("model context contracts", () => {
     f.manager.stop();
     await expect(result).resolves.toMatchObject({ name: "ContextAdmissionError", message: expect.stringContaining("compaction") });
     expect(f.db.context.checkpoint(f.sessionId)).toBeNull(); expect(f.enqueue).not.toHaveBeenCalled(); f.manager.start();
-  });
+  }, DATABASE_TEST_TIMEOUT_MS);
 
   it("blocks oversized mandatory input and sidecars, projects tool output with receipts", async () => {
     const f = fixture({ maxInputTokens: 2000 });
@@ -195,7 +197,7 @@ describe("model context contracts", () => {
     expect(small.messages.at(-1)!.content.length).toBeGreaterThan(20_000);
     const huge = { ...small, messages: [{ role: "user" as const, content: "x".repeat(DEFAULT_CONTEXT_CONFIG.maxRequestBytes*2) }] };
     await expect(f.manager.admit(f.provider,huge,auth)).rejects.toThrow(/resource bound/);
-  });
+  }, DATABASE_TEST_TIMEOUT_MS);
 
   it("reuses exact counts only for matching candidates and falls back on unavailable counting", async () => {
     const f = fixture({ maxInputTokens: 4000 }); f.append("user", "x".repeat(9500));
@@ -210,7 +212,7 @@ describe("model context contracts", () => {
     expect(f.manager.status(f.sessionId)?.failure).toMatch(/unavailable/);
     expect(f.manager.status("new-session")?.state).toBe("stale");
     expect(f.manager.snapshot()[f.sessionId]).toBeDefined();
-  });
+  }, DATABASE_TEST_TIMEOUT_MS);
 
   it("bounds provider rejection repair and validates summary structure/redaction", async () => {
     const f = fixture(); f.append("user", "old".repeat(1000)); f.append("assistant", "done"); f.append("user", "current");
@@ -223,7 +225,7 @@ describe("model context contracts", () => {
     expect(parseContextSummary(summary.replace("FACT-NINE","sk-fixture_not_a_real_credential"),512)).toContain("[REDACTED]");
     expect(() => parseContextSummary(summary,1)).toThrow(/budget/);
     await f.manager.maintain(f.provider,f.sessionId,"custom");
-  });
+  }, DATABASE_TEST_TIMEOUT_MS);
 
   it("edits context settings with strict re-prompting and optional provider limits", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(),"openassist-context-wizard-")); roots.push(root);
@@ -257,5 +259,5 @@ describe("model context contracts", () => {
     let drained = false; const stopping = worker.stop().then(() => { drained = true; });
     await Promise.resolve(); expect(drained).toBe(false);
     release(); await stopping; expect(drained).toBe(true);
-  });
+  }, DATABASE_TEST_TIMEOUT_MS);
 });

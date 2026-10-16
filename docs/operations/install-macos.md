@@ -1,8 +1,8 @@
 # Install on macOS
 
-Signed [v0.2.3](../releases/v0.2.3.md) delivers media-security and dependency repairs. Existing installations need an explicit stable or exact-version update; old pins do not advance automatically.
+Signed [v0.2.4](../releases/v0.2.4.md) delivers the Anthropic tool/replay/Haiku improvements and routine SDK updates while retaining prior security repairs. Existing installations need an explicit stable or exact-version update; old pins do not advance automatically.
 
-**Release availability:** the signed [v0.2.3 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.3) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.3`. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys. [Release evidence](../execplans/stable-0.2.3-release.md) separates exact-main checks, protected publication, independent signatures/digests and four-target public installation.
+**Release availability:** signed [v0.2.4 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.4) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.4`. Source development remains explicit with `--source --ref main`. Signing verification is automatic; operators do not supply keys. [Release evidence](../execplans/stable-0.2.4-release.md) records exact-main checks, protected publication, independent signatures/digests and four-target public installation.
 
 Packaged bootstrap adds a marked `~/.local/bin` PATH block to Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`), or Bash's `.bashrc` and `.profile`. Open a new terminal after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved. Uninstall removes only an unchanged block whose ownership was recorded.
 

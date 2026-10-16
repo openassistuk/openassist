@@ -1,8 +1,8 @@
 # Install on Linux
 
-Signed [v0.2.3](../releases/v0.2.3.md) delivers media-security and dependency repairs. Existing installations need an explicit stable or exact-version update; old pins do not advance automatically.
+Signed [v0.2.4](../releases/v0.2.4.md) delivers the Anthropic tool/replay/Haiku improvements and routine SDK updates while retaining prior security repairs. Existing installations need an explicit stable or exact-version update; old pins do not advance automatically.
 
-**Release availability:** the signed [v0.2.3 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.3) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.3`. Source development remains available with `--source --ref main`. Signing verification is automatic; operators do not supply keys. [Release evidence](../execplans/stable-0.2.3-release.md) separates exact-main checks, protected publication, independent signatures/digests and four-target public installation.
+**Release availability:** signed [v0.2.4 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.4) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.4`. Source development remains explicit with `--source --ref main`. Signing verification is automatic; operators do not supply keys. [Release evidence](../execplans/stable-0.2.4-release.md) records exact-main checks, protected publication, independent signatures/digests and four-target public installation.
 
 Packaged bootstrap adds a marked `~/.local/bin` PATH block to Bash's `.bashrc` and `.profile`, or Zsh's `.zshrc` and `.zprofile` (respecting `ZDOTDIR`). Open a new shell after installation, or use `~/.local/bin/openassist` immediately. Existing marked blocks and symlinked profiles are preserved; other shells receive `.profile` guidance. Uninstall removes only an unchanged block whose ownership was recorded.
 
@@ -10,7 +10,7 @@ Normal Linux installation downloads a signed release with private Node into `~/.
 
 This page covers Linux-specific installation details. For the end-to-end operator flow, start with `docs/operations/quickstart-linux-macos.md` and keep `docs/operations/common-troubleshooting.md` nearby for repair commands.
 
-The [v0.2.3 stable release](../releases/v0.2.3.md) retains the model refresh, earlier Axios security repair and Ubuntu fixes. Existing installations should use the explicit stable update commands in the release notes; exact pins and saved provider settings do not advance automatically. Replacement-host provider/channel retesting remains unverified separately from public-install validation.
+The earlier immutable [v0.2.3 release](../releases/v0.2.3.md) retains the model refresh, earlier Axios security repair and Ubuntu fixes. Existing installations should use the explicit stable update commands in the release notes; exact pins and saved provider settings do not advance automatically. Replacement-host provider/channel retesting remains unverified separately from public-install validation.
 
 ## Platform Behavior
 

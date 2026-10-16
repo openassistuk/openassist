@@ -1,6 +1,6 @@
 # Threat Model
 
-The [v0.2.4 preparation](../execplans/stable-0.2.4-release.md) collects the already merged Anthropic replay/diagnostic controls without changing privileges, schema or signing trust. Only the later reviewed exact-main/tag, protected production signing and four-target public verification can establish package availability. Existing v0.2.3 assets remain immutable; preparation performs no paid/live provider testing.
+The [v0.2.4 release evidence](../execplans/stable-0.2.4-release.md) records reviewed main/tag 78b3e40, exact-main checks, protected production signing, independently valid signatures/digests and four-target public installation. It ships the merged Anthropic replay/diagnostic controls without new privileges, schema or signing trust. Older signed assets remain immutable; live provider testing stays deferred.
 
 Replay admission checks complete matching tool results within the retained turn. An interrupted Anthropic turn falls back to reconciled completed history, and synthetic limit/disabled replies cannot duplicate the last provider tool turn. Replay does not retry unfinished side effects or edit durable audit rows; signed blocks are either retained unchanged in complete replay or omitted with the incomplete native turn.
 

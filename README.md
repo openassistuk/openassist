@@ -67,7 +67,7 @@ Provider route rules that matter at a glance:
 
 The full conversational catalog includes GPT-6/6.1, GPT-5.6 and its alias, GPT-5.5/Pro, older GPT/Pro/o-series families and verified API pins; Claude includes Opus 5.5, Sonnet 5.5, Fable/Mythos 5/5.1, Opus 4.7/4.8 and retained compatible families. Retired IDs require explicit repair; announced deprecations appear in setup readiness and status with their dates. Azure keeps your deployment name and requires a known underlying model for tuning. Wizard exposes API/Azure Standard/Pro execution and Claude output budgets. [Model compatibility](docs/providers/model-compatibility.md) lists exact controls, availability limits and preserved-thinking behavior.
 
-Anthropic uses the official TypeScript SDK. Quickstart/wizard saves the API key through the operator env file and supports optional `workspaceId` for multi-workspace keys. Source integration uses SDK `0.135.0`, API-safe tool-name mapping and complete bounded tool/thinking replay, including safe continuation after round limits and interrupted turns; SDK debug logging and automatic tracing are disabled. Published `v0.2.3` contains SDK `0.131.0`; these later source improvements require a future packaged release. Current source dependencies, credential handling and deferred live checks are recorded in the [provider/channel readiness guide](docs/operations/provider-channel-readiness.md).
+Anthropic uses the official TypeScript SDK. Quickstart/wizard saves the API key through the operator env file and supports optional `workspaceId` for multi-workspace keys. Source integration uses SDK `0.135.0`, API-safe tool-name mapping and complete bounded tool/thinking replay, including safe continuation after round limits and interrupted turns; SDK debug logging and automatic tracing are disabled. Published `v0.2.4` delivers these improvements with SDK `0.135.0`; older immutable `v0.2.3` contains SDK `0.131.0` and needs an explicit update. Current source dependencies, credential handling and deferred live checks are recorded in the [provider/channel readiness guide](docs/operations/provider-channel-readiness.md).
 
 ## Pick a Channel
 
@@ -81,11 +81,11 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-**Release preparation:** source root/CLI/daemon versions are `0.2.4`. The [candidate notes](docs/releases/v0.2.4.md) collect the Anthropic reliability and routine dependency updates; the [release plan](docs/execplans/stable-0.2.4-release.md) tracks verification. This candidate is not published. Keep using the verified stable release below until exact-main checks, authorized tagging, protected signing and four-target public installation pass. Live Anthropic API-credit testing remains deferred.
+**Current availability:** signed [v0.2.4 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.4) is published from reviewed main `78b3e40` with sixteen assets. Public installation passed on Linux/macOS x64/arm64, and the default installer selects this Anthropic reliability patch. The [release evidence](docs/execplans/stable-0.2.4-release.md) records exact-main checks, protected signing, independent signatures/digests and all four public targets separately. Live Anthropic API-credit testing remains deferred.
 
-**Current availability:** [v0.2.3 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.3) is published and signed. Public installation passed on Linux and macOS, each on x64 and arm64. The default installer selects this security and maintenance patch.
+Earlier signed [v0.2.3](docs/releases/v0.2.3.md) remains immutable with the media-security repairs, but its Anthropic SDK/catalog predates this patch. Existing installations need an explicit stable update to receive v0.2.4; exact pins do not advance automatically.
 
-The [stable release notes](docs/releases/v0.2.3.md) cover WhatsApp media-security fixes, routine dependency updates and CI/workflow-lint repairs. Reviewed main `cc29135`, exact-main CI/full CodeQL, protected production signing, independent signatures/digests and four-target public installation are recorded in the [release evidence](docs/execplans/stable-0.2.3-release.md). Existing installations need an explicit update to receive the fixes; exact pins do not advance automatically.
+The [v0.2.4 release notes](docs/releases/v0.2.4.md) cover valid Anthropic tool names, bounded complete/incomplete replay, round-limit continuation, SDK diagnostic/credential isolation and Haiku controls, alongside routine dependencies. Saved models, compatible tuning and operator state remain intact; use setup wizard for deliberate changes.
 
 The [earlier v0.2.2 notes](docs/releases/v0.2.2.md) cover the retained OpenAI/Anthropic model refresh, GPT-6.1 Sol with xhigh and Opus 5.5 setup recommendations, Azure/generic compatibility and stronger publication prerequisites. Its [dated evidence](docs/execplans/stable-0.2.2-release.md) retains the initial Apple Silicon download timeout and successful verification-only retry against unchanged assets. Saved model IDs/tuning remain intact until explicitly edited. Additional fresh-host provider/channel retesting remains unverified.
 
@@ -103,7 +103,7 @@ Run this in a terminal on Linux or macOS, using your normal login account unless
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin the current published release, use the piped installer with `bash -s -- --version 0.2.3`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.3.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
+To pin the current published release, use the piped installer with `bash -s -- --version 0.2.4`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.4.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
 
 For unattended packaged installation without setup prompts or service installation:
 

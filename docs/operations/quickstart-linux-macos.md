@@ -1,16 +1,16 @@
 # Quickstart on Linux and macOS
 
-The [v0.2.4 candidate](../releases/v0.2.4.md) prepares Anthropic tool/replay fixes, Haiku controls and SDK updates for packaging. It is not published; use the verified stable installation below until protected publication and four-target public verification pass. Saved model choices remain intact, and live Anthropic credit testing is a separate operator decision.
+Signed [v0.2.4](../releases/v0.2.4.md) delivers the Anthropic tool/replay fixes, Haiku controls and SDK updates. All four public-install targets pass; saved model choices remain intact, and live Anthropic credit testing stays a separate operator decision.
 
-Signed [v0.2.3](../releases/v0.2.3.md) delivers the merged media-security and maintenance fixes. The [release evidence](../execplans/stable-0.2.3-release.md) confirms protected publication, independent signatures/digests and public installation on all four supported targets.
+Signed [v0.2.4](../releases/v0.2.4.md) delivers the Anthropic reliability/dependency improvements while retaining earlier security repairs. The [release evidence](../execplans/stable-0.2.4-release.md) confirms protected publication, independent signatures/digests and public installation on all four supported targets.
 
 After packaged installation, open a new shell so its saved PATH block takes effect. If `openassist` is not yet found, run `~/.local/bin/openassist setup`; the installer also prints this fallback. Existing or edited shell-profile blocks are preserved rather than overwritten.
 
-The signed [v0.2.3 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.3) is published and public installation passed on all four supported targets. The default installer selects this security and maintenance patch. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
+The signed [v0.2.4 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.4) is published and public installation passed on all four supported targets. The default installer selects this security and maintenance patch. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
 
 This is the canonical operator runbook for a public OpenAssist install.
 
-The [v0.2.3 stable notes](../releases/v0.2.3.md) describe the media-security repairs, retained model/lifecycle behavior, explicit preview/source migration and testing limits. Existing installations need an explicit stable update to receive it; exact pins and saved provider settings remain intact until explicitly changed. [Release evidence](../execplans/stable-0.2.3-release.md) records production signatures/digests and all four successful public-install targets. Replacement-host provider/channel retesting remains unverified separately.
+The [v0.2.4 stable notes](../releases/v0.2.4.md) describe the Anthropic controls/replay repairs, retained model/lifecycle behavior, explicit preview/source migration and testing limits. Existing installations need an explicit stable update to receive it; exact pins and saved provider settings remain intact until explicitly changed. [Release evidence](../execplans/stable-0.2.4-release.md) records production signatures/digests and all four successful public-install targets. Replacement-host provider/channel retesting remains unverified separately.
 
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
 
@@ -32,7 +32,7 @@ If you hit trouble on any of those steps, keep `docs/operations/common-troublesh
 
 ## Before You Start
 
-For Anthropic API credits, select `Anthropic (API Key)` in setup, save the key in the operator env file and optionally set the Console workspace ID. Fresh setup still recommends Opus 5.5; source builds also offer Haiku 5.5 with adaptive/medium defaults. Wizard exposes its output ceiling and disabled low/medium/high choices. Existing model IDs are preserved, and incompatible manual settings require an explicit reset/model choice. See [the Anthropic guide](../providers/anthropic.md); source SDK/catalog improvements after v0.2.3 need a later packaged release. Live account testing remains an operator decision.
+For Anthropic API credits, select `Anthropic (API Key)` in setup, save the key in the operator env file and optionally set the Console workspace ID. Fresh setup still recommends Opus 5.5; v0.2.4 also offers Haiku 5.5 with adaptive/medium defaults. Wizard exposes output limits and disabled low/medium/high choices. Existing model IDs are preserved, and incompatible manual settings require explicit reset/model choice. See [the Anthropic guide](../providers/anthropic.md); live account testing remains an operator decision.
 
 Packaged installation needs Bash, curl, OpenSSL, gzip and standard Unix utilities. It supports Linux glibc x64/arm64 and macOS Intel/Apple Silicon; see the [Linux](install-linux.md) and [macOS](install-macos.md) guides for minimum OS requirements.
 
@@ -57,7 +57,7 @@ Install the published packaged stable release:
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin this release, use `bash -s -- --version 0.2.3` in the piped installer. For source development, explicitly build main instead:
+To pin this release, use `bash -s -- --version 0.2.4` in the piped installer. For source development, explicitly build main instead:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main

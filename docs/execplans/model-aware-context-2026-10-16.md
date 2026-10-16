@@ -67,6 +67,8 @@ Final local reconciliation (2026-10-16): `pnpm verify:all` passes workflow lint,
 
 ## OpenClaw evidence and comparison
 
+Delivery reconciliation (2026-10-16): implementation commit `707bd10` on `codex/model-aware-context` is based on reviewed main `b03c40b`; [PR #88](https://github.com/openassistuk/openassist/pull/88) is open. The initial exact-head inspection finds CI, CodeQL preflight, macOS live launchd and four native packaging jobs queued, with publication checks correctly skipped. Open code-scanning alerts and unresolved PR review threads were checked separately and are empty. Hosted success, merge, release publication and live-provider certification are not inferred; subsequent exact-head results remain visible on the PR. This final documentation reconciliation follows the verified implementation without changing runtime behavior.
+
 The reviewed revision is immutable in the following links. These observations apply to that revision, not every past or future OpenClaw version.
 
 [Context-window resolution](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/src/agents/context-window-guard.ts) separates catalog/configuration sources and a positively observed serving window. [Selectable window profiles](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/src/agents/model-context-window.ts) resolve explicit selections and catalog defaults. OpenAssist should likewise record provenance, while retaining its stricter rule that optional capabilities must never be inferred from model-name substrings or Azure deployment names.

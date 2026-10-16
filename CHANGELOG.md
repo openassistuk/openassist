@@ -8,6 +8,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [0.2.4] - 2026-10-16
 
+- Publish signed stable `v0.2.4` from PR #86/main `78b3e40` with sixteen immutable assets. Exact-main CI/full CodeQL, native candidate quality/zero audits, protected signing, independent production signatures/digests and all four public stable/exact-version installation/uninstall targets pass in run 38921925528, attempt 2. Retain the initial cancelled Apple Silicon setup stall separately; no production signing/publication occurred before retry and no public asset was replaced. Existing installations must explicitly update for Anthropic tool/replay/Haiku fixes; saved settings and deferred live testing remain unchanged.
+
 - Prepare stable `0.2.4`: align root/CLI/daemon versions and collect the Anthropic SDK/tool replay/Haiku controls and routine dependency updates below. Add candidate notes with post-publication stable/exact-version update commands, explicit SDK environment-isolation and replay rollback guidance. Public stable remains immutable `v0.2.3` until exact-main verification, authorized tagging, protected signing and four-target public installation pass; live Anthropic API-credit testing remains deferred.
 
 - 2026-10-16: Fix Anthropic continuation after tool-round limits and interrupted multi-tool execution. Synthetic replies no longer inherit native tool-turn metadata; incomplete or duplicate replay falls back to reconciled completed history, preserving limit text and matching tool results without re-executing unfinished work. SDK/runtime regressions cover database restart and both signed-thinking/tool-only replay; no schema, privilege or published-asset change is required.

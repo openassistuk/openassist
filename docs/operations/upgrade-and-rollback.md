@@ -1,8 +1,8 @@
 # Upgrade and rollback
 
-The [v0.2.4 candidate notes](../releases/v0.2.4.md) describe the prepared Anthropic patch and post-publication update commands. During preparation stable still selects v0.2.3; an exact 0.2.4 pin is unavailable until publication. Saved models/state remain intact. Earlier adapters do not interpret newly versioned tool-name replay; a deliberate rollback requires compatible model/tuning and a fresh conversation or matching state backup, retaining current audit history separately. Managed rollback never restores databases automatically.
+The published [v0.2.4 notes](../releases/v0.2.4.md) describe the Anthropic patch and stable/exact-version update commands. Public verification passes on all four targets. Saved models/state remain intact. Earlier adapters do not interpret versioned tool-name replay; deliberate rollback needs compatible model/tuning and a fresh conversation or matching state backup, retaining current audit history separately. Managed rollback never restores databases automatically.
 
-The signed [v0.2.3 patch](../releases/v0.2.3.md) is published and stable updates select it. The [release evidence](../execplans/stable-0.2.3-release.md) records exact-main checks, protected signing, independent signatures/digests and four-target public installation. Existing exact pins remain unchanged until explicitly selected.
+The signed [v0.2.4 patch](../releases/v0.2.4.md) is published and stable updates select it. The [release evidence](../execplans/stable-0.2.4-release.md) records exact-main checks, protected signing, independent signatures/digests and four-target public installation. Existing exact pins remain unchanged until explicitly selected.
 
 Activation and rollback derive daemon identity from the executing application's build metadata. The successful install record is still committed only after verification; the daemon refreshes its update track from that matching record. Archive preparation resolves complete link chains before extraction and rejects links that escape the installation, including traversal hidden behind another link.
 
@@ -29,7 +29,7 @@ openassist update --source --pr 123 --yes
 
 Exact versions remain pinned until changed. Release/source selectors cannot be combined. `--ref` and `--pr` keep their source meanings through the `upgrade` alias. PR tracks require an explicit target each time. Source builds record the resolved commit; dirty original checkouts are preserved and block migration.
 
-Packaged apps include private Node. Source builds need the pinned development toolchain. Signed [v0.2.3](../releases/v0.2.3.md) is the current stable publication, with media-security repairs and verified public installation on all four targets. Select stable explicitly or use `openassist update --version 0.2.3 --dry-run` followed by `openassist update --version 0.2.3` for an exact pin. Updating preserves saved model IDs and tuning; use `openassist setup wizard` for deliberate configuration changes or repair. Release selection fails closed when an asset, signature or prerequisite is unavailable. See [release maintenance](release-maintenance.md).
+Packaged apps include private Node. Source builds need the pinned development toolchain. Signed [v0.2.4](../releases/v0.2.4.md) is the current stable publication, with Anthropic reliability fixes, retained security floors and verified public installation on all four targets. Select stable explicitly or use `openassist update --version 0.2.4 --dry-run` followed by `openassist update --version 0.2.4` for an exact pin. Updating preserves saved model IDs and tuning; use `openassist setup wizard` for deliberate configuration changes or repair. Release selection fails closed when an asset, signature or prerequisite is unavailable. See [release maintenance](release-maintenance.md).
 
 ## Activation and health
 

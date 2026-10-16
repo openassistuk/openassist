@@ -16,7 +16,7 @@ Prepare the merged Anthropic transport, replay and model-control improvements fo
 - [x] (2026-10-16 candidate edits) Align root/CLI/daemon versions at `0.2.4`, collect Unreleased changes under the versioned changelog, and write candidate release notes with explicit environment/replay compatibility and testing limits for review.
 - [x] (2026-10-16 documentation) Reconcile PR #85's final merge/check evidence and synchronize README/AGENTS/docs index and affected release/provider/update/testing guidance while keeping public availability at `v0.2.3`.
 - [x] (2026-10-16 preliminary checks) Frozen installation and workspace build pass without lockfile/dependency changes. CLI and daemon both print `0.2.4` from their built entrypoints.
-- [ ] Commit candidate metadata before source-clone fixtures, then verify focused contracts, the unchanged full quality/coverage/audit gate and the final diff.
+- [x] (2026-10-16 local verification) Candidate commit `bd3c0a7cc6d8c1fdfb0b0ac5c8be246786730685` passes 39 focused release/version/docs contracts and `pnpm verify:all`: workflow lint, workspace build/lint/typecheck/docs truth, 600 Vitest passes/one skip, 242 Node passes/six skips, unchanged coverage gates and zero fresh production/full audit findings. Final diff review confirms only intended release metadata/docs changes and no secrets, runtime edits or publication operations.
 - [ ] Open/attach the preparation PR and record its actual final-head hosted checks plus separate scanner/review-thread results in the PR validation record. Preserve required main review; no merge is part of this preparation request.
 - [ ] Later release work, outside this task: merge the reviewed preparation, verify that exact main commit, obtain exact-tag authorization and protected publication approval, build/sign/publish, independently verify signatures/digests, verify public stable/exact installation on all four targets, and then update availability docs.
 
@@ -43,7 +43,9 @@ Decision (2026-10-16): no paid Anthropic calls, credential discovery, primary op
 ## Outcomes & Retrospective
 
 
-The branch and baseline/public-state verification are complete. Candidate edits, local validation and the new PR remain unfinished. Published `v0.2.3` remains immutable at `cc29135a8cddf45e032dd235a86cf8f854a6f124`. Only a later protected and independently verified publication can make `0.2.4` available to ordinary packaged updates.
+Candidate metadata/notes/docs, final Anthropic merge reconciliation and local verification are complete. Both executables report `0.2.4`; frozen installation and all 39 focused contracts pass. The full gate at `bd3c0a7` passes with 600 Vitest and 242 Node tests. The preparation PR and its own exact-head hosted results remain pending. Published `v0.2.3` remains immutable at `cc29135a8cddf45e032dd235a86cf8f854a6f124`. Only a later protected and independently verified publication can make `0.2.4` available to ordinary packaged updates.
+
+Local evidence is retained under ignored `coverage/release-0.2.4-build.log`, `release-0.2.4-focused.log` and `release-0.2.4-verify.log`. Vitest coverage is statements 83.39%, branches 74.77%, functions 86.02%, lines 84.37%. Node product-code coverage is statements/lines 80.15%, branches 73.60%, functions 86.07%; its scoped run passes 126 tests with five existing skips. The normal suites retain one Vitest/six Node skips for existing platform/hosted limits. All dependency-audit categories are zero; thresholds/scope, lockfile and build permissions are unchanged.
 
 ## Context and Orientation
 
@@ -62,7 +64,7 @@ Then commit the candidate, run frozen installation and existing executable/versi
 ## Concrete Steps
 
 
-Work in `C:/Users/dange/Coding/openassist` with the repository's Node/pnpm versions. Keep logs under ignored `coverage/`; do not print credentials.
+Run from the OpenAssist repository root, the directory containing `package.json`, with the repository's Node/pnpm versions. Keep logs under ignored `coverage/`; do not print credentials.
 
     pnpm install --frozen-lockfile
     pnpm build
@@ -95,3 +97,5 @@ Baseline main: `fa0b6afc1297330ccd25ca876661da2e58e339cf`. [CI 38914623498](http
 No new production dependency, command, model setting, runtime contract, schema migration or channel behavior is introduced by preparation. Keep all current provider/runtime/security contracts and signing/publication gates. The candidate collects already merged Anthropic SDK `0.135.0`, OpenAI SDK `7.31.0`, cron-parser `5.10.2` and Inquirer prompts `8.7.3` using the existing lockfile.
 
 Revision note (2026-10-16): initialize preparation from exact merged-main health and actual public stable state. Bound authorization to the requested branch/PR; separate later exact-tag/protected publication and the operator's deferred paid testing.
+
+Revision note (2026-10-16 local verification): record candidate commit `bd3c0a7`, aligned executable versions, frozen installation, 39 focused contracts and the unchanged full quality/coverage/audit gate. Keep current-head hosted checks in the preparation PR validation record; required review, exact-main tagging and publication remain separate.

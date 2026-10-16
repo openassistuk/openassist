@@ -3117,7 +3117,8 @@ export class OpenAssistRuntime {
     const memoryEnabled = this.memoryConfig().enabled;
     if (!memoryEnabled) return;
     const extractionKey = `memory.extraction.${sessionId}`;
-    let extractionCursor = this.db.getSetting<number>(extractionKey) ?? sessionMemory.lastCompactedMessageId;
+    // Context checkpoints also update session_memory; that mirror cannot certify prior actor extraction.
+    let extractionCursor = this.db.getSetting<number>(extractionKey) ?? 0;
 
     for (let attempt = 0; attempt < MAX_COMPACTION_BATCHES_PER_TURN; attempt += 1) {
       this.contextManager.signal().throwIfAborted();

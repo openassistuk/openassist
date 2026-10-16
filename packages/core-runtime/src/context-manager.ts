@@ -126,8 +126,8 @@ export class ModelContextManager {
 
   private async prepare(provider: ProviderAdapter, request: ChatRequest): Promise<PreparedChatRequest> {
     const bytes = Buffer.byteLength(JSON.stringify(request.messages)) + Buffer.byteLength(JSON.stringify(request.tools ?? []));
-    const imageBytes = request.messages.reduce((total, message) => total + (message.attachments ?? [])
-      .filter(attachment => attachment.kind === "image").reduce((size, attachment) => size + (attachment.sizeBytes ?? 0) * 4 / 3, 0), 0);
+    const imageBytes = provider.capabilities().supportsImageInputs ? request.messages.reduce((total, message) => total + (message.attachments ?? [])
+      .filter(attachment => attachment.kind === "image").reduce((size, attachment) => size + (attachment.sizeBytes ?? 0) * 4 / 3, 0), 0) : 0;
     if (bytes + imageBytes > this.policy().maxRequestBytes * 2) throw new ContextAdmissionError(
       "Context preparation exceeds the resource bound. Original history is preserved; narrow the input or adjust context settings.");
     if (provider.prepareChat) return provider.prepareChat(request);
@@ -233,25 +233,29 @@ export class ModelContextManager {
     const sourceSegments = conversationSegments(source.messages);
     if (!source.complete) sourceSegments.pop(); // A page bound cannot certify the final segment as complete.
     const selected: NormalizedMessage[] = [];
+    const records: object[] = [];
     const sourceBudget = Math.min(policy.summarySourceTokens, Math.max(0, usableInput - estimateContextTokens(checkpoint.summary) - 2048));
     for (const segment of sourceSegments) {
-      const candidate = [...selected, ...segment];
-      if (estimateContextTokens(candidate.map(sourceRecord)) > sourceBudget) break;
+      // Bound the model-facing source only; adoption still fingerprints the untouched stored rows.
+      const segmentRecords = this.projectTools({ ...request, messages: segment }, usableInput).messages.map(sourceRecord);
+      const tokens = estimateContextTokens([...records, ...segmentRecords]);
+      if (tokens > sourceBudget) break;
       selected.push(...segment);
-      if (estimateContextTokens(candidate.map(sourceRecord)) >= usableInput * (policy.compactAtRatio - policy.targetRatio)) break;
+      records.push(...segmentRecords);
+      if (tokens >= usableInput * (policy.compactAtRatio - policy.targetRatio)) break;
     }
     if (!selected.length) return false;
     const scope = `${provider.id()}:${request.model}`;
     const job = this.db.context.begin({ sessionId: request.sessionId, expectedRevision: checkpoint.revision,
       afterMessageId: checkpoint.coveredThrough, throughMessageId: Number(selected.at(-1)!.id), sourceDigest: contextSourceDigest(selected), scope });
     try {
-      const signal = AbortSignal.any([this.cancellation.signal, AbortSignal.timeout(30_000)]);
+      const signal = AbortSignal.any([this.cancellation.signal, AbortSignal.timeout(30_000), ...(request.signal ? [request.signal] : [])]);
       const configured = this.config().providers.find(candidate => candidate.id === provider.id())!;
       const outputTokens = Math.max(policy.summaryMaxTokens, configured.type === "anthropic" ? (configured.thinkingBudgetTokens ?? 0) + 1024 : 0);
       const summaryRequest: ChatRequest = { sessionId: `${request.sessionId}::context::${job.id}`, model: request.model, tools: [],
         maxTokens: outputTokens, signal, metadata: { source: "runtime.context.summary" }, messages: [
           { role: "system", content: SUMMARY_INSTRUCTIONS },
-          { role: "user", content: JSON.stringify({ previousCheckpoint: checkpoint.summary, records: selected.map(sourceRecord) }) }
+          { role: "user", content: JSON.stringify({ previousCheckpoint: checkpoint.summary, records }) }
         ] };
       const response = await runWithAbort(() => this.summarize(provider, summaryRequest), signal);
       signal.throwIfAborted();
@@ -271,6 +275,7 @@ export class ModelContextManager {
       const previous = await this.prepare(provider, request);
       if (candidate.accounting.bytes > policy.maxRequestBytes || candidate.accounting.inputTokens >= previous.accounting.inputTokens)
         throw new ContextAdmissionError("Context summary did not reduce the prepared request.");
+      signal.throwIfAborted();
       const adopted = this.db.context.finish(job, referencedSummary, policy.maxRequestBytes);
       if (!adopted) this.db.context.fail(job.id);
       return Boolean(adopted);
@@ -290,10 +295,11 @@ export class ModelContextManager {
       this.cancellation.signal.throwIfAborted();
       const checkpoint = this.checkpoint(sessionId);
       const history = this.db.context.history(sessionId, checkpoint.coveredThrough, policy.maxRequestBytes);
-      const request = this.project({ sessionId, model, tools: [], metadata: { source: "runtime.context.maintenance" },
+      let request = this.project({ sessionId, model, tools: [], metadata: { source: "runtime.context.maintenance" },
         messages: history.messages });
-      const prepared = await this.prepare(provider, request);
       const configured = this.config().providers.find(candidate => candidate.id === provider.id())!;
+      request = this.projectTools(request, resolveContextLimits(configured, model, policy, contextOutputAllowance(configured)).usableInputTokens);
+      const prepared = await this.prepare(provider, request);
       const limits = resolveContextLimits(configured, model, policy, prepared.outputTokens);
       if (history.complete && prepared.accounting.inputTokens < limits.usableInputTokens * policy.targetRatio) return;
       if (!await this.compact(provider, request, policy, limits.usableInputTokens)) return;

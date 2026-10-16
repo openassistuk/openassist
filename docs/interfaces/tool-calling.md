@@ -4,6 +4,8 @@ Source/unreleased: every tool continuation passes model-aware admission after re
 
 Lifecycle modernization adds no tool schemas or privilege escalation. Runtime awareness identifies packaged/source/isolated installs and protects managed application directories. Use host-side lifecycle commands for update/recovery/uninstall; direct edits to retained release files are not a durable growth mechanism.
 
+Foreground and maintenance compaction project large completed results into bounded summary-source excerpts with receipts and original audit references. Whole call/result segments and raw-source digests remain intact; projection never executes a tool or grants approval. Late cancellation during candidate preparation prevents checkpoint adoption.
+
 Source of truth:
 
 - `packages/core-types/src/common.ts`

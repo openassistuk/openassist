@@ -30,7 +30,9 @@ function fixture(policy: Partial<RuntimeConfig["context"]> = {}, summarize = vi.
   const config = toRuntimeConfig(createDefaultConfigObject());
   config.providers = [{ id: "test", type: "openai-compatible", defaultModel: "custom" }]; config.defaultProviderId = "test";
   config.context = { ...DEFAULT_CONTEXT_CONFIG, ...policy };
-  const provider = { id: () => "test", chat: vi.fn(async () => response()) } as unknown as ProviderAdapter;
+  const provider = { id: () => "test", chat: vi.fn(async () => response()), capabilities: () => ({
+    supportsStreaming: false, supportsTools: true, supportsOAuth: false, supportsApiKeys: true, supportsImageInputs: false
+  }) } as unknown as ProviderAdapter;
   const enqueue = vi.fn();
   const manager = new ModelContextManager(db, () => config, summarize, enqueue);
   const sessionId = "telegram:fixture";
@@ -260,4 +262,64 @@ describe("model context contracts", () => {
     await Promise.resolve(); expect(drained).toBe(false);
     release(); await stopping; expect(drained).toBe(true);
   }, DATABASE_TEST_TIMEOUT_MS);
+
+  it.each(["admission", "maintenance"])("compacts large tool results through bounded source projections during %s", async mode => {
+    const f = fixture({ maxInputTokens: 4000, summaryMaxTokens: 512 });
+    const fullResult = JSON.stringify({ text: "z".repeat(120_000), exitCode: 7 });
+    f.append("user", "inspect the completed result");
+    f.append("assistant", "", "call-repeat");
+    f.append("tool", fullResult, "call-repeat");
+    f.append("user", "CURRENT-REQUEST " + "x".repeat(9000));
+    const original = f.db.context.history(f.sessionId).messages;
+    if (mode === "admission") await f.manager.admit(f.provider, f.request(), auth);
+    else await f.manager.maintain(f.provider, f.sessionId, "custom");
+    expect(f.summarize).toHaveBeenCalledOnce();
+    const [, summaryRequest] = f.summarize.mock.calls[0] as unknown as [ProviderAdapter, ChatRequest];
+    const records = JSON.parse(summaryRequest.messages[1]!.content).records;
+    const tool = records.find((record: { role: string }) => record.role === "tool");
+    expect(JSON.parse(tool.content)).toMatchObject({ exitCode: 7, fullResult: { sessionId: f.sessionId, toolCallId: "call-repeat", messageId: original[2]!.id } });
+    expect(tool.content.length).toBeLessThan(2000);
+    expect(f.db.context.checkpoint(f.sessionId)).toMatchObject({ coveredThrough: Number(original[2]!.id), sourceDigest: contextSourceDigest(original.slice(0,3)) });
+    expect(f.db.context.history(f.sessionId).messages[2]!.content).toBe(fullResult);
+    expect(f.provider.chat).not.toHaveBeenCalled();
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it.each([false, true])("charges image binaries in the preparation guard only when mapped (vision=%s)", async vision => {
+    const f = fixture();
+    f.provider.capabilities = () => ({ supportsStreaming: false, supportsTools: false, supportsOAuth: false, supportsApiKeys: true, supportsImageInputs: vision });
+    const prepare = vi.fn(async (request: ChatRequest) => prepareWireChat({ messages: request.messages.map(({ role, content }) => ({ role, content })) }, async () => response(), { identity: "text-fixture" }));
+    f.provider.prepareChat = prepare;
+    const request: ChatRequest = { ...f.request(), messages: [{ role: "user", content: "attachment captions", attachments: Array.from({ length: 6 }, (_, i) => ({ id: `image-${i}`, kind: "image", sizeBytes: 10 * 1024 * 1024, localPath: "not-read-by-text-adapter" })) }] };
+    if (vision) {
+      await expect(f.manager.admit(f.provider, request, auth)).rejects.toThrow(/resource bound/);
+      expect(prepare).not.toHaveBeenCalled();
+    } else {
+      expect((await f.manager.admit(f.provider, request, auth)).accounting.bytes).toBeLessThan(1024);
+      expect(prepare).toHaveBeenCalledOnce();
+    }
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it.each(["manager", "deadline", "caller"].flatMap(source => [2,3].map(call => ({ source, call }))))(
+    "preserves the checkpoint when $source cancellation arrives during preparation call $call", async ({ source, call }) => {
+      const f = fixture({ maxInputTokens: 4000 });
+      const cancelled = new AbortController();
+      if (source === "deadline") vi.spyOn(AbortSignal, "timeout").mockReturnValue(cancelled.signal);
+      f.append("user", "x".repeat(4000)); f.append("assistant", "done"); f.append("user", "y".repeat(9000));
+      let preparations = 0;
+      f.provider.prepareChat = async request => {
+        const prepared = prepareWireChat({ messages: request.messages }, async () => response(), { identity: "cancellation-fixture" });
+        if (++preparations === call) {
+          await Promise.resolve();
+          if (source === "manager") f.manager.stop(); else cancelled.abort();
+        }
+        return prepared;
+      };
+      const request = { ...f.request(), ...(source === "caller" ? { signal: cancelled.signal } : {}) };
+      await expect(f.manager.admit(f.provider, request, auth)).rejects.toThrow(/compaction/);
+      expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+      expect(f.db.getSessionMemory(f.sessionId)).toBeNull();
+      expect(f.db.context.history(f.sessionId).messages).toHaveLength(3);
+      if (source === "manager") expect(f.enqueue).not.toHaveBeenCalled();
+    }, DATABASE_TEST_TIMEOUT_MS
+  );
 });

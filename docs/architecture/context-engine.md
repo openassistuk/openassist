@@ -22,6 +22,8 @@ OpenAI Responses and Anthropic use native counting endpoints near 75% of usable 
 
 The default prepared-request byte ceiling is 32 MiB, independent of tokens. A preparation resource guard runs before mapping. Existing attachment and 1 MiB/256-item Responses replay limits remain independent. Signed thinking is retained or omitted as whole blocks by the adapter's replay policy.
 
+The preparation guard reserves image binary/base64 space only when the adapter declares `supportsImageInputs=true`. Text-only adapters are charged for the normalized text/reference metadata and their actual prepared text payload, without charging omitted binary sizes. Image-capable adapters still face the pre-mapping resource bound and final prepared-request byte ceiling.
+
 Large tool-result model projections become explicit excerpts with source session/call/message references and bounded status/exit/receipt fields. The excerpt ceiling is between 1,024 and 24,576 characters, derived from usable input. Full outputs remain in messages/tool audits. Context recovery never executes a tool to regenerate output. User input, system instructions, schemas and tool arguments are not silently sliced; an oversized mandatory request fails with narrowing guidance.
 
 ## Transactional compaction
@@ -29,6 +31,8 @@ Large tool-result model projections become explicit excerpts with source session
 At 85% occupancy, compact older complete conversation segments toward 60%. A segment starts at a user message and includes assistant/tool continuations. Repeated call IDs are matched by occurrence. An unsettled call prevents a boundary; the current segment is always retained. At most two summary generations run during foreground admission. If the unchanged complete request still fits after summary failure, it may proceed with degraded diagnostics; an oversized or incomplete projection blocks before inference.
 
 Summary generation has no tools, a 30-second cancellation deadline, a default 32,768-token source ceiling and 8,192-token summary ceiling. A six-field JSON checkpoint separates goals, constraints, decisions, open work, completed actions and evidence. It retains prior checkpoint facts and requires selected tool-call receipts. Validation is structural and bounded; model summaries are not semantically lossless and never grant authorization. Original source rows remain authoritative.
+
+Summary selection and generation use the same bounded tool-result excerpts as admission, including receipts and original session/call/message references. Foreground and maintenance preparation use those projections consistently, so a completed large result cannot obstruct selection merely because its raw output exceeds the source token allowance. The selected whole segments and checkpoint digest still use untouched stored rows; excerpts never replace transcript/audit content. Shutdown, summary deadline and caller cancellation are combined and checked again after both asynchronous preparation calls, immediately before transactional adoption.
 
 Raw summary text has a separate 128 KiB UTF-8 ceiling checked before JSON parsing. Fence removal uses linear string operations, so crafted whitespace or near-matching fences cannot trigger polynomial regex backtracking and block cancellation. Plain JSON, optional `json`/`JSON` fences and surrounding whitespace remain supported within bounds. Oversized or malformed text is rejected without truncation or checkpoint adoption.
 
@@ -41,6 +45,8 @@ Restart resumes abandoned context/memory jobs and pending compaction intent only
 ## Memory, status and rollback
 
 Permanent actor memory remains scoped to `<channelId>:<senderId>`. Successful replies queue optional conservative extraction; it no longer writes the context frontier or blocks foreground chat. `runtime.memory.enabled = false` disables permanent memory while context admission/compaction remain active. There are no new memory/tool permissions.
+
+Extraction progress is stored in `memory.extraction.<sessionId>`. An existing saved cursor remains authoritative; an absent cursor starts at zero, regardless of a context checkpoint or legacy `session_memory` mirror. Retained older history may be re-examined conservatively after upgrade, within the existing batch/tail limits and idempotent candidate writes. Only successful extraction advances this cursor; it does not change context coverage or original history.
 
 `/status` groups context diagnostics; `/memory`, daemon `/v1/health` runtime status and `openassist doctor` show limits, provenance, reserved output, usable input and available measured/estimated occupancy. Checkpoint revision/frontier and last failure are visible without transcripts or raw reasoning. In-memory occupancy is stale after restart; a session's checkpoint remains durable.
 

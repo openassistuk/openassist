@@ -4,6 +4,8 @@ Source/unreleased: model-aware context admission covers all five provider routes
 
 Context summary parsing uses linear string operations and rejects raw provider output above 128 KiB before JSON parsing; malformed or oversized summaries preserve the previous checkpoint and original history.
 
+Source compaction uses bounded tool-result excerpts with original audit references, so a large completed result can still be summarized. Image preparation bounds count binaries only for image-capable adapters. Cancellation is checked immediately before checkpoint adoption, and permanent-memory extraction starts independently of context summary progress while preserving its saved cursor.
+
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml)
 [![macOS Live Launchd](https://github.com/openassistuk/openassist/actions/workflows/macos-live-launchd.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/macos-live-launchd.yml)

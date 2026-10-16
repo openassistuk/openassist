@@ -6,6 +6,8 @@ Packaged releases include the production provider dependency graph and are smoke
 
 Source of truth: `packages/core-types/src/provider.ts`.
 
+The pre-mapping resource guard uses `capabilities().supportsImageInputs` to reserve binary image space. A text-only adapter must omit image binaries; their stored size does not consume its binary allowance. The final prepared payload remains subject to the normal byte/token admission limits. Compaction uses bounded tool excerpts with raw-source digests, and cancellation is rechecked after asynchronous mapping before checkpoint adoption.
+
 Provider adapters convert normalized runtime chat requests into provider-specific API calls, including tool-call turns.
 
 ## Required Contract

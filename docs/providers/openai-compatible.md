@@ -6,6 +6,8 @@ Use the OpenAI-compatible route when you are connecting OpenAssist to an API-com
 
 This route is intentionally simpler than the built-in providers and stays text-only for images in the current release.
 
+Source preparation bounds exclude the binary sizes of images this adapter omits. Captions, extracted text and reference metadata remain bounded, and the actual prepared text payload must pass normal context/byte admission. This accounting does not add image understanding.
+
 ## What This Route Does
 
 - Auth model: API key or access token supplied by the compatible backend

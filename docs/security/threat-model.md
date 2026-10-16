@@ -1,5 +1,7 @@
 # Threat Model
 
+Context compaction is an untrusted-data boundary. Source/unreleased summaries have no tools, a cancellation deadline, finite source/output/byte bounds and structural validation; they never grant approval or promote text into policy. Atomic revision/range/digest checks prevent stale or failed summaries from advancing source coverage. Original audit records survive, tool projections disclose omissions, and context repair cannot repeat host actions. Prepared fingerprints exclude credentials; diagnostics exclude raw reasoning/transcripts. Approximate counts can still be rejected upstream, handled by one persisted repair. See the [context engine](../architecture/context-engine.md).
+
 The [v0.2.4 release evidence](../execplans/stable-0.2.4-release.md) records reviewed main/tag 78b3e40, exact-main checks, protected production signing, independently valid signatures/digests and four-target public installation. It ships the merged Anthropic replay/diagnostic controls without new privileges, schema or signing trust. Older signed assets remain immutable; live provider testing stays deferred.
 
 Replay admission checks complete matching tool results within the retained turn. An interrupted Anthropic turn falls back to reconciled completed history, and synthetic limit/disabled replies cannot duplicate the last provider tool turn. Replay does not retry unfinished side effects or edit durable audit rows; signed blocks are either retained unchanged in complete replay or omitted with the incomplete native turn.

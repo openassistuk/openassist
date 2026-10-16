@@ -1,5 +1,7 @@
 # Telegram Channel
 
+Source/unreleased `/status` includes grouped context limits/occupancy, and `/memory` includes checkpoint/failure diagnostics without provider dependency. Replies still use shared channel rendering/chunking and existing session/access scope; context compaction does not change Telegram inline defaults. See the [context engine](../architecture/context-engine.md).
+
 Use Telegram when you want a bot that can work in private chats, group chats, and forum topics.
 
 Telegram is the default beginner-friendly channel in OpenAssist because the setup flow is straightforward and the default conversation behavior stays inline unless you deliberately change it later.

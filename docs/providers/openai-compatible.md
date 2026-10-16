@@ -1,5 +1,7 @@
 # OpenAI-compatible Provider
 
+Source/unreleased context admission counts the prepared compatible payload as an estimate. Model-name similarity does not establish serving capacity or optional controls. The default unknown window is labeled 24,000 tokens; configure provider `contextWindowTokens` from your server settings, and optionally lower input cost through `[runtime.context]`. Wizard edits both; `/status`, `/memory` and doctor show provenance. See the [context engine](../architecture/context-engine.md).
+
 Use the OpenAI-compatible route when you are connecting OpenAssist to an API-compatible backend instead of the built-in OpenAI, Codex, Anthropic, or Azure Foundry integrations.
 
 This route is intentionally simpler than the built-in providers and stays text-only for images in the current release.

@@ -1,5 +1,7 @@
 # WhatsApp MD Channel
 
+Source/unreleased `/status` includes grouped context limits/occupancy, and `/memory` includes checkpoint/failure diagnostics without provider dependency. Context compaction preserves WhatsApp session/access scope and existing attachment bounds; channel rendering/chunking remains shared. See the [context engine](../architecture/context-engine.md).
+
 Use WhatsApp MD when you want OpenAssist in WhatsApp private chats or groups using the multi-device connector.
 
 WhatsApp has one extra operator step compared with Telegram or Discord: the channel may need QR linking before it becomes healthy.

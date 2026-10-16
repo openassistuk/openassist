@@ -1,5 +1,7 @@
 # Test Matrix
 
+Source model-aware context contracts live in `model-context.test.ts`: exact route limits/cost caps, prepared-payload accounting, 100-turn/ninth-fact retention, repeated tool IDs, checkpoint races/reopen, cancelled/malformed summaries, receipt/reference preservation, tool-output projection, unknown counting, finite overflow repair, wizard validation and recovery drain/resume. Existing OpenAI/Anthropic suites check native count payloads and cache usage; Node runtime/memory suites verify retained tool results and asynchronous actor extraction. These are offline fixtures; hosted/live results are recorded separately in the [context plan](../execplans/model-aware-context-2026-10-16.md).
+
 The [v0.2.4 release plan](../execplans/stable-0.2.4-release.md) records preparation/local tests, exact merged-main CI/full CodeQL, native candidate quality/zero audits, signing contracts, protected publication and four-target public stable/exact-version installation in run 38921925528. Independent metadata signatures and all sixteen digests verify. Preserve cancelled build attempt 1 and successful attempt 2 separately; there is no public verification retry or asset replacement. Live Anthropic account testing remains deferred. Availability documentation requires its own reviewed PR and actual-head checks.
 
 Anthropic source integration coverage (October 16) extends the existing provider-anthropic-tool-mapping, provider-auth-contracts, current-provider-models and provider-model-catalog Vitest suites. Real SDK HTTP/SSE fixtures reproduce invalid dotted/Unicode/overlong/reserved tool names, complete multi-tool turns without thinking, grouped results, restart replay, legacy-name ambiguity, provider/model scope and byte/block bounds. They also check explicit endpoint/auth/workspace headers, disabled SDK debug/tracing, and Haiku 5.5 defaults, effort conflicts and opaque-thinking removal. The focused four-suite run passes 126 tests; the two focused Node runtime/provider suites pass 26. Native SDK/runtime contracts cover complete execution, a one-round limit and interruption after persisting a second pending call, followed by database reopen. They assert completed audit/file state does not change, unmatched native calls are omitted and limit text survives. Adapter regressions cover signed-thinking/tool-only incomplete turns and older synthetic rows with duplicate metadata. These are offline fixtures, not live API-credit or channel tests. Frozen installation/full quality/coverage/audit and hosted results are recorded separately in the [integration plan](../execplans/anthropic-integration-2026-10-16.md).
@@ -83,7 +85,10 @@ Vitest coverage is intentionally targeted and currently measures:
 - `apps/openassistd/src/oauth-redirect.ts`
 - `packages/config/src/operator-paths.ts`
 - `packages/config/src/schema.ts`
-- `packages/core-runtime/src/{attachments,clock-health,context,memory,scheduler,one-shot,self-knowledge}.ts`
+- `packages/config/src/context-limits.ts`
+- `packages/core-runtime/src/{attachments,clock-health,context,context-manager,memory,scheduler,one-shot,self-knowledge}.ts`
+- `packages/storage-sqlite/src/context.ts`
+- `packages/providers-shared/src/index.ts`
 - `packages/storage-sqlite/src/one-shot.ts`
 - `packages/providers-anthropic/src/index.ts`
 - `packages/providers-codex/src/index.ts`
@@ -112,6 +117,7 @@ Current suite files under `tests/vitest/`:
 - `command-runner.test.ts`
 - `config-security-schema.test.ts`
 - `context.test.ts`
+- `model-context.test.ts`
 - `env-file.test.ts`
 - `exec-guardrails.test.ts`
 - `fs-tool-delete.test.ts`

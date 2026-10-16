@@ -155,6 +155,7 @@ Coverage reporting stays intentionally targeted rather than pretending to be ful
 
 - OpenClaw import guide: [`docs/migration/openclaw-import.md`](migration/openclaw-import.md)
 - ExecPlan process: [`.agents/PLANS.md`](../.agents/PLANS.md)
+- Model-aware context implementation and independent OpenClaw comparison: [plan and validation evidence](execplans/model-aware-context-2026-10-16.md).
 
 Current housekeeping and release-evidence records:
 

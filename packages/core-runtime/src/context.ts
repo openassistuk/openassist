@@ -24,17 +24,37 @@ export interface PlannedContext {
   estimatedTokens: number;
 }
 
-function estimateTokens(value: string): number {
-  // Approximation: ~4 characters per token for English text.
-  return Math.ceil(value.length / 4);
+export function estimateContextTokens(value: unknown): number {
+  return Math.ceil(Buffer.byteLength(JSON.stringify(value) ?? "", "utf8") / 3) + 32;
 }
 
-function truncateToTokens(content: string, maxTokens: number): string {
-  const maxChars = maxTokens * 4;
-  if (content.length <= maxChars) {
-    return content;
+/** Enforce cancellation even when an adapter ignores its supplied signal. */
+export async function runWithAbort<T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return operation();
+  signal.throwIfAborted();
+  return new Promise<T>((resolve,reject) => {
+    const aborted = () => reject(new Error("Provider request cancelled before completion."));
+    signal.addEventListener("abort",aborted,{ once: true });
+    operation().then(resolve,reject).finally(() => signal.removeEventListener("abort",aborted));
+  });
+}
+
+/** A new user entry starts a segment only after all outstanding calls have settled. */
+export function conversationSegments(messages: NormalizedMessage[]): NormalizedMessage[][] {
+  const segments: NormalizedMessage[][] = [];
+  let segment: NormalizedMessage[] = [];
+  const pending = new Map<string, number>();
+  for (const message of messages) {
+    if (message.role === "user" && segment.length && pending.size === 0) { segments.push(segment); segment = []; }
+    segment.push(message);
+    if (message.role === "assistant" && message.toolCallId) pending.set(message.toolCallId, (pending.get(message.toolCallId) ?? 0) + 1);
+    if (message.role === "tool" && message.toolCallId && pending.has(message.toolCallId)) {
+      const count = pending.get(message.toolCallId)! - 1;
+      if (count) pending.set(message.toolCallId, count); else pending.delete(message.toolCallId);
+    }
   }
-  return content.slice(0, maxChars);
+  if (segment.length) segments.push(segment);
+  return segments;
 }
 
 export class ContextPlanner {
@@ -42,7 +62,7 @@ export class ContextPlanner {
   private readonly budget: TokenBudgetSlices;
 
   constructor(options: ContextPlannerOptions = {}) {
-    this.maxRawTurns = options.maxRawTurns ?? 8;
+    this.maxRawTurns = options.maxRawTurns ?? 10_000;
     this.budget =
       options.budget ??
       {
@@ -54,82 +74,18 @@ export class ContextPlanner {
       };
   }
 
-  private fitSequentialMessages(
-    messages: NormalizedMessage[],
-    maxTokens: number
-  ): { messages: NormalizedMessage[]; usedTokens: number } {
-    const fitted: NormalizedMessage[] = [];
-    let usedTokens = 0;
-    for (const message of messages) {
-      const remaining = maxTokens - usedTokens;
-      if (remaining <= 0) {
-        break;
-      }
-      const content = truncateToTokens(message.content, remaining);
-      if (content.length === 0) {
-        continue;
-      }
-      fitted.push({
-        ...message,
-        content
-      });
-      usedTokens += estimateTokens(content);
-    }
-    return { messages: fitted, usedTokens };
-  }
-
-  private fitNewestMessages(
-    messages: NormalizedMessage[],
-    maxTokens: number
-  ): { messages: NormalizedMessage[]; usedTokens: number } {
-    const fitted: NormalizedMessage[] = [];
-    let usedTokens = 0;
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const message = messages[index]!;
-      const remaining = maxTokens - usedTokens;
-      if (remaining <= 0) {
-        break;
-      }
-      const candidateTokens = estimateTokens(message.content);
-      if (candidateTokens <= remaining) {
-        fitted.unshift(message);
-        usedTokens += candidateTokens;
-        continue;
-      }
-      fitted.unshift({
-        ...message,
-        content: truncateToTokens(message.content, remaining)
-      });
-      usedTokens = maxTokens;
-      break;
-    }
-    return { messages: fitted, usedTokens };
-  }
-
   plan(input: ContextPlannerInput): PlannedContext {
-    const raw = input.recentMessages.slice(-this.maxRawTurns);
-    const fittedSystem = this.fitSequentialMessages(input.systemMessages, this.budget.system);
-    const fittedRecalled = this.fitSequentialMessages(
-      input.recalledStateMessages ?? [],
-      this.budget.recalledState
-    );
-    const remainingForConversation = Math.max(
-      0,
-      this.budget.total -
-        this.budget.safetyMargin -
-        fittedSystem.usedTokens -
-        fittedRecalled.usedTokens
-    );
-    const fittedConversation = this.fitNewestMessages(
-      raw,
-      Math.min(this.budget.activeTurn, remainingForConversation)
-    );
-
-    return {
-      messages: [...fittedSystem.messages, ...fittedRecalled.messages, ...fittedConversation.messages],
-      estimatedTokens:
-        fittedSystem.usedTokens + fittedRecalled.usedTokens + fittedConversation.usedTokens
-    };
+    const segments = conversationSegments(input.recentMessages);
+    const raw: NormalizedMessage[] = [];
+    for (let index = segments.length - 1; index >= 0; index--) {
+      if (raw.length && raw.length + segments[index]!.length > this.maxRawTurns) break;
+      raw.unshift(...segments[index]!);
+    }
+    const messages = [...input.systemMessages, ...(input.recalledStateMessages ?? []), ...raw];
+    const estimatedTokens = estimateContextTokens(messages);
+    if (estimatedTokens > this.budget.total - this.budget.safetyMargin)
+      throw new Error("Complete context exceeds the configured budget; compaction is required. Current input and instructions were not truncated.");
+    return { messages, estimatedTokens };
   }
 }
 

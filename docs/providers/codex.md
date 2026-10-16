@@ -1,5 +1,7 @@
 # Codex Provider
 
+Source/unreleased context admission prepares the full Codex baseline, lifted instructions, tools and admitted replay before accounting. OpenAI API capacities are not inherited by this account-login route. Without verified serving limits it uses a labeled 24,000-token fallback; configure provider `contextWindowTokens` only from known account/serving limits. Inspect `/status` or `openassist doctor`; use wizard for input cost caps. Existing Codex upstream/auth fields remain intact. See the [context engine](../architecture/context-engine.md).
+
 Use the Codex route when you want the separate OpenAI account-login path in OpenAssist.
 
 This route is intentionally Codex-only in the current release. It is not documented as generic ChatGPT API auth for arbitrary OpenAI models.

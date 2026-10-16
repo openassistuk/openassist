@@ -33,6 +33,7 @@ import {
   promptGeneratedIdentifier,
   promptIdentifier,
   promptInteger,
+  promptOptionalInteger,
   promptOptionalTimezone,
   promptRequiredText
 } from "./prompt-validation.js";
@@ -1530,6 +1531,26 @@ export function validateSetupWizardState(state: SetupWizardState): void {
   }
 }
 
+export async function editContextBudgets(state: SetupWizardState, prompts: PromptAdapter): Promise<void> {
+  const context = state.config.runtime.context;
+  console.log("Context budgets: blank optional caps use the verified model default, or the labeled 24,000-token fallback for unknown serving limits.");
+  const input = await promptOptionalInteger(prompts, "Input cost cap (tokens; blank clears)", { min: 1024, max: 2_000_000 });
+  const output = await promptOptionalInteger(prompts, "Minimum output reservation (tokens; blank clears; does not change generation limits)", { min: 1, max: 128_000 });
+  context.maxInputTokens = input;
+  context.reservedOutputTokens = output;
+  const trigger = await promptInteger(prompts, "Compact at percentage of usable input", Math.round(context.compactAtRatio * 100), { min: 50, max: 95 });
+  const target = await promptInteger(prompts, "Target percentage after compaction", Math.round(context.targetRatio * 100), { min: 10, max: Math.min(80, trigger - 1) });
+  context.compactAtRatio = trigger / 100;
+  context.targetRatio = target / 100;
+  context.maxRequestBytes = await promptInteger(prompts, "Maximum prepared request bytes", context.maxRequestBytes, { min: 65_536, max: 67_108_864 });
+  context.summaryMaxTokens = await promptInteger(prompts, "Maximum checkpoint summary tokens", context.summaryMaxTokens, { min: 256, max: 16_384 });
+  context.summarySourceTokens = await promptInteger(prompts, "Maximum source tokens per summary", context.summarySourceTokens, { min: 1024, max: 65_536 });
+  const id = await prompts.select("Provider context window override", [{ name: "Keep current provider limits", value: "keep" },
+    ...state.config.runtime.providers.map(provider => ({ name: `${provider.id}: ${provider.contextWindowTokens ?? "catalog/fallback"}`, value: provider.id }))], "keep");
+  const provider = state.config.runtime.providers.find(candidate => candidate.id === id);
+  if (provider) provider.contextWindowTokens = await promptOptionalInteger(prompts, "Verified serving context window (tokens; blank clears; known native limits remain an upper bound)", { min: 4096, max: 2_000_000 });
+}
+
 export async function runSetupWizard(
   state: SetupWizardState,
   prompts: PromptAdapter = createInquirerPromptAdapter(),
@@ -1548,6 +1569,7 @@ export async function runSetupWizard(
         { name: "Channels and operator access", value: "channels" },
         { name: "Timezone and scheduler", value: "time" },
         { name: "Advanced tools and security", value: "tools" },
+        { name: "Context budgets and compaction", value: "context" },
         { name: "Save and run lifecycle checks", value: "save" },
         { name: "Exit without saving", value: "exit" }
       ],
@@ -1558,6 +1580,7 @@ export async function runSetupWizard(
       await editRuntimeBasics(state, prompts);
       continue;
     }
+    if (action === "context") { await editContextBudgets(state, prompts); continue; }
     if (action === "providers") {
       await editProviders(state, prompts);
       continue;

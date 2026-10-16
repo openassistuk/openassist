@@ -221,7 +221,7 @@ afterEach(() => {
 });
 
 describe("runtime memory behavior", () => {
-  it("compacts session history, stores durable actor memory, and recalls it across chats", async () => {
+  it("extracts durable actor memory asynchronously without compacting history that fits", async () => {
     const root = tempDir("openassist-runtime-memory-");
     roots.push(root);
 
@@ -241,10 +241,10 @@ describe("runtime memory behavior", () => {
       await channel.emit(inbound("chat-1", "u1", `message ${turn}`, `memory-${turn}`));
     }
 
+    for (let attempt = 0; attempt < 100 && provider.sidecarCalls === 0; attempt++) await new Promise(resolve => setTimeout(resolve, 20));
     const status = await runtime.getMemoryStatus("telegram-mock:chat-1", "u1");
     assert.equal(status.enabled, true);
-    assert.ok(status.sessionSummary);
-    assert.match(status.sessionSummary?.summary ?? "", /Debian apt commands/i);
+    assert.equal(status.sessionSummary, null);
     assert.equal(status.permanentMemories.length, 2);
     assert.ok(provider.sidecarCalls >= 1);
 
@@ -276,7 +276,7 @@ describe("runtime memory behavior", () => {
     db.close();
   });
 
-  it("keeps rolling session summaries when permanent memory is disabled", async () => {
+  it("retains complete history without needless summaries when permanent memory is disabled", async () => {
     const root = tempDir("openassist-runtime-memory-disabled-");
     roots.push(root);
 
@@ -302,7 +302,9 @@ describe("runtime memory behavior", () => {
 
     const status = await runtime.getMemoryStatus("telegram-mock:chat-1", "u1");
     assert.equal(status.enabled, false);
-    assert.ok(status.sessionSummary);
+    assert.equal(status.sessionSummary, null);
+    assert.equal(provider.sidecarCalls, 0);
+    assert.equal(db.context.history("telegram-mock:chat-1").messages.length, 16);
     assert.equal(status.permanentMemories.length, 0);
 
     await channel.emit(inbound("chat-2", "u1", "Do you remember my package preference?", "memory-off-recall"));

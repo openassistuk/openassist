@@ -1,90 +1,47 @@
 # Context Engine
 
-Source: `packages/core-runtime/src/context.ts` plus the memory helpers in `packages/core-runtime/src/memory.ts`.
+Source changes described here are unreleased; immutable `v0.2.4` installations retain their shipped planner until explicitly updated.
 
-The context engine keeps provider input bounded and predictable so long-running conversations do not exhaust model windows or leak internal traces. It now does that with two durable memory layers instead of a marker-only transcript hint:
+`ModelContextManager` in `packages/core-runtime/src/context-manager.ts` admits every runtime provider submission: normal replies, each tool continuation, scheduler prompts, context summaries and permanent-memory extraction. There is no runtime eight-message cutoff. History is read in 200-row pages, up to 10,000 messages and the configured byte bound; an incomplete read cannot be represented as complete history.
 
-- a rolling session summary stored per canonical session ID (`<channelId>:<conversationKey>`)
-- conservative actor-scoped permanent memory stored per `<channelId>:<senderId>`
+## Model and operator limits
 
-## Planner Model
+The shared catalog supplies exact, dated model capacities. Route and endpoint matter. Azure requires an explicit `underlyingModel`; deployment names never establish capacity. Codex account-login and compatible/custom endpoints use a labeled 24,000-token fallback unless `contextWindowTokens` is configured from verified serving limits. A known native maximum remains an upper bound on that override.
 
-`ContextPlanner` now accepts three input segments:
+Usable input is the smaller of the model/input cost ceiling and context window minus reserved output and safety. Safety is the larger of 1,024 tokens and 2% of the window. Output reservation is at least the prepared request's maximum output; when omitted, reserve the known native maximum or 8,192 tokens for an unknown route. Anthropic continues sending its existing output limit (normally 16,384); this feature does not increase generation limits. Azure's recent 1,050,000-token models additionally have a 922,000-token input ceiling.
 
-- `systemMessages`: the exact system messages that will reach the provider, including the default prompt, bootstrap self-knowledge, and provider input notes
-- `recalledStateMessages`: rolling session summary plus recalled durable actor memories
-- `recentMessages`: the bounded raw conversation tail from SQLite
+Current GPT-6.1 Sol, GPT-6 Astra/Sol/Luna and GPT-5.6 Sol/Terra/Luna API entries use 1,050,000-token windows. Current Claude Opus/Sonnet/Haiku 5.5 and Fable/Mythos 5.1 use 1,000,000. Older exact entries retain their own capacities or the explicit unknown fallback. Capacities do not assert account entitlement, deployment availability or rate quota. Sources checked October 16, 2026: [OpenAI model comparison](https://developers.openai.com/api/docs/models/compare), [Anthropic context windows](https://platform.claude.com/docs/en/build-with-claude/context-windows), [Azure models](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models).
 
-Planner behavior:
+See the [configuration reference](../configuration/config-reference.md#runtimecontext). Quickstart uses defaults and preserves saved overrides. `openassist setup wizard` has a separate advanced context editor with strict numeric validation.
 
-1. cap retained raw messages to `maxRawTurns` (default `8`)
-2. reserve fixed budget slices for system, recalled state, active turn, and safety margin
-3. fit system and recalled-state messages in order
-4. fit newest raw messages into the remaining active-turn budget
-5. emit final provider payload in deterministic role order
+## Prepared request accounting
 
-Default budget values in code:
+All five bundled adapters map their actual vendor payload once, freeze it, and return a short-lived `PreparedChatRequest`. Counting and sending consume this same payload. Its fingerprint covers route/endpoint/model and mapped content, including instructions, schemas, arguments, results, images and admitted opaque replay. Credentials are supplied only when counting/sending and excluded from diagnostics.
 
-- total: `24000`
-- system: `6000`
-- active turn: `9000`
-- recalled state: `5000`
-- safety margin: `1000`
+OpenAI Responses and Anthropic use native counting endpoints near 75% of usable input, with a 10-second timeout and no count retries. Other routes, unsupported counting and count failures use a labeled UTF-8 JSON estimate (bytes divided by three, plus framing). This is an approximation, particularly for images, code and token-dense text; safety is not a mathematical guarantee against provider rejection. Counts are reused only for matching prepared fingerprints. Observed Anthropic input includes cache-read and cache-creation tokens once; OpenAI cached tokens are already included in input usage.
 
-Token estimation is intentionally approximate in the current release. The planner counts normalized message text across system guidance, summaries, recalled memories and the raw tail. It does not tokenize the complete provider wire payload: tool schemas, images and opaque replay metadata are outside that estimate.
+The default prepared-request byte ceiling is 32 MiB, independent of tokens. A preparation resource guard runs before mapping. Existing attachment and 1 MiB/256-item Responses replay limits remain independent. Signed thinking is retained or omitted as whole blocks by the adapter's replay policy.
 
-Responses adapters separately bound each replay metadata record to 1 MiB and 256 items and scope it to provider/model (plus the Azure underlying-model hint). Metadata travels with retained messages and is omitted on malformed, oversized or mismatched records. These byte/item bounds are not a guarantee that every assembled request fits an upstream token window. Anthropic retains signed thinking blocks and applies prefix-binding controls on the cataloged models that require them. See the [provider contract](../interfaces/provider-adapter.md) for both replay paths.
+Large tool-result model projections become explicit excerpts with source session/call/message references and bounded status/exit/receipt fields. The excerpt ceiling is between 1,024 and 24,576 characters, derived from usable input. Full outputs remain in messages/tool audits. Context recovery never executes a tool to regenerate output. User input, system instructions, schemas and tool arguments are not silently sliced; an oversized mandatory request fails with narrowing guidance.
 
-## Durable Compaction
+## Transactional compaction
 
-Older transcript is no longer represented by `[state_snapshot_written]` markers in `messages`. Runtime compacts older stable transcript in 8-message batches, stores the updated rolling summary in the `session_memory` table, and tracks the last compacted `messages.id` cursor there. This keeps cadence correct after very long chats and after restart because compaction advances by stored message IDs rather than by the current raw-tail length.
+At 85% occupancy, compact older complete conversation segments toward 60%. A segment starts at a user message and includes assistant/tool continuations. Repeated call IDs are matched by occurrence. An unsettled call prevents a boundary; the current segment is always retained. At most two summary generations run during foreground admission. If the unchanged complete request still fits after summary failure, it may proceed with degraded diagnostics; an oversized or incomplete projection blocks before inference.
 
-After a visible chat turn completes, runtime may run a second bounded provider call using the same provider/model. That sidecar call receives only the existing summary plus the next compactable transcript block and must return strict JSON. If the payload is malformed or the provider fails, runtime drops that extraction pass without failing the user-visible chat reply.
+Summary generation has no tools, a 30-second cancellation deadline, a default 32,768-token source ceiling and 8,192-token summary ceiling. A six-field JSON checkpoint separates goals, constraints, decisions, open work, completed actions and evidence. It retains prior checkpoint facts and requires selected tool-call receipts. Validation is structural and bounded; model summaries are not semantically lossless and never grant authorization. Original source rows remain authoritative.
 
-## Durable Actor Memory
+SQLite adds `context_compactions`, `context_checkpoints` and `context_rejections` without rewriting transcript/audit tables. Adoption verifies the expected revision, previous frontier, contiguous source range and digest in one transaction. Empty, malformed, oversized, cancelled or stale candidates cannot advance the frontier. Legacy `session_memory` rows are readable as revision-zero summaries with their recorded boundary; historical semantic completeness is not certified. Successful checkpoints mirror into `session_memory` for older readers.
 
-Permanent memory is conservative and actor-scoped:
+Failed generation queues bounded `context_maintenance` work through the existing durable recovery queue (three attempts, at most two source chunks per attempt). It contains no host actions. Provider-confirmed context rejection permits one persisted repair for the rejected fingerprint, only if a new projection is smaller; another rejection stops. Authentication refresh is separate. Byte limits, rate limits and output exhaustion are not context overflow.
 
-- scope: `<channelId>:<senderId>`
-- categories: `preference`, `fact`, `goal`
-- recall: top 4 active memories ranked by keyword overlap, salience, and recency
+Restart resumes abandoned context/memory jobs and pending compaction intent only; it does not replay host work. Shutdown cancels sidecar requests and drains active recovery before the database closes. Each adopted chunk must shrink the prepared projection and records source-range/tool-result references. Catch-up may require several chunks while inference remains blocked; the final full projection must pass admission before sending.
 
-The sidecar extraction pass proposes permanent-memory candidates only for stable preferences, durable facts, or ongoing goals/projects worth recalling in future chats with the same actor. Runtime validates and redacts the response locally before storing it in `permanent_memories`. Repeated memory candidates refresh the same normalized row instead of creating transcript-shaped drift.
+## Memory, status and rollback
 
-`runtime.memory.enabled = false` disables only permanent-memory extraction, recall, and `memory.*` tools. Rolling session summaries remain on so long chats still stay bounded.
+Permanent actor memory remains scoped to `<channelId>:<senderId>`. Successful replies queue optional conservative extraction; it no longer writes the context frontier or blocks foreground chat. `runtime.memory.enabled = false` disables permanent memory while context admission/compaction remain active. There are no new memory/tool permissions.
 
-## Output Sanitization
+`/status` groups context diagnostics; `/memory`, daemon `/v1/health` runtime status and `openassist doctor` show limits, provenance, reserved output, usable input and available measured/estimated occupancy. Checkpoint revision/frontier and last failure are visible without transcripts or raw reasoning. In-memory occupancy is stale after restart; a session's checkpoint remains durable.
 
-`sanitizeUserOutput()` removes known internal-trace formats before outbound channel delivery, including:
+Back up config and SQLite before rollback. Original history and the compatibility summary mirror remain readable by older binaries; new checkpoints are ignored. Their old retention behavior returns, and summaries created after downgrade are not automatically reconciled with an existing newer checkpoint. Restore the matching backup before re-upgrading if the old binary processed more conversation. See [rollout and rollback](../operations/config-rollout-and-rollback.md).
 
-- `<think>...</think>` blocks
-- fenced reasoning blocks
-- `[internal_trace]...[/internal_trace]` sections
-
-This is a strict channel-safety barrier separate from provider formatting and separate from the memory-compaction sidecar.
-
-## Why It Matters
-
-This prevents four common gateway failures:
-
-- unbounded transcript stuffing that causes provider rejection
-- continuity loss once old raw messages fall out of the prompt window
-- transcript-marker leakage into future provider turns
-- accidental chain-of-thought leakage to end users
-
-## Tuning Rules
-
-When adjusting budgets or planner behavior:
-
-1. keep explicit safety margin
-2. keep deterministic role order
-3. keep hard cap on raw history
-4. keep session compaction cursor-based and restart-safe
-5. keep permanent memory conservative and actor-scoped
-6. keep sanitization independent of provider adapter logic
-
-## Current Limits
-
-- no provider-specific tokenizer yet
-- no embeddings or semantic vector search yet; durable memory recall is rule-based
-- sidecar extraction is JSON-in-text rather than provider-native structured output
+Offline continuity/failure fixtures and full-check evidence live in the [implementation plan](../execplans/model-aware-context-2026-10-16.md) and [test matrix](../testing/test-matrix.md). Hosted CI and live-provider certification are separate evidence.

@@ -183,7 +183,7 @@ Context planner input now includes a second runtime system message containing:
 
 Global assistant profile memory is persisted once in `system_settings`; session bootstrap host context is persisted per chat and reused deterministically for future turns. The runtime self-knowledge snapshot is stored inside the existing `session_bootstrap.systemProfile` payload as the last-seen chat snapshot and refreshed when assistant identity, install context, effective access, or runtime tool state changes. Rolling session summaries are persisted in `session_memory`, and actor-scoped durable memories are persisted in `permanent_memories`.
 
-After a successful visible chat reply, runtime may run one bounded sidecar provider pass over the next compactable 8-message transcript block. That pass updates the rolling session summary and may propose conservative permanent-memory candidates. Sidecar failures are logged and dropped without failing the main chat turn.
+After a successful visible reply, runtime queues bounded actor-memory extraction without changing the context frontier. Model-aware admission separately summarizes contiguous complete older turns under pressure through transactional checkpoints. It guards every provider call, including tool continuations and sidecars; see the [context engine](context-engine.md).
 
 ## Config Apply Behavior
 

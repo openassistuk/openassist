@@ -1,5 +1,7 @@
 # Tool Calling Interface
 
+Source/unreleased: every tool continuation passes model-aware admission after results settle. Compaction preserves whole call/result segments and cannot reset the 12-round default or grant tools. Large result projections carry explicit excerpts, receipts and audit references; original outputs remain durable and context repair never re-executes actions. Provider overflow permits one persisted smaller-projection retry. See the [context engine](../architecture/context-engine.md).
+
 Lifecycle modernization adds no tool schemas or privilege escalation. Runtime awareness identifies packaged/source/isolated installs and protects managed application directories. Use host-side lifecycle commands for update/recovery/uninstall; direct edits to retained release files are not a durable growth mechanism.
 
 Source of truth:

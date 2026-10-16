@@ -93,6 +93,7 @@ export interface ChatRequest {
   maxTokens?: number;
   temperature?: number;
   metadata: Record<string, string>;
+  signal?: AbortSignal;
 }
 
 export interface ChatResponse {
@@ -101,6 +102,35 @@ export interface ChatResponse {
   rawProviderResponseId?: string;
   finishReason?: string;
   toolCalls?: ToolCall[];
+}
+
+export interface ContextAccounting {
+  fingerprint: string;
+  inputTokens: number;
+  bytes: number;
+  source: "estimated" | "counted";
+  components: Record<string, number>;
+}
+
+/** An adapter owns the immutable wire payload; authentication is supplied only on use. */
+export interface PreparedChatRequest {
+  readonly accounting: ContextAccounting;
+  readonly outputTokens?: number;
+  countTokens?(auth: ProviderAuth): Promise<number>;
+  send(auth: ProviderAuth): Promise<ChatResponse>;
+}
+
+export interface ResolvedContextLimits {
+  route: ProviderConfig["type"];
+  model: string;
+  contextWindowTokens: number;
+  maxInputTokens: number;
+  operatorInputCapTokens?: number;
+  reservedOutputTokens: number;
+  safetyMarginTokens: number;
+  usableInputTokens: number;
+  source: "catalog" | "configured" | "fallback";
+  checkedAt?: string;
 }
 
 export interface ProviderAdapter {
@@ -112,6 +142,7 @@ export interface ProviderAdapter {
   completeOAuthDeviceCodeLogin?(ctx: OAuthDeviceCodeCompleteContext): Promise<ProviderAuthHandle>;
   refreshOAuthAuth?(auth: ProviderAuthHandle): Promise<ProviderAuthHandle>;
   validateConfig(config: unknown): Promise<ValidationResult>;
+  prepareChat?(req: ChatRequest): Promise<PreparedChatRequest>;
   chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse>;
 }
 
@@ -119,6 +150,7 @@ interface CommonProviderConfig {
   id: string;
   defaultModel: string;
   baseUrl?: string;
+  contextWindowTokens?: number;
   metadata?: Record<string, unknown>;
 }
 
@@ -197,6 +229,9 @@ export interface ModelCapabilities {
   thinkingPrefixBinding?: boolean;
   defaultMaxOutputTokens?: number;
   maxOutputTokens?: number;
+  contextWindowTokens?: number;
+  maxInputTokens?: number;
+  limitsCheckedAt?: string;
 }
 
 export interface ModelLifecycle {

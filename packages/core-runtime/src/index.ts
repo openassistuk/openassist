@@ -2,6 +2,7 @@ export * from "./awareness.js";
 export * from "./attachments.js";
 export * from "./channel-rendering.js";
 export * from "./context.js";
+export * from "./context-manager.js";
 export * from "./clock-health.js";
 export * from "./memory.js";
 export * from "./policy-engine.js";

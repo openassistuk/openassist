@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { prepareWireChat } from "@openassist/providers-shared";
 import { z } from "zod";
 import type {
   ApiKeyAuth,
@@ -8,6 +9,7 @@ import type {
   ProviderAuth,
   ProviderAuthHandle,
   ProviderCapabilities,
+  PreparedChatRequest,
   ValidationResult
 } from "@openassist/core-types";
 
@@ -133,49 +135,57 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
   }
 
   async chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse> {
-    const apiKey = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
-    if (!apiKey) {
-      throw new Error("OpenAI-compatible provider requires an API key or access token");
-    }
+    return (await this.prepareChat(req)).send(auth);
+  }
 
-    const client = new OpenAI({
-      apiKey,
-      baseURL: this.config.baseUrl
-    });
-
-    const completion = await client.chat.completions.create({
+  async prepareChat(req: ChatRequest): Promise<PreparedChatRequest> {
+    req = { ...req, metadata: { ...req.metadata }, tools: structuredClone(req.tools) };
+    const payload = {
       model: req.model || this.config.defaultModel,
       temperature: req.temperature,
       max_tokens: req.maxTokens,
       messages: mapMessages(req.messages) as any,
       tools: mapTools(req.tools) as any
-    } as any);
-
-    const choice = completion.choices[0];
-    const output = choice?.message?.content ?? "";
-    const usage = completion.usage;
-    const rawToolCalls = ((choice?.message as any)?.tool_calls as Array<any> | undefined) ?? [];
-    const toolCalls = rawToolCalls
-      .filter((toolCall) => toolCall?.type === "function" && toolCall?.function?.name)
-      .map((toolCall) => ({
-        id: String(toolCall.id),
-        name: decodeToolName(String(toolCall.function.name)),
-        argumentsJson: String(toolCall.function.arguments ?? "{}")
-      }));
-
-    return {
-      output: {
-        role: "assistant",
-        content: typeof output === "string" ? output : ""
-      },
-      usage: {
-        inputTokens: usage?.prompt_tokens ?? 0,
-        outputTokens: usage?.completion_tokens ?? 0,
-        totalTokens: usage?.total_tokens ?? 0
-      },
-      rawProviderResponseId: completion.id,
-      finishReason: choice?.finish_reason ?? undefined,
-      toolCalls
     };
+    return prepareWireChat(payload, async (body, auth) => {
+      const apiKey = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
+      if (!apiKey) {
+        throw new Error("OpenAI-compatible provider requires an API key or access token");
+      }
+
+      const client = new OpenAI({
+        apiKey,
+        baseURL: this.config.baseUrl
+      });
+
+      const completion = await client.chat.completions.create(body as any, { signal: req.signal });
+
+      const choice = completion.choices[0];
+      const output = choice?.message?.content ?? "";
+      const usage = completion.usage;
+      const rawToolCalls = ((choice?.message as any)?.tool_calls as Array<any> | undefined) ?? [];
+      const toolCalls = rawToolCalls
+        .filter((toolCall) => toolCall?.type === "function" && toolCall?.function?.name)
+        .map((toolCall) => ({
+          id: String(toolCall.id),
+          name: decodeToolName(String(toolCall.function.name)),
+          argumentsJson: String(toolCall.function.arguments ?? "{}")
+        }));
+
+      return {
+        output: {
+          role: "assistant",
+          content: typeof output === "string" ? output : ""
+        },
+        usage: {
+          inputTokens: usage?.prompt_tokens ?? 0,
+          outputTokens: usage?.completion_tokens ?? 0,
+          totalTokens: usage?.total_tokens ?? 0
+        },
+        rawProviderResponseId: completion.id,
+        finishReason: choice?.finish_reason ?? undefined,
+        toolCalls
+      };
+    }, { identity: `openai-compatible:${this.config.id}:${this.config.baseUrl}:${payload.model}`, outputTokens: req.maxTokens });
   }
 }

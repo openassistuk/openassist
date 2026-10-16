@@ -2,6 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { OneShotStore } from "./one-shot.js";
+import { ContextStore } from "./context.js";
+export { ContextStore, contextSourceDigest } from "./context.js";
+export type { ContextHistory } from "./context.js";
 export { OneShotStore } from "./one-shot.js";
 import { assertDatabaseVersion, DATABASE_VERSION } from "./compatibility.js";
 export { inspectDatabaseVersion, assertManagedTaskCompatibility, DATABASE_VERSION } from "./compatibility.js";
@@ -205,6 +208,7 @@ function assertUnixOwnerOnlyPath(
 
 export class OpenAssistDatabase {
   readonly oneShots: OneShotStore;
+  readonly context: ContextStore;
   private readonly db: DatabaseSync;
   private readonly logger: OpenAssistLogger;
 
@@ -239,6 +243,7 @@ export class OpenAssistDatabase {
     this.db.exec("PRAGMA foreign_keys = ON;");
     this.initialize();
     this.oneShots = new OneShotStore(this.db);
+    this.context = new ContextStore(this.db, ids => this.getMessageAttachments(ids));
     this.db.exec(`PRAGMA user_version = ${DATABASE_VERSION}`);
   }
 
@@ -718,7 +723,7 @@ export class OpenAssistDatabase {
     conversationKey: string,
     message: NormalizedMessage,
     metadata: Record<string, unknown> = {}
-  ): void {
+  ): number {
     this.ensureSession(sessionId, conversationKey);
     const createdAt = nowIso();
     const mergedMetadata: Record<string, unknown> = {
@@ -752,6 +757,7 @@ export class OpenAssistDatabase {
       message.attachments ?? [],
       createdAt
     );
+    return Number(inserted.lastInsertRowid);
   }
 
   recordOutbound(sessionId: string, envelope: OutboundEnvelope, transportMessageId: string): void {

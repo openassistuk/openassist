@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- 2026-10-16: Add model-aware context admission across all five provider routes, every tool continuation and sidecar. Retain coherent history beyond eight messages, account for prepared vendor payloads, expose dated limits/cost caps and preserve output/thinking controls. Add transactional checkpoints, bounded durable maintenance, explicit tool-output excerpts and one persisted overflow repair; failed/cancelled summaries preserve history and never repeat host actions. Add wizard/status/doctor controls, rollback guidance and continuity/failure tests. Permanent-memory extraction runs separately after replies. Published `v0.2.4` assets and live-provider certification are unchanged.
+
 ## [0.2.4] - 2026-10-16
 
 - Publish signed stable `v0.2.4` from PR #86/main `78b3e40` with sixteen immutable assets. Exact-main CI/full CodeQL, native candidate quality/zero audits, protected signing, independent production signatures/digests and all four public stable/exact-version installation/uninstall targets pass in run 38921925528, attempt 2. Retain the initial cancelled Apple Silicon setup stall separately; no production signing/publication occurred before retry and no public asset was replaced. Existing installations must explicitly update for Anthropic tool/replay/Haiku fixes; saved settings and deferred live testing remain unchanged.

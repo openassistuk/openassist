@@ -77,6 +77,32 @@ for (const entry of models) {
   if (["claude-sonnet-4-5", "claude-sonnet-4-5-20250929", "claude-opus-4-5", "claude-opus-4-5-20251101"].includes(entry.id)) entry.maxOutputTokens = 64_000;
 }
 
+// Exact, source-checked IDs only. Codex serving capacity is resolved separately.
+// Evidence: official OpenAI model catalog, Claude context-windows and Azure reasoning tables (2026-10-16).
+const millionOpenAI = new Set(["gpt-6.1-sol", "gpt-6-astra", "gpt-6-sol", "gpt-6-luna", "gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-pro"]);
+const fourHundredOpenAI = new Set(["gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2", "gpt-5.2-pro", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "chat-latest"]);
+const millionClaude = new Set(["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1", "claude-mythos-5-1", "claude-fable-5", "claude-mythos-5", "claude-opus-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-mythos-preview"]);
+const legacyClaude = new Set(["claude-opus-4-5", "claude-opus-4-5-20251101", "claude-sonnet-4-5", "claude-sonnet-4-5-20250929", "claude-haiku-4-5", "claude-haiku-4-5-20251001",
+  "claude-3-7-sonnet-latest", "claude-3-7-sonnet-20250219", "claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-opus-4-1", "claude-opus-4-1-20250805"]);
+for (const entry of models) {
+  const canonical = openaiSnapshots.find(([, snapshots]) => snapshots.includes(entry.id))?.[0] ?? entry.id;
+  if (entry.routes.some(route => route === "openai" || route === "azure-foundry")) {
+    const window = millionOpenAI.has(canonical) ? 1_050_000 : fourHundredOpenAI.has(canonical) ? 400_000
+      : ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].includes(canonical) ? 1_047_576
+      : ["gpt-4o", "gpt-4o-mini"].includes(canonical) ? 128_000 : undefined;
+    if (window) {
+      entry.contextWindowTokens = window;
+      entry.maxOutputTokens = entry.id === "gpt-4o-2024-05-13" ? 4096 : ["gpt-4o", "gpt-4o-mini"].includes(canonical) ? 16_384
+        : ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].includes(canonical) ? 32_768 : 128_000;
+      entry.limitsCheckedAt = "2026-10-16";
+    }
+  }
+  if (millionClaude.has(entry.id) || legacyClaude.has(entry.id)) {
+    entry.contextWindowTokens = millionClaude.has(entry.id) ? 1_000_000 : 200_000;
+    entry.limitsCheckedAt = "2026-10-16";
+  }
+}
+
 const lifecycles: Array<{ routes: readonly ProviderConfig["type"][]; models: readonly string[]; retirementDate?: string; replacementModel: string }> = [
   { routes: ["codex"], models: ["gpt-5.4"], retirementDate: "2026-08-31", replacementModel: DEFAULT_OPENAI_MODEL },
   { routes: ["codex"], models: ["gpt-5.4-mini"], retirementDate: "2026-08-31", replacementModel: "gpt-6-luna" },

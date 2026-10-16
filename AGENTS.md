@@ -18,6 +18,8 @@ Keep OpenAssist:
 
 Context admission belongs to the common runtime provider-call path. Bundled adapters must prepare/count/send the same immutable mapped payload; exact route/model capacities and dated provenance belong in the shared catalog. Preserve complete current input, mandatory guidance, tool frames and original audit rows. Checkpoint adoption must compare revision, contiguous coverage and source digest transactionally; failed/cancelled summaries never advance the frontier. Keep permanent extraction separate, context repair finite and durable, and unknown serving limits labeled. Update context diagnostics, configuration guidance and failure/restart fixtures together.
 
+Summary parsing must bound raw UTF-8 input before JSON parsing and use linear fence handling; cancellation deadlines cannot interrupt synchronous regular-expression backtracking. Check code-scanning alerts on the PR/branch ref as well as the default branch, because PR-only alerts are absent from the default listing.
+
 1. No secret leakage in logs, tests, docs, or error text.
 2. No implicit privilege escalation.
 3. No replay/idempotency regressions without explicit migration notes.

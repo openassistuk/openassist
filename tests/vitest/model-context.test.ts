@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatRequest, ChatResponse, ProviderAdapter, ProviderConfig, RuntimeConfig } from "@openassist/core-types";
 import { createDefaultConfigObject } from "../../apps/openassist-cli/src/lib/config-edit.js";
@@ -37,6 +38,35 @@ function fixture(policy: Partial<RuntimeConfig["context"]> = {}, summarize = vi.
 }
 
 describe("model context contracts", () => {
+  it.each([
+    (value: string) => value,
+    (value: string) => `\x60\x60\x60json\n${value}\n\x60\x60\x60`,
+    (value: string) => ` \x60\x60\x60JSON\r\n\t${value}\u2003\x60\x60\x60\n`,
+    (value: string) => `\x60\x60\x60\n${value}\n\x60\x60\x60`,
+    (value: string) => `\x60\x60\x60json${value}`,
+    (value: string) => `${value}\x60\x60\x60`
+  ])("preserves supported plain and fenced summary forms (%#)", wrap => {
+    expect(parseContextSummary(wrap(summary),512)).toBe(summary);
+  });
+
+  it("parses whitespace-heavy summaries without backtracking before validation", () => {
+    const whitespace = " ".repeat(40_000);
+    const valid = JSON.stringify({ ...JSON.parse(summary), goals: `prefix${whitespace}suffix` });
+    const started = performance.now();
+    expect(parseContextSummary(valid,16_384)).toBe(valid);
+    for (const suffix of ["!", "\x60\x60!"]) {
+      expect(() => parseContextSummary(`x${" ".repeat(60_000)}${suffix}`,8192)).toThrow(/invalid JSON/);
+    }
+    // The previous suffix regex took seconds; leave ample headroom for a linear parse on CI.
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  it("rejects raw summary input above the UTF-8 byte bound before adopting any content", () => {
+    expect(() => parseContextSummary(`${" ".repeat(131_072)}${summary}`,16_384)).toThrow(/budget/);
+    const unicode = JSON.stringify({ ...JSON.parse(summary), goals: "界".repeat(44_000) });
+    expect(unicode.length).toBeLessThan(131_072);
+    expect(() => parseContextSummary(unicode,16_384)).toThrow(/budget/);
+  });
   it("resolves exact route limits, independent input/output caps and unknown serving windows", () => {
     const model = "gpt-6.1-sol";
     const native: ProviderConfig = { id: "p", type: "openai", defaultModel: model };
@@ -131,7 +161,7 @@ describe("model context contracts", () => {
   });
 
   it("retains the frontier on malformed, cancelled or receipt-free summaries", async () => {
-    for (const content of ["not JSON", JSON.stringify({ goals: "missing fields" }), summary.replace("call-repeat", "lost")]) {
+    for (const content of ["not JSON", JSON.stringify({ goals: "missing fields" }), summary.replace("call-repeat", "lost"), `${" ".repeat(131_072)}${summary}`]) {
       const f = fixture({ maxInputTokens: 4000 }, vi.fn(async () => response(content)));
       f.append("user", "x".repeat(4000)); f.append("assistant", "", "call-repeat"); f.append("tool", "receipt", "call-repeat"); f.append("user", "y".repeat(9000));
       await expect(f.manager.admit(f.provider,f.request(),auth)).rejects.toThrow(/compaction/);

@@ -19,8 +19,13 @@ Operators should see the model's verified capacity, their chosen cost cap, the c
 - [x] (2026-10-16) Milestone 2: whole-segment retention, bounded paginated hydration, additive checkpoint/intent/rejection tables and transactional revision/range/digest adoption. Offline continuity/cancellation/reopen fixtures pass.
 - [x] (2026-10-16) Milestone 3: common admission, one persisted smaller-projection repair, tool audit references, separate asynchronous extraction, bounded maintenance and shutdown/restart recovery. Targeted runtime suites pass.
 - [x] (2026-10-16) Milestone 4: wizard/status/doctor, docs, rollback guidance and full local quality/coverage/audit gates pass. Branch/PR reconciliation is recorded below.
+- [x] (2026-10-16) PR follow-up: inspect all CI jobs, full CodeQL #43 trace and review thread. Reproduce polynomial whitespace handling; replace it with linear string operations and a 128 KiB pre-parse UTF-8 bound. Core-runtime build and 27 focused context/memory tests pass.
+- [x] (2026-10-16) PR follow-up: `pnpm verify:all` passes after the repair, including 623 Vitest and 242 Node tests, unchanged coverage gates and zero production/full dependency findings.
+- [ ] PR follow-up: push the repair, verify exact-head CI/full branch CodeQL and PR-scoped alert closure, then resolve the automated review thread.
 
 ## Surprises & Discoveries
+
+PR #88's initial CodeQL analysis job succeeded but its separate findings check failed on high-severity `js/polynomial-redos` alert #43. The complete SARIF trace leads from `parseContextSummary(text)` through fence normalization to the unanchored whitespace suffix regex, before JSON/token validation. The adversarial regression takes 7,208 ms before repair; the standalone 60,000-space failure takes 0.08 ms after repair. These are local measurements, not hosted performance guarantees. The default-branch alert query returns no open alerts while `refs/pull/88/merge` contains #43, so PR/branch scope must be queried explicitly.
 
 The current runtime constructs `new ContextPlanner()` without model options. Its nominal 24,000-token budget has text slices totaling 20,000, and it estimates only `message.content`. Provider adapters subsequently add tools, attachments and opaque replay. Tool continuations append to the request without replanning. Memory extraction and scheduler requests share `chatWithProvider` but bypass the initial chat planner.
 
@@ -36,6 +41,8 @@ These are isolated planner observations, not production failure rates. They demo
 OpenClaw already implements many desirable protections. It preserves complete tool frames, retains original history, uses provider observations with provenance and exposes degraded compaction. Those are comparison baselines, not novel OpenAssist claims. Its documented optional mid-turn precheck and lossy automatic timeout recovery provide narrower opportunities for stronger OpenAssist defaults.
 
 ## Decision Log
+
+Decision: Repair both fence removals at the shared summary parser using string prefix/suffix checks and trimming, and reject raw UTF-8 input above the existing 128 KiB storage ceiling before parsing. This removes the polynomial sink instead of suppressing the alert or relying on an asynchronous timeout. Both provider-generated summaries and reference-augmented summaries pass this boundary; plain/fenced forms within the limit, redaction, structural/token checks and transactional adoption stay intact. The nearby permanent-memory parser does not contain the ambiguous whitespace suffix and needs no change. Separate security-boundary and bypass/regression passes were performed locally under the user's single-agent restriction.
 
 Decision: Complete research and an implementation-ready design before modifying product behavior. Rationale: the initial request placed this comparison before the fixes. That research phase is complete; the user's subsequent explicit request now authorizes local implementation and a PR.
 
@@ -58,6 +65,8 @@ Decision: Retain database compatibility version 1 for additive context tables an
 These source decisions do not describe immutable published v0.2.4 behavior.
 
 ## Outcomes & Retrospective
+
+PR review follow-up (2026-10-16): the original head `24bbd23` passes three-platform quality/coverage, workflow lint, macOS live launchd, four native packages and signing contracts. CodeQL's analysis completes but reports #43, mirrored in one unresolved automated review thread. The focused regression fails before the patch and all 27 nearest context/memory tests pass after it, including six compatible fence forms, long whitespace/near-fence failures, UTF-8 limits and unchanged coverage after rejected output. Full local `pnpm verify:all` passes with 623 Vitest tests (one skip), 242 Node tests (six skips), both unchanged coverage gates and zero dependency findings. Hosted repair validation remains pending; no alert has been dismissed and no workflow has been weakened.
 
 Source implementation replaces the fixed cutoff with model-aware admission, coherent history and transactional compaction. The continuity fixture retains 201 messages across 100 complete turns, including the ninth-turn fact, instead of the baseline eight-message retention. Failed/cancelled summaries preserve the frontier; original tool output remains stored while projections disclose excerpts.
 
@@ -239,3 +248,5 @@ A too-large mandatory request yields an actionable failure; it does not silently
 The pinned source links and the synthetic probe observations above are the evidence for this research phase. Proposed thresholds, byte limits and summary allowances are OpenAssist design choices to be validated, not copied OpenClaw defaults or certified production performance. Implementation must replace those proposals with measured evidence where it warrants a change and record the decision here.
 
 Revision note (2026-10-16): initial independent design created after the requested OpenClaw source review. The purpose is to make the next implementation concrete and reviewable while preserving the current runtime and signed test installation. Final review records the 11 passing documentation tests, specifies unknown-route output reservation and retains existing replay resource bounds.
+
+Revision note (2026-10-16, PR #88 follow-up): record CodeQL #43's full data-flow evidence, failing-before regression, linear parser/byte-bound repair and compatibility/security review. The user's request authorizes fixing PR issues and updating this existing branch; release publication and merge remain outside this task.

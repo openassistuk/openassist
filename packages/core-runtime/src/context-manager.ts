@@ -19,10 +19,22 @@ const SUMMARY_INSTRUCTIONS = [
   "Do not include passwords, credentials, API keys, bearer tokens or raw hidden reasoning. No tools are available."
 ].join("\n");
 const SUMMARY_FIELDS = ["goals", "constraints", "decisions", "openWork", "completedActions", "evidence"] as const;
+const MAX_SUMMARY_INPUT_BYTES = 131_072;
 
 export function parseContextSummary(text: string, maxTokens: number): string {
+  // Bound provider-controlled text before parsing, matching the storage summary byte ceiling.
+  if (text.length > MAX_SUMMARY_INPUT_BYTES || Buffer.byteLength(text, "utf8") > MAX_SUMMARY_INPUT_BYTES) {
+    throw new ContextAdmissionError("Context summary did not fit its budget; previous history is preserved.");
+  }
+  let json = text.trim();
+  if (json.startsWith("```")) {
+    json = json.slice(3);
+    if (json.slice(0,4).toLowerCase() === "json") json = json.slice(4);
+    json = json.trimStart();
+  }
+  if (json.endsWith("```")) json = json.slice(0,-3).trimEnd();
   let value: unknown;
-  try { value = JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")); }
+  try { value = JSON.parse(json); }
   catch { throw new ContextAdmissionError("Context summary was invalid JSON; previous history is preserved."); }
   if (!value || typeof value !== "object" || Array.isArray(value) ||
     !SUMMARY_FIELDS.every(field => typeof (value as Record<string,unknown>)[field] === "string")) {

@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- 2026-10-16: Fix CodeQL alert #43 in context-summary parsing: remove the polynomial closing-fence whitespace regex and enforce a 128 KiB raw UTF-8 bound before JSON parsing. Preserve supported plain/fenced forms within bounds, redaction and checkpoint failure semantics. Add whitespace/near-fence, Unicode-byte and no-adoption regressions to prevent provider-controlled text from blocking the event loop; existing published assets remain unchanged.
+
 - 2026-10-16: Add model-aware context admission across all five provider routes, every tool continuation and sidecar. Retain coherent history beyond eight messages, account for prepared vendor payloads, expose dated limits/cost caps and preserve output/thinking controls. Add transactional checkpoints, bounded durable maintenance, explicit tool-output excerpts and one persisted overflow repair; failed/cancelled summaries preserve history and never repeat host actions. Add wizard/status/doctor controls, rollback guidance and continuity/failure tests. Permanent-memory extraction runs separately after replies. Published `v0.2.4` assets and live-provider certification are unchanged.
 
 ## [0.2.4] - 2026-10-16

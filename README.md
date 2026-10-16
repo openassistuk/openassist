@@ -2,6 +2,8 @@
 
 Source/unreleased: model-aware context admission covers all five provider routes and every tool continuation. Verified model windows replace the eight-message runtime cutoff; unknown serving limits stay explicit. Inspect `/status`, `/memory` or `openassist doctor`, and set cost caps in `openassist setup wizard`. See the [context engine](docs/architecture/context-engine.md) for accounting, durable compaction, bounds and rollback. Published `v0.2.4` retains its shipped behavior until explicitly updated.
 
+Context summary parsing uses linear string operations and rejects raw provider output above 128 KiB before JSON parsing; malformed or oversized summaries preserve the previous checkpoint and original history.
+
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml)
 [![macOS Live Launchd](https://github.com/openassistuk/openassist/actions/workflows/macos-live-launchd.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/macos-live-launchd.yml)

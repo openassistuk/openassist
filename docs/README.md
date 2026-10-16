@@ -119,6 +119,7 @@ Recognized older installs that still use repo-local operator state (`openassist.
 
 - System overview: [`docs/architecture/overview.md`](architecture/overview.md)
 - Context engine: [`docs/architecture/context-engine.md`](architecture/context-engine.md)
+- Context-summary resource controls include linear fence parsing and a 128 KiB pre-parse UTF-8 limit; see the context engine above.
 - Runtime modules: [`docs/architecture/runtime-and-modules.md`](architecture/runtime-and-modules.md)
 - Tool-calling contract: [`docs/interfaces/tool-calling.md`](interfaces/tool-calling.md)
 - Skills manifest and managed growth contract: [`docs/interfaces/skills-manifest.md`](interfaces/skills-manifest.md)

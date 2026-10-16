@@ -21,6 +21,8 @@ This route is the fastest way to use Anthropic in quickstart, while still leavin
 
 ## Quickstart Path
 
+The [v0.2.4 candidate notes](../releases/v0.2.4.md) collect the source changes below for a future packaged patch. Public stable remains v0.2.3 during preparation; model/account access and paid API-credit testing are still separate from release/package verification.
+
 Source integration checked October 16, 2026 uses the official `@anthropic-ai/sdk` `0.135.0` Messages API. Quickstart saves the API key in the operator env file; the runtime supplies that explicit credential to the adapter. Optional `workspaceId` selects a multi-workspace key's workspace. Configured `baseUrl`, credentials and workspace take precedence over ambient SDK endpoint/auth/workspace headers. SDK debug logging and automatic OpenTelemetry tracing are disabled; operational diagnostics stay in OpenAssist's sanitized runtime path. Published `v0.2.3` contains SDK `0.131.0`; these newer source changes require a later packaged release.
 
 `claude-haiku-5-5` is available alongside the existing Opus 5.5 recommendation. Haiku defaults to adaptive thinking and medium effort, accepts all five efforts, and supports disabled thinking only at low/medium/high. Manual budgets and non-default sampling are unsupported. The total output allowance defaults to `16384`, bounded by `128000`, and includes thinking. Wizard offers only low/medium/high effort when Haiku thinking is disabled. Quickstart preserves compatible saved choices and asks before resetting incompatible manual settings. Haiku 4.5 remains supported with its existing manual-budget semantics.

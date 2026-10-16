@@ -1,5 +1,7 @@
 # Upgrade and rollback
 
+The [v0.2.4 candidate notes](../releases/v0.2.4.md) describe the prepared Anthropic patch and post-publication update commands. During preparation stable still selects v0.2.3; an exact 0.2.4 pin is unavailable until publication. Saved models/state remain intact. Earlier adapters do not interpret newly versioned tool-name replay; a deliberate rollback requires compatible model/tuning and a fresh conversation or matching state backup, retaining current audit history separately. Managed rollback never restores databases automatically.
+
 The signed [v0.2.3 patch](../releases/v0.2.3.md) is published and stable updates select it. The [release evidence](../execplans/stable-0.2.3-release.md) records exact-main checks, protected signing, independent signatures/digests and four-target public installation. Existing exact pins remain unchanged until explicitly selected.
 
 Activation and rollback derive daemon identity from the executing application's build metadata. The successful install record is still committed only after verification; the daemon refreshes its update track from that matching record. Archive preparation resolves complete link chains before extraction and rejects links that escape the installation, including traversal hidden behind another link.

@@ -31,6 +31,8 @@ All validation for this source maintenance uses the real SDK with isolated HTTP/
 
 Beginner path:
 
+After a tool-round limit, a narrower follow-up retains completed results and the limit explanation without replaying the last calls twice. After an interrupted multi-tool turn, the adapter uses only reconciled completed call/result pairs when the native turn is incomplete. It does not execute an unfinished historical call automatically. Earlier synthetic replies carrying duplicate replay metadata also retain their text. No database migration is needed.
+
 ```bash
 openassist setup
 ```

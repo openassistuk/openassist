@@ -201,6 +201,8 @@ Persist the complete assistant content on tool turns even without thinking. Keep
 
 Haiku 5.5 uses adaptive prefix binding and internal stream folding by default. Explicit disabled thinking omits binding/beta fields and removes only opaque thinking/redacted-thinking from replay, retaining text/tool calls/results. Manual budgets and disabled xhigh/max fail before transport. See [Anthropic controls](../providers/model-compatibility.md#claude-settings-and-replay).
 
+Anthropic replay admission also checks the reconciled turn: every native `tool_use` needs a matching retained result before the next normal message, and an already replayed ID cannot be restored again. An incomplete/duplicate turn falls back to normalized history without modifying signed blocks or durable audit records. Synthetic runtime limit/disabled replies never copy tool-turn metadata; older synthetic rows carrying it retain their ordinary text. Complete valid signed-thinking and tool-only turns still replay unchanged.
+
 Legacy compatibility note:
 
 - Existing `openai` provider configs that still carry OAuth settings may remain readable for compatibility.

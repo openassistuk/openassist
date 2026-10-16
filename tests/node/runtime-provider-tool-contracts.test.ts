@@ -196,79 +196,110 @@ afterEach(() => {
 });
 
 describe("runtime provider tool contracts", () => {
-  it("replays a complete native Anthropic multi-tool turn after a database restart", async () => {
-    const root = tempDir("openassist-anthropic-runtime-contract-");
-    roots.push(root);
-    const files = [path.join(root, "first.txt"), path.join(root, "second.txt")];
-    const payloads: Array<Record<string, any>> = [];
-    let originalBlocks: Array<Record<string, unknown>> = [];
-    const server = http.createServer(async (request, response) => {
-      const chunks: Buffer[] = [];
-      for await (const chunk of request) chunks.push(Buffer.from(chunk));
-      const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-      payloads.push(payload);
-      if (payloads.length === 1) {
-        const write = payload.tools.find((tool: { description: string }) => tool.description.includes("Runtime tool: fs.write"));
-        originalBlocks = [
-          { type: "text", text: "Writing both files." },
-          ...files.map((file, index) => ({ type: "tool_use", id: `native-write-${index}`, name: write?.name, input: { path: file, content: `file-${index}` } }))
-        ];
+  for (const scenario of ["complete", "limit", "interrupted"] as const) {
+    it(`resumes native Anthropic multi-tool history after ${scenario} execution and database restart`, async () => {
+      const root = tempDir("openassist-anthropic-runtime-contract-");
+      roots.push(root);
+      const files = [path.join(root, "first.txt"), path.join(root, "second.txt")];
+      const payloads: Array<Record<string, any>> = [];
+      let originalBlocks: Array<Record<string, unknown>> = [];
+      const server = http.createServer(async (request, response) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of request) chunks.push(Buffer.from(chunk));
+        const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        payloads.push(payload);
+        if (payloads.length === 1) {
+          const write = payload.tools.find((tool: { description: string }) => tool.description.includes("Runtime tool: fs.write"));
+          originalBlocks = [
+            { type: "text", text: "Writing both files." },
+            ...files.map((file, index) => ({ type: "tool_use", id: `native-write-${index}`, name: write?.name, input: { path: file, content: `file-${index}` } }))
+          ];
+        }
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          id: `native-reply-${payloads.length}`, type: "message", role: "assistant", model: "claude-sonnet-5",
+          content: payloads.length === 1 ? originalBlocks : [{ type: "text", text: "anthropic:done" }],
+          stop_reason: payloads.length === 1 ? "tool_use" : "end_turn", usage: { input_tokens: 1, output_tokens: 1 }
+        }));
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address !== "string");
+      const config = baseConfig(root, "anthropic-main", "anthropic");
+      config.providers[0].defaultModel = "claude-sonnet-5";
+      if (scenario === "limit") config.toolLoop = { maxRoundsPerTurn: 1 };
+      const logger = createLogger({ service: "test" });
+      let db: OpenAssistDatabase | undefined;
+      let runtime: OpenAssistRuntime | undefined;
+      try {
+        for (let restart = 0; restart < 2; restart += 1) {
+          db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
+          if (scenario === "interrupted" && restart === 0) {
+            const record = db.recordAssistantMessage.bind(db);
+            db.recordAssistantMessage = (...args: Parameters<OpenAssistDatabase["recordAssistantMessage"]>) => {
+              const result = record(...args);
+              if (args[2].role === "assistant" && args[2].toolCallId === "native-write-1") {
+                throw new Error("Fixture interruption after persisting the pending second call");
+              }
+              return result;
+            };
+          }
+          const channel = new MockChannel();
+          const provider = new AnthropicProviderAdapter({ id: "anthropic-main", defaultModel: "claude-sonnet-5", baseUrl: `http://127.0.0.1:${address.port}` });
+          runtime = new OpenAssistRuntime(config, { db, logger }, { providers: [provider], channels: [channel] });
+          runtime.setProviderApiKey("anthropic-main", "fixture-key");
+          await runtime.start();
+          await channel.emit({
+            channel: "telegram", channelId: "telegram-mock", transportMessageId: `native-${restart}`,
+            conversationKey: "native-contract", senderId: "u1", text: restart === 0 ? "write both files" : "confirm previous work",
+            attachments: [], receivedAt: new Date().toISOString(), idempotencyKey: `native-contract-${restart}`
+          });
+          if (restart === 0 && scenario === "limit") {
+            assert.match(channel.sent.at(-1)?.text ?? "", /configured limit of 1 tool rounds/);
+            const limitReply = db.getRecentMessages("telegram-mock:native-contract", 20).at(-1);
+            assert.equal(limitReply?.metadata?.providerReplayKind, undefined, "synthetic replies must not repeat native tool turns");
+          } else if (restart === 0 && scenario === "interrupted") {
+            assert.ok(db.getRecentMessages("telegram-mock:native-contract", 20).some(message => message.toolCallId === "native-write-1" && message.role === "assistant"));
+            assert.notEqual(channel.sent.at(-1)?.text, "anthropic:done");
+          } else {
+            assert.equal(channel.sent.at(-1)?.text, "anthropic:done");
+          }
+          const invocations = runtime.listToolInvocations("telegram-mock:native-contract", 10);
+          assert.equal(invocations.length, scenario === "interrupted" ? 1 : 2);
+          assert.ok(invocations.every((invocation) => invocation.toolName === "fs.write"));
+          assert.equal(fs.readFileSync(files[0], "utf8"), "file-0");
+          if (scenario === "interrupted") assert.equal(fs.existsSync(files[1]), false, "restart must not execute an uncompleted historical call");
+          else assert.equal(fs.readFileSync(files[1], "utf8"), "file-1");
+          await runtime.stop();
+          runtime = undefined;
+          db.close();
+          db = undefined;
+        }
+        assert.equal(payloads.length, scenario === "complete" ? 3 : 2);
+        for (const payload of payloads) {
+          assert.ok(payload.tools.every((tool: { name: string }) => /^[a-zA-Z0-9_-]{1,128}$/.test(tool.name)));
+        }
+        for (const payload of payloads.slice(1)) {
+          if (scenario === "interrupted") {
+            const blocks = payload.messages.flatMap((message: { content: unknown }) => Array.isArray(message.content) ? message.content : []);
+            assert.deepEqual(blocks.filter((block: { type: string }) => block.type === "tool_use").map((block: { id: string }) => block.id), ["native-write-0"]);
+            assert.deepEqual(blocks.filter((block: { type: string }) => block.type === "tool_result").map((block: { tool_use_id: string }) => block.tool_use_id), ["native-write-0"]);
+            continue;
+          }
+          const index = payload.messages.findIndex((message: { role: string; content: unknown }) => message.role === "assistant" && JSON.stringify(message.content) === JSON.stringify(originalBlocks));
+          assert.ok(index >= 0, "complete native assistant turn survives tool execution and restart");
+          assert.deepEqual(payload.messages[index + 1].content.map((block: { type: string; tool_use_id: string }) => [block.type, block.tool_use_id]), [["tool_result", "native-write-0"], ["tool_result", "native-write-1"]]);
+          assert.equal(payload.messages.filter((message: { content: unknown }) => JSON.stringify(message.content) === JSON.stringify(originalBlocks)).length, 1);
+          if (scenario === "limit") assert.ok(payload.messages.some((message: { role: string; content: unknown }) => message.role === "assistant" && typeof message.content === "string" && message.content.includes("configured limit of 1 tool rounds")));
+        }
+      } finally {
+        await runtime?.stop();
+        db?.close();
+        server.closeAllConnections();
+        await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
       }
-      response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({
-        id: `native-reply-${payloads.length}`, type: "message", role: "assistant", model: "claude-sonnet-5",
-        content: payloads.length === 1 ? originalBlocks : [{ type: "text", text: "anthropic:done" }],
-        stop_reason: payloads.length === 1 ? "tool_use" : "end_turn", usage: { input_tokens: 1, output_tokens: 1 }
-      }));
     });
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    const address = server.address();
-    assert.ok(address && typeof address !== "string");
-    const config = baseConfig(root, "anthropic-main", "anthropic");
-    config.providers[0].defaultModel = "claude-sonnet-5";
-    const logger = createLogger({ service: "test" });
-    let db: OpenAssistDatabase | undefined;
-    let runtime: OpenAssistRuntime | undefined;
-    try {
-      for (let restart = 0; restart < 2; restart += 1) {
-        db = new OpenAssistDatabase({ dbPath: path.join(root, "openassist.db"), logger });
-        const channel = new MockChannel();
-        const provider = new AnthropicProviderAdapter({ id: "anthropic-main", defaultModel: "claude-sonnet-5", baseUrl: `http://127.0.0.1:${address.port}` });
-        runtime = new OpenAssistRuntime(config, { db, logger }, { providers: [provider], channels: [channel] });
-        runtime.setProviderApiKey("anthropic-main", "fixture-key");
-        await runtime.start();
-        await channel.emit({
-          channel: "telegram", channelId: "telegram-mock", transportMessageId: `native-${restart}`,
-          conversationKey: "native-contract", senderId: "u1", text: restart === 0 ? "write both files" : "confirm previous work",
-          attachments: [], receivedAt: new Date().toISOString(), idempotencyKey: `native-contract-${restart}`
-        });
-        assert.equal(channel.sent.at(-1)?.text, "anthropic:done");
-        const invocations = runtime.listToolInvocations("telegram-mock:native-contract", 10);
-        assert.equal(invocations.length, 2);
-        assert.ok(invocations.every((invocation) => invocation.toolName === "fs.write"));
-        assert.deepEqual(files.map((file) => fs.readFileSync(file, "utf8")), ["file-0", "file-1"]);
-        await runtime.stop();
-        runtime = undefined;
-        db.close();
-        db = undefined;
-      }
-      assert.equal(payloads.length, 3);
-      for (const payload of payloads) {
-        assert.ok(payload.tools.every((tool: { name: string }) => /^[a-zA-Z0-9_-]{1,128}$/.test(tool.name)));
-      }
-      for (const payload of payloads.slice(1)) {
-        const index = payload.messages.findIndex((message: { role: string; content: unknown }) => message.role === "assistant" && JSON.stringify(message.content) === JSON.stringify(originalBlocks));
-        assert.ok(index >= 0, "complete native assistant turn survives tool execution and restart");
-        assert.deepEqual(payload.messages[index + 1].content.map((block: { type: string; tool_use_id: string }) => [block.type, block.tool_use_id]), [["tool_result", "native-write-0"], ["tool_result", "native-write-1"]]);
-        assert.equal(payload.messages.filter((message: { content: unknown }) => JSON.stringify(message.content) === JSON.stringify(originalBlocks)).length, 1);
-      }
-    } finally {
-      await runtime?.stop();
-      db?.close();
-      server.closeAllConnections();
-      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
-    }
-  });
+  }
 
   const contracts: Array<{
     id: string;

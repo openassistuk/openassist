@@ -165,6 +165,8 @@ The active tool-loop budget is surfaced through runtime awareness, `/status`, `G
 
 If max rounds is exceeded, runtime returns safe operator-visible error text that names the configured cap, explains that completed tool results are already in conversation history, and asks the operator for a narrower or follow-up request before stopping the loop.
 
+Synthetic limit/disabled replies do not inherit provider tool-turn metadata; that metadata belongs to the tool-call audit row. Anthropic native replay requires every call's result in the same retained turn, before normal conversation resumes. Incomplete turns after interruption/context reconciliation fall back to completed normalized calls/results, while earlier duplicate replay metadata on synthetic replies is ignored so their text survives. This never retries an unfinished side effect.
+
 ## Durability and Audit
 
 Tool invocation audit table:

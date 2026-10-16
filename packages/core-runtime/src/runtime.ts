@@ -2215,9 +2215,10 @@ export class OpenAssistRuntime {
         responseUsage = response.usage;
         finalFinishReason = response.finishReason;
         finalResponseId = response.rawProviderResponseId;
-        finalResponseMetadata = response.output.metadata;
-
         const toolCalls = response.toolCalls ?? [];
+        // Tool-turn replay belongs to its audit rows, never to a synthetic
+        // limit/disabled reply emitted instead of a completed provider response.
+        finalResponseMetadata = toolCalls.length === 0 ? response.output.metadata : undefined;
         const advertisedToolNames = new Set(toolSchemas.map((schema) => schema.name));
         if (toolCalls.length > 0 && toolSchemas.length === 0) {
           this.logger.warn(

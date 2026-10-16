@@ -171,6 +171,52 @@ describe("anthropic provider tool mapping", () => {
     ] });
   });
 
+  it.each([false, true])("falls back to reconciled tool history when native replay is incomplete (thinking=%s)", async (thinking) => {
+    const payloads: Array<Record<string, any>> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, options) => {
+      payloads.push(JSON.parse(options?.body as string));
+      return new Response(JSON.stringify({ id: "reply", content: [{ type: "text", text: "done" }], usage: { input_tokens: 1, output_tokens: 1 } }), { headers: { "content-type": "application/json" } });
+    });
+    const request = { ...baseRequest(), model: "claude-sonnet-5" };
+    const auth = { providerId: "test", apiKey: "fixture-key" };
+    const adapter = new AnthropicProviderAdapter({ id: "test", defaultModel: request.model });
+    await adapter.chat(request, auth);
+    const wireName = payloads[0].tools[0].name;
+    const blocks = [
+      ...(thinking ? [{ type: "thinking", thinking: "", signature: "fixture-signature" }] : []),
+      { type: "text", text: "Checking both files." },
+      ...["call-0", "call-1"].map(id => ({ type: "tool_use", id, name: wireName, input: { path: id } }))
+    ];
+    const metadata = { providerReplayKind: "anthropic-content-blocks", providerReplayJson: JSON.stringify(blocks), providerReplayScope: "anthropic:test:claude-sonnet-5", anthropicToolNameEncoding: "sha256-v1", toolArgumentsJson: '{"path":"call-0"}' };
+    await adapter.chat({ ...request, messages: [
+      { role: "user", content: "read both files" },
+      { role: "assistant", content: "", toolCallId: "call-0", toolName: "fs.read", metadata },
+      { role: "tool", content: "first result", toolCallId: "call-0" },
+      { role: "user", content: "continue after restart" }
+    ] }, auth);
+    expect(payloads[1].messages[1].content).toEqual([{ type: "tool_use", id: "call-0", name: wireName, input: { path: "call-0" } }]);
+    expect(payloads[1].messages[2].content[0]).toMatchObject({ type: "tool_result", tool_use_id: "call-0" });
+    expect(payloads[1].messages[3].content).toBe("continue after restart");
+  });
+
+  it("preserves older synthetic limit text without replaying its duplicate tool metadata", async () => {
+    let payload: Record<string, any> = {};
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, options) => {
+      payload = JSON.parse(options?.body as string);
+      return new Response(JSON.stringify({ id: "reply", content: [{ type: "text", text: "done" }], usage: { input_tokens: 1, output_tokens: 1 } }), { headers: { "content-type": "application/json" } });
+    });
+    const metadata = { providerReplayKind: "anthropic-content-blocks", providerReplayJson: JSON.stringify([{ type: "tool_use", id: "call-0", name: "read_file", input: {} }]) };
+    await new AnthropicProviderAdapter({ id: "test", defaultModel: "claude-sonnet-5" }).chat({ ...baseRequest(), model: "claude-sonnet-5", messages: [
+      { role: "user", content: "read" },
+      { role: "assistant", content: "", toolCallId: "call-0", toolName: "read_file", metadata },
+      { role: "tool", content: "result", toolCallId: "call-0" },
+      { role: "assistant", content: "Tool execution hit the configured limit. Continue with a narrower follow-up.", metadata },
+      { role: "user", content: "continue" }
+    ] }, { providerId: "test", apiKey: "fixture-key" });
+    expect(payload.messages).toHaveLength(5);
+    expect(payload.messages[3].content).toBe("Tool execution hit the configured limit. Continue with a narrower follow-up.");
+  });
+
   it("maps tool_use and tool_result blocks", async () => {
     let capturedPayload: Record<string, unknown> | undefined;
     const server = http.createServer(async (req, res) => {

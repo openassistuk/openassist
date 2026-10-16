@@ -1,5 +1,7 @@
 # Policy Profiles
 
+Tool-round limits still stop execution at the configured cap. Their synthetic explanation carries no provider tool-turn metadata, so continuation cannot duplicate the last calls. Interrupted Anthropic turns replay only completed reconciled history when native results are incomplete; no recovery path executes an unfinished call or grants additional access.
+
 Anthropic tool-name encoding is a transport translation, not an access decision. Only the runtime's approved `full-root` tools are advertised, returned names map back to canonical policy/audit names, and unknown names remain subject to advertised-tool validation. Complete provider turns and grouped results do not execute tools; replay skips audited placeholders and preserves sequential runtime side effects. SDK agent runners/server tools are not enabled. Configured endpoint/auth/workspace values govern the native client, while SDK debug logging and automatic tracing are disabled. See [tool calling](../interfaces/tool-calling.md) and [Anthropic evidence](../execplans/anthropic-integration-2026-10-16.md).
 
 Managed release services use their private Node runtime. Linux hardened units retain `NoNewPrivileges`, `PrivateTmp` and `ProtectSystem=strict` while explicitly allowing configured operator data/logs/skills and config directories. Changing those paths requires service reinstallation. This service boundary remains separate from the in-chat access profile; installing an update never grants a new tool profile.

@@ -157,6 +157,32 @@ function replayMetadataForResponseContent(content: Array<any>, scope: string): R
   };
 }
 
+function hasCompleteToolReplay(
+  blocks: Array<Record<string, unknown>>, messages: ChatRequest["messages"], index: number, replayedIds: Set<string>
+): boolean {
+  const pending = new Set<string>();
+  for (const block of blocks) {
+    if (block.type !== "tool_use") continue;
+    if (typeof block.id !== "string" || replayedIds.has(block.id) || pending.has(block.id)) return false;
+    pending.add(block.id);
+  }
+  if (pending.size === 0) return true;
+
+  // Runtime audit rows interleave calls and results. All results must survive
+  // reconciliation in this turn before the complete native turn can be replayed.
+  for (let next = index + 1; next < messages.length; next += 1) {
+    const message = messages[next];
+    if (message.role === "system") continue;
+    if (message.role === "assistant" && message.toolCallId && message.toolName && pending.has(message.toolCallId)) continue;
+    if (message.role === "tool" && message.toolCallId && pending.delete(message.toolCallId)) {
+      if (pending.size === 0) return true;
+      continue;
+    }
+    return false;
+  }
+  return false;
+}
+
 async function mapMessages(messages: ChatRequest["messages"], names: ReturnType<typeof toolNamesForRequest>, scope: string, stripThinking = false): Promise<{
   system?: string;
   messages: Array<Record<string, unknown>>;
@@ -165,13 +191,15 @@ async function mapMessages(messages: ChatRequest["messages"], names: ReturnType<
   const mapped: Array<Record<string, unknown>> = [];
   const replayedToolCalls = new Set<string>();
 
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
     if (message.role === "system") {
       systemParts.push(message.content);
       continue;
     }
 
-    const replayBlocks = parseAnthropicReplayBlocks(message, scope)?.filter(block => !stripThinking || (block.type !== "thinking" && block.type !== "redacted_thinking"))
+    const parsedReplay = parseAnthropicReplayBlocks(message, scope);
+    const replayBlocks = (parsedReplay && hasCompleteToolReplay(parsedReplay, messages, index, replayedToolCalls) ? parsedReplay : undefined)
+      ?.filter(block => !stripThinking || (block.type !== "thinking" && block.type !== "redacted_thinking"))
       .map(block => message.metadata?.[TOOL_NAME_ENCODING_KEY] !== TOOL_NAME_ENCODING && block.type === "tool_use" && typeof block.name === "string" ? { ...block, name: names.replay(block.name) } : block);
     if (replayBlocks) {
       for (const block of replayBlocks) {

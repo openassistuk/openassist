@@ -1,5 +1,7 @@
 # Upgrade and rollback
 
+The source context update adds tables without deleting messages/audits and mirrors validated checkpoints into the old summary table. Back up database/config together before downgrade; old retention behavior returns, and processing new chats on an older binary requires restoring the matching backup before re-upgrading to avoid divergent checkpoints. See [configuration rollout](config-rollout-and-rollback.md) and the [context engine](../architecture/context-engine.md).
+
 The published [v0.2.4 notes](../releases/v0.2.4.md) describe the Anthropic patch and stable/exact-version update commands. Public verification passes on all four targets. Saved models/state remain intact. Earlier adapters do not interpret versioned tool-name replay; deliberate rollback needs compatible model/tuning and a fresh conversation or matching state backup, retaining current audit history separately. Managed rollback never restores databases automatically.
 
 The signed [v0.2.4 patch](../releases/v0.2.4.md) is published and stable updates select it. The [release evidence](../execplans/stable-0.2.4-release.md) records exact-main checks, protected signing, independent signatures/digests and four-target public installation. Existing exact pins remain unchanged until explicitly selected.

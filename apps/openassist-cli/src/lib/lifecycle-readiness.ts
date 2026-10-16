@@ -1,4 +1,6 @@
 import type { OpenAssistConfig } from "@openassist/config";
+import { resolveContextLimits, contextOutputAllowance } from "@openassist/config";
+import type { RuntimeContextStatus } from "@openassist/core-types";
 import { describePrimaryProvider } from "./provider-display.js";
 import type { ServiceManagerKind } from "./install-state.js";
 import { detectSetupAccessMode, getOperatorUserIds } from "./setup-access.js";
@@ -81,6 +83,7 @@ export interface LifecycleReport {
 }
 
 export interface LifecycleReportInput {
+  context?: Record<string, RuntimeContextStatus>;
   installationMethod?: "source" | "release";
   installedVersion?: string;
   activationVerified?: boolean;
@@ -544,6 +547,19 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
       createItem("first-reply.destination", "first-reply", "First reply destination", describeFirstReplyDestination(input.config))
     );
     if (primaryProvider) {
+      const configured = input.config!.runtime.providers.find(provider => provider.id === input.config!.runtime.defaultProviderId);
+      if (configured) {
+        try {
+          const limits = resolveContextLimits(configured, configured.defaultModel, input.config!.runtime.context,
+            contextOutputAllowance(configured));
+          const active = Object.values(input.context ?? {}).find(status => status.limits.route === configured.type && status.limits.model === configured.defaultModel);
+          uniquePush(readyNow, createItem("provider.context", "first-reply", "Provider context",
+            `window=${limits.contextWindowTokens} (${limits.source}${limits.checkedAt ? `; ${limits.checkedAt}` : ""}); cost cap=${limits.operatorInputCapTokens ?? "model default"}; input ceiling=${limits.maxInputTokens}; reserved output=${limits.reservedOutputTokens}; usable input=${limits.usableInputTokens}; ` +
+            (active?.accounting ? `last input=${active.accounting.inputTokens} (${active.accounting.source}), bytes=${active.accounting.bytes}; state=${active.state}; checkpoint=${active.checkpointRevision}, through=${active.coveredThrough}${active.failure ? `; ${active.failure}` : ""}` : "occupancy stale/not measured")));
+        } catch {
+          uniquePush(needsActionBeforeFirstReply, createItem("provider.context", "first-reply", "Provider context", "Context/output reservations leave no usable input.", undefined, "openassist setup wizard"));
+        }
+      }
       uniquePush(
         readyNow,
         createItem(

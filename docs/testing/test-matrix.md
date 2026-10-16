@@ -1,5 +1,15 @@
 # Test Matrix
 
+October 17 context follow-up adds 18 cases: aggregate seven-tool source budgets, explicit historical text/argument excerpts, seven-image foreground/maintenance recovery, ten-image bounded catch-up, protected current images, exact/unknown route output controls, impossible thinking/output settings and effective summary validation. Thirteen fail against `4010538` with five controls passing; all 59 nearest context/memory tests pass after repair. Raw history/digests and final admission guards remain asserted; no test timeout or coverage threshold changes.
+
+The context parser's security regressions exercise plain/JSON/unlabeled fences, mixed whitespace, long internal whitespace and near-fence failures, the independent UTF-8 raw-input limit, and unchanged checkpoint coverage after rejection. The whitespace regression fails against PR #88's original parser (about 7.2 seconds on the local fixture) and passes with linear fence handling; hosted CodeQL findings must be checked on the PR/branch ref separately from CI job success.
+
+Rejected-summary cases have independent fixtures. Cancellation waits for an explicit summarizer-start signal before stopping the manager; the frontier and enqueue assertions remain mandatory. Real SQLite context fixtures and the 100-row scheduler backfill case use a bounded 15-second integration deadline after hosted Windows disk latency exceeded the default five seconds. Database persistence, all behavioral assertions and coverage gates remain unchanged; the parser's CPU regression still requires completion within one second. No case is skipped or retried automatically.
+
+Source model-aware context contracts live in `model-context.test.ts`: exact route limits/cost caps, prepared-payload accounting, 100-turn/ninth-fact retention, repeated tool IDs, checkpoint races/reopen, cancelled/malformed summaries, receipt/reference preservation, tool-output projection, unknown counting, finite overflow repair, wizard validation and recovery drain/resume. Existing OpenAI/Anthropic suites check native count payloads and cache usage; Node runtime/memory suites verify retained tool results and asynchronous actor extraction. These are offline fixtures; hosted/live results are recorded separately in the [context plan](../execplans/model-aware-context-2026-10-16.md).
+
+Four-finding review regressions cover a 120,000-character completed tool result in foreground and maintenance compaction, excerpt receipts plus raw-source digest/history retention, omitted images on text-only adapters versus the vision preparation bound, and manager/deadline/caller cancellation during both asynchronous preparation calls. Node runtime-memory tests cover absent cursors with new context checkpoints or legacy mirrors, saved extraction cursors and repeated extraction without duplicate advancement. Nine context cases and two cursor cases fail before the repair; the focused suites pass 41 Vitest and five Node tests afterward.
+
 The [v0.2.4 release plan](../execplans/stable-0.2.4-release.md) records preparation/local tests, exact merged-main CI/full CodeQL, native candidate quality/zero audits, signing contracts, protected publication and four-target public stable/exact-version installation in run 38921925528. Independent metadata signatures and all sixteen digests verify. Preserve cancelled build attempt 1 and successful attempt 2 separately; there is no public verification retry or asset replacement. Live Anthropic account testing remains deferred. Availability documentation requires its own reviewed PR and actual-head checks.
 
 Anthropic source integration coverage (October 16) extends the existing provider-anthropic-tool-mapping, provider-auth-contracts, current-provider-models and provider-model-catalog Vitest suites. Real SDK HTTP/SSE fixtures reproduce invalid dotted/Unicode/overlong/reserved tool names, complete multi-tool turns without thinking, grouped results, restart replay, legacy-name ambiguity, provider/model scope and byte/block bounds. They also check explicit endpoint/auth/workspace headers, disabled SDK debug/tracing, and Haiku 5.5 defaults, effort conflicts and opaque-thinking removal. The focused four-suite run passes 126 tests; the two focused Node runtime/provider suites pass 26. Native SDK/runtime contracts cover complete execution, a one-round limit and interruption after persisting a second pending call, followed by database reopen. They assert completed audit/file state does not change, unmatched native calls are omitted and limit text survives. Adapter regressions cover signed-thinking/tool-only incomplete turns and older synthetic rows with duplicate metadata. These are offline fixtures, not live API-credit or channel tests. Frozen installation/full quality/coverage/audit and hosted results are recorded separately in the [integration plan](../execplans/anthropic-integration-2026-10-16.md).
@@ -83,7 +93,10 @@ Vitest coverage is intentionally targeted and currently measures:
 - `apps/openassistd/src/oauth-redirect.ts`
 - `packages/config/src/operator-paths.ts`
 - `packages/config/src/schema.ts`
-- `packages/core-runtime/src/{attachments,clock-health,context,memory,scheduler,one-shot,self-knowledge}.ts`
+- `packages/config/src/context-limits.ts`
+- `packages/core-runtime/src/{attachments,clock-health,context,context-manager,memory,scheduler,one-shot,self-knowledge}.ts`
+- `packages/storage-sqlite/src/context.ts`
+- `packages/providers-shared/src/index.ts`
 - `packages/storage-sqlite/src/one-shot.ts`
 - `packages/providers-anthropic/src/index.ts`
 - `packages/providers-codex/src/index.ts`
@@ -112,6 +125,7 @@ Current suite files under `tests/vitest/`:
 - `command-runner.test.ts`
 - `config-security-schema.test.ts`
 - `context.test.ts`
+- `model-context.test.ts`
 - `env-file.test.ts`
 - `exec-guardrails.test.ts`
 - `fs-tool-delete.test.ts`

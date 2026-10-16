@@ -1,5 +1,7 @@
 # Discord Channel
 
+Source/unreleased `/status` includes grouped context limits/occupancy, and `/memory` includes checkpoint/failure diagnostics without provider dependency. Context compaction preserves the canonical Discord session and existing access/delivery boundaries; channel rendering/chunking remains shared. See the [context engine](../architecture/context-engine.md).
+
 Use Discord when you want OpenAssist in guild text channels, thread channels, or carefully allow-listed DMs.
 
 Discord has the most explicit separation between "where the bot may reply" and "which direct-message users may use it", so it is worth understanding the allow-lists before you switch a production bot on.

@@ -421,6 +421,9 @@ importers:
       '@openassist/core-types':
         specifier: workspace:*
         version: link:../core-types
+      '@openassist/providers-shared':
+        specifier: workspace:*
+        version: link:../providers-shared
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -439,6 +442,9 @@ importers:
       '@openassist/providers-openai-shared':
         specifier: workspace:*
         version: link:../providers-openai-shared
+      '@openassist/providers-shared':
+        specifier: workspace:*
+        version: link:../providers-shared
       openai:
         specifier: ^7.31.0
         version: 7.31.0(undici@6.28.1)(ws@8.21.0)(zod@4.6.5)
@@ -457,6 +463,9 @@ importers:
       '@openassist/providers-openai-shared':
         specifier: workspace:*
         version: link:../providers-openai-shared
+      '@openassist/providers-shared':
+        specifier: workspace:*
+        version: link:../providers-shared
       openai:
         specifier: ^7.31.0
         version: 7.31.0(undici@6.28.1)(ws@8.21.0)(zod@4.6.5)
@@ -475,6 +484,9 @@ importers:
       '@openassist/providers-openai-shared':
         specifier: workspace:*
         version: link:../providers-openai-shared
+      '@openassist/providers-shared':
+        specifier: workspace:*
+        version: link:../providers-shared
       openai:
         specifier: ^7.31.0
         version: 7.31.0(undici@6.28.1)(ws@8.21.0)(zod@4.6.5)
@@ -487,6 +499,9 @@ importers:
       '@openassist/core-types':
         specifier: workspace:*
         version: link:../core-types
+      '@openassist/providers-shared':
+        specifier: workspace:*
+        version: link:../providers-shared
       openai:
         specifier: ^7.31.0
         version: 7.31.0(undici@6.28.1)(ws@8.21.0)(zod@4.6.5)
@@ -499,6 +514,12 @@ importers:
       '@openassist/config':
         specifier: workspace:*
         version: link:../config
+      '@openassist/core-types':
+        specifier: workspace:*
+        version: link:../core-types
+
+  packages/providers-shared:
+    dependencies:
       '@openassist/core-types':
         specifier: workspace:*
         version: link:../core-types

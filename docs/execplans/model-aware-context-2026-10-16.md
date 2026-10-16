@@ -1,0 +1,296 @@
+# Model-aware context and durable compaction for OpenAssist
+
+This ExecPlan is a living document maintained under [`.agents/PLANS.md`](../../.agents/PLANS.md). Research, design and source implementation are complete. On 2026-10-16 the user authorized end-to-end implementation, documentation, tests, full checks and a new branch/PR, then review/CI repairs on PR #88. The repaired implementation passes local and hosted gates on `codex/model-aware-context`; no merge, release publication or test-host deployment is part of that request.
+
+## Purpose / Big Picture
+
+OpenAssist should retain useful conversation until an actual model or operator budget requires compaction, instead of forgetting raw messages after eight entries. Before every provider request, including requests after tools execute, it should account for the request the provider will receive and leave enough room for output. Compaction means creating a smaller representation of older conversation; it must preserve original records, the current request, completed-action evidence and the exact relationship between tool calls and results.
+
+Operators should see the model's verified capacity, their chosen cost cap, the current measured or estimated occupancy, the output allowance and any compaction failure. A larger model should provide a larger usable context without changing access policy. This design aims to improve specific continuity and admission guarantees; it does not claim an unmeasured general performance advantage over OpenClaw.
+
+## Progress
+
+- [x] (2026-10-17) Three-finding follow-up: 18 new cases include 13 failures against `4010538` and five passing route/thinking controls. Aggregate historical excerpts, pre-mapping bounded image catch-up, protected current input, exact output caps, valid thinking settings and repair diagnostics pass all 59 nearest context/memory tests and core-runtime build.
+- [x] (2026-10-17) Three-finding follow-up: synchronized docs and final `pnpm verify:all` pass with 655 Vitest tests (one skip), 245 Node tests (six skips), unchanged coverage gates and zero production/full dependency findings. Delivery stays on existing branch/PR #88; final actual-head CI, PR/full branch CodeQL and scoped alert/review evidence are reconciled separately in its validation section at handoff.
+
+- [x] (2026-10-16) Four-finding review repair: nine context and two cursor regressions fail before repair, with vision/saved-cursor controls passing. Bounded summary records retain raw selection/digests; capability-aware image guarding, final combined cancellation checks and independent cursor initialization pass 41 focused Vitest and five Node tests.
+- [x] (2026-10-16) Four-finding review repair: synchronize operator/contributor/interface/security/rollback/test docs and pass `pnpm verify:all`: 637 Vitest tests (one skip), 245 Node tests (six skips), both unchanged coverage gates and zero production/full dependency findings. Delivery stays on existing branch/PR #88; actual-head hosted CI, full branch/PR CodeQL and review reconciliation are recorded separately in its validation section at handoff.
+
+- [x] (2026-10-16) Inspect OpenAssist's context planner, provider request mapping, memory extraction, SQLite history and common provider-call path.
+- [x] (2026-10-16) Pin OpenClaw research to `0e16643538c1e41ec0d22990738749d2413055c5`; read relevant documentation and implementation without importing its code or executing its application.
+- [x] (2026-10-16) Reproduce OpenAssist's eight-message cutoff, current-input truncation, missing metadata accounting and dropped later system guidance with a local read-only synthetic probe.
+- [x] (2026-10-16) Specify the independent architecture, defaults, contracts, migration boundaries and measurable acceptance criteria below.
+- [x] (2026-10-16) Documentation truth suite passed all 11 tests; reviewed the plan/index changes and checked whitespace and local plan links. Runtime implementation and full implementation gates remain pending.
+- [x] (2026-10-16) Milestone 1: shared resolver, dated exact capacities and immutable preparation in all five adapters. Recursive build and native count/cache fixtures pass.
+- [x] (2026-10-16) Milestone 2: whole-segment retention, bounded paginated hydration, additive checkpoint/intent/rejection tables and transactional revision/range/digest adoption. Offline continuity/cancellation/reopen fixtures pass.
+- [x] (2026-10-16) Milestone 3: common admission, one persisted smaller-projection repair, tool audit references, separate asynchronous extraction, bounded maintenance and shutdown/restart recovery. Targeted runtime suites pass.
+- [x] (2026-10-16) Milestone 4: wizard/status/doctor, docs, rollback guidance and full local quality/coverage/audit gates pass. Branch/PR reconciliation is recorded below.
+- [x] (2026-10-16) PR follow-up: inspect all CI jobs, full CodeQL #43 trace and review thread. Reproduce polynomial whitespace handling; replace it with linear string operations and a 128 KiB pre-parse UTF-8 bound. Core-runtime build and 27 focused context/memory tests pass.
+- [x] (2026-10-16) PR follow-up: `pnpm verify:all` passes after the repair, including 623 Vitest and 242 Node tests, unchanged coverage gates and zero production/full dependency findings.
+- [x] (2026-10-16) Repair `ebe1946`: PR CodeQL and full branch run [38962927880](https://github.com/openassistuk/openassist/actions/runs/38962927880) succeed; PR-scoped alert #43 is fixed. Full branch analysis additionally identifies unused-import quality alert #44. Windows CI exposes a combined fixture test exceeding its normal deadline.
+- [x] (2026-10-16) Remove the unused import, isolate each rejected-summary fixture and synchronize cancellation with summarizer startup. Core-runtime build and all 31 focused context/memory tests pass; normal deadlines and coverage gates stay intact.
+- [x] (2026-10-16) Remaining repairs pass `pnpm verify:all`: 627 Vitest tests (one skip), 242 Node tests (six skips), both unchanged coverage gates and zero production/full dependency findings. Final diff and credential review pass.
+- [x] (2026-10-16) Remaining repairs pushed as `cc486d7`. Full branch CodeQL [38964104799](https://github.com/openassistuk/openassist/actions/runs/38964104799) succeeds with zero results (analysis `1970272679`); PR analysis `1970270572` also has zero results. Explicit PR/branch open-alert queries are empty, #43 and #44 instances are fixed, and the single automated review thread is resolved.
+- [x] (2026-10-16) Repair `cc486d7` passes all three-platform quality/coverage jobs, workflow lint, macOS live launchd, four native packages, signing contracts and PR/full branch CodeQL. Original alerts are fixed without dismissal; no human review comments are outstanding.
+- [x] (2026-10-16) Final documentation reconciliation passes all 11 docs-truth tests and whitespace review. Its later exact-head hosted results are reported separately on PR #88 and in the review handoff, without changing the immutable repair evidence above.
+- [x] (2026-10-16) Documentation head `bfa6ba6` again passes PR/full branch CodeQL with zero results but reveals wider Windows disk-latency timeouts. Keep the real SQLite fixtures, all assertions and the one-second parser CPU bound; assign only context database cases and the 100-row backfill integration case a bounded 15-second deadline. All 39 focused context/memory/scheduler tests pass. Latest-head full verification and hosted results are recorded in PR #88's validation section at handoff.
+
+## Surprises & Discoveries
+
+The follow-up review of `4010538` finds admitted complete turns whose aggregate source exceeds the independent summary budget, old images that trip the pre-mapping guard before recovery can run, and summary output allowances above an exact catalog maximum. Single-result excerpts and final cancellation checks remain valid but do not establish progress for these larger recovery boundaries.
+
+The independent read-only review of `72e6bc9` identifies four gaps in otherwise passing fixtures: compaction reloads full tool results after admission has excerpted them; the pre-mapping guard charges image binaries even for declared text-only adapters; cancellation after summary generation but during candidate/previous preparation can still adopt a checkpoint; and first-time permanent extraction inherits a context compatibility mirror's frontier. Regressions must exercise these exact boundaries instead of relying on the prior green gates.
+
+PR #88's initial CodeQL analysis job succeeded but its separate findings check failed on high-severity `js/polynomial-redos` alert #43. The complete SARIF trace leads from `parseContextSummary(text)` through fence normalization to the unanchored whitespace suffix regex, before JSON/token validation. The adversarial regression takes 7,208 ms before repair; the standalone 60,000-space failure takes 0.08 ms after repair. These are local measurements, not hosted performance guarantees. The default-branch alert query returns no open alerts while `refs/pull/88/merge` contains #43, so PR/branch scope must be queried explicitly.
+
+On repair `ebe1946`, PR analysis reports zero findings and marks #43 fixed, while full branch analysis reports the unrelated `js/unused-local-variable` quality alert #44 for the obsolete `buildSessionMemorySystemMessage` import. Windows quality run [38962935097](https://github.com/openassistuk/openassist/actions/runs/38962935097) times out the combined rejected/cancelled-summary test after 5,000 ms; its four sequential database fixtures share one test deadline. The parser performance regression passes in 2 ms on that runner. Linux/macOS quality and all four native packages pass on this revision; these observations do not certify the subsequent repair head.
+
+The documentation-only head `bfa6ba6` passes both CodeQL analyses again (full branch analysis `1970306532`, zero results), but [Windows job 117188638325](https://github.com/openassistuk/openassist/actions/runs/38964841993/job/117188638325) exposes three different context database cases and scheduler backfill exceeding the default five-second deadline. The context suite takes 45 seconds versus the earlier passing revision's much shorter run; individual failing cases take roughly 5.4 to 8.7 seconds, and backfill takes 9.4 seconds including fixture setup. No behavioral assertion fails, and the parser CPU regression still passes. Splitting the original combined case alone does not address variable real-WAL/fsync latency.
+
+The current runtime constructs `new ContextPlanner()` without model options. Its nominal 24,000-token budget has text slices totaling 20,000, and it estimates only `message.content`. Provider adapters subsequently add tools, attachments and opaque replay. Tool continuations append to the request without replanning. Memory extraction and scheduler requests share `chatWithProvider` but bypass the initial chat planner.
+
+The synthetic probe at OpenAssist `b03c40b` produced these observations:
+
+    history messages supplied: 9; retained: 8
+    current user characters supplied: 40000; retained: 36000
+    tool argument characters: 40000; estimated tokens: 0
+    system messages supplied: 2; retained after a full first slice: 1
+
+These are isolated planner observations, not production failure rates. They demonstrate why increasing one constant is insufficient: the selector can alter the current request, omit later mandatory instructions and overlook substantial provider-bound data.
+
+OpenClaw already implements many desirable protections. It preserves complete tool frames, retains original history, uses provider observations with provenance and exposes degraded compaction. Those are comparison baselines, not novel OpenAssist claims. Its documented optional mid-turn precheck and lossy automatic timeout recovery provide narrower opportunities for stronger OpenAssist defaults.
+
+## Decision Log
+
+Three-finding repair decision (2026-10-17): budget source projections across whole completed segments, explicitly label any historical text/argument excerpts and keep raw-row digests and receipts authoritative. Recover oversized older image history before allocating the full mapped request; permit only strictly shrinking bounded checkpoint progress until final admission passes all token/byte guards. Derive summary output from exact route/model catalog ceilings and saved output caps while preserving compatible manual-thinking budgets; never infer Azure capacity from a deployment name.
+
+Four-finding repair decision: apply the existing bounded tool projection only to summary input, preserving raw selected rows for the transactional digest and audit references. Gate binary resource estimates by declared image capability, and check the combined shutdown/deadline/caller signal immediately before adoption. A missing permanent-extraction cursor starts at zero independently of context/legacy summary progress; existing saved extraction cursors remain authoritative. Older retained history can be conservatively re-examined through the existing bounded, idempotent extraction path without rewriting any transcript or context frontier.
+
+Decision: Repair both fence removals at the shared summary parser using string prefix/suffix checks and trimming, and reject raw UTF-8 input above the existing 128 KiB storage ceiling before parsing. This removes the polynomial sink instead of suppressing the alert or relying on an asynchronous timeout. Both provider-generated summaries and reference-augmented summaries pass this boundary; plain/fenced forms within the limit, redaction, structural/token checks and transactional adoption stay intact. The nearby permanent-memory parser does not contain the ambiguous whitespace suffix and needs no change. Separate security-boundary and bypass/regression passes were performed locally under the user's single-agent restriction.
+
+Decision: Give each rejection fixture its own normal test deadline and await an explicit summarizer-start signal before cancellation. This retains every failure/frontier assertion while removing the shared fixture deadline and polling dependency; no timeout, skip, workflow or coverage threshold is relaxed. Remove the independently reported unused import without changing runtime behavior.
+
+Follow-up decision: retain real file-backed SQLite persistence and the 100-row backfill assertion, with a bounded 15-second integration deadline only for these database-heavy cases. The later documentation-head failure demonstrates that the default five seconds is not a stable hosted-disk budget. This supersedes the earlier default-deadline decision for database integration tests; parser CPU timing stays independently limited to one second, and no production storage/durability setting, assertion, skip, automatic retry, workflow or coverage gate changes.
+
+Decision: Complete research and an implementation-ready design before modifying product behavior. Rationale: the initial request placed this comparison before the fixes. That research phase is complete; the user's subsequent explicit request now authorizes local implementation and a PR.
+
+Decision: Share generic immutable-payload accounting in a small `providers-shared` workspace module with no third-party runtime dependency. Rationale: all five adapters require the same fingerprint/byte/estimate mechanics, while vendor mapping and authentication stay in their existing adapter packages. Existing SDKs supply OpenAI and Anthropic token counters without adding a tokenizer.
+
+Decision: Write original contracts and algorithms around OpenAssist's existing package boundaries, SQLite audit history and runtime policy engine. Rationale: no OpenClaw implementation, prompts, tests or additional framework will be incorporated.
+
+Decision: Make request admission mandatory for chat, tool continuation, scheduler and memory requests. Rationale: a large tool result can consume headroom between two otherwise valid requests; an opt-in check cannot establish an application-wide invariant.
+
+Decision: Keep model capacity, operator input cost limits, output allowance and request-byte bounds distinct. Rationale: a million-token model does not require sending a million tokens, and a 16,384-token output allowance is not an input context window. Preserve explicit saved provider tuning and output limits.
+
+Decision: Never advance a compaction coverage boundary without a validated replacement covering the selected source range. Rationale: losing unsummarized facts to recover from a timeout can permanently degrade future continuity even when original transcripts remain on disk.
+
+Decision: Retain client-owned compaction initially. Rationale: native OpenAI compact endpoints, Codex checkpoints and Anthropic context-editing betas have different contracts. They may become independently verified optional optimizations later, but are not prerequisites or implicitly enabled by model selection.
+
+Decision: Adopt monotonically smaller contiguous chunks during catch-up, keeping inference blocked until the full final candidate passes admission. A bounded summary cannot always reduce a large backlog below the cap in one chunk; requiring that would prevent incremental recovery. Every adopted chunk has validated source coverage, structural checks and original audit references; semantic losslessness is not claimed.
+
+Decision: Retain database compatibility version 1 for additive context tables and mirror summaries into `session_memory`. No transcript/audit schema is rewritten. Reopen/legacy-reader fixtures verify retained rows and the mirror; downgrades that process further chats require matching-backup restoration before re-upgrade.
+
+These source decisions do not describe immutable published v0.2.4 behavior.
+
+## Outcomes & Retrospective
+
+Three-finding follow-up (2026-10-17): the final baseline suite reproduces 13 failures with five controls passing, then all 59 focused tests pass after repair. Aggregate source projection preserves whole frames, identities/receipts and raw digests while explicitly marking historical text/argument omissions, within an explicit 16-pass local bound. Oversized older image history advances through strictly shrinking bounded checkpoints without preparing unsafe originals/intermediates; current input and final token/byte admission remain intact. Summary output uses exact catalog ceilings and applicable Anthropic caps/thinking requirements; unknown Azure hints/deployment names and compatible routes inherit no foreign cap. Irreducible framing and impossible tuning report repair guidance with unchanged coverage. Final `pnpm verify:all` passes 655 Vitest / 245 Node tests, Vitest coverage 84.33% statements / 76.03% branches / 86.84% functions / 85.34% lines, Node coverage 79.93% statements/lines / 73.76% branches / 85.60% functions and zero dependency findings. Docs-truth checks and final whitespace/credential review pass. Actual-head hosted evidence is recorded separately in PR #88's validation section at delivery.
+
+Four-finding repair: all reported failures are reproduced before code changes and corrected through existing runtime/storage/provider boundaries. Foreground and maintenance summary requests carry bounded tool excerpts and exact original references while CAS digests remain tied to raw rows. Text-only image metadata can pass without allocating omitted binaries; image-capable requests retain the resource guard. Shutdown, deadline or caller cancellation during either preparation call preserves the frontier and compatibility mirror. New/legacy summaries cannot initialize extraction progress; saved cursors and original history remain intact. Focused checks and full `pnpm verify:all` pass: 637 Vitest / 245 Node tests, Vitest coverage 84.25% statements / 75.81% branches / 86.79% functions / 85.28% lines, Node coverage 79.93% statements/lines / 73.76% branches / 85.60% functions and zero dependency findings. Docs-truth checks pass 11/11; final diff/credential review passes. Final actual-head hosted commit/run evidence, scoped alerts and review reconciliation are recorded in PR #88's validation section at handoff, separately from these local results.
+
+PR review follow-up (2026-10-16): the original head `24bbd23` passes three-platform quality/coverage, workflow lint, macOS live launchd, four native packages and signing contracts. CodeQL's analysis completes but reports #43, mirrored in one unresolved automated review thread. The focused regression fails before the patch and all 27 nearest context/memory tests pass after it, including six compatible fence forms, long whitespace/near-fence failures, UTF-8 limits and unchanged coverage after rejected output. Full local `pnpm verify:all` passes with 623 Vitest tests (one skip), 242 Node tests (six skips), both unchanged coverage gates and zero dependency findings. Hosted repair validation remains pending; no alert has been dismissed and no workflow has been weakened.
+
+Intermediate hosted reconciliation: `ebe1946` fixes #43 and GitHub automatically resolves its outdated review thread. Full branch analysis exposes quality alert #44 and Windows CI exposes the combined fixture timeout described above. Both have targeted repairs and the final local `pnpm verify:all` passes with 627 Vitest tests (one skip), 242 Node tests (six skips), Vitest coverage 84.15% statements / 75.74% branches / 86.49% functions / 85.22% lines, Node coverage 79.93% statements/lines / 73.76% branches / 85.60% functions and zero dependency findings. Exact-head hosted validation remains pending. The initial green PR merge analysis alone did not certify the full branch as clear.
+
+Final repair reconciliation (2026-10-16): exact repair `cc486d7e0bac361f887f92324e04bf837e680fb7` passes [CI 38964110176](https://github.com/openassistuk/openassist/actions/runs/38964110176) on Linux/macOS/Windows, including the previously failing Windows fixtures. [PR CodeQL 38964110198](https://github.com/openassistuk/openassist/actions/runs/38964110198) and [full branch CodeQL 38964104799](https://github.com/openassistuk/openassist/actions/runs/38964104799) succeed with zero results; PR/branch open-alert queries are empty, and the original #43/#44 instances are fixed rather than dismissed. The single automated review thread is resolved and there are no human review comments. [macOS live launchd 38964110229](https://github.com/openassistuk/openassist/actions/runs/38964110229) and [native/signing contracts 38964110203](https://github.com/openassistuk/openassist/actions/runs/38964110203) pass; publication/public-install jobs are correctly skipped. This documentation reconciliation follows the verified repair without changing product behavior. Subsequent exact-head check results are recorded on [PR #88](https://github.com/openassistuk/openassist/pull/88), separately from this immutable repair evidence. No merge, publication or live-provider certification is inferred.
+
+Final harness follow-up: preserve that exact repair evidence and the later Windows failure separately. All 39 focused tests pass with explicit database integration deadlines; latest full local and hosted checks must be read in PR #88's validation section at handoff, including the actual head, run IDs and scoped alert/review state. The follow-up changes test deadlines and documentation only; it does not alter the verified product repair or claim new live-provider certification.
+
+Source implementation replaces the fixed cutoff with model-aware admission, coherent history and transactional compaction. The continuity fixture retains 201 messages across 100 complete turns, including the ninth-turn fact, instead of the baseline eight-message retention. Failed/cancelled summaries preserve the frontier; original tool output remains stored while projections disclose excerpts.
+
+Recursive build and targeted tests pass. The initial full run passed 611 Vitest tests (one skipped), then exposed an obsolete Node assertion expecting a settled call to disappear after result truncation. Its replacement asserts that the pair survives and all 120,000 stored output characters remain; the focused Node runtime suite passes 18 tests. Intermediate coverage passes unchanged thresholds: 84.03% statements, 75.64% branches, 86.35% functions, 85.12% lines. Subsequent final gates are recorded below. No live-provider performance/accuracy comparison or OpenClaw execution is claimed; release assets and the test droplet remain unchanged.
+
+Final local reconciliation (2026-10-16): `pnpm verify:all` passes workflow lint, recursive build/lint/typecheck, 615 Vitest tests (one platform skip), 242 Node tests (six platform skips), both coverage gates and zero production/full dependency findings. Final Vitest coverage: statements 84.12%, branches 75.70%, functions 86.49%, lines 85.20%. Node coverage: statements/lines 79.93%, branches 73.76%, functions 85.60%. Documentation truth checks pass 11/11. A final actor-memory cursor ordering adjustment persists the extraction cursor after idempotent candidate writes and avoids disabled extraction; core-runtime rebuild and all 20 focused Node runtime/memory checks pass afterward. Diff whitespace, docs field lists and credential review pass. Hosted checks are not inferred from these local results.
+
+## OpenClaw evidence and comparison
+
+Delivery reconciliation (2026-10-16): implementation commit `707bd10` on `codex/model-aware-context` is based on reviewed main `b03c40b`; [PR #88](https://github.com/openassistuk/openassist/pull/88) is open. The initial exact-head inspection finds CI, CodeQL preflight, macOS live launchd and four native packaging jobs queued, with publication checks correctly skipped. Open code-scanning alerts and unresolved PR review threads were checked separately and are empty. Hosted success, merge, release publication and live-provider certification are not inferred; subsequent exact-head results remain visible on the PR. This final documentation reconciliation follows the verified implementation without changing runtime behavior.
+
+The reviewed revision is immutable in the following links. These observations apply to that revision, not every past or future OpenClaw version.
+
+[Context-window resolution](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/src/agents/context-window-guard.ts) separates catalog/configuration sources and a positively observed serving window. [Selectable window profiles](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/src/agents/model-context-window.ts) resolve explicit selections and catalog defaults. OpenAssist should likewise record provenance, while retaining its stricter rule that optional capabilities must never be inferred from model-name substrings or Azure deployment names.
+
+[Pre-request pressure accounting](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/src/agents/embedded-agent-runner/run/preemptive-compaction.ts) considers rendered prompts, tool schema overhead, replay and measured provider usage. Measurement reuse depends on what the measurement covers. [Agent-core accounting](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/packages/agent-core/src/harness/compaction/compaction.ts) combines useful provider observations with estimates for later content and bounds summary input. OpenAssist should measure its final prepared request rather than add independent estimates of an earlier normalized transcript and a later wire projection.
+
+[Compaction scheduling documentation](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/docs/reference/session-management-compaction/compaction.md) describes preflight, overflow recovery and maintenance. Its mid-turn precheck is disabled by default; when enabled, it guards the next inference after results arrive and delegates recovery outside the inner loop. OpenAssist should admit every next provider call by default, with recovery driven by its existing durable action records.
+
+[Compaction behavior](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/docs/concepts/compaction.md) preserves tool pairing and original history. Built-in summarization bounds and samples a large history rather than sending it all. Quality checks can produce a visibly degraded summary; a separate automatic timeout path can carry an earlier summary and recent tail forward without summarizing omitted older messages. OpenAssist's proposed coverage ledger must distinguish summarized ranges from omitted ranges and must not mark the latter covered.
+
+[Pruning documentation](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/docs/concepts/session-pruning.md) distinguishes reducing old tool output from summarizing conversation. It preserves original results and selects different mechanisms by route and auth. [Bounded assembly](https://github.com/openclaw/openclaw/blob/0e16643538c1e41ec0d22990738749d2413055c5/src/context-engine/bounded-context.ts) also enforces byte bounds without orphaning tool results. OpenAssist needs both token and byte limits, but should initially implement them with one runtime-owned projection and existing audit storage rather than provider-specific pruning features.
+
+The independently verified recent native capacities are one million tokens for current Claude families and 1,050,000 for the recent OpenAI API GPT-6 families. Azure lists a separate 922,000 maximum input for those deployments. These are provider ceilings, not per-account guarantees. See [Anthropic context limits](https://platform.claude.com/docs/en/build-with-claude/context-windows), [OpenAI model specifications](https://developers.openai.com/api/docs/models/compare) and [Azure reasoning-model limits](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/reasoning). API capacities must not be silently assigned to Codex account-login or arbitrary compatible endpoints.
+
+## Context and Orientation
+
+`packages/core-types/src/provider.ts` owns provider contracts and model capability types. `packages/config/src/provider-models.ts` owns exact route/model compatibility, aliases and output defaults. `packages/config/src/schema.ts` validates operator configuration. New limit facts belong there and in core-types, not in runtime substring tests.
+
+`packages/core-runtime/src/context.ts` currently selects and slices message text. `packages/core-runtime/src/runtime.ts` owns authentication refresh, the autonomous tool loop, scheduler provider calls, profile grounding and memory sidecar calls. `packages/core-runtime/src/memory.ts` constructs extraction requests and limits their results. Replace the small planner through these boundaries, preserving profile gating and bounded self-knowledge.
+
+`packages/storage-sqlite/src/index.ts` stores messages, tool audits and a rolling summary with a monotonic last-compacted message ID. Existing `getRecentMessages` uses a row count, and `getCompactionBatch` retains eight rows. Extend storage with bounded range reads and durable checkpoint state; a rolling summary alone cannot describe skipped ranges, stale writers or an in-progress compaction job.
+
+The five provider adapters remain responsible for their wire representation. They differ in system-message lifting, Codex baseline instructions, signed thinking, cached input accounting, tools, images and replay envelopes. Preparation and measurement must use the same mapped payload as execution. A fingerprint identifies that payload for measurement reuse; it is not a credential, authority token or substitute for policy checks.
+
+## Independent OpenAssist design
+
+### Verified capacity and separate operator budgets
+
+Extend `ModelCapabilities` with optional `contextWindowTokens`, `maxInputTokens`, and dated limit evidence. Preserve `maxOutputTokens` and `defaultMaxOutputTokens` semantics. Catalog facts are keyed by exact route and verified model ID, including verified aliases. Azure's optional underlying-model hint remains separate from its deployment ID and its actual serving limit.
+
+Introduce validated `runtime.context` configuration. An omitted `maxInputTokens` means use the verified serving capacity after reservations, not an arbitrary small model-independent cap. An explicit value is an operator cost/latency cap and cannot expand a verified native maximum. A provider-specific authored context limit can lower a known limit or describe an otherwise unknown endpoint; status labels that source as operator-configured rather than vendor-verified. No external discovery request is made automatically for a custom endpoint.
+
+Unknown Codex or compatible-route capacities retain a clearly labeled conservative 24,000-token fallback until route-specific evidence or explicit configuration establishes a serving window. This fallback does not restore the eight-message cutoff. Add exact verified Codex facts only when account-login source evidence supports them. A model ID that resembles a known public API model is insufficient.
+
+Resolve the usable input budget as:
+
+    usableInput = min(verifiedMaximumInput, operatorInputCap,
+                      effectiveContextWindow - reservedOutput - safetyMargin)
+
+Absent individual maximum-input or operator values do not impose an additional minimum. Start with `safetyMargin = max(1024, ceil(effectiveContextWindow * 0.02))` as an explicit, testable conservative policy, not an exact tokenizer guarantee. Use the greater measured estimation error where available. Reserve the output allowance actually sent. When a route omits an output parameter and its effective default is unknown, reserve its verified native output maximum. If neither is verified, reserve 8,192 tokens within the unknown-route fallback and disclose that estimate; this reservation does not authorize sending an unsupported output parameter. Reject a configuration that leaves no usable input rather than coercing its budget.
+
+For verified direct Sonnet 5.5 with its existing 16,384 output default and no operator cap, the initial arithmetic yields 963,616 usable input tokens. This illustrates the budget resolver, not a promise to send that much text or a live account-capacity certification. Retain the existing Anthropic output default during this work; changing it or adding output controls to other routes requires explicit schema and migration treatment. Never send an unsupported output field to Codex.
+
+Proposed initial compaction thresholds are 85% of usable input to trigger and 60% as the target after compaction. They are hysteresis: enough reduction to avoid summarizing repeatedly on adjacent turns. Keep both configurable with validation that the target is smaller than the trigger. Required current input and settled action evidence take precedence over a soft target; the hard provider/byte budget still applies.
+
+### One prepared request and one admission boundary
+
+Add an adapter-owned preparation contract that returns an immutable, short-lived handle for the actual mapped request, a route/model identity, a content fingerprint and a safe accounting description. The handle contains no authentication and is never persisted or logged. A provider count operation, when supported, and the final execution must consume that same prepared handle. Runtime code must not rebuild or inspect private vendor payloads.
+
+Accounting includes mandatory system guidance, assistant identity and runtime awareness, selected transcript and summaries, current user content, tool schemas and arguments/results, provider replay, attachments and route-specific overhead. Anthropic count-tokens support can use the existing SDK after its exact request fields and beta support are verified. Reuse provider measurements only with matching route, model, endpoint identity, payload/prefix fingerprint, tool schemas and summary revision. Recompute after any change to those inputs.
+
+Normalize usage per adapter: Anthropic input may require adding cache-read and cache-creation input; OpenAI cached input is a subset and must not be counted twice. Billing totals and current context occupancy remain distinct. Previous output is counted only to the extent it remains in the next prepared request. Hidden reasoning cannot be assumed absent because visible text is short.
+
+Without an exact counter, use a conservative UTF-8- and content-aware estimate plus explicit uncertainty. Verify image accounting or mark it estimated; do not treat base64 byte length as an exact image token count. Do not add a tokenizer dependency until a verified model mapping and measured benefit justify it. A remote count request is bounded, uses the active route's existing auth, and does not expose credentials in diagnostics. At most one count request is permitted per prepared candidate near the threshold; estimates are sufficient far below it.
+
+`chatWithProvider` becomes the common admission owner for normal chat, each tool continuation, scheduled prompts and memory extraction. An authentication-only refresh may reuse the prepared content; any content change must be prepared and admitted again. Internal summary calls use the same accounting but have their own finite input/output limits and cannot recursively invoke compaction without a decreasing source range.
+
+### Complete turns, mandatory input and bounded hydration
+
+Select history in coherent conversation segments. A segment includes a user turn, its assistant continuations and all settled tool-call/results required to replay it. Match repeated tool-call IDs by occurrence and persisted audit identity, not by a global string map. A boundary must not create orphan calls or borrow a result from another turn. Pending tools and approvals prevent compaction across their open segment.
+
+Keep the current user request and mandatory instruction blocks complete. If these alone cannot fit, return an actionable size error without submitting an altered request. Optional recall and redundant old tool-output text can be reduced first. Signed provider thinking is kept or removed only as whole blocks through the existing documented replay contract; never slice signed blocks or manufacture signatures. Preserve the existing replay admission bounds, including the 1 MiB/256-item limits, and count only the projection actually admitted by the adapter. Larger model windows must not implicitly enlarge replay or attachment resource limits.
+
+Replace the fixed 50-row read and eight-row retention with paginated storage reads. Bound each page by rows and serialized bytes, and bound the assembled candidate by a proposed 32 MiB default resource limit. The token and byte limits are independent. Hitting a hydration bound must report an incomplete read and route through bounded compaction/retrieval; it must not imply that missing rows do not exist or mark them summarized. Binary ingest limits and owner-only attachment permissions continue to apply.
+
+Keep full bounded tool outputs in the existing durable audit path. A model projection may use a bounded excerpt with an explicit omission marker and a policy-protected reference to the stored result. Retain exit status, error state and delivery/scheduling receipts. Do not replay a host action to regenerate output, and do not expose a new cross-session history tool as part of this change. Existing authorized retrieval can recover details; automatic retrieval remains session/actor-scoped and bounded.
+
+### Coverage checkpoints and safe compaction
+
+Add versioned SQLite records for a compaction job and its resulting checkpoint. A checkpoint records its previous revision, contiguous covered message range, source digest, provider/model scope, summary structure, measured/estimated size and completion state. A compare-and-set transaction means commit succeeds only when the expected previous revision and source range still match. Preserve the transcript and existing tool audits unchanged.
+
+The checkpoint structure separates current goals, constraints, decisions/corrections, open work, completed-action receipts and references to source records. Use a proposed 8,192-token summary ceiling, with the same real accounting as any other payload. This is a cap, not a requirement to fill it. Facts requiring exact retention should be linked to authoritative source/audit records. Model-generated summaries do not establish that every historical fact was retained, and must never create an approval or elevate untrusted text into policy.
+
+Summarize contiguous bounded chunks rather than silently sampling away an uncovered interval. Use a proposed 32,768-token maximum source input per summary request, reduced when the summarizer's own window requires it. Permit at most two summary-generation calls in a foreground recovery attempt; further catch-up is a bounded durable job, not an unbounded in-memory loop. A validated candidate must account for the complete selected range, preserve the pinned current task state and fit with the untouched recent tail before its coverage boundary advances.
+
+On timeout, malformed output, cancellation, insufficient space or stale source revision, retain the previous checkpoint and its coverage boundary. If the unchanged coherent projection fits, continue with explicit estimated/degraded diagnostics as appropriate. Otherwise stop before inference and show what needs narrowing, retrieval or retry. Do not move the boundary over unsummarized source rows to make the failure disappear. Original history remains available regardless.
+
+Permanent actor memory remains a separate privacy and retention mechanism. Optional extraction of durable preferences cannot block foreground chat when there is no context pressure, and only full-root receives explicit memory tool schemas. A compaction summary is session-local and must not automatically promote conversation into permanent memory.
+
+### Tool continuation, recovery and audit
+
+Before every next provider call, settle tool results, rebuild the complete prepared projection and repeat admission. Compaction may run at this safe boundary, not while a tool or approval is unresolved. Preserve the same canonical session ID, model/account choice, inbound idempotency key and action audit identities. Already completed actions resume from their recorded results; uncertain side effects remain uncertain and must not be automatically retried as a context-repair step.
+
+Classify context overflow separately from auth, rate limits, output exhaustion, provider refusal and byte-size errors. Prefer sanitized structured provider fields; bounded provider-specific classification stays in adapters. Permit one context-repair transition for a rejected provider submission and persist its state. Subsequent attempts use the existing durable queue/recovery path; do not add a general retry loop around tools. A repaired projection must shrink or gain a fresh verified count, so retrying an unchanged oversized payload cannot loop.
+
+Output exhaustion remains operator-visible and separate from context overflow. Never execute tool calls from an incomplete/invalid response solely to recover a token-budget error. Maintain the existing 12-round default and 1..24 bounds; compaction does not reset or expand that autonomous execution budget.
+
+### Operator controls and diagnostics
+
+Add a grouped context section to `/status`, provider-independent `/memory`, daemon status and `openassist doctor`. Show route/model, native or configured limit and source/date, operator cost cap, reserved output, usable input, current tokens marked measured/estimated/stale, byte occupancy, retained whole turns, last checkpoint range and last failure. Do not expose raw reasoning, transcripts, secrets or unsanitized provider errors. Keep channel rendering/chunking in place.
+
+Quickstart uses verified defaults without adding a page of tuning questions. Wizard is the advanced editor for context cost caps and compaction thresholds, with strict numeric validation and clear unknown-route wording. Existing output/thinking settings remain intact. No change enables beta vendor tools, new external writes, browser automation, scheduled shell actions or broader access profiles.
+
+## Milestones and Plan of Work
+
+### Milestone 1: exact limits and provider preparation
+
+Extend `packages/core-types/src/provider.ts`, `packages/config/src/provider-models.ts` and `packages/config/src/schema.ts` with the limit and budget contracts above. Verify each exact current catalog model and aliases against official route-specific evidence, preserving retired IDs and explicit tuning. Implement adapter preparation, accounting and execution against the same payload in all five provider packages. Unknown limits and unsupported controls must be visible and validated.
+
+Acceptance: fixtures show different usable budgets for known large models, smaller custom endpoints and an explicit cost cap; no Azure deployment-name inference occurs. Anthropic cache input is counted once, OpenAI cached input is not added twice, and Codex keeps its current upstream fields and instruction lifting. A transformed wire payload cannot pass using a stale normalized-message estimate.
+
+### Milestone 2: coherent selection and transactional checkpoints
+
+Replace the selection internals in `packages/core-runtime/src/context.ts`; add bounded range/page and checkpoint/job operations in `packages/storage-sqlite/src/index.ts` with an additive migration. Refactor `packages/core-runtime/src/memory.ts` so context compaction and permanent extraction are distinct. Preserve read compatibility with existing rolling summaries by labeling them legacy summaries with their known boundary; do not pretend their source digest or semantic completeness was verified.
+
+Acceptance: a relevant ninth message remains available when within budget; current requests and mandatory guidance are never sliced. Repeated tool-call IDs, incomplete frames, cancelled summaries, stale writers and database restarts retain valid source coverage. A failed compaction cannot advance a frontier or overwrite a newer checkpoint. Every request is bounded in tokens, bytes and storage-read work.
+
+### Milestone 3: application-wide admission and safe continuation
+
+Integrate the request preparation/admission owner into `packages/core-runtime/src/runtime.ts` and the recovery worker in `packages/recovery`. Apply it to the autonomous loop, scheduler calls and summary/permanent-memory sidecars. Persist context-repair intent and preserve current audit/idempotency rules. Keep all tool routing in `packages/core-runtime/src/tool-router.ts` policy-gated.
+
+Acceptance: an oversized tool result triggers projection/compaction before the next model submission. A restart after an executed tool and before the next inference reuses the stored result without executing the tool again. Auth failures, provider refusals, TPM limits and output exhaustion do not masquerade as context failures. A second unchanged overflow does not retry indefinitely. Restricted/operator sessions still receive no autonomous schemas.
+
+### Milestone 4: operator UX, migration and evaluation
+
+Implement the status and wizard surfaces while keeping quickstart simple. Document any change from the eight-message policy and the additive storage migration, preserve explicit output limits, and describe how to set a smaller cost cap. Provide data-preserving rollback guidance: older binaries may ignore new checkpoints but must continue reading original history and legacy summary rows; do not claim downgrade compatibility until tested.
+
+Update `README.md`, `AGENTS.md`, `docs/README.md`, `CHANGELOG.md`, `docs/configuration/config-file-guide.md`, `docs/configuration/config-reference.md`, `docs/architecture/runtime-and-modules.md`, `docs/interfaces/provider-adapter.md`, `docs/interfaces/tool-calling.md`, `docs/security/threat-model.md`, `docs/security/policy-profiles.md`, `docs/operations/e2e-autonomy-validation.md`, `docs/operations/config-rollout-and-rollback.md`, and the affected setup/provider/channel guides required by AGENTS. Keep this design explicitly separate from current shipped behavior until implementation lands.
+
+Acceptance: diagnostics distinguish native capacity from operator cap and output budget. Config examples match CLI registries and schema. Complete local quality/coverage/audit gates pass at unchanged thresholds; hosted checks and live-provider results are recorded separately. Existing stable release assets and the installed disposable test host remain unchanged until a later explicitly selected candidate is tested.
+
+## Interfaces and Dependencies
+
+Define `ResolvedContextLimits` and `ContextAccounting` contracts in core-types. The former carries route/model identity, window/input/output capacities and provenance. The latter carries component sizes, byte count, measured/estimated/stale status and a safe fingerprint. `PreparedChatRequest` is adapter-owned and short-lived; provider preparation and execution cannot disagree about its payload. The exact exported method names may be reconciled once against the existing fake adapters, but the single-preparation invariant is mandatory.
+
+Define `ContextCheckpoint` and `ContextCompactionJob` as versioned storage contracts with expected revision, contiguous source range, digest and explicit lifecycle state. Runtime chooses and validates work; SQLite performs data operations and atomic adoption. Providers count and map vendor payloads; they do not write storage or select policy. Core-types contains contracts only. Avoid new production dependencies in the first implementation unless precise tokenization cannot be supplied through existing SDKs and a separate evidence-backed decision justifies one.
+
+## Concrete Steps
+
+Work from the repository root. Begin with the contracts and targeted fixtures, then implement selection/storage and finally runtime integration. Do not deploy source edits to a signed release installation or modify protected lifecycle paths. The research cache contains public upstream source outside the checkout; it is not a product dependency and should never be added to Git.
+
+For the design-only change, run:
+
+    pnpm exec tsx --test tests/node/cli-docs-truth.test.ts
+    git diff --check
+
+During implementation, run the existing targeted suites while adding focused regression cases alongside them:
+
+    pnpm exec vitest run tests/vitest/context.test.ts tests/vitest/memory.test.ts tests/vitest/model-context.test.ts
+    pnpm exec tsx --test tests/node/runtime-memory.test.ts tests/node/runtime.test.ts
+
+Identify existing provider, storage, tool-loop and recovery suites with `rg --files tests` and add only tests that establish contracts and failure boundaries. Finish the complete implementation with:
+
+    pnpm verify:all
+
+The later implementation request authorizes the branch and PR, but not release publication or test-host deployment. Research/local fixtures must not be represented as hosted CI or live-provider certification.
+
+## Validation and Acceptance
+
+Use a deterministic fixture set covering a small route, a one-million-token route, an explicitly reduced operator cap and an unknown route. Exercise long English, code, non-Latin text, mixed images/text, schemas, large JSON arguments, opaque replay and cache-read usage. Compare every measured/estimated component to the actual prepared payload. Tests must fail if a component is omitted, duplicated or reused after its fingerprint changes.
+
+Establish continuity with known facts and explicit corrections across at least 100 complete turns. The ninth-message fixture must retain its fact without requiring a summary when the request fits. After forced compaction, outstanding work, policy constraints and action receipts remain accessible from a validated checkpoint or its bounded source references. Do not call a probabilistic summary semantically lossless; test required facts and disclose retrieval/fallback behavior.
+
+Inject failures before generation, after generation but before adoption, during a stale-writer race, at tool settlement and after a process restart. Assert original records remain readable, checkpoints advance only after validation, side-effect counts do not increase during context repair and cancellation does not generate a late reply. Exercise failed and unknown token counts, changed tools/access/model and a provider that does not support an output parameter.
+
+Measure prompt tokens, count/summary calls, compaction frequency, storage bytes read, latency and retained-task accuracy against the current planner on identical fixtures. Evaluate matched OpenClaw behavior only if an isolated harness is later introduced; this research did not execute OpenClaw. Success means every provider call is admitted, complete current input is preserved, completed tools are not re-executed, and larger verified capacity improves available coherent history. It does not mean maximizing token consumption.
+
+Live verification is a separate, bounded step after implementation and local gates. A fresh normal reply, a multi-round tool task, a forced compaction and a restart-continuation case on the operator-selected route establish that route only. Never place credentials, account identifiers or private test settings in repository fixtures, logs, this plan or reports.
+
+## Idempotence and Recovery
+
+Original message and audit rows remain authoritative. New checkpoints are additive and transactionally adopted; source ranges cannot skip gaps or regress. Version migrations must tolerate repeated opening and retain legacy summary readability. A compaction job may resume generation after a crash, but it cannot replay host tools or gain privileges from summary text. Persist retry eligibility and use existing durable queue semantics instead of a new in-memory backoff loop.
+
+A too-large mandatory request yields an actionable failure; it does not silently send a prefix. A summary outage retains the previous valid checkpoint and reports pressure. Bounded projected excerpts do not delete audit output. Record rollback compatibility and migration evidence before changing a released schema version.
+
+## Artifacts and Notes
+
+The pinned source links and the synthetic probe observations above are the evidence for this research phase. Proposed thresholds, byte limits and summary allowances are OpenAssist design choices to be validated, not copied OpenClaw defaults or certified production performance. Implementation must replace those proposals with measured evidence where it warrants a change and record the decision here.
+
+Revision note (2026-10-16): initial independent design created after the requested OpenClaw source review. The purpose is to make the next implementation concrete and reviewable while preserving the current runtime and signed test installation. Final review records the 11 passing documentation tests, specifies unknown-route output reservation and retains existing replay resource bounds.
+
+Revision note (2026-10-16, PR #88 follow-up): record CodeQL #43's full data-flow evidence, failing-before regression, linear parser/byte-bound repair and compatibility/security review. The user's request authorizes fixing PR issues and updating this existing branch; release publication and merge remain outside this task.
+
+Revision note (2026-10-16, final PR #88 repair reconciliation): record #43/#44 closure, the Windows fixture correction, full local quality/audit results and exact repair-head hosted gates. Later documentation-head checks remain independently visible on the PR; prior failures and intermediate analyses are retained rather than replaced with an inferred success claim.
+
+Revision note (2026-10-16, four-finding independent review repair): reproduce and fix large-result compaction, text-only binary accounting, late cancellation adoption and the extraction cursor fallback. Preserve raw audit/digest provenance, existing image/byte bounds and saved cursors; document conservative legacy re-examination and record local/hosted verification separately.
+
+Revision note (2026-10-17, three-finding follow-up): reproduce aggregate source, old-image preparation and output-ceiling failures; add bounded excerpt/catch-up recovery with explicit lossiness and raw provenance, exact generation/validation ceilings, preserved current input/tuning, and regression/route controls. Keep final local and hosted results distinct in the PR validation evidence.

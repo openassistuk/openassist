@@ -35,6 +35,7 @@ export class RecoveryWorker {
   private readonly claimBatchSize: number;
   private timer: NodeJS.Timeout | null = null;
   private running = false;
+  private activeTick: Promise<void> | undefined;
 
   constructor(options: RecoveryWorkerOptions) {
     this.db = options.db;
@@ -49,17 +50,18 @@ export class RecoveryWorker {
       return;
     }
     this.running = true;
-    this.tick().catch((error: unknown) => {
+    this.activeTick = this.tick().catch((error: unknown) => {
       this.logger.error({ error }, "recovery tick failed");
     });
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.running = false;
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    await this.activeTick;
   }
 
   private async tick(): Promise<void> {
@@ -101,8 +103,9 @@ export class RecoveryWorker {
       }
     }
 
+    if (!this.running) return;
     this.timer = setTimeout(() => {
-      this.tick().catch((error: unknown) => {
+      this.activeTick = this.tick().catch((error: unknown) => {
         this.logger.error({ error }, "recovery loop failed");
       });
     }, this.pollIntervalMs);

@@ -1,4 +1,4 @@
-import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL } from "@openassist/config";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL, DEFAULT_CONTEXT_CONFIG } from "@openassist/config";
 import fs from "node:fs";
 import path from "node:path";
 import TOML from "@iarna/toml";
@@ -155,6 +155,7 @@ export function migrateOpenClawConfig(openClawRoot: string): MigrationResult {
 
   const config: OpenAssistConfig = {
     runtime: {
+      context: { ...DEFAULT_CONTEXT_CONFIG },
       bindAddress:
         typeof jsonConfig.gatewayBind === "string" ? String(jsonConfig.gatewayBind) : "127.0.0.1",
       bindPort:

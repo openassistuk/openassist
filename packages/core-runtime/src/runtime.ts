@@ -29,6 +29,7 @@ import type {
   RuntimeConfig,
   RuntimeAwarenessSnapshot,
   RuntimeMemoryStatus,
+  RuntimeContextStatus,
   RuntimePermanentMemoryRecord,
   RuntimeStatus,
   ScheduledTaskConfig,
@@ -58,7 +59,8 @@ import {
   stageOutboundAttachments
 } from "./attachments.js";
 import { renderOutboundEnvelope } from "./channel-rendering.js";
-import { ContextPlanner, sanitizeUserOutput } from "./context.js";
+import { sanitizeUserOutput, runWithAbort } from "./context.js";
+import { ModelContextManager } from "./context-manager.js";
 import {
   ClockHealthMonitor,
   detectSystemTimezoneCandidate,
@@ -68,7 +70,6 @@ import {
   actorScopeFromParts,
   buildMemoryExtractionMessages,
   buildPermanentMemorySystemMessage,
-  buildSessionMemorySystemMessage,
   MAX_COMPACTION_BATCHES_PER_TURN,
   MAX_RECALLED_MEMORIES,
   parseMemoryExtractionResponse,
@@ -506,7 +507,7 @@ export class OpenAssistRuntime {
   private readonly auth = new Map<string, ProviderAuth>();
   private readonly oauthRefreshLocks = new Map<string, Promise<ProviderAuthHandle>>();
   private readonly policyEngine: DatabasePolicyEngine;
-  private readonly contextPlanner = new ContextPlanner();
+  private readonly contextManager: ModelContextManager;
   private readonly recoveryWorker: RecoveryWorker;
   private readonly skillRuntime: FileSkillRuntime;
   private execTool!: ExecTool;
@@ -590,10 +591,22 @@ export class OpenAssistRuntime {
     };
     this.rebuildRuntimeTools();
 
+    this.contextManager = new ModelContextManager(this.db, () => this.config,
+      (provider, request) => this.chatWithProvider(provider, request),
+      payload => this.recoveryWorker.enqueue("context_maintenance", payload, { maxAttempts: 3, initialDelayMs: 1000, maxDelayMs: 30_000 }));
     this.recoveryWorker = new RecoveryWorker({
       db: this.db,
       logger: this.logger,
       handlers: {
+        context_maintenance: { run: async payload => {
+          const provider = this.providers.get(String(payload.providerId));
+          if (!provider) throw new Error("Context maintenance provider is unavailable.");
+          await this.contextManager.maintain(provider, String(payload.sessionId), String(payload.model));
+        } },
+        extract_memory: { run: async payload => {
+          const provider = this.providers.get(String(payload.providerId));
+          if (provider) await this.refreshSessionMemoryAfterTurn(provider, String(payload.model), String(payload.sessionId), String(payload.actorId));
+        } },
         send_outbound: {
           run: async (payload) => {
             const channelId = String(payload.channelId ?? "");
@@ -895,20 +908,39 @@ export class OpenAssistRuntime {
     request: ChatRequest
   ): Promise<ChatResponse> {
     const auth = await this.resolveProviderAuth(provider);
-    try {
-      return await provider.chat(request, auth);
-    } catch (error) {
-      if (
-        !this.isOAuthAuthHandle(auth) ||
-        !provider.refreshOAuthAuth ||
-        !this.isUnauthorizedProviderError(error)
-      ) {
-        throw error;
+    const prepared = await this.contextManager.admit(provider, request, auth);
+    const send = async (candidate: typeof prepared, credentials = auth): Promise<ChatResponse> => {
+      try { return await runWithAbort(() => candidate.send(credentials), request.signal); }
+      catch (error) {
+        if (
+          !this.isOAuthAuthHandle(credentials) ||
+          !provider.refreshOAuthAuth ||
+          !this.isUnauthorizedProviderError(error)
+        ) {
+          throw error;
+        }
+        // A concurrent turn may already have refreshed the failed credential.
+        const refreshed = await this.resolveProviderAuth(provider, true, credentials);
+        return runWithAbort(() => candidate.send(refreshed), request.signal);
       }
-      // Compare against the credential that actually failed. A concurrent turn
-      // may already have refreshed it while this request was waiting upstream.
-      const refreshed = await this.resolveProviderAuth(provider, true, auth);
-      return provider.chat(request, refreshed);
+    };
+    try {
+      const response = await send(prepared);
+      this.contextManager.observe(request.sessionId, prepared.accounting, response);
+      return response;
+    } catch (error) {
+      if (!error || typeof error !== "object" || (error as {code?:string}).code !== "OPENASSIST_CONTEXT_OVERFLOW") throw error;
+      const currentAuth = await this.resolveProviderAuth(provider);
+      const repaired = await this.contextManager.repair(provider, request, currentAuth, prepared);
+      try {
+        const response = await send(repaired, currentAuth);
+        this.contextManager.observe(request.sessionId, repaired.accounting, response);
+        return response;
+      } catch (failure) {
+        if (failure && typeof failure === "object" && (failure as {code?:string}).code === "OPENASSIST_CONTEXT_OVERFLOW")
+          throw new Error("Context repair was rejected by the provider. Original history and completed tools are preserved; lower the context cap in setup wizard.");
+        throw failure;
+      }
     }
   }
 
@@ -1802,7 +1834,8 @@ export class OpenAssistRuntime {
       actorScope,
       sessionSummary,
       permanentMemories,
-      notes
+      notes,
+      ...(sessionId ? { context: this.contextManager.status(sessionId) } : {})
     };
   }
 
@@ -1820,6 +1853,7 @@ export class OpenAssistRuntime {
     }
 
     this.startedAt = new Date().toISOString();
+    this.contextManager.start();
     const epoch = ++this.startupEpoch;
     this.refreshEffectiveTimezone();
     this.loadStoredOauthAccounts();
@@ -1837,6 +1871,12 @@ export class OpenAssistRuntime {
       this.launchChannelStartup(channelId, channel, epoch);
     }
 
+    for (const job of this.db.context.resumePending()) {
+      const separator = job.scope.indexOf(":");
+      if (separator < 1) continue;
+      this.recoveryWorker.enqueue("context_maintenance", { sessionId: job.sessionId, providerId: job.scope.slice(0,separator), model: job.scope.slice(separator+1), compactionId: job.id },
+        { maxAttempts: 3, initialDelayMs: 1000, maxDelayMs: 30_000 });
+    }
     this.recoveryWorker.start();
     this.oneShotWorker.start();
     this.db.updateModuleHealth("recovery", "healthy", "running");
@@ -1900,11 +1940,12 @@ export class OpenAssistRuntime {
   }
 
   async stop(): Promise<void> {
+    this.contextManager.stop();
     this.startupEpoch += 1;
     this.schedulerWorker.stop();
     await this.oneShotWorker.stop();
     this.clockHealthMonitor.stop();
-    this.recoveryWorker.stop();
+    await this.recoveryWorker.stop();
 
     for (const [channelId, channel] of this.channels.entries()) {
       try {
@@ -1961,7 +2002,8 @@ export class OpenAssistRuntime {
 
     return {
       startedAt: this.startedAt ?? new Date(0).toISOString(),
-      modules
+      modules,
+      context: this.contextManager.snapshot()
     };
   }
 
@@ -2139,8 +2181,11 @@ export class OpenAssistRuntime {
         this.config.providers.find((candidate) => candidate.id === provider.id())?.defaultModel ??
         "unknown";
       const toolSchemas = await this.resolveToolSchemasForSession(sessionId, actorId);
-      const recentMessages = this.db.getRecentMessages(sessionId, 50);
-      const sessionMemory = this.db.getSessionMemory(sessionId);
+      const checkpoint = this.contextManager.checkpoint(sessionId);
+      const history = this.db.context.history(sessionId, checkpoint.coveredThrough, this.contextManager.policy().maxRequestBytes);
+      const recentMessages = history.messages;
+      const latest = this.db.getRecentMessages(sessionId, 1)[0];
+      if (!history.complete && latest && !recentMessages.some(message => message.id === latest.id)) recentMessages.push(latest);
       const recalledMemories = this.selectRecalledMemories(
         sessionId,
         actorId,
@@ -2161,24 +2206,13 @@ export class OpenAssistRuntime {
         });
       }
       const recalledStateMessages: NormalizedMessage[] = [];
-      if (sessionMemory?.summary.trim()) {
-        recalledStateMessages.push({
-          role: "system",
-          content: buildSessionMemorySystemMessage(sessionMemory)
-        });
-      }
       if (recalledMemories.length > 0) {
         recalledStateMessages.push({
           role: "system",
           content: buildPermanentMemorySystemMessage(recalledMemories)
         });
       }
-      const planned = this.contextPlanner.plan({
-        systemMessages,
-        recalledStateMessages,
-        recentMessages
-      });
-      let conversationMessages: NormalizedMessage[] = [...planned.messages];
+      let conversationMessages: NormalizedMessage[] = [...systemMessages, ...recalledStateMessages, ...recentMessages];
 
       let responseText = "";
       let responseUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
@@ -2207,7 +2241,8 @@ export class OpenAssistRuntime {
               channel: preparedInbound.envelope.channel,
               channelId: preparedInbound.envelope.channelId,
               senderId: preparedInbound.envelope.senderId,
-              toolRound: String(round)
+              toolRound: String(round),
+              contextHistoryIncomplete: String(!history.complete)
             }
           }
         );
@@ -2259,11 +2294,11 @@ export class OpenAssistRuntime {
             }
           };
           conversationMessages.push(assistantToolCallMessage);
-          this.db.recordAssistantMessage(sessionId, preparedInbound.envelope.conversationKey, assistantToolCallMessage, {
+          assistantToolCallMessage.id = String(this.db.recordAssistantMessage(sessionId, preparedInbound.envelope.conversationKey, assistantToolCallMessage, {
             providerId: provider.id(),
             toolCallId: toolCall.id,
             toolName: toolCall.name
-          });
+          }));
 
           const execution = await this.executeToolCallWithAudit(
             sessionId,
@@ -2289,12 +2324,12 @@ export class OpenAssistRuntime {
             }
           };
           conversationMessages.push(toolMessage);
-          this.db.recordAssistantMessage(sessionId, preparedInbound.envelope.conversationKey, toolMessage, {
+          toolMessage.id = String(this.db.recordAssistantMessage(sessionId, preparedInbound.envelope.conversationKey, toolMessage, {
             providerId: provider.id(),
             toolCallId: execution.message.toolCallId,
             toolName: execution.message.name,
             toolStatus: execution.status
-          });
+          }));
         }
       }
 
@@ -2340,19 +2375,8 @@ export class OpenAssistRuntime {
       if (recalledMemories.length > 0) {
         this.db.markPermanentMemoriesRecalled(recalledMemories.map((memory) => memory.id));
       }
-      try {
-        await this.refreshSessionMemoryAfterTurn(provider, model, sessionId, actorId);
-      } catch (error) {
-        this.logger.warn(
-          {
-            type: "memory.compaction.failed",
-            sessionId,
-            actorId,
-            error: error instanceof Error ? error.message : String(error)
-          },
-          "memory compaction sidecar failed after chat turn"
-        );
-      }
+      if (this.memoryConfig().enabled) this.recoveryWorker.enqueue("extract_memory", { providerId: provider.id(), model, sessionId, actorId },
+        { maxAttempts: 1, initialDelayMs: 1000, maxDelayMs: 1000 });
     } catch (error) {
       const errText = error instanceof Error ? error.message : String(error);
       const providerHint = this.classifyOperationalError(errText);
@@ -3015,6 +3039,19 @@ export class OpenAssistRuntime {
     ].join("\n");
   }
 
+  private contextStatusLines(status?: RuntimeContextStatus): string[] {
+    if (!status) return ["context limits unavailable; check provider configuration on the host"];
+    const { limits, accounting } = status;
+    return [
+      `route/model: ${limits.route}/${limits.model}`,
+      `context window: ${limits.contextWindowTokens} tokens (${limits.source}${limits.checkedAt ? `; checked ${limits.checkedAt}` : ""})`,
+      `input ceiling: ${limits.maxInputTokens}; cost cap: ${limits.operatorInputCapTokens ?? "model default"}; output reserved: ${limits.reservedOutputTokens}; safety: ${limits.safetyMarginTokens}; usable input: ${limits.usableInputTokens}`,
+      `current input: ${accounting ? `${accounting.inputTokens} tokens (${accounting.source}), ${accounting.bytes} bytes` : "stale/not measured yet"}; state: ${status.state}`,
+      `retained messages: ${status.retainedMessages}; turns: ${status.retainedTurns ?? "stale"}; checkpoint revision: ${status.checkpointRevision}; covered through message: ${status.coveredThrough}`,
+      ...(status.failure ? [`context note: ${status.failure}`] : [])
+    ];
+  }
+
   private buildMemoryStatusMessage(status: RuntimeMemoryStatus): string {
     const sessionSummaryLine = status.sessionSummary
       ? `- rolling session summary: compacted through message id ${status.sessionSummary.lastCompactedMessageId}`
@@ -3033,6 +3070,7 @@ export class OpenAssistRuntime {
       `- session id: ${status.sessionId ?? "(not provided)"}`,
       `- actor scope: ${status.actorScope ?? "(not provided)"}`,
       sessionSummaryLine,
+      ...this.contextStatusLines(status.context).map(line => `- ${line}`),
       ...(status.sessionSummary ? [`- summary text: ${status.sessionSummary.summary}`] : []),
       `- visible permanent memories: ${status.permanentMemories.length}`,
       ...memoryLines,
@@ -3077,11 +3115,16 @@ export class OpenAssistRuntime {
     };
     const actorScope = actorScopeFromParts(channelIdFromSessionId(sessionId), actorId);
     const memoryEnabled = this.memoryConfig().enabled;
+    if (!memoryEnabled) return;
+    const extractionKey = `memory.extraction.${sessionId}`;
+    // Context checkpoints also update session_memory; that mirror cannot certify prior actor extraction.
+    let extractionCursor = this.db.getSetting<number>(extractionKey) ?? 0;
 
     for (let attempt = 0; attempt < MAX_COMPACTION_BATCHES_PER_TURN; attempt += 1) {
+      this.contextManager.signal().throwIfAborted();
       const batch = this.db.getCompactionBatch(
         sessionId,
-        sessionMemory.lastCompactedMessageId,
+        extractionCursor,
         SESSION_RAW_TAIL_SIZE,
         SESSION_COMPACTION_BATCH_SIZE
       );
@@ -3099,12 +3142,15 @@ export class OpenAssistRuntime {
           memoryEnabled
         }),
         tools: [],
+        signal: AbortSignal.any([this.contextManager.signal(), AbortSignal.timeout(30_000)]),
         metadata: {
           source: "runtime.memory.sidecar",
           batchEndId: String(batchEndId),
           actorScope
         }
       });
+
+      this.contextManager.signal().throwIfAborted();
 
       const extraction = parseMemoryExtractionResponse(response.output.content, {
         memoryEnabled
@@ -3122,15 +3168,9 @@ export class OpenAssistRuntime {
         return;
       }
 
-      sessionMemory = this.db.upsertSessionMemory({
-        sessionId,
-        summary: extraction.sessionSummary,
-        lastCompactedMessageId: batchEndId
-      });
-
-      if (!memoryEnabled) {
-        continue;
-      }
+      // Permanent-memory extraction never advances the context checkpoint or its compatibility mirror.
+      extractionCursor = batchEndId;
+      sessionMemory = { ...sessionMemory, summary: extraction.sessionSummary };
 
       for (const candidate of extraction.memories) {
         this.db.upsertPermanentMemory({
@@ -3144,6 +3184,8 @@ export class OpenAssistRuntime {
           state: "active"
         });
       }
+      // Retrying after an interrupted write is safe: candidate upserts are idempotent.
+      this.db.setSetting(extractionKey, extractionCursor);
     }
   }
 
@@ -3216,6 +3258,7 @@ export class OpenAssistRuntime {
 
   private classifyOperationalError(errorText: string): string {
     const normalized = errorText.toLowerCase();
+    if (normalized.includes("context")) return "context admission/compaction failed; history and completed tools are preserved. Inspect /memory, narrow the request or edit context budgets with openassist setup wizard";
     if (normalized.includes("missing authentication") || normalized.includes("api key")) {
       return "provider authentication is missing or invalid";
     }
@@ -3752,6 +3795,7 @@ export class OpenAssistRuntime {
           "protected lifecycle detail: hidden in chat for this sender."
         ];
     const sections = [
+      { title: "## Context", lines: this.contextStatusLines(this.contextManager.status(sessionId)) },
       {
         title: "## Session",
         lines: [

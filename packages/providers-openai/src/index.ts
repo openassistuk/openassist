@@ -1,5 +1,6 @@
 import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, modelCapabilities, reasoningEfforts, providerTuningErrors, providerModelAvailabilityErrors } from "@openassist/config";
 import OpenAI from "openai";
+import { prepareWireChat } from "@openassist/providers-shared";
 import { z } from "zod";
 import type {
   ApiKeyAuth,
@@ -12,6 +13,7 @@ import type {
   ProviderAuth,
   ProviderAuthHandle,
   ProviderCapabilities,
+  PreparedChatRequest,
   ValidationResult
 } from "@openassist/core-types";
 import {
@@ -197,23 +199,17 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
   }
 
   async chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse> {
-    const apiKey = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
-    if (!apiKey) {
-      throw new Error("OpenAI provider requires an API key or access token");
-    }
+    return (await this.prepareChat(req)).send(auth);
+  }
 
-    const client = new OpenAI({
-      apiKey,
-      baseURL: this.config.baseUrl
-    });
-
+  async prepareChat(req: ChatRequest): Promise<PreparedChatRequest> {
+    req = { ...req, metadata: { ...req.metadata }, tools: structuredClone(req.tools) };
     const model = req.model || this.config.defaultModel;
     const availabilityErrors = providerModelAvailabilityErrors({ ...this.config, type: "openai", defaultModel: model });
     if (availabilityErrors.length) throw new Error(availabilityErrors.join(" "));
     const useResponsesApi = shouldPreferResponsesApi(model) || hasImageInputs(req.messages);
 
-    if (useResponsesApi) {
-      const response = await client.responses.create({
+    const responsesPayload = {
         model,
         temperature: temperatureForModel(model, this.config.reasoningEffort, req.temperature),
         max_output_tokens: req.maxTokens,
@@ -222,38 +218,38 @@ export class OpenAIProviderAdapter implements ProviderAdapter {
         input: await mapResponsesInput(req.messages, `openai:${this.config.id}:${model}`) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
-      } as any);
-
-      return mapResponsesApiResponse(response, `openai:${this.config.id}:${model}`);
-    }
-
-    try {
-      const completion = await client.chat.completions.create({
+      };
+    const completionPayload = {
         model,
         temperature: temperatureForModel(model, this.config.reasoningEffort, req.temperature),
         max_tokens: req.maxTokens,
         messages: mapMessages(req.messages) as any,
         tools: mapTools(req.tools) as any
-      } as any);
-
-      return mapChatCompletionResponse(completion);
-    } catch (error) {
-      if (!shouldFallbackToResponses(error)) {
-        throw error;
+      };
+    const clientFor = (auth: ProviderAuth) => {
+      const apiKey = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
+      if (!apiKey) throw new Error("OpenAI provider requires an API key or access token");
+      return new OpenAI({ apiKey, baseURL: this.config.baseUrl });
+    };
+    return prepareWireChat(useResponsesApi ? responsesPayload : completionPayload, async (payload, auth) => {
+      const client = clientFor(auth);
+      if (useResponsesApi) return mapResponsesApiResponse(await client.responses.create(payload as any, { signal: req.signal }), `openai:${this.config.id}:${model}`);
+      try {
+        return mapChatCompletionResponse(await client.chat.completions.create(payload as any, { signal: req.signal }));
+      } catch (error) {
+        if (!shouldFallbackToResponses(error)) throw error;
+        return mapResponsesApiResponse(await client.responses.create(responsesPayload as any, { signal: req.signal }), `openai:${this.config.id}:${model}`);
       }
-
-      const response = await client.responses.create({
-        model,
-        temperature: temperatureForModel(model, this.config.reasoningEffort, req.temperature),
-        max_output_tokens: req.maxTokens,
-        include: reasoningEfforts(model, "openai").length ? ["reasoning.encrypted_content"] : undefined,
-        reasoning: reasoningPayload(model, this.config.reasoningEffort, "openai", this.config.reasoningMode),
-        input: await mapResponsesInput(req.messages, `openai:${this.config.id}:${model}`) as any,
-        tools: mapResponsesTools(req.tools) as any,
-        metadata: req.metadata
-      } as any);
-
-      return mapResponsesApiResponse(response, `openai:${this.config.id}:${model}`);
-    }
+    }, {
+      identity: `openai:${this.config.id}:${this.config.baseUrl ?? "default"}:${model}`,
+      outputTokens: req.maxTokens,
+      alternatives: useResponsesApi ? [] : [responsesPayload],
+      ...(useResponsesApi && (!this.config.baseUrl || new URL(this.config.baseUrl).hostname === "api.openai.com") ? {
+        countTokens: async (_payload: object, auth: ProviderAuth) => {
+          const { max_output_tokens: _output, temperature: _temperature, metadata: _metadata, include: _include, ...input } = responsesPayload;
+          return (await clientFor(auth).responses.inputTokens.count(input as any, { signal: req.signal, timeout: 10_000, maxRetries: 0 })).input_tokens;
+        }
+      } : {})
+    });
   }
 }

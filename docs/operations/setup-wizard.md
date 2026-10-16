@@ -1,5 +1,9 @@
 # Setup Quickstart and Setup Wizard
 
+The source/unreleased **Context budgets and compaction** section edits optional input cost cap/output reservation, compaction trigger/target percentages, request bytes and summary/source ceilings. Blank optional entries explicitly clear those caps. A provider override accepts a verified `contextWindowTokens`; native known windows remain upper bounds. Strict invalid numeric entries re-prompt. Existing provider output/thinking controls remain independent. See the [reference](../configuration/config-reference.md#runtimecontext) and [context engine](../architecture/context-engine.md).
+
+Summary-source ceilings apply across whole completed turns, with explicit historical excerpt notes. Effective summary output is limited by exact catalog maxima and applicable Anthropic output/thinking settings. Use this editor for irreducible source framing or an incorrect input cap; incompatible thinking/output settings require explicit repair, not an automatic reset.
+
 For a named developer instance, use the setup command printed by `openassist dev test`. Setup saves credentials to that instance's env file; stop and rerun the foreground instance to load changes. These credentials are passed only to its daemon, never to Git/pnpm builds or the primary service. See [developer testing](developer-testing.md).
 
 Setup resolves the recorded active application for both packaged and source installations. Packaged services use private Node. The hub also exposes update, rollback, interrupted-operation recovery and data-preserving uninstall, all using the shared lifecycle commands. Developer tracks remain outside beginner choices; see [developer testing](developer-testing.md).

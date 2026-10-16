@@ -1,5 +1,7 @@
 # Install on macOS
 
+Source/unreleased setup uses model-aware context defaults. Inspect serving limits and occupancy with `openassist doctor`; advanced input cost caps and verified serving overrides are in `openassist setup wizard`. See the [context engine](../architecture/context-engine.md). Immutable `v0.2.4` installs retain their shipped planner.
+
 Signed [v0.2.4](../releases/v0.2.4.md) delivers the Anthropic tool/replay/Haiku improvements and routine SDK updates while retaining prior security repairs. Existing installations need an explicit stable or exact-version update; old pins do not advance automatically.
 
 **Release availability:** signed [v0.2.4 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.4) is published and public installation passed on all four supported targets. Use the default installer or pin `--version 0.2.4`. Source development remains explicit with `--source --ref main`. Signing verification is automatic; operators do not supply keys. [Release evidence](../execplans/stable-0.2.4-release.md) records exact-main checks, protected publication, independent signatures/digests and four-target public installation.

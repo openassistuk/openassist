@@ -23,6 +23,7 @@ describe("clock-controlled recurring scheduling",()=>{
     expect(db.getTaskCursor("test")?.lastEnqueuedFor).toBe("2027-09-28T12:00:00.000Z");
     vi.setSystemTime(new Date("2027-09-28T12:01:00Z"));tick();tick();expect(enqueued).toHaveLength(3);
   });
+  // Backfill persists 100 real idempotency rows; allow bounded hosted-disk latency without reducing that assertion.
   it.each(["catch-up-once","backfill"] as const)("bounds %s work after a year offline",policy=>{
     const config=createDefaultConfigObject().runtime;config.scheduler.defaultMisfirePolicy=policy;
     config.scheduler.tasks=[{id:"test",enabled:true,scheduleKind:"interval",intervalSec:1,action:{type:"prompt",promptTemplate:"test"}}];
@@ -30,7 +31,7 @@ describe("clock-controlled recurring scheduling",()=>{
     const enqueue=vi.fn(); const worker=new SchedulerWorker({db,logger,getConfig:()=>config,getEffectiveTimezone:()=>"UTC",isTimezoneConfirmed:()=>true,enqueueScheduledExecution:enqueue});
     worker.start();worker.stop();expect(enqueue).toHaveBeenCalledTimes(policy==="backfill"?100:1);
     if(policy==="catch-up-once") expect(enqueue.mock.calls[0]?.[0].scheduledFor).toBe("2026-09-28T12:00:00.000Z");
-  });
+  },15_000);
   it("executes repeated DST-hour UTC slots without replaying a previous slot",()=>{
     const config=createDefaultConfigObject().runtime;
     config.scheduler.tasks=[{id:"dst",enabled:true,scheduleKind:"cron",cron:"0 * * * *",timezone:"Europe/London",misfirePolicy:"skip",action:{type:"prompt",promptTemplate:"test"}}];

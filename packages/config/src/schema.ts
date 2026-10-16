@@ -1,5 +1,6 @@
 import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, ANTHROPIC_THINKING_MODES, ANTHROPIC_THINKING_EFFORTS, providerTuningErrors } from "./provider-models.js";
 import { z } from "zod";
+import { resolveContextLimits, contextOutputAllowance } from "./context-limits.js";
 import type { ChannelConfig, ProviderConfig, RuntimeConfig } from "@openassist/core-types";
 
 function isValidIanaTimezone(value: string): boolean {
@@ -51,6 +52,7 @@ const commonProviderSchema = z.object({
   id: z.string().min(1),
   defaultModel: z.string().min(1),
   baseUrl: z.string().url().optional(),
+  contextWindowTokens: z.number().int().min(4096).max(2_000_000).optional(),
   metadata: z.record(z.string(), z.unknown()).optional()
 });
 
@@ -358,6 +360,17 @@ const runtimeSchema = z.object({
       maxRoundsPerTurn: z.number().int().min(1).max(24).default(12)
     })
     .prefault({}),
+  context: z.object({
+    maxInputTokens: z.number().int().min(1024).max(2_000_000).optional(),
+    reservedOutputTokens: z.number().int().min(1).max(128_000).optional(),
+    compactAtRatio: z.number().min(0.5).max(0.95).default(0.85),
+    targetRatio: z.number().min(0.1).max(0.8).default(0.60),
+    maxRequestBytes: z.number().int().min(65_536).max(67_108_864).default(33_554_432),
+    summaryMaxTokens: z.number().int().min(256).max(16_384).default(8192),
+    summarySourceTokens: z.number().int().min(1024).max(65_536).default(32_768)
+  }).superRefine((value, ctx) => {
+    if (value.targetRatio >= value.compactAtRatio) ctx.addIssue({ code: "custom", message: "context.targetRatio must be below context.compactAtRatio" });
+  }).prefault({}),
   time: z
     .object({
       defaultTimezone: z
@@ -448,6 +461,14 @@ export const openAssistConfigSchema = z.object({
     })
     .prefault({}),
   security: securitySchema.prefault({})
+}).superRefine((config, ctx) => {
+  config.runtime.providers.forEach((provider, index) => {
+    if (!provider.contextWindowTokens && !config.runtime.context.reservedOutputTokens) return;
+    try { resolveContextLimits(provider, provider.defaultModel, config.runtime.context,
+      contextOutputAllowance(provider)); }
+    catch { ctx.addIssue({ code: "custom", path: ["runtime", "providers", index, "contextWindowTokens"],
+      message: "Context/output reservations leave no usable input. Configure a verified window or reduce the output reservation." }); }
+  });
 });
 
 export type OpenAssistConfig = z.infer<typeof openAssistConfigSchema>;
@@ -469,6 +490,7 @@ export function toRuntimeConfig(config: OpenAssistConfig): RuntimeConfig {
     assistant: config.runtime.assistant,
     attachments: config.runtime.attachments,
     memory: config.runtime.memory,
+    context: config.runtime.context,
     toolLoop: config.runtime.toolLoop,
     service: config.service,
     paths: config.runtime.paths,

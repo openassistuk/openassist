@@ -67,6 +67,23 @@ afterEach(() => {
 });
 
 describe("anthropic provider tool mapping", () => {
+  it("counts prepared system/tools/messages and includes cached input in context usage exactly once", async () => {
+    const payloads: any[] = [];
+    vi.spyOn(globalThis,"fetch").mockImplementation(async (_url,options) => {
+      payloads.push(JSON.parse(options?.body as string));
+      return new Response(JSON.stringify(payloads.length === 1 ? { input_tokens: 60 } : {
+        id: "fixture", type: "message", role: "assistant", model: "claude-sonnet-4-6", content: [{ type: "text", text: "done" }], stop_reason: "end_turn",
+        usage: { input_tokens: 10, cache_read_input_tokens: 20, cache_creation_input_tokens: 30, output_tokens: 2 }
+      }), { headers: { "content-type": "application/json" } });
+    });
+    const provider = new AnthropicProviderAdapter({ id: "test", defaultModel: "claude-sonnet-4-6" });
+    const prepared = await provider.prepareChat(baseRequest());
+    expect(prepared.outputTokens).toBe(4096);
+    expect(await prepared.countTokens!({ apiKey: "fixture" })).toBe(60);
+    const result = await prepared.send({ apiKey: "fixture" });
+    for (const field of ["system","messages","tools","thinking"]) expect(payloads[0][field]).toEqual(payloads[1][field]);
+    expect(result.usage).toEqual({ inputTokens: 60, outputTokens: 2, totalTokens: 62 });
+  });
   it.each(["fs.read", "skill.日本語", "x".repeat(200), "oa__reserved"])("round-trips API-safe tool names through restart for %s", async (toolName) => {
     const payloads: Array<Record<string, any>> = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, options) => {

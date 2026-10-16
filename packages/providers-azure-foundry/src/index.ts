@@ -1,6 +1,7 @@
 import { OPENAI_REASONING_MODES, OPENAI_REASONING_EFFORTS, reasoningEfforts, modelCapabilities, providerTuningErrors } from "@openassist/config";
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 import OpenAI from "openai";
+import { prepareWireChat, isContextOverflow } from "@openassist/providers-shared";
 import { z } from "zod";
 import type {
   ApiKeyAuth,
@@ -11,6 +12,7 @@ import type {
   ProviderAdapter,
   ProviderAuth,
   ProviderCapabilities,
+  PreparedChatRequest,
   ValidationResult
 } from "@openassist/core-types";
 import {
@@ -227,12 +229,15 @@ export class AzureFoundryProviderAdapter implements ProviderAdapter {
   }
 
   async chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse> {
-    const client = this.client(auth);
+    return (await this.prepareChat(req)).send(auth);
+  }
+
+  async prepareChat(req: ChatRequest): Promise<PreparedChatRequest> {
+    req = { ...req, metadata: { ...req.metadata }, tools: structuredClone(req.tools) };
     const model = req.model || this.config.defaultModel;
     const reasoningModel = resolveReasoningModel(this.config, model);
 
-    try {
-      const response = await client.responses.create({
+    const payload = {
         model,
         temperature: temperatureForModel(reasoningModel, this.config.reasoningEffort, req.temperature, "azure-foundry"),
         max_output_tokens: req.maxTokens,
@@ -241,12 +246,16 @@ export class AzureFoundryProviderAdapter implements ProviderAdapter {
         input: await mapResponsesInput(req.messages, `azure-foundry:${this.config.id}:${model}:${reasoningModel}`) as any,
         tools: mapResponsesTools(req.tools) as any,
         metadata: req.metadata
-      } as any);
-
-      return mapResponsesApiResponse(response, `azure-foundry:${this.config.id}:${model}:${reasoningModel}`);
-    } catch (error) {
-      throw sanitizeProviderError(error, this.config, model);
-    }
+      };
+    return prepareWireChat(payload, async (body, auth) => {
+      try {
+        const response = await this.client(auth).responses.create(body as any, { signal: req.signal });
+        return mapResponsesApiResponse(response, `azure-foundry:${this.config.id}:${model}:${reasoningModel}`);
+      } catch (error) {
+        if (isContextOverflow(error)) throw Object.assign(new Error("Provider rejected the input context size."), { code: "OPENASSIST_CONTEXT_OVERFLOW" });
+        throw sanitizeProviderError(error, this.config, model);
+      }
+    }, { identity: `azure-foundry:${this.config.id}:${this.baseUrl}:${model}:${reasoningModel}`, outputTokens: req.maxTokens });
   }
 }
 

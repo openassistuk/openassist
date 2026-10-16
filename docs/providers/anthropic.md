@@ -4,6 +4,8 @@ Source/unreleased context admission uses the 1,000,000-token windows of current 
 
 Use the Anthropic route when you want the standard Anthropic API-key path in OpenAssist.
 
+Source summary output is bounded by the exact catalog maximum and saved `maxOutputTokens`, preserving compatible manual-thinking budgets and required headroom. Impossible combinations require explicit repair. Oversized older image history can compact before unsafe mapping through strictly shrinking bounded checkpoints; current input and final token/byte admission remain intact.
+
 This route is the fastest way to use Anthropic in quickstart, while still leaving room for advanced provider OAuth configuration later when you explicitly need it.
 
 ## What This Route Does

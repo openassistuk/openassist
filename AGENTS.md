@@ -22,6 +22,8 @@ Summary parsing must bound raw UTF-8 input before JSON parsing and use linear fe
 
 Summary-source tool excerpts must retain receipts/references while checkpoint digests cover untouched stored rows. Preparation guards must respect declared image capability. Recheck combined cancellation after asynchronous preparation and immediately before adoption. A missing permanent-extraction cursor starts independently at zero; never infer extraction coverage from a context checkpoint or its legacy mirror. Preserve existing saved extraction cursors and test both foreground and maintenance paths.
 
+Budget summary-source excerpts across whole completed segments; label historical text/argument omissions and retain mandatory identities/receipts. Oversized older history must reach bounded compaction before unsafe preparation; incremental adoption must strictly reduce accounted size or the conservative preparation estimate, and final inference must still pass all guards. Summary output uses exact route/model catalog ceilings and applicable Anthropic caps without resetting thinking settings. Test aggregate turns, oversized image catch-up, protected current input and irreducible-budget guidance.
+
 1. No secret leakage in logs, tests, docs, or error text.
 2. No implicit privilege escalation.
 3. No replay/idempotency regressions without explicit migration notes.

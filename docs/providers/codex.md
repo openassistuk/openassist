@@ -4,6 +4,8 @@ Source/unreleased context admission prepares the full Codex baseline, lifted ins
 
 Use the Codex route when you want the separate OpenAI account-login path in OpenAssist.
 
+Source summary recovery budgets aggregate historical excerpts and retains raw audit references and complete current input. It does not inherit OpenAI API output ceilings or add unsupported Codex upstream parameters. Bounded catch-up must finish full prepared admission before sending.
+
 This route is intentionally Codex-only in the current release. It is not documented as generic ChatGPT API auth for arbitrary OpenAI models.
 
 ## What This Route Does

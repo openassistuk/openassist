@@ -4,6 +4,8 @@ Use this index by task, lifecycle stage, provider, channel, or config area.
 
 Source context-review repairs cover large tool-result compaction, image-capability accounting, late cancellation and independent permanent-memory cursors. See the [context engine](architecture/context-engine.md), [rollout guidance](operations/config-rollout-and-rollback.md) and [test matrix](testing/test-matrix.md) for behavior, compatibility and regression evidence.
 
+The follow-up also covers aggregate completed-turn source budgets, bounded recovery of oversized old image history and model-aware summary output. Historical excerpts disclose omissions; original records and the complete current turn remain intact. See [troubleshooting](operations/common-troubleshooting.md) for irreducible framing or incompatible output/thinking settings.
+
 For packaged shell PATH setup, see the platform installation guides. For dedicated instance credentials, use [developer testing](operations/developer-testing.md); for conservative shell-profile cleanup, use [uninstall](operations/uninstall.md).
 
 ## Start Here

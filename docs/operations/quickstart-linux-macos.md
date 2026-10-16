@@ -2,6 +2,8 @@
 
 Source/unreleased quickstart uses model-aware context defaults and preserves saved context/output/thinking settings without extra beginner prompts. Advanced cost caps, thresholds and verified serving-window overrides live in `openassist setup wizard`. `/status`, `/memory` and `openassist doctor` show context provenance and occupancy; unknown Codex/compatible/custom windows are labeled. See the [context engine](../architecture/context-engine.md).
 
+Source recovery can compact oversized older image history in bounded chunks while preserving the full current request. Summary sources use aggregate historical excerpt budgets, and generation respects exact model output limits and compatible saved thinking settings. Repair irreducible budget failures through wizard and the [troubleshooting runbook](common-troubleshooting.md).
+
 Signed [v0.2.4](../releases/v0.2.4.md) delivers the Anthropic tool/replay fixes, Haiku controls and SDK updates. All four public-install targets pass; saved model choices remain intact, and live Anthropic credit testing stays a separate operator decision.
 
 Signed [v0.2.4](../releases/v0.2.4.md) delivers the Anthropic reliability/dependency improvements while retaining earlier security repairs. The [release evidence](../execplans/stable-0.2.4-release.md) confirms protected publication, independent signatures/digests and public installation on all four supported targets.

@@ -8,7 +8,7 @@ import { createDefaultConfigObject } from "../../apps/openassist-cli/src/lib/con
 import { editContextBudgets, loadSetupWizardState, type PromptAdapter } from "../../apps/openassist-cli/src/lib/setup-wizard.js";
 import { parseConfig, toRuntimeConfig } from "../../packages/config/src/schema.js";
 import { DEFAULT_CONTEXT_CONFIG, resolveContextLimits } from "../../packages/config/src/context-limits.js";
-import { conversationSegments, ContextPlanner } from "../../packages/core-runtime/src/context.js";
+import { conversationSegments, ContextPlanner, estimateContextTokens } from "../../packages/core-runtime/src/context.js";
 import { ModelContextManager, parseContextSummary } from "../../packages/core-runtime/src/context-manager.js";
 import { prepareWireChat, isContextOverflow } from "../../packages/providers-shared/src/index.js";
 import { OpenAssistDatabase, contextSourceDigest } from "../../packages/storage-sqlite/src/index.js";
@@ -322,4 +322,157 @@ describe("model context contracts", () => {
       if (source === "manager") expect(f.enqueue).not.toHaveBeenCalled();
     }, DATABASE_TEST_TIMEOUT_MS
   );
+
+  it.each(["admission", "maintenance"])("fits aggregate summary sources for an admitted seven-tool turn during %s", async mode => {
+    const f = fixture({ maxInputTokens: 80_000 });
+    f.config.providers[0]!.contextWindowTokens = 200_000;
+    f.append("user", "complete seven tools");
+    for (let index = 0; index < 7; index++) {
+      f.append("assistant", "", "call-repeat");
+      f.append("tool", JSON.stringify({ text: "z".repeat(120_000), exitCode: index }), "call-repeat");
+    }
+    const original = f.db.context.history(f.sessionId).messages;
+    expect((await f.manager.admit(f.provider, f.request(), auth)).accounting.inputTokens).toBeLessThan(80_000);
+    expect(f.summarize).not.toHaveBeenCalled();
+    const current = "CURRENT " + "x".repeat(120_000); f.append("user", current);
+    if (mode === "admission") await f.manager.admit(f.provider, f.request(), auth);
+    else await f.manager.maintain(f.provider, f.sessionId, "custom");
+    expect(f.summarize).toHaveBeenCalledOnce();
+    const [, request] = f.summarize.mock.calls[0] as unknown as [ProviderAdapter, ChatRequest];
+    const records = JSON.parse(request.messages[1]!.content).records;
+    expect(estimateContextTokens(records)).toBeLessThanOrEqual(f.config.context!.summarySourceTokens);
+    const tools = records.filter((record: { role: string }) => record.role === "tool");
+    expect(tools).toHaveLength(7);
+    tools.forEach((record: { content: string }, index: number) => expect(JSON.parse(record.content)).toMatchObject({ exitCode: index, fullResult: { messageId: original[index * 2 + 2]!.id, toolCallId: "call-repeat" } }));
+    expect(f.db.context.checkpoint(f.sessionId)).toMatchObject({ sourceDigest: contextSourceDigest(original), coveredThrough: Number(original.at(-1)!.id) });
+    expect(f.db.context.history(f.sessionId).messages.slice(0,15)).toEqual(original);
+    expect(f.manager.project(f.request()).messages.at(-1)!.content).toBe(current);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it.each(["content", "arguments"])("explicitly excerpts oversized historical %s without clipping the current turn", async field => {
+    const f = fixture({ maxInputTokens: 80_000 }); f.config.providers[0]!.contextWindowTokens = 200_000;
+    if (field === "content") { f.append("user", "z".repeat(120_000)); f.append("assistant", "done"); }
+    else {
+      f.append("user", "completed write");
+      f.db.recordAssistantMessage(f.sessionId, "fixture", { role: "assistant", content: "", toolCallId: "call-repeat", metadata: { toolArgumentsJson: JSON.stringify({ text: "z".repeat(120_000) }) } });
+      f.append("tool", "done", "call-repeat");
+    }
+    const original = f.db.context.history(f.sessionId).messages;
+    await f.manager.admit(f.provider, f.request(), auth);
+    const current = "CURRENT " + "x".repeat(210_000); f.append("user", current);
+    await f.manager.admit(f.provider, f.request(), auth);
+    const [, request] = f.summarize.mock.calls[0] as unknown as [ProviderAdapter, ChatRequest];
+    const records = JSON.parse(request.messages[1]!.content).records;
+    expect(records.some((record: Record<string,unknown>) => Number(record[`${field}OmittedCharacters`]) > 0)).toBe(true);
+    expect(estimateContextTokens(records)).toBeLessThanOrEqual(f.config.context!.summarySourceTokens);
+    expect(f.db.context.checkpoint(f.sessionId)?.sourceDigest).toBe(contextSourceDigest(original));
+    expect(f.db.context.history(f.sessionId).messages.slice(0,original.length)).toEqual(original);
+    expect(f.manager.project(f.request()).messages.at(-1)!.content).toBe(current);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it.each(["admission", "maintenance", "catch-up"])("recovers oversized historical images through bounded %s", async mode => {
+    const f = fixture({ maxInputTokens: 4000, summaryMaxTokens: 512, ...(mode === "catch-up" ? { summarySourceTokens: 1024 } : {}) });
+    f.provider.capabilities = () => ({ supportsStreaming: false, supportsTools: false, supportsOAuth: false, supportsApiKeys: true, supportsImageInputs: true });
+    const size = (request: ChatRequest) => request.messages.reduce((total, message) => total + (message.attachments ?? []).reduce((n, image) => n + (image.sizeBytes ?? 0) * 4 / 3, 0), 0);
+    const prepare = vi.fn(async (request: ChatRequest) => {
+      expect(size(request)).toBeLessThanOrEqual(f.config.context!.maxRequestBytes * 2);
+      const prepared = prepareWireChat({ messages: request.messages }, async () => response(), { identity: "vision-fixture" });
+      const images = request.messages.flatMap(message => message.attachments ?? []).length;
+      return { ...prepared, accounting: { ...prepared.accounting, inputTokens: prepared.accounting.inputTokens + images * 1000, bytes: prepared.accounting.bytes + size(request) } };
+    });
+    f.provider.prepareChat = prepare;
+    const count = mode === "catch-up" ? 10 : 7;
+    for (let index = 0; index < count; index++) {
+      f.db.recordAssistantMessage(f.sessionId, "fixture", { role: "user", content: "caption " + (mode === "catch-up" ? "x".repeat(1000) : ""), attachments: [{ id: `old-image-${index}`, kind: "image", sizeBytes: 8 * 1024 * 1024, localPath: "fixture-not-read" }] });
+      f.append("assistant", "done");
+    }
+    f.append("user", "CURRENT"); const original = f.db.context.history(f.sessionId).messages;
+    const finish = vi.spyOn(f.db.context, "finish");
+    if (mode === "admission") await f.manager.admit(f.provider, f.request(), auth);
+    else if (mode === "maintenance") await f.manager.maintain(f.provider, f.sessionId, "custom");
+    else {
+      await expect(f.manager.admit(f.provider, f.request(), auth)).rejects.toThrow(/resource bound/);
+      expect(f.db.context.checkpoint(f.sessionId)?.revision).toBe(2);
+      expect(prepare).not.toHaveBeenCalled();
+      expect(f.enqueue).toHaveBeenCalledOnce();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try { await f.manager.maintain(f.provider, f.sessionId, "custom"); break; }
+        catch (error) { expect(String(error)).toMatch(/bounded batch limit/); }
+      }
+    }
+    const admitted = await f.manager.admit(f.provider, f.request(), auth);
+    expect(admitted.accounting.bytes).toBeLessThanOrEqual(f.config.context!.maxRequestBytes);
+    expect(f.summarize).toHaveBeenCalled();
+    const checkpoint = f.db.context.checkpoint(f.sessionId)!;
+    expect(checkpoint.revision).toBeGreaterThan(0);
+    expect(finish).toHaveBeenCalled();
+    const job = finish.mock.calls.at(-1)![0];
+    expect(checkpoint.sourceDigest).toBe(contextSourceDigest(original.filter(message => Number(message.id) > job.afterMessageId && Number(message.id) <= job.throughMessageId)));
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+    expect(f.manager.project(f.request()).messages.at(-1)!.content).toBe("CURRENT");
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it.each([
+    { type: "openai", defaultModel: "gpt-4o-2024-05-13", expected: 4096 },
+    { type: "azure-foundry", defaultModel: "deployment", underlyingModel: "gpt-4o", expected: 8192 },
+    { type: "azure-foundry", defaultModel: "deployment", underlyingModel: "gpt-4o-2024-05-13", expected: 8192 },
+    { type: "azure-foundry", defaultModel: "gpt-4o-2024-05-13", expected: 8192 },
+    { type: "openai-compatible", defaultModel: "gpt-4o-2024-05-13", expected: 8192 },
+    { type: "anthropic", defaultModel: "claude-opus-4-5", thinkingBudgetTokens: 12_000, expected: 13_024 },
+    { type: "anthropic", defaultModel: "claude-opus-4-5", thinkingBudgetTokens: 2048, maxOutputTokens: 4096, expected: 4096 }
+  ])("bounds summary output for $type/$defaultModel (expected=$expected)", async ({ expected, ...provider }) => {
+    const f = fixture({ maxInputTokens: 4000 });
+    f.config.providers = [{ id: "test", ...(provider.type === "azure-foundry" ? { authMode: "api-key", resourceName: "fixture", endpointFlavor: "openai-resource" } : {}), ...provider } as ProviderConfig];
+    f.append("user", "x".repeat(4000)); f.append("assistant", "done"); f.append("user", "y".repeat(9000));
+    await f.manager.admit(f.provider, { ...f.request(), model: provider.defaultModel }, auth);
+    expect(f.summarize).toHaveBeenCalledOnce();
+    const [, request] = f.summarize.mock.calls[0] as unknown as [ProviderAdapter, ChatRequest];
+    expect(request.maxTokens).toBe(expected);
+    const saved = f.config.providers[0]!;
+    if (saved.type === "anthropic") expect(saved.thinkingBudgetTokens).toBe(provider.thinkingBudgetTokens);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("never maps or trims an oversized current image turn to make a growing checkpoint fit", async () => {
+    const f = fixture({ maxInputTokens: 4000 });
+    f.provider.capabilities = () => ({ supportsStreaming: false, supportsTools: false, supportsOAuth: false, supportsApiKeys: true, supportsImageInputs: true });
+    const prepare = vi.fn(async () => { throw new Error("unsafe mapping"); }); f.provider.prepareChat = prepare;
+    f.append("user", "past"); f.append("assistant", "done");
+    f.db.recordAssistantMessage(f.sessionId, "fixture", { role: "user", content: "CURRENT", attachments: Array.from({ length: 7 }, (_, index) => ({ id: `current-${index}`, kind: "image", sizeBytes: 8 * 1024 * 1024 })) });
+    const original = f.db.context.history(f.sessionId).messages;
+    await expect(f.manager.admit(f.provider, f.request(), auth)).rejects.toThrow(/compaction/);
+    expect(prepare).not.toHaveBeenCalled(); expect(f.summarize).toHaveBeenCalledOnce();
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("rejects irreducible summary framing with repair guidance and unchanged coverage", async () => {
+    const f = fixture({ maxInputTokens: 2000 });
+    f.append("user", "x".repeat(4000)); f.append("assistant", "done"); f.append("user", "y".repeat(3000));
+    await expect(f.manager.admit(f.provider, f.request(), auth)).rejects.toThrow(/source references exceed.*Increase summarySourceTokens/);
+    expect(f.manager.status(f.sessionId)).toMatchObject({ state: "blocked", failure: expect.stringContaining("summarySourceTokens") });
+    expect(f.summarize).not.toHaveBeenCalled(); expect(f.enqueue).not.toHaveBeenCalled();
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+    expect(f.db.context.history(f.sessionId).messages).toHaveLength(3);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("rejects an impossible thinking/output combination without resetting tuning", async () => {
+    const f = fixture({ maxInputTokens: 4000 });
+    f.config.providers = [{ id: "test", type: "anthropic", defaultModel: "claude-haiku-4-5", thinkingMode: "enabled", thinkingBudgetTokens: 64_000 }];
+    f.append("user", "x".repeat(4000)); f.append("assistant", "done"); f.append("user", "y".repeat(9000));
+    await expect(f.manager.admit(f.provider, { ...f.request(), model: "claude-haiku-4-5" }, auth)).rejects.toThrow(/output limit.*thinking budget/);
+    expect(f.summarize).not.toHaveBeenCalled(); expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+    expect(f.config.providers[0]!.thinkingBudgetTokens).toBe(64_000);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("validates summary text against the effective catalog output allowance", async () => {
+    const oversized = JSON.stringify({ ...JSON.parse(summary), goals: "x".repeat(14_000) });
+    const f = fixture({ maxInputTokens: 12_000 }, vi.fn(async () => response(oversized)));
+    f.config.providers = [{ id: "test", type: "openai", defaultModel: "gpt-4o-2024-05-13" }];
+    const prepare = vi.fn(async (request: ChatRequest) => prepareWireChat({ messages: request.messages }, async () => response(), { identity: "output-fixture" }));
+    f.provider.prepareChat = prepare;
+    f.append("user", "x".repeat(20_000)); f.append("assistant", "done"); f.append("user", "y".repeat(20_000));
+    await expect(f.manager.admit(f.provider, { ...f.request(), model: "gpt-4o-2024-05-13" }, auth)).rejects.toThrow(/compaction/);
+    expect(prepare).toHaveBeenCalledOnce(); expect(f.summarize).toHaveBeenCalledOnce();
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+  }, DATABASE_TEST_TIMEOUT_MS);
 });

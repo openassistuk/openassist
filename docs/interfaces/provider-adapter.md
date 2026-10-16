@@ -8,6 +8,8 @@ Source of truth: `packages/core-types/src/provider.ts`.
 
 The pre-mapping resource guard uses `capabilities().supportsImageInputs` to reserve binary image space. A text-only adapter must omit image binaries; their stored size does not consume its binary allowance. The final prepared payload remains subject to the normal byte/token admission limits. Compaction uses bounded tool excerpts with raw-source digests, and cancellation is rechecked after asynchronous mapping before checkpoint adoption.
 
+Oversized historical projections reach bounded compaction before full mapping. Unsafe originals/intermediates are compared using a strictly decreasing conservative preparation estimate; they are not passed to adapters. Final inference still counts/sends the same fully admitted prepared payload. Summary sources may explicitly excerpt historical text/arguments across whole segments; output allowance and validation respect exact route/model ceilings and applicable Anthropic tuning.
+
 Provider adapters convert normalized runtime chat requests into provider-specific API calls, including tool-call turns.
 
 ## Required Contract

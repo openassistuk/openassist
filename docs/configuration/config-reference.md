@@ -45,8 +45,8 @@ Source/unreleased controls apply to every runtime provider submission. See the [
 | `compactAtRatio` | number | `0.85`, range `0.5..0.95` |
 | `targetRatio` | number | `0.60`, range `0.1..0.8`, strictly below trigger |
 | `maxRequestBytes` | integer | `33554432`, range `65536..67108864` |
-| `summaryMaxTokens` | integer | `8192`, range `256..16384` |
-| `summarySourceTokens` | integer | `32768`, range `1024..65536` |
+| `summaryMaxTokens` | integer | `8192`, range `256..16384`; effective output/validation is capped by exact catalog maxima and applicable Anthropic output settings, preserving valid thinking headroom |
+| `summarySourceTokens` | integer | `32768`, range `1024..65536`; aggregate source-record ceiling, also limited by available input headroom; historical excerpts disclose omissions |
 
 Every provider also accepts optional `contextWindowTokens` (`4096..2000000`) as a verified serving-window override. Known native windows remain an upper bound. Codex, compatible/custom endpoints and unknown exact models default to a labeled 24,000-token fallback. Azure needs an explicit cataloged `underlyingModel`. Impossible reservations are rejected; caps never enlarge vendor limits. Quickstart preserves saved settings; wizard edits these advanced controls.
 

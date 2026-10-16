@@ -18,7 +18,7 @@ Keep OpenAssist's official Anthropic SDK adapter current and reliable before the
 - [x] (2026-10-16 housekeeping) Refresh only the public v0.2.3 body from PR #83's merged notes. Compare all sixteen asset identities/names/sizes/digests and exact tag commit unchanged. Reconcile PR #83 final head/actual-main checks and record PR #84 under Unreleased.
 - [x] (2026-10-16 targeted checks) Build successfully, install with the frozen lockfile, pass 123 tests across four focused Vitest suites and 15 Node provider/dependency contracts. A real SDK/loopback HTTP runtime test executes two writes once and preserves the complete turn/results after closing and reopening SQLite.
 - [x] (2026-10-16 documentation) Synchronize affected operator/interface/security/testing documentation, including primary model fields, rollback compatibility and the published/source distinction.
-- [ ] Run the unchanged full quality/coverage/audit gate and review the final diff for accidental edits, regressions or secrets.
+- [x] (2026-10-16 full local gate) Commit `68d343b5280dd47b3ee7a4e97cd1ae825f0a14bd` passes `pnpm verify:all`: workflow lint, workspace build/lint/typecheck, 597 Vitest passes/one skip, 240 Node passes/six skips, both unchanged coverage gates and zero production/full audit findings. Final diff review finds no accidental edits, debug code, credentials or policy changes.
 - [ ] Open/attach the implementation PR, record its actual final-head checks and separate scanner/review-thread results, and preserve required main review before merge. Keep live provider/channel verification explicitly pending.
 
 ## Surprises & Discoveries
@@ -48,7 +48,9 @@ Decision (2026-10-16): reserve the `oa__` wire-name prefix and hash incompatible
 ## Outcomes & Retrospective
 
 
-Implementation, targeted regression checks and release housekeeping are complete. The full local gate and hosted PR evidence remain pending. Official SDK transport stays in place; OpenAssist retains its own bounded policy-gated executor. No live Anthropic call or credential access has occurred. Published v0.2.3 remains immutable at `cc29135a8cddf45e032dd235a86cf8f854a6f124`; current source improvements require a future release to reach packaged installations.
+Implementation, targeted regression checks, the full local quality/coverage/audit gate and release housekeeping are complete. Hosted PR evidence and required review remain pending. Official SDK transport stays in place; OpenAssist retains its own bounded policy-gated executor. No live Anthropic call or credential access has occurred. Published v0.2.3 remains immutable at `cc29135a8cddf45e032dd235a86cf8f854a6f124`; current source improvements require a future release to reach packaged installations.
+
+Local full-gate evidence is retained under ignored `coverage/anthropic-2026-10-16-verify.log`. Vitest coverage is statements 83.37%, branches 74.63%, functions 86.01%, lines 84.34%. Node product-code coverage is statements/lines 80.15%, branches 73.60%, functions 86.07%, with 126 passes/five skips in that scoped coverage run. Windows skips Bash/hosted-only smoke checks; required Linux/macOS hosted gates provide their platform evidence. Eleven focused docs-truth checks pass independently. Separate GitHub queries return zero open code-scanning and Dependabot alerts; PR review threads must still be inspected after opening.
 
 ## Context and Orientation
 
@@ -106,3 +108,5 @@ Official sources checked October 16: https://platform.claude.com/docs/en/models/
 Revision note (2026-10-16): initialize from the exact merged-main audit, current official Anthropic evidence and explicit user scope. Separate authorized source/housekeeping work from the user's deferred live testing and immutable published packages.
 
 Revision note (2026-10-16 implementation): record reproduced defects, passing native SDK/runtime restart evidence, exact-version freshness exception, legacy replay/rollback behavior and completed immutable release-body reconciliation. Full local/hosted gates remain pending.
+
+Revision note (2026-10-16 local verification): record the successful unchanged full gate, exact implementation commit, coverage totals and zero audits. Keep actual final-head hosted checks and review in the PR validation record, avoiding evidence-only pushes after those checks start.

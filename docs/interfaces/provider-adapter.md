@@ -1,8 +1,18 @@
 # Provider Adapter Interface
 
+The raw-source read/digest allowance is separate from the prepared payload cap: `max(32 MiB, maxRequestBytes)`, bounded by the supported 64 MiB maximum. Large stored tool results can reach runtime excerpting before adapter mapping. Final prepared bytes/tokens and the twice-payload pre-mapping guard remain enforced; an oversized mandatory current request is not clipped. Maintenance checks prepared bytes as well as tokens and cannot silently succeed on incomplete history without progress.
+
+Hydrated chat history and maintenance projections use the same occurrence-based tool reconciliation as the runtime before segmentation/mapping. Summary-source selection does too. Unmatched historical tool frames are excluded only from model projections; raw contiguous digest coverage and stored rows remain intact. Valid repeated call/result pairs and complete current input survive, and excluded calls are never retried or reported as completed actions.
+
+Source/unreleased: bundled adapters implement `prepareChat(request)` returning `PreparedChatRequest` with fingerprinted `ContextAccounting`, optional native `countTokens(auth)`, effective output allowance and `send(auth)`. Mapping happens once; counting/sending use the same immutable payload. Credentials are not part of accounting. Every runtime provider call is admitted, including sidecars and tool continuations. Structured context rejection is surfaced as `OPENASSIST_CONTEXT_OVERFLOW`; rate/auth/byte/output failures retain their separate paths. Third-party adapters without preparation receive explicitly estimated normalized-request accounting. See the [context engine](../architecture/context-engine.md).
+
 Packaged releases include the production provider dependency graph and are smoke-tested without a checkout or system package manager. Lifecycle health verifies local build identity without requiring live provider credentials. Provider auth, model controls and tool contracts remain unchanged.
 
 Source of truth: `packages/core-types/src/provider.ts`.
+
+The pre-mapping resource guard uses `capabilities().supportsImageInputs` to reserve binary image space. A text-only adapter must omit image binaries; their stored size does not consume its binary allowance. The final prepared payload remains subject to the normal byte/token admission limits. Compaction uses bounded tool excerpts with raw-source digests, and cancellation is rechecked after asynchronous mapping before checkpoint adoption.
+
+Oversized historical projections reach bounded compaction before full mapping. Unsafe originals/intermediates are compared using a strictly decreasing conservative preparation estimate; they are not passed to adapters. Final inference still counts/sends the same fully admitted prepared payload. Summary sources may explicitly excerpt historical text/arguments across whole segments; output allowance and validation respect exact route/model ceilings and applicable Anthropic tuning.
 
 Provider adapters convert normalized runtime chat requests into provider-specific API calls, including tool-call turns.
 
@@ -76,7 +86,7 @@ The runtime-awareness payload is now actor-aware in shared chats. For the same c
 The runtime-owned commands `/start`, `/help`, `/capabilities`, `/grow`, `/status`, `/memory`, and `/profile` are handled before provider dispatch. Provider adapters only see normal model turns plus scheduler-driven work; they should not try to emulate or replace those runtime-owned command surfaces.
 
 Scheduler prompt actions use the same `chat()` path with metadata that identifies scheduler context (`source`, `taskId`, `scheduledFor`).
-Runtime memory compaction also uses the same `chat()` path for a second bounded sidecar pass after eligible visible turns. That pass uses the same provider/model as the user-visible turn, sends no tool schemas, expects strict JSON-in-text output, and may fail silently without degrading the already-sent chat reply.
+Context compaction uses the common prepared/admitted provider path under pressure, with no tools and bounded JSON output. Failed adoption preserves the previous frontier. Permanent-memory extraction is queued separately after visible replies and never changes context coverage.
 
 Tool-calling request requirements:
 

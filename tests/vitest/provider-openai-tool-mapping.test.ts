@@ -2,7 +2,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatRequest } from "../../packages/core-types/src/provider.js";
 import { OpenAIProviderAdapter } from "../../packages/providers-openai/src/index.js";
 
@@ -59,6 +59,7 @@ function tempFile(name: string, contents: Buffer): string {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of tempDirs) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -66,6 +67,29 @@ afterEach(() => {
 });
 
 describe("openai provider tool mapping", () => {
+  it("counts the mapped Responses input and sends its unchanged tools/instructions without double-counting cached input", async () => {
+    const payloads: any[] = [];
+    vi.spyOn(globalThis,"fetch").mockImplementation(async (_url,options) => {
+      const body = JSON.parse(options?.body as string); payloads.push(body);
+      return new Response(JSON.stringify(payloads.length === 1 ? { input_tokens: 321 } : {
+        id: "fixture", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: "done" }] }],
+        usage: { input_tokens: 321, output_tokens: 2, total_tokens: 323, input_tokens_details: { cached_tokens: 300 } }
+      }), { headers: { "content-type": "application/json" } });
+    });
+    const provider = new OpenAIProviderAdapter({ id: "test", defaultModel: "gpt-6.1-sol" });
+    const request = { ...baseRequest(), model: "gpt-6.1-sol" };
+    const prepared = await provider.prepareChat(request);
+    expect(Object.isFrozen(request.metadata)).toBe(false);
+    expect(Object.isFrozen(request.tools[0]!.inputSchema)).toBe(false);
+    request.metadata.changedAfterPreparation = "caller-owned";
+    expect(prepared.accounting.components.tools).toBeGreaterThan(32);
+    expect(await prepared.countTokens!({ apiKey: "fixture" })).toBe(321);
+    const result = await prepared.send({ apiKey: "fixture" });
+    expect(payloads[0].input).toEqual(payloads[1].input);
+    expect(payloads[0].tools).toEqual(payloads[1].tools);
+    expect(payloads[1].metadata).not.toHaveProperty("changedAfterPreparation");
+    expect(result.usage).toMatchObject({ inputTokens: 321, totalTokens: 323 });
+  });
   it("maps chat-completions tool calls for chat-capable models", async () => {
     const encodedFsRead = encodedToolName("fs.read");
     const encodedExecRun = encodedToolName("exec.run");

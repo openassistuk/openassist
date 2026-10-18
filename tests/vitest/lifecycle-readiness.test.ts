@@ -63,6 +63,14 @@ function createInput(overrides: Partial<LifecycleReportInput> = {}): LifecycleRe
 }
 
 describe("lifecycle readiness", () => {
+  it("shows catalog capacity separately from a context cost cap and stale occupancy", () => {
+    const input = createInput();
+    input.config!.runtime.context.maxInputTokens = 32000;
+    const context = buildLifecycleReport(input).sections.readyNow.find(item => item.id === "provider.context");
+    expect(context?.detail).toContain("window=1050000 (catalog");
+    expect(context?.detail).toContain("cost cap=32000");
+    expect(context?.detail).toContain("occupancy stale/not measured");
+  });
   it("groups validation issues into guided repair buckets", () => {
     const buckets = groupValidationIssuesByLifecycleBucket([
       {

@@ -34,6 +34,22 @@ Core fields:
 | `providers` | array | at least one provider |
 | `channels` | array | optional, default empty |
 
+### `[runtime.context]`
+
+Source/unreleased controls apply to every runtime provider submission. See the [context engine](../architecture/context-engine.md).
+
+| Field | Type | Default / Bounds |
+| --- | --- | --- |
+| `maxInputTokens` | optional integer | input cost ceiling, `1024..2000000`; omitted uses serving limits |
+| `reservedOutputTokens` | optional integer | minimum reservation, `1..128000`; cannot reduce actual output allowance; does not change generation settings |
+| `compactAtRatio` | number | `0.85`, range `0.5..0.95` |
+| `targetRatio` | number | `0.60`, range `0.1..0.8`, strictly below trigger |
+| `maxRequestBytes` | integer | prepared provider-payload cap, default `33554432`, range `65536..67108864`; pre-mapping guard remains twice this cap; raw-source reads/digest verification separately allow `max(33554432, maxRequestBytes)` bytes, up to 64 MiB |
+| `summaryMaxTokens` | integer | `8192`, range `256..16384`; effective output/validation is capped by exact catalog maxima and applicable Anthropic output settings, preserving valid thinking headroom |
+| `summarySourceTokens` | integer | `32768`, range `1024..65536`; aggregate source-record ceiling, also limited by available input headroom; historical excerpts disclose omissions |
+
+Every provider also accepts optional `contextWindowTokens` (`4096..2000000`) as a verified serving-window override. Known native windows remain an upper bound. Codex, compatible/custom endpoints and unknown exact models default to a labeled 24,000-token fallback. Azure needs an explicit cataloged `underlyingModel`. Impossible reservations are rejected; caps never enlarge vendor limits. Quickstart preserves saved settings; wizard edits these advanced controls.
+
 ### `[runtime.assistant]`
 
 | Field | Type | Default / Notes |
@@ -120,6 +136,8 @@ If `output.channelId` is set for a prompt action, `output.conversationKey` is re
 
 ## `[[runtime.providers]]`
 
+Common fields for all providers include optional `contextWindowTokens` (verified serving window, `4096..2000000`); see `[runtime.context]` above.
+
 Common fields for all providers:
 
 | Field | Type | Notes |
@@ -128,6 +146,7 @@ Common fields for all providers:
 | `type` | enum | `openai`, `codex`, `anthropic`, `azure-foundry`, `openai-compatible` |
 | `defaultModel` | string | required |
 | `baseUrl` | string | optional URL |
+| `contextWindowTokens` | optional integer | verified serving-window override, `4096..2000000`; capped by known native capacity |
 | `metadata` | record | optional |
 
 ### OpenAI

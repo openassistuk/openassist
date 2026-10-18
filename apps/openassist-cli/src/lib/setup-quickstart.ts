@@ -530,7 +530,8 @@ async function promptProvider(
       ...(modeSelection.reasoningMode ? { reasoningMode: modeSelection.reasoningMode } : {}),
       ...(baseUrl.length > 0 ? { baseUrl } : {}),
       ...(reasoningEffort ? { reasoningEffort } : {}),
-      ...(existingAzure?.metadata ? { metadata: existingAzure.metadata } : {})
+      ...(existingAzure?.metadata ? { metadata: existingAzure.metadata } : {}),
+      ...(existingAzure?.contextWindowTokens ? { contextWindowTokens: existingAzure.contextWindowTokens } : {})
     };
   }
 
@@ -587,7 +588,8 @@ async function promptProvider(
     ...(workspaceId ? { workspaceId } : {}),
     ...(type === "anthropic" && existing?.type === "anthropic" && existing.maxOutputTokens ? { maxOutputTokens: existing.maxOutputTokens } : {}),
     ...(type === "openai" && modeSelection.reasoningMode ? { reasoningMode: modeSelection.reasoningMode } : {}),
-    ...(existing?.metadata ? { metadata: existing.metadata } : {})
+    ...(existing?.metadata ? { metadata: existing.metadata } : {}),
+    ...(existing?.type === type && existing.contextWindowTokens ? { contextWindowTokens: existing.contextWindowTokens } : {})
   };
 }
 

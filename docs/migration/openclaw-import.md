@@ -1,5 +1,9 @@
 # OpenClaw Import
 
+Imported model names alone do not prove serving context capacity. Source context admission uses exact route/catalog definitions, explicit verified `contextWindowTokens` or the labeled fallback. Review imported endpoint/model hints and cost caps in wizard; inspect doctor and `/memory` before relying on long-chat continuity. OpenAssist compaction/checkpoint code is independent; no OpenClaw implementation is embedded. See the [context engine](../architecture/context-engine.md).
+
+Imported historical backlogs can recover through bounded completed-turn excerpts and strictly shrinking old-image catch-up before unsafe preparation. Original rows/references and the complete current turn remain intact; excerpted facts are not certified as complete. Summary output respects exact route/model ceilings and valid Anthropic caps/thinking settings without rewriting imported model IDs or tuning. Final token/byte admission still gates inference.
+
 Imported Anthropic providers retain their model IDs, env-reference credentials and compatible thinking settings. Adopt `claude-haiku-5-5` explicitly through the native Anthropic route; old manual budgets require repair/reset before switching, and disabled thinking is valid only with low/medium/high effort. Keep Haiku 4.5 when its manual budget is intentional. New adapter replay is bounded and provider/model-scoped with legacy readability; no operator database/schema migration is needed. See [Anthropic compatibility](../providers/anthropic.md).
 
 Imported configuration and conversations remain operator state independent of packaged/source applications. Use explicit lifecycle migration to switch installation method; do not copy imported credentials into isolated developer instances automatically. See [upgrade/recovery](../operations/upgrade-and-rollback.md).

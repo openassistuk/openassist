@@ -1,5 +1,6 @@
 import { OPENAI_REASONING_EFFORTS, reasoningEfforts, retiredModelReplacement, providerTuningErrors } from "@openassist/config";
 import { z } from "zod";
+import { prepareWireChat } from "@openassist/providers-shared";
 import type {
   ApiKeyAuth,
   ChatRequest,
@@ -14,6 +15,7 @@ import type {
   ProviderAuth,
   ProviderAuthHandle,
   ProviderCapabilities,
+  PreparedChatRequest,
   ValidationResult
 } from "@openassist/core-types";
 import {
@@ -693,7 +695,8 @@ async function postCodexResponses(
   baseUrl: string,
   accessToken: string,
   headers: Record<string, string>,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<Record<string, unknown>> {
   const response = await fetch(`${baseUrl}/responses`, {
     method: "POST",
@@ -703,7 +706,8 @@ async function postCodexResponses(
       accept: "text/event-stream",
       ...headers
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    signal
   });
 
   const bodyText = await response.text();
@@ -843,31 +847,40 @@ export class CodexProviderAdapter implements ProviderAdapter {
   }
 
   async chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse> {
-    const accessToken = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
-    if (!accessToken) {
-      throw new Error("Codex provider requires a linked Codex account");
-    }
+    return (await this.prepareChat(req)).send(auth);
+  }
 
-    const claims = "apiKey" in auth || !("scopes" in auth) ? {} : decodeClaimsMetadata(auth.scopes);
-    const defaultHeaders: Record<string, string> = {
-      session_id: req.sessionId
-    };
-    if (claims.chatgptAccountId) {
-      defaultHeaders["ChatGPT-Account-ID"] = claims.chatgptAccountId;
-    }
-
+  async prepareChat(req: ChatRequest): Promise<PreparedChatRequest> {
+    req = { ...req, metadata: { ...req.metadata }, tools: structuredClone(req.tools) };
     const model = req.model || this.config.defaultModel;
     const replacement = retiredModelReplacement("codex", model);
     if (replacement) throw new Error(`Codex model '${model}' has retired. Select '${replacement}' using openassist setup wizard.`);
     const { instructions, nonSystemMessages } = buildCodexInstructions(req.messages);
     const reasoning = reasoningPayload(model, this.config.reasoningEffort, "codex");
-    const response = await postCodexResponses(
-      defaultCodexBaseUrl(this.config.baseUrl),
-      accessToken,
-      defaultHeaders,
-      await buildCodexResponsesPayload(req, model, instructions, nonSystemMessages, reasoning, `codex:${this.config.id}:${model}`)
-    );
+    const payload = await buildCodexResponsesPayload(req, model, instructions, nonSystemMessages, reasoning, `codex:${this.config.id}:${model}`);
+    return prepareWireChat(payload, async (body, auth) => {
+      const accessToken = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
+      if (!accessToken) {
+        throw new Error("Codex provider requires a linked Codex account");
+      }
 
-    return mapResponsesApiResponse(response, `codex:${this.config.id}:${model}`);
+      const claims = "apiKey" in auth || !("scopes" in auth) ? {} : decodeClaimsMetadata(auth.scopes);
+      const defaultHeaders: Record<string, string> = {
+        session_id: req.sessionId
+      };
+      if (claims.chatgptAccountId) {
+        defaultHeaders["ChatGPT-Account-ID"] = claims.chatgptAccountId;
+      }
+
+      const response = await postCodexResponses(
+        defaultCodexBaseUrl(this.config.baseUrl),
+        accessToken,
+        defaultHeaders,
+        body,
+        req.signal
+      );
+
+      return mapResponsesApiResponse(response, `codex:${this.config.id}:${model}`);
+    }, { identity: `codex:${this.config.id}:${defaultCodexBaseUrl(this.config.baseUrl)}:${model}` });
   }
 }

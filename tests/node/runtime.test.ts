@@ -992,7 +992,7 @@ describe("OpenAssistRuntime", () => {
     });
   }
 
-  it("reconciles orphaned tool-call history before provider requests", async () => {
+  it("keeps settled tool history coherent with an explicit bounded result projection", async () => {
     const root = tempDir("openassist-runtime-tool-reconcile-");
     roots.push(root);
 
@@ -1098,8 +1098,11 @@ describe("OpenAssistRuntime", () => {
           message.toolCallId === "old-call-1" &&
           message.toolName === "exec.run"
       ),
-      false
+      true
     );
+
+    assert.match(provider.lastMessages.find(message => message.role === "tool")?.content ?? "", /Output excerpt/);
+    assert.equal(db.context.history("telegram-mock:c1").messages.find(message => message.role === "tool")?.content.length, 120_000);
 
     await runtime.stop();
     db.close();

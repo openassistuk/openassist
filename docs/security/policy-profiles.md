@@ -1,5 +1,15 @@
 # Policy Profiles
 
+Separating bounded raw-source reads from smaller prepared-payload caps changes no tool permission or retry authority. Raw digest checks cover untouched rows; oversized mandatory input and rows beyond the finite raw-source limit fail explicitly. Maintenance cannot treat incomplete history without progress as success or bypass final byte/token admission.
+
+Reconciliation after history hydration or during maintenance changes only the model projection. Orphan tool frames cannot block otherwise completed history, create action receipts, trigger unfinished actions or alter access policy. Raw rows remain in contiguous checkpoint digests and stored audits; valid repeated call/result pairs stay matched by occurrence.
+
+Model-aware context admission applies to every profile and does not change callable tool policy. Summary and maintenance requests always have no tools; a summary cannot create approval or escalate access. Permanent-memory extraction remains actor-scoped, and explicit memory schemas remain full-root only. Failed/cancelled compaction preserves source/audit state. See the [context engine](../architecture/context-engine.md).
+
+Bounded summary-source tool excerpts retain original receipts/references and never replace audit rows. Late cancellation prevents adoption even after model generation has completed. Starting an absent permanent-extraction cursor at zero only re-examines retained history through the existing actor-scoped conservative extraction path; it does not broaden tools, approvals or memory access.
+
+Aggregate historical excerpts and image-backlog recovery grant no additional tools or approvals. Every checkpoint preserves whole-frame raw provenance and strictly reduces accounted/preparation size; the complete current turn and final admission bounds remain mandatory. Summary output caps preserve valid thinking settings rather than weakening provider controls.
+
 Tool-round limits still stop execution at the configured cap. Their synthetic explanation carries no provider tool-turn metadata, so continuation cannot duplicate the last calls. Interrupted Anthropic turns replay only completed reconciled history when native results are incomplete; no recovery path executes an unfinished call or grants additional access.
 
 Anthropic tool-name encoding is a transport translation, not an access decision. Only the runtime's approved `full-root` tools are advertised, returned names map back to canonical policy/audit names, and unknown names remain subject to advertised-tool validation. Complete provider turns and grouped results do not execute tools; replay skips audited placeholders and preserves sequential runtime side effects. SDK agent runners/server tools are not enabled. Configured endpoint/auth/workspace values govern the native client, while SDK debug logging and automatic tracing are disabled. See [tool calling](../interfaces/tool-calling.md) and [Anthropic evidence](../execplans/anthropic-integration-2026-10-16.md).

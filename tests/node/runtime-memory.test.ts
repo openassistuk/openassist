@@ -19,7 +19,7 @@ import type {
   ValidationResult
 } from "@openassist/core-types";
 import { OpenAssistRuntime } from "../../packages/core-runtime/src/runtime.js";
-import { OpenAssistDatabase } from "../../packages/storage-sqlite/src/index.js";
+import { OpenAssistDatabase, contextSourceDigest } from "../../packages/storage-sqlite/src/index.js";
 import { createLogger } from "../../packages/observability/src/index.js";
 
 class MemoryAwareProvider implements ProviderAdapter {
@@ -221,7 +221,48 @@ afterEach(() => {
 });
 
 describe("runtime memory behavior", () => {
-  it("compacts session history, stores durable actor memory, and recalls it across chats", async () => {
+  for (const state of ["context checkpoint", "legacy summary", "saved extraction cursor"]) {
+    it(`keeps initial extraction independent of ${state}`, async () => {
+      const root = tempDir("openassist-memory-cursor-"); roots.push(root);
+      const logger = createLogger({ service: "memory-cursor-test" });
+      const db = new OpenAssistDatabase({ dbPath: path.join(root, "state.db"), logger });
+      const provider = new MemoryAwareProvider();
+      const runtime = new OpenAssistRuntime(buildConfig(root), { db, logger }, { providers: [provider], channels: [] });
+      const sessionId = "telegram-mock:cursor-test";
+      const key = `memory.extraction.${sessionId}`;
+      try {
+        runtime.setProviderApiKey(provider.id(), "fixture");
+        for (let index = 0; index < 18; index++) db.recordAssistantMessage(sessionId, "u1", {
+          role: index % 2 ? "assistant" : "user", content: index === 0 ? "Prefer Debian apt commands" : `turn ${index}`
+        });
+        const source = db.context.history(sessionId).messages.slice(0,8);
+        const frontier = Number(source.at(-1)!.id);
+        if (state === "legacy summary") db.upsertSessionMemory({ sessionId, summary: "Legacy summary", lastCompactedMessageId: frontier });
+        else {
+          const job = db.context.begin({ sessionId, expectedRevision: 0, afterMessageId: 0, throughMessageId: frontier,
+            sourceDigest: contextSourceDigest(source), scope: "fixture" });
+          assert.ok(db.context.finish(job, "Context summary", 33_554_432));
+        }
+        if (state === "saved extraction cursor") db.setSetting(key, frontier);
+        const refresh = () => (runtime as unknown as { refreshSessionMemoryAfterTurn(provider: ProviderAdapter, model: string, sessionId: string, actorId: string): Promise<void> })
+          .refreshSessionMemoryAfterTurn(provider, "x", sessionId, "u1");
+        await refresh();
+        assert.equal(provider.sidecarCalls, state === "saved extraction cursor" ? 0 : 1);
+        assert.equal(db.getSetting<number>(key), frontier);
+        if (state !== "saved extraction cursor") {
+          const request = provider.requests.find(item => item.metadata.source === "runtime.memory.sidecar")!;
+          assert.ok(request.messages.some(message => message.content.includes("Prefer Debian apt commands")));
+          assert.equal(db.listPermanentMemories("telegram-mock:u1").length, 2);
+        }
+        await refresh();
+        assert.equal(provider.sidecarCalls, state === "saved extraction cursor" ? 0 : 1);
+        assert.equal(db.getSessionMemory(sessionId)?.lastCompactedMessageId, frontier);
+        assert.equal(db.context.history(sessionId).messages.length, 18);
+      } finally { await runtime.stop(); db.close(); }
+    });
+  }
+
+  it("extracts durable actor memory asynchronously without compacting history that fits", async () => {
     const root = tempDir("openassist-runtime-memory-");
     roots.push(root);
 
@@ -241,10 +282,10 @@ describe("runtime memory behavior", () => {
       await channel.emit(inbound("chat-1", "u1", `message ${turn}`, `memory-${turn}`));
     }
 
+    for (let attempt = 0; attempt < 100 && provider.sidecarCalls === 0; attempt++) await new Promise(resolve => setTimeout(resolve, 20));
     const status = await runtime.getMemoryStatus("telegram-mock:chat-1", "u1");
     assert.equal(status.enabled, true);
-    assert.ok(status.sessionSummary);
-    assert.match(status.sessionSummary?.summary ?? "", /Debian apt commands/i);
+    assert.equal(status.sessionSummary, null);
     assert.equal(status.permanentMemories.length, 2);
     assert.ok(provider.sidecarCalls >= 1);
 
@@ -276,7 +317,7 @@ describe("runtime memory behavior", () => {
     db.close();
   });
 
-  it("keeps rolling session summaries when permanent memory is disabled", async () => {
+  it("retains complete history without needless summaries when permanent memory is disabled", async () => {
     const root = tempDir("openassist-runtime-memory-disabled-");
     roots.push(root);
 
@@ -302,7 +343,9 @@ describe("runtime memory behavior", () => {
 
     const status = await runtime.getMemoryStatus("telegram-mock:chat-1", "u1");
     assert.equal(status.enabled, false);
-    assert.ok(status.sessionSummary);
+    assert.equal(status.sessionSummary, null);
+    assert.equal(provider.sidecarCalls, 0);
+    assert.equal(db.context.history("telegram-mock:chat-1").messages.length, 16);
     assert.equal(status.permanentMemories.length, 0);
 
     await channel.emit(inbound("chat-2", "u1", "Do you remember my package preference?", "memory-off-recall"));

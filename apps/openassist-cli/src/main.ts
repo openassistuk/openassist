@@ -267,6 +267,7 @@ program
     let timezoneConfirmed = false;
     let timeStatusReachable = false;
     let providerAuthReadiness: ProviderAuthReadinessMap | undefined;
+    let contextStatus: import("@openassist/core-types").RuntimeStatus["context"];
     let growthState:
       | Awaited<ReturnType<typeof inspectLocalGrowthState>>
       | undefined;
@@ -305,6 +306,7 @@ program
         ? `Health endpoint is responding at ${health.baseUrl ?? daemonBaseUrl}`
         : `Health endpoint returned status ${health.status} at ${health.baseUrl ?? daemonBaseUrl}`;
       if (health.ok) {
+        contextStatus = (JSON.parse(health.bodyText) as { runtime?: import("@openassist/core-types").RuntimeStatus }).runtime?.context;
         try {
           const authStatus = await requestJson("GET", `${daemonBaseUrl}/v1/oauth/status`);
           if (authStatus.status < 400) {
@@ -393,6 +395,7 @@ program
             updateSafetyNote: growthState.updateSafetyNote
           }
         : undefined,
+      context: contextStatus,
       legacyDefaultLayoutStatus:
         legacyLayout.status !== "none"
           ? legacyLayout.status

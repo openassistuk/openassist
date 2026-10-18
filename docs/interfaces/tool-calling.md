@@ -1,6 +1,16 @@
 # Tool Calling Interface
 
+Stored results larger than a small prepared-payload cap can reach excerpting through a separate finite raw-source allowance of at least 32 MiB, up to 64 MiB with a larger supported request cap. Transactional verification uses that same allowance and hashes original rows, not excerpts. Results beyond the raw bound fail explicitly without skipping records or rerunning actions. Current input and final prepared byte/token admission remain intact.
+
+Tool-frame reconciliation is shared by the normal runtime, bounded history reloads, maintenance and summary-source segmentation. An orphan restored by hydration cannot merge later completed turns into one unsettled segment. Matching remains occurrence-based for repeated call IDs. Exclusions affect model projections only; digests cover every original row in the selected contiguous range and evidence does not treat excluded frames as completed actions. Recovery never retries those actions.
+
+Source/unreleased: every tool continuation passes model-aware admission after results settle. Compaction preserves whole call/result segments and cannot reset the 12-round default or grant tools. Large result projections carry explicit excerpts, receipts and audit references; original outputs remain durable and context repair never re-executes actions. Provider overflow permits one persisted smaller-projection retry. See the [context engine](../architecture/context-engine.md).
+
 Lifecycle modernization adds no tool schemas or privilege escalation. Runtime awareness identifies packaged/source/isolated installs and protects managed application directories. Use host-side lifecycle commands for update/recovery/uninstall; direct edits to retained release files are not a durable growth mechanism.
+
+Foreground and maintenance compaction project large completed results into bounded summary-source excerpts with receipts and original audit references. Whole call/result segments and raw-source digests remain intact; projection never executes a tool or grants approval. Late cancellation during candidate preparation prevents checkpoint adoption.
+
+Excerpt budgeting covers the aggregate completed segment, including multi-tool turns. Historical text/arguments may carry explicit omission notes; current input and original audit rows are not changed. Oversized old image history can advance through strictly shrinking bounded checkpoints before full preparation, but nothing is sent until final token/byte admission succeeds. Recovery retains the existing tool-round and durable-retry budgets.
 
 Source of truth:
 

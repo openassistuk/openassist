@@ -2,6 +2,7 @@ import { ANTHROPIC_THINKING_MODES, ANTHROPIC_THINKING_EFFORTS, anthropicThinking
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
+import { prepareWireChat } from "@openassist/providers-shared";
 import { z } from "zod";
 import type {
   ApiKeyAuth,
@@ -14,6 +15,7 @@ import type {
   ProviderAuth,
   ProviderAuthHandle,
   ProviderCapabilities,
+  PreparedChatRequest,
   ValidationResult
 } from "@openassist/core-types";
 
@@ -424,12 +426,16 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
   }
 
   async chat(req: ChatRequest, auth: ProviderAuth): Promise<ChatResponse> {
+    return (await this.prepareChat(req)).send(auth);
+  }
+
+  private client(auth: ProviderAuth): Anthropic {
     const apiKey = "apiKey" in auth ? auth.apiKey : "accessToken" in auth ? auth.accessToken : undefined;
     if (!apiKey) {
       throw new Error("Anthropic provider requires an API key or access token");
     }
 
-    const client = new Anthropic({
+    return new Anthropic({
       apiKey: "apiKey" in auth ? apiKey : null,
       authToken: "apiKey" in auth ? null : apiKey,
       baseURL: this.config.baseUrl ?? "https://api.anthropic.com",
@@ -443,7 +449,10 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
         "anthropic-version": "2023-06-01"
       }
     });
+  }
 
+  async prepareChat(req: ChatRequest): Promise<PreparedChatRequest> {
+    req = { ...req, metadata: { ...req.metadata }, tools: structuredClone(req.tools) };
     const model = req.model || this.config.defaultModel;
     const availabilityErrors = providerModelAvailabilityErrors({ ...this.config, type: "anthropic", defaultModel: model });
     if (availabilityErrors.length) throw new Error(availabilityErrors.join(" "));
@@ -475,36 +484,45 @@ export class AnthropicProviderAdapter implements ProviderAdapter {
       tools: mapTools(req.tools) as any
     };
     const options = prefixBinding ? { headers: { "anthropic-beta": "thinking-binding-controls-2026-08-01" } } : undefined;
-    // Fold the SDK stream into the existing completed-message contract. Large
-    // reasoning budgets can exceed the SDK's non-streaming timeout estimate.
-    const response = prefixBoundModel || maxTokens > 16_384
-      ? await client.messages.stream(payload as any, options).finalMessage()
-      : await client.messages.create(payload as any, options);
+    return prepareWireChat(payload, async (body, auth) => {
+      const client = this.client(auth);
+      // Fold the SDK stream into the existing completed-message contract. Large
+      // reasoning budgets can exceed the SDK's non-streaming timeout estimate.
+      const response = prefixBoundModel || maxTokens > 16_384
+        ? await client.messages.stream(body as any, { ...options, signal: req.signal }).finalMessage()
+        : await client.messages.create(body as any, { ...options, signal: req.signal });
 
-    const textBlocks = response.content.filter((block: any) => block.type === "text");
-    const content = textBlocks.map((block: any) => block.text).join("\n");
-    const toolCalls = response.content
-      .filter((block: any) => block.type === "tool_use")
-      .map((block: any) => ({
-        id: String(block.id),
-        name: names.decode(String(block.name)),
-        argumentsJson: JSON.stringify(block.input ?? {})
-      }));
+      const textBlocks = response.content.filter((block: any) => block.type === "text");
+      const content = textBlocks.map((block: any) => block.text).join("\n");
+      const toolCalls = response.content
+        .filter((block: any) => block.type === "tool_use")
+        .map((block: any) => ({
+          id: String(block.id),
+          name: names.decode(String(block.name)),
+          argumentsJson: JSON.stringify(block.input ?? {})
+        }));
 
-    return {
-      output: {
-        role: "assistant",
-        content,
-        metadata: replayMetadataForResponseContent(response.content, replayScope)
-      },
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-        totalTokens: response.usage.input_tokens + response.usage.output_tokens
-      },
-      rawProviderResponseId: response.id,
-      finishReason: response.stop_reason ?? undefined,
-      toolCalls
-    };
+      return {
+        output: {
+          role: "assistant",
+          content,
+          metadata: replayMetadataForResponseContent(response.content, replayScope)
+        },
+        usage: {
+          inputTokens: response.usage.input_tokens + (response.usage.cache_read_input_tokens ?? 0) + (response.usage.cache_creation_input_tokens ?? 0),
+          outputTokens: response.usage.output_tokens,
+          totalTokens: response.usage.input_tokens + (response.usage.cache_read_input_tokens ?? 0) + (response.usage.cache_creation_input_tokens ?? 0) + response.usage.output_tokens
+        },
+        rawProviderResponseId: response.id,
+        finishReason: response.stop_reason ?? undefined,
+        toolCalls
+      };
+    }, { identity: `anthropic:${this.config.id}:${this.config.baseUrl ?? "default"}:${model}`, outputTokens: maxTokens,
+      ...(!this.config.baseUrl || new URL(this.config.baseUrl).hostname === "api.anthropic.com" ? {
+        countTokens: async (body: typeof payload, auth: ProviderAuth) => (await this.client(auth).messages.countTokens({
+          model: body.model, messages: body.messages, system: body.system, tools: body.tools, thinking: body.thinking
+        } as any, { ...options, signal: req.signal, timeout: 10_000, maxRetries: 0 })).input_tokens
+      } : {})
+    });
   }
 }

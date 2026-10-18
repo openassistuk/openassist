@@ -1,5 +1,17 @@
 # OpenAssist
 
+Source/unreleased: model-aware context admission covers all five provider routes and every tool continuation. Verified model windows replace the eight-message runtime cutoff; unknown serving limits stay explicit. Inspect `/status`, `/memory` or `openassist doctor`, and set cost caps in `openassist setup wizard`. See the [context engine](docs/architecture/context-engine.md) for accounting, durable compaction, bounds and rollback. Published `v0.2.4` retains its shipped behavior until explicitly updated.
+
+Context summary parsing uses linear string operations and rejects raw provider output above 128 KiB before JSON parsing; malformed or oversized summaries preserve the previous checkpoint and original history.
+
+Source compaction uses bounded tool-result excerpts with original audit references, so a large completed result can still be summarized. Image preparation bounds count binaries only for image-capable adapters. Cancellation is checked immediately before checkpoint adoption, and permanent-memory extraction starts independently of context summary progress while preserving its saved cursor.
+
+Bounded history reloads and maintenance reuse runtime tool-frame reconciliation before segmentation: old orphan calls/results cannot strand otherwise completed turns. Original rows remain intact and included in contiguous checkpoint digests; reconciliation never retries unfinished actions.
+
+Raw-source hydration and digest verification have a separate finite allowance of at least 32 MiB (up to 64 MiB with a larger request setting). A smaller `maxRequestBytes` still caps the prepared provider payload, so large stored results can reach bounded excerpting and compaction. Individually larger raw rows and incomplete maintenance without progress fail explicitly; current input is never clipped to recover space.
+
+Summary sources are budgeted across whole completed turns; oversized historical text/arguments are explicitly marked as excerpts with original references. Older image backlogs can compact in strictly shrinking bounded chunks before full preparation, while the complete current turn and final token/byte guards remain intact. Summary output respects exact catalog limits and compatible Anthropic output/thinking settings.
+
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml)
 [![macOS Live Launchd](https://github.com/openassistuk/openassist/actions/workflows/macos-live-launchd.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/macos-live-launchd.yml)

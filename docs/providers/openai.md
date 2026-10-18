@@ -1,6 +1,10 @@
 # OpenAI Provider
 
+Source/unreleased context admission uses exact OpenAI API catalog limits on the canonical endpoint: current GPT-6.1 Sol, GPT-6 Astra/Sol/Luna and GPT-5.6 Sol/Terra/Luna have 1,050,000-token windows. OpenAI Responses uses native counting near budget pressure; cached input is already part of input usage. Custom endpoints use a labeled fallback or verified override. Output capacity is reserved independently of input cost caps. See the [context engine](../architecture/context-engine.md).
+
 Use the OpenAI route when you want the standard OpenAI API-key path in OpenAssist.
+
+Source summary generation respects the exact model's catalog output ceiling; for example `gpt-4o-2024-05-13` caps the default 8,192-token summary allowance at 4,096. Aggregate historical excerpts and bounded old-image catch-up preserve raw references and the complete current turn; final prepared admission remains mandatory.
 
 This is the beginner-friendly route for operators who already have an OpenAI API key and want the fastest path to a first reply.
 

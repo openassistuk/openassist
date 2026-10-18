@@ -1,7 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { ContextPlanner, sanitizeUserOutput } from "../../packages/core-runtime/src/context.js";
+import type { NormalizedMessage } from "@openassist/core-types";
+import { ContextPlanner, reconcileToolConversation, sanitizeUserOutput } from "../../packages/core-runtime/src/context.js";
 
 describe("ContextPlanner", () => {
+  it("reconciles orphan frames and repeated call IDs by occurrence without changing source rows", () => {
+    const messages: NormalizedMessage[] = [
+      { role: "user", content: "task" },
+      { role: "tool", content: "missing ID" },
+      { role: "tool", content: "orphan result", toolCallId: "absent" },
+      { role: "assistant", content: "", toolCallId: "repeat", toolName: "exec.run" },
+      { role: "assistant", content: "", toolCallId: "repeat", toolName: "exec.run" },
+      { role: "assistant", content: "", toolCallId: "repeat", toolName: "exec.run" },
+      { role: "tool", content: "first receipt", toolCallId: "repeat" },
+      { role: "tool", content: "second receipt", toolCallId: "repeat" },
+      { role: "assistant", content: "plain reply" },
+      { role: "user", content: "CURRENT" }
+    ];
+    const original = structuredClone(messages);
+    const reconciled = reconcileToolConversation(messages);
+    expect(reconciled).toMatchObject({ droppedOrphanAssistantToolCalls: 1, droppedOrphanToolResults: 2 });
+    expect(reconciled.messages).toEqual([messages[0], messages[3], messages[4], ...messages.slice(6)]);
+    expect(messages).toEqual(original);
+    expect(reconcileToolConversation(reconciled.messages)).toEqual({ ...reconciled, droppedOrphanAssistantToolCalls: 0, droppedOrphanToolResults: 0 });
+  });
+
   it("keeps only bounded raw turns after system and recalled state", () => {
     const planner = new ContextPlanner({ maxRawTurns: 3 });
     const recentMessages = [
@@ -16,11 +38,11 @@ describe("ContextPlanner", () => {
       recalledStateMessages: [{ role: "system", content: "summary" }] as never,
       recentMessages: recentMessages as never
     });
-    expect(result.messages.length).toBe(5);
+    expect(result.messages.length).toBe(4);
     expect(result.messages[0]?.content).toBe("system");
     expect(result.messages[1]?.content).toBe("summary");
-    expect(result.messages[2]?.content).toBe("2");
-    expect(result.messages[4]?.content).toBe("4");
+    expect(result.messages[2]?.content).toBe("3");
+    expect(result.messages[3]?.content).toBe("4");
   });
 
   it("budgets combined system and recalled state before raw history", () => {
@@ -35,17 +57,11 @@ describe("ContextPlanner", () => {
       }
     });
 
-    const result = planner.plan({
+    expect(() => planner.plan({
       systemMessages: [{ role: "system", content: "s".repeat(80) }] as never,
       recalledStateMessages: [{ role: "system", content: "r".repeat(80) }] as never,
       recentMessages: [{ role: "user", content: "u".repeat(120) }] as never
-    });
-
-    expect(result.messages).toHaveLength(3);
-    expect(result.messages[0]?.content.length).toBeLessThanOrEqual(40);
-    expect(result.messages[1]?.content.length).toBeLessThanOrEqual(40);
-    expect(result.messages[2]?.content.length).toBeLessThanOrEqual(40);
-    expect(result.estimatedTokens).toBeLessThanOrEqual(30);
+    })).toThrow(/not truncated/);
   });
 
   it("strips reasoning and internal trace blocks", () => {

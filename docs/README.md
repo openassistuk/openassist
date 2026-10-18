@@ -2,6 +2,14 @@
 
 Use this index by task, lifecycle stage, provider, channel, or config area.
 
+Raw-source reads/digest verification use a finite allowance independent of a smaller prepared-request cap, so oversized stored results can reach bounded excerpt recovery. See the [context engine](architecture/context-engine.md), [configuration reference](configuration/config-reference.md#runtimecontext) and [test matrix](testing/test-matrix.md) for limits and explicit failure behavior.
+
+The October 18 context repair reconciles orphan tool frames after bounded history reloads and during maintenance, preserving raw contiguous digests and complete current input. See the [context engine](architecture/context-engine.md) and [regression inventory](testing/test-matrix.md).
+
+Source context-review repairs cover large tool-result compaction, image-capability accounting, late cancellation and independent permanent-memory cursors. See the [context engine](architecture/context-engine.md), [rollout guidance](operations/config-rollout-and-rollback.md) and [test matrix](testing/test-matrix.md) for behavior, compatibility and regression evidence.
+
+The follow-up also covers aggregate completed-turn source budgets, bounded recovery of oversized old image history and model-aware summary output. Historical excerpts disclose omissions; original records and the complete current turn remain intact. See [troubleshooting](operations/common-troubleshooting.md) for irreducible framing or incompatible output/thinking settings.
+
 For packaged shell PATH setup, see the platform installation guides. For dedicated instance credentials, use [developer testing](operations/developer-testing.md); for conservative shell-profile cleanup, use [uninstall](operations/uninstall.md).
 
 ## Start Here
@@ -119,6 +127,7 @@ Recognized older installs that still use repo-local operator state (`openassist.
 
 - System overview: [`docs/architecture/overview.md`](architecture/overview.md)
 - Context engine: [`docs/architecture/context-engine.md`](architecture/context-engine.md)
+- Context-summary resource controls include linear fence parsing and a 128 KiB pre-parse UTF-8 limit; see the context engine above.
 - Runtime modules: [`docs/architecture/runtime-and-modules.md`](architecture/runtime-and-modules.md)
 - Tool-calling contract: [`docs/interfaces/tool-calling.md`](interfaces/tool-calling.md)
 - Skills manifest and managed growth contract: [`docs/interfaces/skills-manifest.md`](interfaces/skills-manifest.md)
@@ -155,6 +164,7 @@ Coverage reporting stays intentionally targeted rather than pretending to be ful
 
 - OpenClaw import guide: [`docs/migration/openclaw-import.md`](migration/openclaw-import.md)
 - ExecPlan process: [`.agents/PLANS.md`](../.agents/PLANS.md)
+- Model-aware context implementation and independent OpenClaw comparison: [plan and validation evidence](execplans/model-aware-context-2026-10-16.md).
 
 Current housekeeping and release-evidence records:
 

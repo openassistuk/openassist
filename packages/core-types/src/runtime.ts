@@ -265,6 +265,49 @@ export interface RuntimeMemoryStatus {
   sessionSummary: RuntimeSessionMemoryRecord | null;
   permanentMemories: RuntimePermanentMemoryRecord[];
   notes: string[];
+  context?: RuntimeContextStatus;
+}
+
+export interface RuntimeContextConfig {
+  maxInputTokens?: number;
+  reservedOutputTokens?: number;
+  compactAtRatio: number;
+  targetRatio: number;
+  maxRequestBytes: number;
+  summaryMaxTokens: number;
+  summarySourceTokens: number;
+}
+
+export interface RuntimeContextStatus {
+  limits: import("./provider.js").ResolvedContextLimits;
+  accounting?: import("./provider.js").ContextAccounting;
+  state: "ready" | "compacting" | "blocked" | "stale";
+  retainedMessages: number;
+  retainedTurns?: number;
+  checkpointRevision: number;
+  coveredThrough: number;
+  failure?: string;
+}
+
+export interface ContextCheckpoint {
+  sessionId: string;
+  revision: number;
+  coveredThrough: number;
+  sourceDigest: string;
+  scope: string;
+  summary: string;
+  createdAt: string;
+}
+
+export interface ContextCompactionJob {
+  id: number;
+  sessionId: string;
+  expectedRevision: number;
+  afterMessageId: number;
+  throughMessageId: number;
+  sourceDigest: string;
+  scope: string;
+  state: "pending" | "succeeded" | "failed";
 }
 
 export interface RuntimeConfig {
@@ -279,6 +322,7 @@ export interface RuntimeConfig {
   assistant?: RuntimeAssistantConfig;
   attachments?: RuntimeAttachmentConfig;
   memory?: RuntimeMemoryConfig;
+  context?: RuntimeContextConfig;
   toolLoop?: RuntimeToolLoopConfig;
   service?: RuntimeServiceConfig;
   paths: RuntimePaths;
@@ -291,4 +335,5 @@ export interface RuntimeConfig {
 export interface RuntimeStatus {
   startedAt: string;
   modules: Record<string, "starting" | "running" | "stopped" | "degraded">;
+  context?: Record<string, RuntimeContextStatus>;
 }

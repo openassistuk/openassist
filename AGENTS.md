@@ -16,6 +16,18 @@ Keep OpenAssist:
 
 ## Non-Negotiable Invariants
 
+Context admission belongs to the common runtime provider-call path. Bundled adapters must prepare/count/send the same immutable mapped payload; exact route/model capacities and dated provenance belong in the shared catalog. Preserve complete current input, mandatory guidance, tool frames and original audit rows. Checkpoint adoption must compare revision, contiguous coverage and source digest transactionally; failed/cancelled summaries never advance the frontier. Keep permanent extraction separate, context repair finite and durable, and unknown serving limits labeled. Update context diagnostics, configuration guidance and failure/restart fixtures together.
+
+Summary parsing must bound raw UTF-8 input before JSON parsing and use linear fence handling; cancellation deadlines cannot interrupt synchronous regular-expression backtracking. Check code-scanning alerts on the PR/branch ref as well as the default branch, because PR-only alerts are absent from the default listing.
+
+Summary-source tool excerpts must retain receipts/references while checkpoint digests cover untouched stored rows. Preparation guards must respect declared image capability. Recheck combined cancellation after asynchronous preparation and immediately before adoption. A missing permanent-extraction cursor starts independently at zero; never infer extraction coverage from a context checkpoint or its legacy mirror. Preserve existing saved extraction cursors and test both foreground and maintenance paths.
+
+Budget summary-source excerpts across whole completed segments; label historical text/argument omissions and retain mandatory identities/receipts. Oversized older history must reach bounded compaction before unsafe preparation; incremental adoption must strictly reduce accounted size or the conservative preparation estimate, and final inference must still pass all guards. Summary output uses exact route/model catalog ceilings and applicable Anthropic caps without resetting thinking settings. Test aggregate turns, oversized image catch-up, protected current input and irreducible-budget guidance.
+
+Reuse runtime occurrence-based tool reconciliation after bounded history hydration and for maintenance/summary-source segmentation. Reconciliation changes only model projections: checkpoint digests still cover every original row in the contiguous selected range, including excluded orphan frames. Preserve valid repeated call/result occurrences, current input, warning counts and the prohibition on retrying unfinished actions; test both row/byte bounds and foreground/maintenance paths.
+
+Keep raw-source hydration/digest verification bounded independently of smaller prepared-payload byte caps: use at least the existing 32 MiB allowance, or a larger supported request cap up to 64 MiB. Original oversized results must reach bounded runtime projection without skipping rows or weakening raw digests. Individually larger raw rows fail explicitly; incomplete maintenance without progress must not report success. Maintenance must check prepared bytes as well as tokens. Cover small-cap recovery/reopen, stale digests, mandatory input and the raw-source resource limit.
+
 1. No secret leakage in logs, tests, docs, or error text.
 2. No implicit privilege escalation.
 3. No replay/idempotency regressions without explicit migration notes.

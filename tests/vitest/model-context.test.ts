@@ -43,6 +43,110 @@ function fixture(policy: Partial<RuntimeConfig["context"]> = {}, summarize = vi.
 }
 
 describe("model context contracts", () => {
+  it.each(["foreground", "maintenance", "restart-foreground", "restart-maintenance"])("recovers oversized stored tool rows at a smaller payload cap (%s)", async mode => {
+    const f = fixture({ maxInputTokens: 4000, maxRequestBytes: 65_536, summaryMaxTokens: 512 });
+    f.append("user", "x".repeat(4000));
+    f.append("assistant", "", "call-repeat");
+    const result = JSON.stringify({ text: "z".repeat(120_000), exitCode: 7 });
+    f.append("tool", result, "call-repeat");
+    f.append("user", "CURRENT " + "y".repeat(9000));
+    const original = f.db.context.history(f.sessionId).messages;
+    const bounded = f.db.context.history(f.sessionId, 0, f.config.context!.maxRequestBytes);
+    expect(bounded.complete).toBe(false);
+    expect(bounded.messages.some(message => message.role === "tool")).toBe(false);
+    const request: ChatRequest = { ...f.request(), messages: [{ role: "system", content: "mandatory identity" }, ...bounded.messages, original.at(-1)!], metadata: { contextHistoryIncomplete: "true" } };
+    if (mode.startsWith("restart")) {
+      f.db.close(); databases.splice(databases.indexOf(f.db),1);
+      f.db = new OpenAssistDatabase({ dbPath: path.join(f.root, "state.db"), logger: createLogger({ service: "context-restart" }) }); databases.push(f.db);
+      f.manager = new ModelContextManager(f.db, () => f.config, f.summarize, f.enqueue);
+    }
+    if (mode.endsWith("foreground")) await f.manager.admit(f.provider, request, auth);
+    else await f.manager.maintain(f.provider, f.sessionId, "custom");
+    expect(f.summarize).toHaveBeenCalledOnce();
+    const checkpoint = f.db.context.checkpoint(f.sessionId)!;
+    expect(checkpoint.coveredThrough).toBe(Number(original[2]!.id));
+    expect(checkpoint.sourceDigest).toBe(contextSourceDigest(original.slice(0,3)));
+    const [, summaryRequest] = f.summarize.mock.calls[0] as unknown as [ProviderAdapter, ChatRequest];
+    const tool = JSON.parse(summaryRequest.messages[1]!.content).records.find((record: { role: string }) => record.role === "tool");
+    expect(JSON.parse(tool.content)).toMatchObject({ exitCode: 7, omittedCharacters: expect.any(Number), fullResult: { messageId: original[2]!.id, toolCallId: "call-repeat" } });
+    const prepared = await f.manager.admit(f.provider, request, auth);
+    expect(prepared.accounting.bytes).toBeLessThanOrEqual(65_536);
+    await prepared.send(auth);
+    const sent = (f.provider.chat as ReturnType<typeof vi.fn>).mock.calls[0]![0] as ChatRequest;
+    expect(sent.messages[0]!.content).toBe("mandatory identity");
+    expect(sent.messages.at(-1)).toEqual(original.at(-1));
+    expect(f.provider.chat).toHaveBeenCalledOnce();
+    expect(f.enqueue).not.toHaveBeenCalled();
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("preserves an oversized current request instead of excerpting it to the payload cap", async () => {
+    const f = fixture({ maxInputTokens: 80_000, maxRequestBytes: 65_536 });
+    f.config.providers[0]!.contextWindowTokens = 1_050_000;
+    f.append("user", "CURRENT " + "x".repeat(120_000));
+    const original = f.db.context.history(f.sessionId).messages;
+    const request = { ...f.request(), metadata: { contextHistoryIncomplete: "true" } };
+    expect(f.manager.project(request).messages.at(-1)).toEqual(original[0]);
+    await expect(f.manager.admit(f.provider, request, auth)).rejects.toThrow(/does not fit/);
+    expect(f.summarize).not.toHaveBeenCalled(); expect(f.provider.chat).not.toHaveBeenCalled();
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("rejects a stale oversized source digest without adopting or rewriting history", async () => {
+    const f = fixture({ maxInputTokens: 4000, maxRequestBytes: 65_536, summaryMaxTokens: 512 });
+    f.append("user", "x".repeat(4000)); f.append("assistant", "", "call-repeat");
+    f.append("tool", "z".repeat(120_000), "call-repeat"); f.append("user", "CURRENT " + "y".repeat(9000));
+    const original = f.db.context.history(f.sessionId).messages;
+    const changed = "changed " + "z".repeat(120_000);
+    f.summarize.mockImplementationOnce(async () => {
+      const writer = new DatabaseSync(path.join(f.root, "state.db"));
+      try { writer.prepare("UPDATE messages SET content=? WHERE id=?").run(changed, original[2]!.id!); }
+      finally { writer.close(); }
+      return response(summary);
+    });
+    await expect(f.manager.admit(f.provider, f.request(), auth)).rejects.toThrow(/does not fit/);
+    expect(f.summarize).toHaveBeenCalledOnce(); expect(f.provider.chat).not.toHaveBeenCalled();
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+    expect(f.db.getSessionMemory(f.sessionId)).toBeNull();
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original.map((message, index) => index === 2 ? { ...message, content: changed } : message));
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("rejects an individually larger raw row before hydration and preserves the source", async () => {
+    const f = fixture({ maxRequestBytes: 65_536 });
+    f.append("user", "original");
+    const writer = new DatabaseSync(path.join(f.root, "state.db"));
+    try {
+      // SQLite creates the oversized fixture without allocating its full content in the test process.
+      writer.prepare("UPDATE messages SET content=CAST(zeroblob(?) AS TEXT) WHERE session_id=?").run(DEFAULT_CONTEXT_CONFIG.maxRequestBytes + 1, f.sessionId);
+    } finally { writer.close(); }
+    const source = f.db.context.history(f.sessionId);
+    expect(source).toMatchObject({ complete: false, messages: [], blockedMessage: { bytes: expect.any(Number) } });
+    expect(source.blockedMessage!.bytes).toBeGreaterThan(DEFAULT_CONTEXT_CONFIG.maxRequestBytes);
+    const request: ChatRequest = { sessionId: f.sessionId, model: "custom", tools: [], messages: [], metadata: { contextHistoryIncomplete: "true" } };
+    await expect(f.manager.admit(f.provider, request, auth)).rejects.toThrow(/raw-source read limit/);
+    await expect(f.manager.maintain(f.provider, f.sessionId, "custom")).rejects.toThrow(/raw-source read limit/);
+    expect(f.summarize).not.toHaveBeenCalled(); expect(f.provider.chat).not.toHaveBeenCalled();
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+    expect(f.db.context.history(f.sessionId)).toEqual(source);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("reports incomplete maintenance without progress instead of silently completing", async () => {
+    const f = fixture({ maxInputTokens: 800_000 });
+    f.config.providers[0]!.contextWindowTokens = 1_050_000;
+    f.append("user", "one long segment");
+    const writer = new DatabaseSync(path.join(f.root, "state.db"));
+    try {
+      writer.exec("BEGIN");
+      const insert = writer.prepare("INSERT INTO messages(session_id,conversation_key,role,content,created_at) VALUES(?,?,?,?,?)");
+      for (let index = 0; index < 10_000; index++) insert.run(f.sessionId, "fixture", "assistant", "continuation", "2026-10-18T00:00:00.000Z");
+      writer.exec("COMMIT");
+    } finally { writer.close(); }
+    expect(f.db.context.history(f.sessionId).complete).toBe(false);
+    await expect(f.manager.maintain(f.provider, f.sessionId, "custom")).rejects.toThrow(/cannot advance across the incomplete source range/);
+    expect(f.summarize).not.toHaveBeenCalled(); expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+  }, DATABASE_TEST_TIMEOUT_MS);
+
   it.each(["row/foreground", "row/maintenance", "byte/foreground", "byte/maintenance"])(
     "reconciles hydrated orphan frames without losing raw coverage (%s)", async mode => {
       const rowBound = mode.startsWith("row");

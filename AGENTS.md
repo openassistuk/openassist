@@ -26,6 +26,8 @@ Budget summary-source excerpts across whole completed segments; label historical
 
 Reuse runtime occurrence-based tool reconciliation after bounded history hydration and for maintenance/summary-source segmentation. Reconciliation changes only model projections: checkpoint digests still cover every original row in the contiguous selected range, including excluded orphan frames. Preserve valid repeated call/result occurrences, current input, warning counts and the prohibition on retrying unfinished actions; test both row/byte bounds and foreground/maintenance paths.
 
+Keep raw-source hydration/digest verification bounded independently of smaller prepared-payload byte caps: use at least the existing 32 MiB allowance, or a larger supported request cap up to 64 MiB. Original oversized results must reach bounded runtime projection without skipping rows or weakening raw digests. Individually larger raw rows fail explicitly; incomplete maintenance without progress must not report success. Maintenance must check prepared bytes as well as tokens. Cover small-cap recovery/reopen, stale digests, mandatory input and the raw-source resource limit.
+
 1. No secret leakage in logs, tests, docs, or error text.
 2. No implicit privilege escalation.
 3. No replay/idempotency regressions without explicit migration notes.

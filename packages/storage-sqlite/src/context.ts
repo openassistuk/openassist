@@ -3,7 +3,12 @@ import type { DatabaseSync } from "node:sqlite";
 import type { AttachmentRef, ContextCheckpoint, ContextCompactionJob, NormalizedMessage } from "@openassist/core-types";
 
 type HistoryRow = { id: number; role: string; content: string; metadata_json: string | null; created_at: string };
-export interface ContextHistory { messages: NormalizedMessage[]; complete: boolean; bytes: number; }
+export interface ContextHistory {
+  messages: NormalizedMessage[];
+  complete: boolean;
+  bytes: number;
+  blockedMessage?: { id: string; bytes: number };
+}
 export function contextSourceDigest(messages: NormalizedMessage[]): string {
   return createHash("sha256").update(JSON.stringify(messages)).digest("hex");
 }
@@ -50,17 +55,19 @@ export class ContextStore {
     const messages: NormalizedMessage[] = [];
     let bytes = 0;
     let cursor = after;
+    let blockedMessage: ContextHistory["blockedMessage"];
     while (messages.length < 10_000) {
       const descriptors = this.db.prepare(`SELECT id, length(CAST(content AS BLOB)) + coalesce(length(CAST(metadata_json AS BLOB)),0) + 128 AS bytes
         FROM messages WHERE session_id=? AND id>? AND id<=? ORDER BY id LIMIT 200`).all(sessionId, cursor, through) as Array<{id:number;bytes:number}>;
       if (!descriptors.length) return { messages, bytes, complete: true };
       const ids: number[] = [];
       for (const row of descriptors) {
+        if (row.bytes > maxBytes) { blockedMessage = { id: String(row.id), bytes: row.bytes }; break; }
         if (bytes + row.bytes > maxBytes || messages.length + ids.length >= 10_000) break;
         bytes += row.bytes;
         ids.push(row.id);
       }
-      if (!ids.length) return { messages, bytes, complete: false };
+      if (!ids.length) return { messages, bytes, complete: false, ...(blockedMessage ? { blockedMessage } : {}) };
       const rows = this.db.prepare(`SELECT id, role, content, metadata_json, created_at FROM messages
         WHERE session_id=? AND id IN (${ids.map(() => "?").join(",")}) ORDER BY id`).all(sessionId, ...ids) as HistoryRow[];
       const attached = this.attachments(ids);
@@ -70,12 +77,15 @@ export class ContextStore {
           metadata, createdAt: row.created_at, toolCallId: metadata.toolCallId, toolName: metadata.toolName,
           attachments: attached.get(row.id) ?? undefined };
         const attachmentBytes = Buffer.byteLength(JSON.stringify(message.attachments ?? []), "utf8");
-        if (bytes + attachmentBytes > maxBytes) return { messages, bytes, complete: false };
+        if (bytes + attachmentBytes > maxBytes) {
+          const rowBytes = Buffer.byteLength(row.content) + Buffer.byteLength(row.metadata_json ?? "") + 128 + attachmentBytes;
+          return { messages, bytes, complete: false, ...(rowBytes > maxBytes ? { blockedMessage: { id: String(row.id), bytes: rowBytes } } : {}) };
+        }
         bytes += attachmentBytes;
         messages.push(message);
       }
       cursor = ids.at(-1)!;
-      if (ids.length !== descriptors.length) return { messages, bytes, complete: false };
+      if (ids.length !== descriptors.length) return { messages, bytes, complete: false, ...(blockedMessage ? { blockedMessage } : {}) };
     }
     const more = this.db.prepare("SELECT 1 FROM messages WHERE session_id=? AND id>? AND id<=? LIMIT 1").get(sessionId,cursor,through);
     return { messages, bytes, complete: !more };

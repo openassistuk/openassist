@@ -1,5 +1,7 @@
 # Policy Profiles
 
+Separating bounded raw-source reads from smaller prepared-payload caps changes no tool permission or retry authority. Raw digest checks cover untouched rows; oversized mandatory input and rows beyond the finite raw-source limit fail explicitly. Maintenance cannot treat incomplete history without progress as success or bypass final byte/token admission.
+
 Reconciliation after history hydration or during maintenance changes only the model projection. Orphan tool frames cannot block otherwise completed history, create action receipts, trigger unfinished actions or alter access policy. Raw rows remain in contiguous checkpoint digests and stored audits; valid repeated call/result pairs stay matched by occurrence.
 
 Model-aware context admission applies to every profile and does not change callable tool policy. Summary and maintenance requests always have no tools; a summary cannot create approval or escalate access. Permanent-memory extraction remains actor-scoped, and explicit memory schemas remain full-root only. Failed/cancelled compaction preserves source/audit state. See the [context engine](../architecture/context-engine.md).

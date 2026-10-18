@@ -1,5 +1,7 @@
 # Configuration File Guide
 
+`runtime.context.maxRequestBytes` caps the prepared provider payload, not total process memory. Raw-source hydration and digest verification separately allow at least 32 MiB, or a larger supported request cap up to 64 MiB. A 64 KiB payload cap therefore still permits large stored results to reach bounded excerpts/compaction. Current mandatory input remains complete and must fit final admission; an individually larger raw row fails explicitly instead of being skipped.
+
 Source/unreleased context controls live under `[runtime.context]`; for example `maxInputTokens = 32000` caps input cost without changing model capacity or generation limits. Omit it for model-aware defaults. Wizard edits caps/thresholds and verified provider `contextWindowTokens`; quickstart preserves saved overrides. Inspect `/status`, `/memory` and `openassist doctor`. See the [reference](config-reference.md#runtimecontext) and [context engine](../architecture/context-engine.md).
 
 `summarySourceTokens` bounds aggregate historical records, not each result independently. Completed-turn excerpts may disclose omitted text/arguments while retaining source references and raw history. `summaryMaxTokens` is an upper allowance; effective generation also respects exact catalog output ceilings and applicable Anthropic caps/thinking budgets. Irreducible framing may require a larger source budget or input cap through wizard; saved tuning is never silently reset.

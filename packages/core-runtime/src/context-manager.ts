@@ -73,6 +73,15 @@ export class ModelContextManager {
   stop(): void { this.cancellation.abort(); }
   signal(): AbortSignal { return this.cancellation.signal; }
   policy(): RuntimeContextConfig { return { ...DEFAULT_CONTEXT_CONFIG, ...this.config().context }; }
+  private sourceReadBytes(): number {
+    // Raw audit verification needs its own finite allowance, independent of a smaller wire cap.
+    return Math.min(67_108_864, Math.max(DEFAULT_CONTEXT_CONFIG.maxRequestBytes, this.policy().maxRequestBytes));
+  }
+  history(sessionId: string, after = 0, through = Number.MAX_SAFE_INTEGER) {
+    const history = this.db.context.history(sessionId, after, this.sourceReadBytes(), through);
+    if (history.blockedMessage) throw new ContextAdmissionError("A stored history message exceeds the bounded raw-source read limit. Original history is preserved; inspect /memory and increase the explicit context byte setting within supported bounds or request operator-assisted history repair.");
+    return history;
+  }
   status(sessionId: string): RuntimeContextStatus | undefined {
     const active = this.statuses.get(sessionId);
     if (active) return active;
@@ -118,7 +127,7 @@ export class ModelContextManager {
       !(message.role !== "system" && message.id && Number(message.id) <= checkpoint.coveredThrough));
     let incomplete = request.metadata.contextHistoryIncomplete === "true";
     if (incomplete) {
-      const history = this.db.context.history(request.sessionId, checkpoint.coveredThrough, this.policy().maxRequestBytes);
+      const history = this.history(request.sessionId, checkpoint.coveredThrough);
       const loadedIds = new Set(history.messages.map(message => message.id));
       messages = [...messages.filter(message => message.role === "system"), ...history.messages,
         ...messages.filter(message => message.role !== "system" && (!message.id || (!loadedIds.has(message.id) && Number(message.id) > Number(history.messages.at(-1)?.id ?? 0))))];
@@ -276,7 +285,7 @@ export class ModelContextManager {
     const through = Math.max(0, ...eligible.map(message => Number(message.id) || 0));
     const checkpoint = this.checkpoint(request.sessionId);
     if (through <= checkpoint.coveredThrough) return false;
-    const source = this.db.context.history(request.sessionId, checkpoint.coveredThrough, policy.maxRequestBytes, through);
+    const source = this.history(request.sessionId, checkpoint.coveredThrough, through);
     const sourceSegments = conversationSegments(reconcileToolConversation(source.messages).messages);
     if (!source.complete) sourceSegments.pop(); // A page bound cannot certify the final segment as complete.
     const selected: NormalizedMessage[] = [];
@@ -348,7 +357,7 @@ export class ModelContextManager {
           throw new ContextAdmissionError("Context summary did not reduce the prepared request.");
       }
       signal.throwIfAborted();
-      const adopted = this.db.context.finish(job, referencedSummary, policy.maxRequestBytes);
+      const adopted = this.db.context.finish(job, referencedSummary, this.sourceReadBytes());
       if (!adopted) this.db.context.fail(job.id);
       return Boolean(adopted);
     } catch {
@@ -366,7 +375,7 @@ export class ModelContextManager {
     for (let attempt = 0; attempt < 2; attempt++) {
       this.cancellation.signal.throwIfAborted();
       const checkpoint = this.checkpoint(sessionId);
-      const history = this.db.context.history(sessionId, checkpoint.coveredThrough, policy.maxRequestBytes);
+      const history = this.history(sessionId, checkpoint.coveredThrough);
       let request = this.project({ sessionId, model, tools: [], metadata: { source: "runtime.context.maintenance" },
         messages: history.messages });
       const configured = this.config().providers.find(candidate => candidate.id === provider.id())!;
@@ -377,8 +386,11 @@ export class ModelContextManager {
       }
       const prepared = await this.prepare(provider, request);
       const limits = resolveContextLimits(configured, model, policy, prepared.outputTokens);
-      if (history.complete && prepared.accounting.inputTokens < limits.usableInputTokens * policy.targetRatio) return;
-      if (!await this.compact(provider, request, policy, limits.usableInputTokens)) return;
+      if (history.complete && prepared.accounting.inputTokens < limits.usableInputTokens * policy.targetRatio && prepared.accounting.bytes <= policy.maxRequestBytes) return;
+      if (!await this.compact(provider, request, policy, limits.usableInputTokens)) {
+        if (!history.complete) throw new ContextAdmissionError("Context maintenance cannot advance across the incomplete source range. Original history is preserved; inspect /memory and adjust context settings.");
+        return;
+      }
     }
     throw new ContextAdmissionError("Context maintenance reached its bounded batch limit; retry through the durable queue.");
   }

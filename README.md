@@ -8,6 +8,8 @@ Source compaction uses bounded tool-result excerpts with original audit referenc
 
 Bounded history reloads and maintenance reuse runtime tool-frame reconciliation before segmentation: old orphan calls/results cannot strand otherwise completed turns. Original rows remain intact and included in contiguous checkpoint digests; reconciliation never retries unfinished actions.
 
+Raw-source hydration and digest verification have a separate finite allowance of at least 32 MiB (up to 64 MiB with a larger request setting). A smaller `maxRequestBytes` still caps the prepared provider payload, so large stored results can reach bounded excerpting and compaction. Individually larger raw rows and incomplete maintenance without progress fail explicitly; current input is never clipped to recover space.
+
 Summary sources are budgeted across whole completed turns; oversized historical text/arguments are explicitly marked as excerpts with original references. Older image backlogs can compact in strictly shrinking bounded chunks before full preparation, while the complete current turn and final token/byte guards remain intact. Summary output respects exact catalog limits and compatible Anthropic output/thinking settings.
 
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)

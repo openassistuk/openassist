@@ -2182,7 +2182,7 @@ export class OpenAssistRuntime {
         "unknown";
       const toolSchemas = await this.resolveToolSchemasForSession(sessionId, actorId);
       const checkpoint = this.contextManager.checkpoint(sessionId);
-      const history = this.db.context.history(sessionId, checkpoint.coveredThrough, this.contextManager.policy().maxRequestBytes);
+      const history = this.contextManager.history(sessionId, checkpoint.coveredThrough);
       const recentMessages = history.messages;
       const latest = this.db.getRecentMessages(sessionId, 1)[0];
       if (!history.complete && latest && !recentMessages.some(message => message.id === latest.id)) recentMessages.push(latest);

@@ -44,7 +44,7 @@ Source/unreleased controls apply to every runtime provider submission. See the [
 | `reservedOutputTokens` | optional integer | minimum reservation, `1..128000`; cannot reduce actual output allowance; does not change generation settings |
 | `compactAtRatio` | number | `0.85`, range `0.5..0.95` |
 | `targetRatio` | number | `0.60`, range `0.1..0.8`, strictly below trigger |
-| `maxRequestBytes` | integer | `33554432`, range `65536..67108864` |
+| `maxRequestBytes` | integer | prepared provider-payload cap, default `33554432`, range `65536..67108864`; pre-mapping guard remains twice this cap; raw-source reads/digest verification separately allow `max(33554432, maxRequestBytes)` bytes, up to 64 MiB |
 | `summaryMaxTokens` | integer | `8192`, range `256..16384`; effective output/validation is capped by exact catalog maxima and applicable Anthropic output settings, preserving valid thinking headroom |
 | `summarySourceTokens` | integer | `32768`, range `1024..65536`; aggregate source-record ceiling, also limited by available input headroom; historical excerpts disclose omissions |
 

@@ -2,6 +2,8 @@
 
 Use this index by task, lifecycle stage, provider, channel, or config area.
 
+Raw-source reads/digest verification use a finite allowance independent of a smaller prepared-request cap, so oversized stored results can reach bounded excerpt recovery. See the [context engine](architecture/context-engine.md), [configuration reference](configuration/config-reference.md#runtimecontext) and [test matrix](testing/test-matrix.md) for limits and explicit failure behavior.
+
 The October 18 context repair reconciles orphan tool frames after bounded history reloads and during maintenance, preserving raw contiguous digests and complete current input. See the [context engine](architecture/context-engine.md) and [regression inventory](testing/test-matrix.md).
 
 Source context-review repairs cover large tool-result compaction, image-capability accounting, late cancellation and independent permanent-memory cursors. See the [context engine](architecture/context-engine.md), [rollout guidance](operations/config-rollout-and-rollback.md) and [test matrix](testing/test-matrix.md) for behavior, compatibility and regression evidence.

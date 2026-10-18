@@ -1,5 +1,7 @@
 # Quickstart on Linux and macOS
 
+Source context byte caps apply to prepared provider payloads. Raw history and digest verification use a separate finite allowance of at least 32 MiB, up to 64 MiB with a larger supported request cap, so a smaller payload cap still permits stored tool results to reach bounded excerpt recovery. No new quickstart prompt is added; see the [troubleshooting runbook](common-troubleshooting.md) for raw-source limits or incomplete maintenance failures.
+
 Source/unreleased quickstart uses model-aware context defaults and preserves saved context/output/thinking settings without extra beginner prompts. Advanced cost caps, thresholds and verified serving-window overrides live in `openassist setup wizard`. `/status`, `/memory` and `openassist doctor` show context provenance and occupancy; unknown Codex/compatible/custom windows are labeled. See the [context engine](../architecture/context-engine.md).
 
 Source recovery can compact oversized older image history in bounded chunks while preserving the full current request. Summary sources use aggregate historical excerpt budgets, and generation respects exact model output limits and compatible saved thinking settings. Repair irreducible budget failures through wizard and the [troubleshooting runbook](common-troubleshooting.md).

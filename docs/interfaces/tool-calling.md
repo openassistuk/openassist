@@ -1,5 +1,7 @@
 # Tool Calling Interface
 
+Stored results larger than a small prepared-payload cap can reach excerpting through a separate finite raw-source allowance of at least 32 MiB, up to 64 MiB with a larger supported request cap. Transactional verification uses that same allowance and hashes original rows, not excerpts. Results beyond the raw bound fail explicitly without skipping records or rerunning actions. Current input and final prepared byte/token admission remain intact.
+
 Tool-frame reconciliation is shared by the normal runtime, bounded history reloads, maintenance and summary-source segmentation. An orphan restored by hydration cannot merge later completed turns into one unsettled segment. Matching remains occurrence-based for repeated call IDs. Exclusions affect model projections only; digests cover every original row in the selected contiguous range and evidence does not treat excluded frames as completed actions. Recovery never retries those actions.
 
 Source/unreleased: every tool continuation passes model-aware admission after results settle. Compaction preserves whole call/result segments and cannot reset the 12-round default or grant tools. Large result projections carry explicit excerpts, receipts and audit references; original outputs remain durable and context repair never re-executes actions. Provider overflow permits one persisted smaller-projection retry. See the [context engine](../architecture/context-engine.md).

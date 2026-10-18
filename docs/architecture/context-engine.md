@@ -2,7 +2,7 @@
 
 Manual `/compact` is handled by the runtime before normal inference and calls `ModelContextManager.compactSession` for one bounded source chunk, even below the trigger or with automatic compaction off. It uses the configured provider with no host tools, protects the latest turn and original rows/digests, and leaves permanent extraction cursors intact. Chat participants use their existing admitted chat scope; the command affects that canonical conversation, not another chat. Busy provider/manual turns ask the sender to wait. A successful chunk reports checkpoint progress, not a guarantee that the entire backlog fits; repeat explicitly if needed. Invalid arguments return usage, no eligible progress makes no provider call, and failed manual requests never silently enqueue background summaries.
 
-`0.2.5` candidate behavior is described here; immutable `v0.2.4` installations retain their shipped planner until explicitly updated.
+`0.2.5` behavior is described here; immutable `v0.2.4` installations retain their shipped planner until explicitly updated.
 
 `ModelContextManager` in `packages/core-runtime/src/context-manager.ts` admits every runtime provider submission: normal replies, each tool continuation, scheduler prompts, context summaries and permanent-memory extraction. There is no runtime eight-message cutoff. History is read in 200-row pages, up to 10,000 messages and a finite raw-source byte allowance; an incomplete read cannot be represented as complete history.
 

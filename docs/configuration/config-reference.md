@@ -36,7 +36,7 @@ Core fields:
 
 ### `[runtime.context]`
 
-`0.2.5` candidate controls apply to every runtime provider submission. See the [context engine](../architecture/context-engine.md).
+`0.2.5` controls apply to every runtime provider submission. See the [context engine](../architecture/context-engine.md).
 
 | Field | Type | Default / Bounds |
 | --- | --- | --- |

@@ -2,7 +2,7 @@
 
 Release/source/isolated installation identity flows through daemon install context into bounded runtime awareness. Packaged installs do not require Git probing. Lifecycle operations remain host-side CLI work; they do not introduce new model tool privileges or scheduled shell actions. Database compatibility is checked before initialization and activation.
 
-The unpublished [v0.2.5 candidate](../releases/v0.2.5.md) adds common provider-call context admission and durable compaction; see the [context engine](context-engine.md) for boundaries and recovery. Published `v0.2.4` retains its shipped planner.
+The signed [v0.2.5 release](../releases/v0.2.5.md) adds common provider-call context admission and durable compaction; see the [context engine](context-engine.md) for boundaries and recovery. Published `v0.2.4` retains its shipped planner.
 
 Primary orchestrator: `OpenAssistRuntime` in `packages/core-runtime/src/runtime.ts`.
 

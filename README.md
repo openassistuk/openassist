@@ -1,8 +1,8 @@
 # OpenAssist
 
-The `0.2.5` candidate adds `/compact` for an explicit, tool-free provider summary of one bounded chunk of older completed history in this chat. It works below the trigger and when `[runtime.context].autoCompact = false`; automatic compaction defaults to true. Change the installation-wide switch in `openassist setup wizard` → **Context budgets and compaction**. Off disables automatic foreground/overflow/background summaries while retaining byte/token limits, bounded projections and existing checkpoints. Original rows and the current turn remain intact; summaries may omit historical details. A busy chat asks you to wait; further catch-up may need another `/compact`. See the [control reference](docs/configuration/config-reference.md#runtimecontext).
+`0.2.5` adds `/compact` for an explicit, tool-free provider summary of one bounded chunk of older completed history in this chat. It works below the trigger and when `[runtime.context].autoCompact = false`; automatic compaction defaults to true. Change the installation-wide switch in `openassist setup wizard` → **Context budgets and compaction**. Off disables automatic foreground/overflow/background summaries while retaining byte/token limits, bounded projections and existing checkpoints. Original rows and the current turn remain intact; summaries may omit historical details. A busy chat asks you to wait; further catch-up may need another `/compact`. See the [control reference](docs/configuration/config-reference.md#runtimecontext).
 
-`0.2.5` candidate: model-aware context admission covers all five provider routes and every tool continuation. Verified model windows replace the eight-message runtime cutoff; unknown serving limits stay explicit. Inspect `/status`, `/memory` or `openassist doctor`, and set cost caps in `openassist setup wizard`. See the [context engine](docs/architecture/context-engine.md) for accounting, durable compaction, bounds and rollback. Published `v0.2.4` retains its shipped behavior until explicitly updated. The [v0.2.5 candidate notes](docs/releases/v0.2.5.md) describe the release scope, budgets and rollback; [preparation evidence](docs/execplans/stable-0.2.5-release.md) tracks checks separately from publication.
+`0.2.5`: model-aware context admission covers all five provider routes and every tool continuation. Verified model windows replace the eight-message runtime cutoff; unknown serving limits stay explicit. Inspect `/status`, `/memory` or `openassist doctor`, and set cost caps in `openassist setup wizard`. See the [context engine](docs/architecture/context-engine.md) for accounting, durable compaction, bounds and rollback. Older installations retain their shipped behavior until explicitly updated. The [v0.2.5 release notes](docs/releases/v0.2.5.md) describe the shipped scope, budgets and rollback; [release evidence](docs/execplans/stable-0.2.5-release.md) records exact-main checks, protected publication and public verification separately.
 
 Context summary parsing uses linear string operations and rejects raw provider output above 128 KiB before JSON parsing; malformed or oversized summaries preserve the previous checkpoint and original history.
 
@@ -95,11 +95,11 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-**Current availability:** signed [v0.2.4 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.4) is published from reviewed main `78b3e40` with sixteen assets. Public installation passed on Linux/macOS x64/arm64, and the default installer selects this Anthropic reliability patch. The [release evidence](docs/execplans/stable-0.2.4-release.md) records exact-main checks, protected signing, independent signatures/digests and all four public targets separately. Live Anthropic API-credit testing remains deferred.
+**Current availability:** signed [v0.2.5 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.5) is published from reviewed PR #89/main `190727f` with sixteen assets. The default installer selects this context release; stable/exact-version installation and data-preserving uninstall passed on Linux/macOS x64/arm64. The [release evidence](docs/execplans/stable-0.2.5-release.md) records exact-main checks, protected signing, independent signatures/digests and all four public targets. Main Windows CI passed one unchanged-code retry after a timing-assertion timeout; publication itself passed attempt 1. Live provider/account and replacement-host testing remain separate and unverified.
 
-Earlier signed [v0.2.3](docs/releases/v0.2.3.md) remains immutable with the media-security repairs, but its Anthropic SDK/catalog predates this patch. Existing installations need an explicit stable update to receive v0.2.4; exact pins do not advance automatically.
+Earlier signed [v0.2.4](docs/releases/v0.2.4.md) and [v0.2.3](docs/releases/v0.2.3.md) remain immutable. Existing installations need an explicit stable or exact-version update to receive v0.2.5; exact pins do not advance automatically.
 
-The [v0.2.4 release notes](docs/releases/v0.2.4.md) cover valid Anthropic tool names, bounded complete/incomplete replay, round-limit continuation, SDK diagnostic/credential isolation and Haiku controls, alongside routine dependencies. Saved models, compatible tuning and operator state remain intact; use setup wizard for deliberate changes.
+The [v0.2.5 release notes](docs/releases/v0.2.5.md) cover model-aware admission, durable bounded compaction, manual `/compact`, the automatic-compaction switch and matching-backup rollback guidance. They retain v0.2.4's Anthropic tool/replay/Haiku and SDK repairs. Saved models, compatible tuning and original history remain intact; use setup wizard for deliberate changes.
 
 The [earlier v0.2.2 notes](docs/releases/v0.2.2.md) cover the retained OpenAI/Anthropic model refresh, GPT-6.1 Sol with xhigh and Opus 5.5 setup recommendations, Azure/generic compatibility and stronger publication prerequisites. Its [dated evidence](docs/execplans/stable-0.2.2-release.md) retains the initial Apple Silicon download timeout and successful verification-only retry against unchanged assets. Saved model IDs/tuning remain intact until explicitly edited. Additional fresh-host provider/channel retesting remains unverified.
 
@@ -117,7 +117,7 @@ Run this in a terminal on Linux or macOS, using your normal login account unless
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin the current published release, use the piped installer with `bash -s -- --version 0.2.4`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.4.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
+To pin the current published release, use the piped installer with `bash -s -- --version 0.2.5`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.5.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
 
 For unattended packaged installation without setup prompts or service installation:
 
@@ -317,7 +317,7 @@ That gate includes a docs-truth validation pass, so unregistered command names i
 
 Development tooling resolves `source-map-js` at patched floor `1.2.2` for indexed source-map denial-of-service advisory [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q). The scoped override covers Vite/PostCSS and coverage-v8/magicast, with lockfile regression checks and unchanged audit/coverage gates. Production dependencies and published packages are unchanged; see the [October 6 repair evidence](docs/execplans/ci-source-map-audit-2026-10-06.md).
 
-WhatsApp media dependencies require Sharp `0.35.5` (bundled librsvg `2.63.2`) and music-metadata `11.16.0` to address the six audit findings reported October 7–10. Tests check the actual SVG library, normal image/audio operations and bounded malformed APEv2 rejection. Audit/coverage gates remain unchanged. Signed `v0.2.3` and current `v0.2.4` deliver these fixes; older immutable `v0.2.2` assets require an explicit operator update. See the [October 10 repair evidence](docs/execplans/ci-whatsapp-media-audit-2026-10-10.md).
+WhatsApp media dependencies require Sharp `0.35.5` (bundled librsvg `2.63.2`) and music-metadata `11.16.0` to address the six audit findings reported October 7–10. Tests check the actual SVG library, normal image/audio operations and bounded malformed APEv2 rejection. Audit/coverage gates remain unchanged. Signed `v0.2.3` and later stable releases, including `v0.2.5`, deliver these fixes; older immutable `v0.2.2` assets require an explicit operator update. See the [October 10 repair evidence](docs/execplans/ci-whatsapp-media-audit-2026-10-10.md).
 
 Routine SDK, logging and test-tool updates preserve Node 24 support, paired Vitest/coverage versions and patched dependency floors. Existing provider/auth/replay and logger-redaction contracts remain part of full verification; added vendor SDK APIs do not automatically become OpenAssist capabilities. See [PR #80 preparation](docs/execplans/dependabot-pr-80-2026-10-06.md), including its replacement of #78, for the October 6 updates and separate local/hosted evidence.
 
@@ -350,7 +350,7 @@ Automated regression and hosted workflow results establish development readiness
 
 ## Packaged releases and developer testing
 
-See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.2 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.2) is published and its public installer passed on all four supported targets. Its [release notes](docs/releases/v0.2.2.md) describe testing limits. Use the default installer for stable packages or `--source --ref main` for development code; previews require explicit selection.
+See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.5 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.5) is published and its public installer passed on all four supported targets. Its [release notes](docs/releases/v0.2.5.md) describe testing limits. Use the default installer for stable packages or `--source --ref main` for development code; previews require explicit selection.
 
 ```bash
 openassist update check

@@ -2,7 +2,7 @@
 
 The `0.2.5` controls add `runtime.context.autoCompact` (boolean, default true). Omission preserves automatic behavior; an explicit false survives quickstart/wizard/config reload and is shown in status/doctor. False stops automatic foreground/overflow/queued maintenance summaries while preserving stored checkpoints, raw rows, independent actor extraction and all request limits. `/compact` remains explicit and uses normal provider auth/quota. No storage schema/version migration is added; retain matching config/SQLite rollback backups.
 
-The context behavior below is part of the unpublished [v0.2.5 candidate](../releases/v0.2.5.md); existing `v0.2.4` packages retain their shipped behavior until explicitly updated.
+The context behavior below is part of the signed [v0.2.5 release](../releases/v0.2.5.md); existing `v0.2.4` packages retain their shipped behavior until explicitly updated.
 
 The oversized-row repair keeps the same config/schema and raw digest representation. The prepared-payload `maxRequestBytes` cap remains unchanged; raw-source reads/digest verification separately allow at least 32 MiB (up to 64 MiB with a larger supported request cap). Small wire caps no longer block stored result excerpting. Preserve original rows and checkpoints across rollout; older binaries can still encounter the small-cap reader failure. Maintenance now checks prepared bytes and fails incomplete no-progress work explicitly; existing finite retry limits remain unchanged.
 

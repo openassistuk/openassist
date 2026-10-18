@@ -18,7 +18,8 @@ Manual compaction is a bounded, tool-free provider summary for this canonical ch
 - [x] (2026-10-18) Add regressions for disabled automatic paths, explicit below-trigger/off-mode progress, boundaries, failures/cancellation/reopen, command scope/idempotency and wizard/config validation.
 - [x] (2026-10-18) Synchronize README, AGENTS, changelog, release notes, docs index and affected context/config/provider/channel/interface/security/lifecycle/testing guidance; reconcile the changed PR scope.
 - [x] (2026-10-18 focused checks) Workspace build passes. Latest context/quickstart focused run passes 108 tests; expanded context/lifecycle run passes 96 tests; Node runtime-memory/docs truth passes 23 tests. Quickstart saves/reloads explicit false, wizard covers both choices, manual hydration/reopen keeps raw digests, and rendered command assertions include all channel chunks. Final implementation diff/credential-marker review and whitespace checks pass.
-- [ ] Commit implementation before clone-based checks and run `pnpm verify:all`. Push the existing branch and reconcile actual-head CI, PR/full-branch CodeQL, native/signing/live-macOS, separate alerts and review comments in PR #89 before handoff.
+- [x] (2026-10-18 full gate) Commit implementation as `ba8ac12` before clone-based checks and pass `pnpm verify:all`: workflow lint, build/lint/typecheck, 690 Vitest passes/one existing skip, 252 Node passes/six existing skips, unchanged coverage gates and zero production/full dependency findings. Scoped Node coverage passes 126 tests/five existing skips.
+- [x] (2026-10-18 handoff preparation) Review the final diff/credentials, retain the existing branch/PR and prepare its updated scope/validation record. Final actual-head hosted CI, PR/full-branch CodeQL, native/signing/live-macOS, separate alert refs and review-comment results are reconciled in [PR #89](https://github.com/openassistuk/openassist/pull/89) at delivery; they are not inferred from earlier metadata checks.
 
 ## Surprises & Discoveries
 
@@ -39,7 +40,7 @@ Decision (2026-10-18): auto-off prevents new automatic checkpoint adoption and q
 ## Outcomes & Retrospective
 
 
-Implementation, affected docs and regression cases are in place. The workspace build passes after preserving an explicitly present default field in the exported defaults while keeping the public config contract optional. The final focused context/quickstart run passes 108 tests, expanded context/lifecycle passes 96 and runtime-memory/docs truth passes 23, including newline arguments, busy-turn protection, quickstart saved-false persistence and manual raw-bound/hydration cases. Full local and actual-head hosted verification remain pending. Earlier PR #89 metadata-only checks certify only its previous head. This extension changes runtime/config/command behavior and requires fresh regression and full local/hosted evidence. Public stable remains v0.2.4.
+Implementation, affected docs and regression cases are in place. The workspace build passes after preserving an explicitly present default field in the exported defaults while keeping the public config contract optional. The final focused context/quickstart run passes 108 tests, expanded context/lifecycle passes 96 and runtime-memory/docs truth passes 23, including newline arguments, busy-turn protection, quickstart saved-false persistence and manual raw-bound/hydration cases. Full local `pnpm verify:all` passes on implementation `ba8ac12`: 690 Vitest tests/one existing skip, 252 Node tests/six existing skips, Vitest coverage 84.63% statements / 76.40% branches / 87.27% functions / 85.57% lines and Node product-code coverage 79.93% statements/lines / 73.73% branches / 85.60% functions, with zero production/full dependency findings. Final evidence/restart wording changes are documentation-only and receive focused docs revalidation. The PR Validation record is the final actual-head hosted/scanner/review evidence at handoff, separate from this committed local record. Earlier PR #89 metadata-only checks certify only its previous head. This extension changes runtime/config/command behavior and requires fresh regression and full local/hosted evidence. Public stable remains v0.2.4.
 
 ## Context and Orientation
 
@@ -78,7 +79,7 @@ All existing regressions, unchanged coverage thresholds and production/full audi
 ## Idempotence and Recovery
 
 
-Use existing durable inbound keys and transactional compaction intent. Preserve original history, audit rows, actor extraction cursors and old checkpoints after failure. Auto-off jobs may settle as deliberate skips rather than retrying forbidden work. A manual command can be retried explicitly after repair; it must not silently repeat completed host actions. Leave private configs, credentials, services, SSH hosts, release assets and signing settings untouched.
+Use existing durable inbound keys and transactional compaction intent. Preserve original history, audit rows, actor extraction cursors and old checkpoints after failure. Auto-off jobs may settle as deliberate skips rather than retrying forbidden work. A hard process stop can leave pending intent; on restart existing bounded maintenance may resume only when the global automatic switch is on. Ordinary manual failures mark their intent failed and do not queue continuation. A manual command can be retried explicitly after repair; it must not silently repeat completed host actions. Leave private configs, credentials, services, SSH hosts, release assets and signing settings untouched.
 
 ## Interfaces and Dependencies
 
@@ -86,3 +87,5 @@ Use existing durable inbound keys and transactional compaction intent. Preserve 
 No new production dependency, provider capability, tool privilege or storage schema version is needed. Additive optional config/status fields preserve older programmatic consumers. Keep normal inference and summarization on the common admitted provider-call path, including output/thinking ceilings and immutable prepared-payload accounting.
 
 Revision note (2026-10-18): initialize the authorized manual/automatic-control extension on existing PR #89; distinguish it from the previously verified metadata-only release preparation.
+
+Revision note (2026-10-18, validated delivery): record passing focused/full local gates, shared-chat busy protection, manual hydration/reopen, saved-false quickstart behavior and unchanged audits/coverage. Reconcile final actual-head hosted/scanner/review evidence in PR #89; keep publication and live-provider testing separate.

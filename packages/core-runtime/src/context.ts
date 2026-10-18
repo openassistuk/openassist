@@ -39,6 +39,33 @@ export async function runWithAbort<T>(operation: () => Promise<T>, signal?: Abor
   });
 }
 
+/** Reconcile only the model projection; original messages and audits remain untouched. */
+export function reconcileToolConversation(messages: NormalizedMessage[]): {
+  messages: NormalizedMessage[];
+  droppedOrphanAssistantToolCalls: number;
+  droppedOrphanToolResults: number;
+} {
+  const reconciled: NormalizedMessage[] = [];
+  const pendingToolCalls = new Map<string, number[]>();
+  let droppedOrphanToolResults = 0;
+  for (const message of messages) {
+    if (message.role === "assistant" && message.toolCallId && message.toolName) {
+      const pending = pendingToolCalls.get(message.toolCallId) ?? [];
+      pending.push(reconciled.length);
+      pendingToolCalls.set(message.toolCallId, pending);
+      reconciled.push(message);
+    } else if (message.role === "tool") {
+      const pending = message.toolCallId ? pendingToolCalls.get(message.toolCallId) : undefined;
+      if (!pending?.length) { droppedOrphanToolResults++; continue; }
+      pending.shift();
+      reconciled.push(message);
+    } else reconciled.push(message);
+  }
+  const unresolved = new Set([...pendingToolCalls.values()].flat());
+  return { messages: reconciled.filter((_message, index) => !unresolved.has(index)),
+    droppedOrphanAssistantToolCalls: unresolved.size, droppedOrphanToolResults };
+}
+
 /** A new user entry starts a segment only after all outstanding calls have settled. */
 export function conversationSegments(messages: NormalizedMessage[]): NormalizedMessage[][] {
   const segments: NormalizedMessage[][] = [];

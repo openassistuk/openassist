@@ -24,6 +24,8 @@ Summary-source tool excerpts must retain receipts/references while checkpoint di
 
 Budget summary-source excerpts across whole completed segments; label historical text/argument omissions and retain mandatory identities/receipts. Oversized older history must reach bounded compaction before unsafe preparation; incremental adoption must strictly reduce accounted size or the conservative preparation estimate, and final inference must still pass all guards. Summary output uses exact route/model catalog ceilings and applicable Anthropic caps without resetting thinking settings. Test aggregate turns, oversized image catch-up, protected current input and irreducible-budget guidance.
 
+Reuse runtime occurrence-based tool reconciliation after bounded history hydration and for maintenance/summary-source segmentation. Reconciliation changes only model projections: checkpoint digests still cover every original row in the contiguous selected range, including excluded orphan frames. Preserve valid repeated call/result occurrences, current input, warning counts and the prohibition on retrying unfinished actions; test both row/byte bounds and foreground/maintenance paths.
+
 1. No secret leakage in logs, tests, docs, or error text.
 2. No implicit privilege escalation.
 3. No replay/idempotency regressions without explicit migration notes.

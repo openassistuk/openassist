@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatRequest, ChatResponse, ProviderAdapter, ProviderConfig, RuntimeConfig } from "@openassist/core-types";
 import { createDefaultConfigObject } from "../../apps/openassist-cli/src/lib/config-edit.js";
@@ -42,6 +43,58 @@ function fixture(policy: Partial<RuntimeConfig["context"]> = {}, summarize = vi.
 }
 
 describe("model context contracts", () => {
+  it.each(["row/foreground", "row/maintenance", "byte/foreground", "byte/maintenance"])(
+    "reconciles hydrated orphan frames without losing raw coverage (%s)", async mode => {
+      const rowBound = mode.startsWith("row");
+      const f = fixture({ maxInputTokens: 800_000, summaryMaxTokens: 512, ...(rowBound ? {} : { maxRequestBytes: 65_536 }) });
+      f.config.providers[0]!.contextWindowTokens = 1_050_000;
+      f.append("user", "interrupted task");
+      f.append("assistant", "", "orphan-call");
+      // Seed the real storage schema in one transaction, avoiding 10,000 WAL/fsync commits.
+      const writer = new DatabaseSync(path.join(f.root, "state.db"));
+      try {
+        writer.exec("BEGIN");
+        const insert = writer.prepare("INSERT INTO messages(session_id,conversation_key,role,content,created_at) VALUES(?,?,?,?,?)");
+        for (let turn = 0; turn < (rowBound ? 4999 : 40); turn++) {
+          insert.run(f.sessionId, "fixture", "user", rowBound ? `task ${turn}` : `task ${turn} ${"x".repeat(2000)}`, "2026-10-18T00:00:00.000Z");
+          insert.run(f.sessionId, "fixture", "assistant", "done", "2026-10-18T00:00:00.000Z");
+        }
+        writer.exec("COMMIT");
+      } finally { writer.close(); }
+      f.append("user", "CURRENT complete request");
+      const first = f.db.context.history(f.sessionId);
+      const original = [...first.messages, ...f.db.context.history(f.sessionId, Number(first.messages.at(-1)!.id)).messages];
+      expect(original).toHaveLength(rowBound ? 10_001 : 83);
+      const history = f.db.context.history(f.sessionId, 0, f.config.context!.maxRequestBytes);
+      expect(history.complete).toBe(false);
+      const current = original.at(-1)!;
+      // handleInbound has already reconciled this bounded projection before admission.
+      const request: ChatRequest = { ...f.request(), messages: [{ role: "system", content: "mandatory identity" },
+        ...history.messages.filter(message => message.toolCallId !== "orphan-call"), current], metadata: { contextHistoryIncomplete: "true" } };
+      const finish = vi.spyOn(f.db.context, "finish");
+      if (mode.endsWith("foreground")) await f.manager.admit(f.provider, request, auth);
+      else await f.manager.maintain(f.provider, f.sessionId, "custom");
+      expect(f.summarize).toHaveBeenCalled();
+      expect(f.db.context.checkpoint(f.sessionId)?.revision).toBeGreaterThan(0);
+      expect(finish.mock.calls[0]![1]).toContain("Unmatched historical tool frames were excluded");
+      for (const [job] of finish.mock.calls) {
+        expect(job.sourceDigest).toBe(contextSourceDigest(original.filter(message => Number(message.id) > job.afterMessageId && Number(message.id) <= job.throughMessageId)));
+      }
+      const projected = f.manager.project(request);
+      expect(projected.messages.some(message => message.toolCallId === "orphan-call")).toBe(false);
+      expect(projected.messages.at(-1)).toEqual(current);
+      await (await f.manager.admit(f.provider, request, auth)).send(auth);
+      const sent = (f.provider.chat as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as ChatRequest;
+      expect(sent.messages[0]!.content).toBe("mandatory identity");
+      expect(sent.messages.some(message => message.toolCallId === "orphan-call")).toBe(false);
+      expect(sent.messages.at(-1)).toEqual(current);
+      expect(f.provider.chat).toHaveBeenCalledOnce();
+      expect(f.enqueue).not.toHaveBeenCalled();
+      const after = f.db.context.history(f.sessionId);
+      expect([...after.messages, ...f.db.context.history(f.sessionId, Number(after.messages.at(-1)!.id)).messages]).toEqual(original);
+    }, DATABASE_TEST_TIMEOUT_MS
+  );
+
   it.each([
     (value: string) => value,
     (value: string) => `\x60\x60\x60json\n${value}\n\x60\x60\x60`,
@@ -354,7 +407,7 @@ describe("model context contracts", () => {
     if (field === "content") { f.append("user", "z".repeat(120_000)); f.append("assistant", "done"); }
     else {
       f.append("user", "completed write");
-      f.db.recordAssistantMessage(f.sessionId, "fixture", { role: "assistant", content: "", toolCallId: "call-repeat", metadata: { toolArgumentsJson: JSON.stringify({ text: "z".repeat(120_000) }) } });
+      f.db.recordAssistantMessage(f.sessionId, "fixture", { role: "assistant", content: "", toolCallId: "call-repeat", toolName: "exec.run", metadata: { toolArgumentsJson: JSON.stringify({ text: "z".repeat(120_000) }) } });
       f.append("tool", "done", "call-repeat");
     }
     const original = f.db.context.history(f.sessionId).messages;

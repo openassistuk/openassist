@@ -2,6 +2,8 @@
 
 Use this index by task, lifecycle stage, provider, channel, or config area.
 
+The October 18 context repair reconciles orphan tool frames after bounded history reloads and during maintenance, preserving raw contiguous digests and complete current input. See the [context engine](architecture/context-engine.md) and [regression inventory](testing/test-matrix.md).
+
 Source context-review repairs cover large tool-result compaction, image-capability accounting, late cancellation and independent permanent-memory cursors. See the [context engine](architecture/context-engine.md), [rollout guidance](operations/config-rollout-and-rollback.md) and [test matrix](testing/test-matrix.md) for behavior, compatibility and regression evidence.
 
 The follow-up also covers aggregate completed-turn source budgets, bounded recovery of oversized old image history and model-aware summary output. Historical excerpts disclose omissions; original records and the complete current turn remain intact. See [troubleshooting](operations/common-troubleshooting.md) for irreducible framing or incompatible output/thinking settings.

@@ -1,7 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { ContextPlanner, sanitizeUserOutput } from "../../packages/core-runtime/src/context.js";
+import type { NormalizedMessage } from "@openassist/core-types";
+import { ContextPlanner, reconcileToolConversation, sanitizeUserOutput } from "../../packages/core-runtime/src/context.js";
 
 describe("ContextPlanner", () => {
+  it("reconciles orphan frames and repeated call IDs by occurrence without changing source rows", () => {
+    const messages: NormalizedMessage[] = [
+      { role: "user", content: "task" },
+      { role: "tool", content: "missing ID" },
+      { role: "tool", content: "orphan result", toolCallId: "absent" },
+      { role: "assistant", content: "", toolCallId: "repeat", toolName: "exec.run" },
+      { role: "assistant", content: "", toolCallId: "repeat", toolName: "exec.run" },
+      { role: "assistant", content: "", toolCallId: "repeat", toolName: "exec.run" },
+      { role: "tool", content: "first receipt", toolCallId: "repeat" },
+      { role: "tool", content: "second receipt", toolCallId: "repeat" },
+      { role: "assistant", content: "plain reply" },
+      { role: "user", content: "CURRENT" }
+    ];
+    const original = structuredClone(messages);
+    const reconciled = reconcileToolConversation(messages);
+    expect(reconciled).toMatchObject({ droppedOrphanAssistantToolCalls: 1, droppedOrphanToolResults: 2 });
+    expect(reconciled.messages).toEqual([messages[0], messages[3], messages[4], ...messages.slice(6)]);
+    expect(messages).toEqual(original);
+    expect(reconcileToolConversation(reconciled.messages)).toEqual({ ...reconciled, droppedOrphanAssistantToolCalls: 0, droppedOrphanToolResults: 0 });
+  });
+
   it("keeps only bounded raw turns after system and recalled state", () => {
     const planner = new ContextPlanner({ maxRawTurns: 3 });
     const recentMessages = [

@@ -59,7 +59,7 @@ import {
   stageOutboundAttachments
 } from "./attachments.js";
 import { renderOutboundEnvelope } from "./channel-rendering.js";
-import { sanitizeUserOutput, runWithAbort } from "./context.js";
+import { sanitizeUserOutput, reconcileToolConversation, runWithAbort } from "./context.js";
 import { ModelContextManager } from "./context-manager.js";
 import {
   ClockHealthMonitor,
@@ -3899,64 +3899,19 @@ export class OpenAssistRuntime {
     sessionId: string,
     conversationKey: string
   ): NormalizedMessage[] {
-    const reconciled: NormalizedMessage[] = [];
-    const pendingToolCalls = new Map<string, number[]>();
-    let droppedOrphanToolResults = 0;
-
-    for (const message of messages) {
-      if (message.role === "assistant" && message.toolCallId && message.toolName) {
-        const index = reconciled.length;
-        reconciled.push(message);
-        const pending = pendingToolCalls.get(message.toolCallId) ?? [];
-        pending.push(index);
-        pendingToolCalls.set(message.toolCallId, pending);
-        continue;
-      }
-
-      if (message.role === "tool") {
-        const callId = message.toolCallId;
-        if (!callId) {
-          droppedOrphanToolResults += 1;
-          continue;
-        }
-        const pending = pendingToolCalls.get(callId);
-        if (!pending || pending.length === 0) {
-          droppedOrphanToolResults += 1;
-          continue;
-        }
-        pending.shift();
-        reconciled.push(message);
-        continue;
-      }
-
-      reconciled.push(message);
-    }
-
-    const unresolvedAssistantToolCallIndexes = new Set<number>();
-    for (const indexes of pendingToolCalls.values()) {
-      for (const index of indexes) {
-        unresolvedAssistantToolCallIndexes.add(index);
-      }
-    }
-
-    if (unresolvedAssistantToolCallIndexes.size === 0 && droppedOrphanToolResults === 0) {
-      return reconciled;
-    }
-
-    const filtered = reconciled.filter(
-      (_message, index) => !unresolvedAssistantToolCallIndexes.has(index)
-    );
+    const { messages: reconciled, droppedOrphanAssistantToolCalls, droppedOrphanToolResults } = reconcileToolConversation(messages);
+    if (droppedOrphanAssistantToolCalls === 0 && droppedOrphanToolResults === 0) return reconciled;
     this.logger.warn(
       {
         type: "tool.call.context.reconciled",
         sessionId,
         conversationKey,
-        droppedOrphanAssistantToolCalls: unresolvedAssistantToolCallIndexes.size,
+        droppedOrphanAssistantToolCalls,
         droppedOrphanToolResults
       },
       "reconciled tool-call context before provider request"
     );
-    return filtered;
+    return reconciled;
   }
 
   private async executeToolCallWithAudit(

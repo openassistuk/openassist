@@ -6,6 +6,8 @@ Context summary parsing uses linear string operations and rejects raw provider o
 
 Source compaction uses bounded tool-result excerpts with original audit references, so a large completed result can still be summarized. Image preparation bounds count binaries only for image-capable adapters. Cancellation is checked immediately before checkpoint adoption, and permanent-memory extraction starts independently of context summary progress while preserving its saved cursor.
 
+Bounded history reloads and maintenance reuse runtime tool-frame reconciliation before segmentation: old orphan calls/results cannot strand otherwise completed turns. Original rows remain intact and included in contiguous checkpoint digests; reconciliation never retries unfinished actions.
+
 Summary sources are budgeted across whole completed turns; oversized historical text/arguments are explicitly marked as excerpts with original references. Older image backlogs can compact in strictly shrinking bounded chunks before full preparation, while the complete current turn and final token/byte guards remain intact. Summary output respects exact catalog limits and compatible Anthropic output/thinking settings.
 
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)

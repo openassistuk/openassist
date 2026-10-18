@@ -3,7 +3,7 @@ import { DEFAULT_CONTEXT_CONFIG, resolveContextLimits, contextOutputAllowance, m
 import type { ChatRequest, ChatResponse, ContextAccounting, NormalizedMessage, PreparedChatRequest, ProviderAdapter,
   ProviderAuth, RuntimeConfig, RuntimeContextConfig, RuntimeContextStatus } from "@openassist/core-types";
 import { contextSourceDigest, type OpenAssistDatabase } from "@openassist/storage-sqlite";
-import { estimateContextTokens, conversationSegments, runWithAbort } from "./context.js";
+import { estimateContextTokens, conversationSegments, reconcileToolConversation, runWithAbort } from "./context.js";
 
 export class ContextAdmissionError extends Error {
   constructor(message: string) { super(message); this.name = "ContextAdmissionError"; }
@@ -123,6 +123,9 @@ export class ModelContextManager {
       messages = [...messages.filter(message => message.role === "system"), ...history.messages,
         ...messages.filter(message => message.role !== "system" && (!message.id || (!loadedIds.has(message.id) && Number(message.id) > Number(history.messages.at(-1)?.id ?? 0))))];
       incomplete = !history.complete;
+    }
+    if (request.metadata.contextHistoryIncomplete === "true" || request.metadata.source === "runtime.context.maintenance") {
+      messages = reconcileToolConversation(messages).messages;
     }
     const firstConversation = messages.findIndex(message => message.role !== "system");
     if (checkpoint.summary) messages.splice(firstConversation < 0 ? messages.length : firstConversation, 0, {
@@ -274,7 +277,7 @@ export class ModelContextManager {
     const checkpoint = this.checkpoint(request.sessionId);
     if (through <= checkpoint.coveredThrough) return false;
     const source = this.db.context.history(request.sessionId, checkpoint.coveredThrough, policy.maxRequestBytes, through);
-    const sourceSegments = conversationSegments(source.messages);
+    const sourceSegments = conversationSegments(reconcileToolConversation(source.messages).messages);
     if (!source.complete) sourceSegments.pop(); // A page bound cannot certify the final segment as complete.
     const selected: NormalizedMessage[] = [];
     const records: object[] = [];
@@ -302,9 +305,12 @@ export class ModelContextManager {
       if (tokens >= usableInput * (policy.compactAtRatio - policy.targetRatio)) break;
     }
     if (!selected.length) return false;
+    // Reconciliation changes model input only: the digest covers every original row in the range.
+    const throughMessageId = Number(selected.at(-1)!.id);
+    const originals = source.messages.filter(message => Number(message.id) <= throughMessageId);
     const scope = `${provider.id()}:${request.model}`;
     const job = this.db.context.begin({ sessionId: request.sessionId, expectedRevision: checkpoint.revision,
-      afterMessageId: checkpoint.coveredThrough, throughMessageId: Number(selected.at(-1)!.id), sourceDigest: contextSourceDigest(selected), scope });
+      afterMessageId: checkpoint.coveredThrough, throughMessageId, sourceDigest: contextSourceDigest(originals), scope });
     try {
       const signal = AbortSignal.any([this.cancellation.signal, AbortSignal.timeout(30_000), ...(request.signal ? [request.signal] : [])]);
       const summaryRequest: ChatRequest = { sessionId: `${request.sessionId}::context::${job.id}`, model: request.model, tools: [],
@@ -318,7 +324,8 @@ export class ModelContextManager {
       const requiredIds = new Set(selected.flatMap(message => message.toolCallId ? [message.toolCallId] : []));
       if ([...requiredIds].some(id => !summary.includes(id))) throw new ContextAdmissionError("Context summary omitted completed-action evidence.");
       const structured = JSON.parse(summary) as Record<string,string>;
-      structured.evidence += `\nOriginal message range: ${selected[0]!.id}..${selected.at(-1)!.id}; tool result references: ${JSON.stringify(selected.filter(message => message.role === "tool").map(message => ({ messageId: message.id, callId: message.toolCallId, isError: message.metadata?.isError })))}`;
+      structured.evidence += `\nOriginal message range: ${originals[0]!.id}..${throughMessageId}; tool result references: ${JSON.stringify(selected.filter(message => message.role === "tool").map(message => ({ messageId: message.id, callId: message.toolCallId, isError: message.metadata?.isError })))}`;
+      if (originals.length > selected.length) structured.evidence += "\nUnmatched historical tool frames were excluded from the model projection; original rows remain in this range. This is not evidence of completed actions.";
       const referencedSummary = parseContextSummary(JSON.stringify(structured), summaryBudget);
       const candidateMessages = request.messages.filter(message => message.metadata?.source !== SUMMARY_SOURCE &&
         !(message.role !== "system" && message.id && Number(message.id) <= job.throughMessageId));

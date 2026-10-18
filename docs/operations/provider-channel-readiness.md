@@ -1,12 +1,12 @@
 # Provider, authentication and channel readiness
 
-The `0.2.5` candidate now includes manual `/compact` and default-on `runtime.context.autoCompact` across the common provider/channel runtime. Manual commands consume normal provider quota for bounded tool-free summaries; auto-off preserves guards and prevents automatic foreground/overflow/maintenance summaries. Offline command/scope/restart tests and new actual-head gates are recorded in the [controls plan](../execplans/manual-compaction-2026-10-18.md), separately from paid/live certification.
+`0.2.5` now includes manual `/compact` and default-on `runtime.context.autoCompact` across the common provider/channel runtime. Manual commands consume normal provider quota for bounded tool-free summaries; auto-off preserves guards and prevents automatic foreground/overflow/maintenance summaries. Offline command/scope/restart tests and new actual-head gates are recorded in the [controls plan](../execplans/manual-compaction-2026-10-18.md), separately from paid/live certification.
 
 Checked on 2026-09-27 for [PR #61](https://github.com/openassistuk/openassist/pull/61), merged as `0ac0921`. Package versions were compared with npm registry tags and upstream release notes during that implementation. This is a dated record of implemented compatibility, not live account certification or a claim that registry versions never change.
 
-## October 18 context candidate
+## October 18 context release
 
-The unpublished [v0.2.5 candidate](../releases/v0.2.5.md) collects PR #88's common context admission across all five routes, native OpenAI Responses/Anthropic counting where supported, explicit unknown serving limits and bounded durable recovery. Implementation merge `f32a1e1` passes its own main CI/full CodeQL; candidate packages, later publication/public installation and live provider/account/channel checks remain separate in the [preparation plan](../execplans/stable-0.2.5-release.md). Saved models/tuning and all profile, attachment and delivery boundaries remain intact. Signed v0.2.4 stays public stable until publication.
+The signed [v0.2.5 release](../releases/v0.2.5.md) delivers PR #88's common context admission across all five routes and PR #89's manual/automatic controls. Native OpenAI Responses/Anthropic counting where supported, explicit unknown serving limits and bounded durable recovery preserve saved models/tuning and all profile, attachment and delivery boundaries. Reviewed main/tag `190727f` passes exact-main CI/full CodeQL, candidate/native/signing checks, protected publication and all four public-install targets; independent signatures/digests verify. The [release plan](../execplans/stable-0.2.5-release.md) retains the initial main Windows timing timeout and unchanged-code retry separately. Live provider/account/quota/channel and replacement-host tests remain unverified; successful offline/public-install checks do not certify them.
 
 ## October 16 source integration update
 

@@ -2,7 +2,7 @@
 
 `/compact` is available within admitted chat access in restricted/operator/full-root profiles and does not grant model or host tools. It explicitly uses the configured provider for one older-history checkpoint chunk, preserving the current turn, raw audits and actor-memory boundaries. `runtime.context.autoCompact = false` affects automatic summaries only; admission limits and existing checkpoint projection remain enforced, and `/status`/`/memory` remain provider-independent.
 
-The context behavior below is part of the unpublished [v0.2.5 candidate](../releases/v0.2.5.md); existing `v0.2.4` packages retain their shipped behavior until explicitly updated.
+The context behavior below is part of the signed [v0.2.5 release](../releases/v0.2.5.md); existing `v0.2.4` packages retain their shipped behavior until explicitly updated.
 
 Separating bounded raw-source reads from smaller prepared-payload caps changes no tool permission or retry authority. Raw digest checks cover untouched rows; oversized mandatory input and rows beyond the finite raw-source limit fail explicitly. Maintenance cannot treat incomplete history without progress as success or bypass final byte/token admission.
 

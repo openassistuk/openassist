@@ -102,7 +102,7 @@ Decision: Adopt monotonically smaller contiguous chunks during catch-up, keeping
 
 Decision: Retain database compatibility version 1 for additive context tables and mirror summaries into `session_memory`. No transcript/audit schema is rewritten. Reopen/legacy-reader fixtures verify retained rows and the mirror; downgrades that process further chats require matching-backup restoration before re-upgrade.
 
-These source decisions do not describe immutable published v0.2.4 behavior.
+These source decisions do not describe immutable published v0.2.4 behavior. They are now delivered in signed v0.2.5 at PR #89/main/tag `190727f`, together with the manual/automatic controls. The [release plan](stable-0.2.5-release.md) records exact-main CI/full CodeQL, protected publication `39160662895`, independent signatures/digests and four-target public verification separately from this implementation's checks and unverified live-provider behavior.
 
 ## Outcomes & Retrospective
 

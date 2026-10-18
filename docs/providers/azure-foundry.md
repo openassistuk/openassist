@@ -1,5 +1,7 @@
 # Azure Foundry Provider
 
+`0.2.5` context controls include manual `/compact` and `[runtime.context].autoCompact` (default true). Manual compaction uses this configured route/model for one bounded, tool-free older-history summary, preserving existing output/thinking settings and admission limits. Off disables automatic summaries/overflow repair/background maintenance; manual compaction remains available. See the [controls](../configuration/config-reference.md#runtimecontext).
+
 `0.2.5` candidate context limits use only an explicit, exact cataloged `underlyingModel` on a recognized Azure endpoint. Deployment names never imply capacity. Recent 1,050,000-token models have a separate 922,000-token input ceiling and 128,000 output maximum. Requests use estimated prepared-payload accounting; native counting is not assumed available on Azure. Unknown/custom serving limits use the labeled fallback or verified `contextWindowTokens`. See the [context engine](../architecture/context-engine.md).
 
 Use the Azure Foundry route when you want Azure resource-style `/openai/v1/` endpoints in OpenAssist.

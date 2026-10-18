@@ -302,7 +302,7 @@ describe("setup quickstart flow", () => {
     }
   });
 
-  it("keeps confirmed runtime defaults in the minimal flow", async () => {
+  it("keeps confirmed runtime defaults and saved auto-compaction mode in the minimal flow", async () => {
     const root = tempDir("openassist-quickstart-flow-defaults-");
     const configPath = path.join(root, "openassist.toml");
     const envPath = path.join(root, "openassistd.env");
@@ -312,6 +312,7 @@ describe("setup quickstart flow", () => {
 
     const state = loadSetupQuickstartState(configPath, envPath, installDir);
     const bindPort = await getFreePort();
+    state.config.runtime.context.autoCompact = false;
     state.config.runtime.bindAddress = "127.0.0.1";
     state.config.runtime.bindPort = bindPort;
     const prompts = new ScriptedPromptAdapter([
@@ -352,6 +353,8 @@ describe("setup quickstart flow", () => {
     expect(result.saved).toBe(true);
     expect(state.config.runtime.bindAddress).toBe("127.0.0.1");
     expect(state.config.runtime.bindPort).toBe(bindPort);
+    expect(state.config.runtime.context.autoCompact).toBe(false);
+    expect(loadSetupQuickstartState(configPath, envPath, installDir).config.runtime.context.autoCompact).toBe(false);
     expect(state.config.runtime.assistant.name).toBe("OpenAssist");
     expect(state.config.runtime.assistant.promptOnFirstContact).toBe(false);
     expect(

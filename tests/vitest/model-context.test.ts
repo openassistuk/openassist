@@ -43,7 +43,138 @@ function fixture(policy: Partial<RuntimeConfig["context"]> = {}, summarize = vi.
 }
 
 describe("model context contracts", () => {
-  it.each(["foreground", "maintenance", "restart-foreground", "restart-maintenance"])("recovers oversized stored tool rows at a smaller payload cap (%s)", async mode => {
+  it("defaults automatic compaction on and validates an explicit off setting", () => {
+    const config = createDefaultConfigObject();
+    expect(parseConfig(config).runtime.context.autoCompact).toBe(true);
+    config.runtime.context.autoCompact = false;
+    expect(toRuntimeConfig(parseConfig(config)).context!.autoCompact).toBe(false);
+    expect(() => parseConfig({ ...config, runtime: { ...config.runtime, context: { ...config.runtime.context, autoCompact: "false" } } })).toThrow();
+  });
+
+  it("sends a fitting request above the trigger without summarizing when auto-compaction is off", async () => {
+    const f = fixture({ autoCompact: false, maxInputTokens: 4000 });
+    f.append("user", "x".repeat(10_500)); f.append("assistant", "done"); f.append("user", "CURRENT");
+    const original = f.db.context.history(f.sessionId).messages;
+    const prepared = await f.manager.admit(f.provider, f.request(), auth);
+    expect(prepared.accounting.inputTokens).toBeGreaterThanOrEqual(3400);
+    expect(prepared.accounting.inputTokens).toBeLessThanOrEqual(4000);
+    await prepared.send(auth);
+    expect(f.provider.chat).toHaveBeenCalledOnce(); expect(f.summarize).not.toHaveBeenCalled();
+    expect(f.enqueue).not.toHaveBeenCalled(); expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+    expect(f.manager.status(f.sessionId)?.autoCompact).toBe(false);
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+    f.config.context!.autoCompact = true;
+    expect(f.manager.snapshot()[f.sessionId]?.autoCompact).toBe(true);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it.each(["tokens", "bytes", "preparation"])("keeps the %s admission guard when auto-compaction is off", async bound => {
+    const f = fixture({ autoCompact: false, maxInputTokens: bound === "tokens" ? 4000 : 80_000, maxRequestBytes: 65_536 });
+    f.config.providers[0]!.contextWindowTokens = 1_050_000;
+    f.append("user", "x".repeat(bound === "tokens" ? 20_000 : bound === "bytes" ? 70_000 : 160_000));
+    f.append("assistant", "done"); f.append("user", "CURRENT");
+    const original = f.db.context.history(f.sessionId).messages;
+    await expect(f.manager.admit(f.provider, f.request(), auth)).rejects.toThrow(/off.*\/compact/);
+    expect(f.summarize).not.toHaveBeenCalled(); expect(f.provider.chat).not.toHaveBeenCalled(); expect(f.enqueue).not.toHaveBeenCalled();
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull(); expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("does not repair a provider overflow automatically when disabled", async () => {
+    const f = fixture({ autoCompact: false });
+    f.append("user", "older ".repeat(1000)); f.append("assistant", "done"); f.append("user", "CURRENT");
+    const prepared = await f.manager.admit(f.provider, f.request(), auth);
+    const reject = vi.spyOn(f.db.context, "reject");
+    await expect(f.manager.repair(f.provider, f.request(), auth, prepared)).rejects.toThrow(/off.*\/compact/);
+    expect(reject).not.toHaveBeenCalled(); expect(f.summarize).not.toHaveBeenCalled(); expect(f.enqueue).not.toHaveBeenCalled();
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("skips automatic maintenance after reopening with compaction disabled", async () => {
+    const f = fixture({ autoCompact: false, maxInputTokens: 4000 });
+    f.append("user", "x".repeat(20_000)); f.append("assistant", "done"); f.append("user", "CURRENT");
+    const original = f.db.context.history(f.sessionId).messages;
+    f.db.close(); databases.splice(databases.indexOf(f.db), 1);
+    f.db = new OpenAssistDatabase({ dbPath: path.join(f.root,"state.db"), logger: createLogger({ service: "context-auto-off" }) }); databases.push(f.db);
+    f.manager = new ModelContextManager(f.db, () => f.config, f.summarize, f.enqueue);
+    await f.manager.maintain(f.provider, f.sessionId, "custom");
+    expect(f.summarize).not.toHaveBeenCalled(); expect(f.enqueue).not.toHaveBeenCalled(); expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it.each([false, true])("explicitly compacts below the trigger with auto-compaction=%s and permanent memory off", async automatic => {
+    const f = fixture({ autoCompact: automatic }); f.config.memory = { enabled: false };
+    f.append("user", "completed task ".repeat(300)); f.append("assistant", "completed response ".repeat(200)); f.append("user", "/compact");
+    const original = f.db.context.history(f.sessionId).messages;
+    const before = await f.manager.admit(f.provider, f.request(), auth);
+    expect(before.accounting.inputTokens).toBeLessThan(f.manager.status(f.sessionId)!.limits.usableInputTokens * .85);
+    expect(f.summarize).not.toHaveBeenCalled();
+    expect(await f.manager.compactSession(f.provider, f.sessionId, "custom")).toBe(true);
+    expect(f.summarize).toHaveBeenCalledOnce(); expect(f.enqueue).not.toHaveBeenCalled();
+    const [, request] = f.summarize.mock.calls[0] as unknown as [ProviderAdapter, ChatRequest];
+    expect(request.tools).toEqual([]); expect(request.metadata.source).toBe("runtime.context.summary");
+    expect(f.db.context.checkpoint(f.sessionId)).toMatchObject({ revision: 1, coveredThrough: Number(original[1]!.id), sourceDigest: contextSourceDigest(original.slice(0,2)) });
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+    expect(f.manager.project(f.request()).messages.at(-1)).toEqual(original.at(-1));
+    expect(f.manager.status(f.sessionId)).toMatchObject({ state: "stale", autoCompact: automatic, checkpointRevision: 1 });
+    expect(f.manager.status(f.sessionId)?.accounting).toBeUndefined();
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("limits each explicit command to one source chunk without background continuation", async () => {
+    const f = fixture({ autoCompact: false, maxInputTokens: 4000, summarySourceTokens: 1024, summaryMaxTokens: 512 });
+    for (let i=0; i<8; i++) { f.append("user", `task ${i} ` + "x".repeat(1300)); f.append("assistant", "done"); }
+    f.append("user", "/compact");
+    const original = f.db.context.history(f.sessionId).messages;
+    expect(await f.manager.compactSession(f.provider, f.sessionId, "custom")).toBe(true);
+    expect(f.summarize).toHaveBeenCalledOnce(); expect(f.enqueue).not.toHaveBeenCalled();
+    const frontier = f.db.context.checkpoint(f.sessionId)!.coveredThrough;
+    expect(frontier).toBeLessThan(Number(original.at(-2)!.id));
+    expect(await f.manager.compactSession(f.provider, f.sessionId, "custom")).toBe(true);
+    expect(f.summarize).toHaveBeenCalledTimes(2); expect(f.db.context.checkpoint(f.sessionId)!.coveredThrough).toBeGreaterThan(frontier);
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("does not call the provider when explicit compaction has no older complete turn", async () => {
+    const f = fixture({ autoCompact: false }); f.append("user", "/compact");
+    expect(await f.manager.compactSession(f.provider, f.sessionId, "custom")).toBe(false);
+    expect(f.summarize).not.toHaveBeenCalled(); expect(f.enqueue).not.toHaveBeenCalled();
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it.each(["malformed", "nonshrinking", "cancelled", "stale digest"])("preserves checkpoints without auto-queueing after explicit %s failure", async failure => {
+    const f = fixture();
+    f.append("user", failure === "nonshrinking" ? "tiny" : "x".repeat(6000)); f.append("assistant", "done"); f.append("user", "/compact");
+    const original = f.db.context.history(f.sessionId).messages;
+    if (failure === "malformed") f.summarize.mockResolvedValueOnce(response("invalid JSON"));
+    if (failure === "cancelled") f.summarize.mockImplementationOnce(async () => { f.manager.stop(); return response(summary); });
+    if (failure === "stale digest") f.summarize.mockImplementationOnce(async () => {
+      const writer = new DatabaseSync(path.join(f.root,"state.db"));
+      try { writer.prepare("UPDATE messages SET content=? WHERE id=?").run("changed original row", original[0]!.id!); } finally { writer.close(); }
+      return response(summary);
+    });
+    if (failure === "stale digest") expect(await f.manager.compactSession(f.provider, f.sessionId, "custom")).toBe(false);
+    else await expect(f.manager.compactSession(f.provider, f.sessionId, "custom")).rejects.toThrow(/compaction failed/);
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull(); expect(f.db.getSessionMemory(f.sessionId)).toBeNull();
+    expect(f.enqueue).not.toHaveBeenCalled();
+    if (failure !== "stale digest") expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("rejects automatic adoption when the switch turns off during summarization", async () => {
+    const f = fixture({ maxInputTokens: 4000, summaryMaxTokens: 512 });
+    f.append("user", "x".repeat(20_000)); f.append("assistant", "done"); f.append("user", "CURRENT");
+    const original = f.db.context.history(f.sessionId).messages;
+    f.summarize.mockImplementationOnce(async () => { f.config.context!.autoCompact = false; return response(summary); });
+    await expect(f.manager.admit(f.provider, f.request(), auth)).rejects.toThrow(/compaction failed/);
+    expect(f.db.context.checkpoint(f.sessionId)).toBeNull(); expect(f.enqueue).not.toHaveBeenCalled();
+    expect(f.manager.status(f.sessionId)?.autoCompact).toBe(false); expect(f.db.context.history(f.sessionId).messages).toEqual(original);
+  }, DATABASE_TEST_TIMEOUT_MS);
+
+  it("uses revision checks for concurrent explicit compaction", async () => {
+    const f = fixture({ autoCompact: false });
+    f.append("user", "x".repeat(6000)); f.append("assistant", "done"); f.append("user", "/compact");
+    const original = f.db.context.history(f.sessionId).messages;
+    const result = await Promise.all([f.manager.compactSession(f.provider, f.sessionId, "custom"), f.manager.compactSession(f.provider, f.sessionId, "custom")]);
+    expect(result.filter(Boolean)).toHaveLength(1); expect(f.db.context.checkpoint(f.sessionId)?.revision).toBe(1);
+    expect(f.db.context.history(f.sessionId).messages).toEqual(original); expect(f.enqueue).not.toHaveBeenCalled();
+  }, DATABASE_TEST_TIMEOUT_MS);
+  it.each(["foreground", "maintenance", "manual", "restart-foreground", "restart-maintenance", "restart-manual"])("recovers oversized stored tool rows at a smaller payload cap (%s)", async mode => {
     const f = fixture({ maxInputTokens: 4000, maxRequestBytes: 65_536, summaryMaxTokens: 512 });
     f.append("user", "x".repeat(4000));
     f.append("assistant", "", "call-repeat");
@@ -61,6 +192,7 @@ describe("model context contracts", () => {
       f.manager = new ModelContextManager(f.db, () => f.config, f.summarize, f.enqueue);
     }
     if (mode.endsWith("foreground")) await f.manager.admit(f.provider, request, auth);
+    else if (mode.endsWith("manual")) expect(await f.manager.compactSession(f.provider, f.sessionId, "custom")).toBe(true);
     else await f.manager.maintain(f.provider, f.sessionId, "custom");
     expect(f.summarize).toHaveBeenCalledOnce();
     const checkpoint = f.db.context.checkpoint(f.sessionId)!;
@@ -147,7 +279,7 @@ describe("model context contracts", () => {
     expect(f.summarize).not.toHaveBeenCalled(); expect(f.db.context.checkpoint(f.sessionId)).toBeNull();
   }, DATABASE_TEST_TIMEOUT_MS);
 
-  it.each(["row/foreground", "row/maintenance", "byte/foreground", "byte/maintenance"])(
+  it.each(["row/foreground", "row/maintenance", "row/manual", "byte/foreground", "byte/maintenance", "byte/manual"])(
     "reconciles hydrated orphan frames without losing raw coverage (%s)", async mode => {
       const rowBound = mode.startsWith("row");
       const f = fixture({ maxInputTokens: 800_000, summaryMaxTokens: 512, ...(rowBound ? {} : { maxRequestBytes: 65_536 }) });
@@ -177,6 +309,7 @@ describe("model context contracts", () => {
         ...history.messages.filter(message => message.toolCallId !== "orphan-call"), current], metadata: { contextHistoryIncomplete: "true" } };
       const finish = vi.spyOn(f.db.context, "finish");
       if (mode.endsWith("foreground")) await f.manager.admit(f.provider, request, auth);
+      else if (mode.endsWith("manual")) expect(await f.manager.compactSession(f.provider, f.sessionId, "custom")).toBe(true);
       else await f.manager.maintain(f.provider, f.sessionId, "custom");
       expect(f.summarize).toHaveBeenCalled();
       expect(f.db.context.checkpoint(f.sessionId)?.revision).toBeGreaterThan(0);
@@ -386,14 +519,14 @@ describe("model context contracts", () => {
     await f.manager.maintain(f.provider,f.sessionId,"custom");
   }, DATABASE_TEST_TIMEOUT_MS);
 
-  it("edits context settings with strict re-prompting and optional provider limits", async () => {
+  it.each([false, true])("edits context settings with auto-compaction=%s, strict re-prompting and optional provider limits", async automatic => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(),"openassist-context-wizard-")); roots.push(root);
     const state = loadSetupWizardState(path.join(root,"config.toml"),path.join(root,"env"));
     const answers = ["bad", "32000", "", "85", "90", "60", "33554432", "1024", "32768", "200000"];
-    const prompts = { input: vi.fn(async () => answers.shift()!), select: vi.fn(async () => state.config.runtime.providers[0]!.id) } as unknown as PromptAdapter;
+    const prompts = { confirm: vi.fn(async () => automatic), input: vi.fn(async () => answers.shift()!), select: vi.fn(async () => state.config.runtime.providers[0]!.id) } as unknown as PromptAdapter;
     vi.spyOn(console,"error").mockImplementation(() => {});
     await editContextBudgets(state,prompts);
-    expect(state.config.runtime.context).toMatchObject({ maxInputTokens: 32000, targetRatio: .6, summaryMaxTokens: 1024 });
+    expect(state.config.runtime.context).toMatchObject({ autoCompact: automatic, maxInputTokens: 32000, targetRatio: .6, summaryMaxTokens: 1024 });
     expect(state.config.runtime.providers[0]!.contextWindowTokens).toBe(200000);
     expect(() => parseConfig(state.config)).not.toThrow();
   });

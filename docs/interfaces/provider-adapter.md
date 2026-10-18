@@ -83,7 +83,7 @@ When rolling session summary or durable actor memory has been recalled for the t
 
 The runtime-awareness payload is now actor-aware in shared chats. For the same chat, one sender may arrive with `full-root` access while another stays `operator`, and provider adapters must preserve that exact system-message boundary on every turn.
 
-The runtime-owned commands `/start`, `/help`, `/capabilities`, `/grow`, `/status`, `/memory`, and `/profile` are handled before provider dispatch. Provider adapters only see normal model turns plus scheduler-driven work; they should not try to emulate or replace those runtime-owned command surfaces.
+The runtime-owned commands `/start`, `/help`, `/capabilities`, `/grow`, `/status`, `/memory`, `/compact`, and `/profile` are handled before normal inference dispatch. `/compact` explicitly invokes an admitted, bounded, tool-free context summary and therefore requires the configured provider; diagnostics such as `/status` and `/memory` remain provider-independent. Adapters see mapped normal, summary/sidecar and scheduler requests and must not emulate command dispatch. `runtime.context.autoCompact = false` stops automatic summaries/overflow repair/maintenance while retaining admission and explicit manual requests.
 
 Scheduler prompt actions use the same `chat()` path with metadata that identifies scheduler context (`source`, `taskId`, `scheduledFor`).
 Context compaction uses the common prepared/admitted provider path under pressure, with no tools and bounded JSON output. Failed adoption preserves the previous frontier. Permanent-memory extraction is queued separately after visible replies and never changes context coverage.

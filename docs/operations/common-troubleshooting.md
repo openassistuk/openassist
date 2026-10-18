@@ -1,5 +1,7 @@
 # Common Troubleshooting
 
+When automatic compaction is off, context/byte overflows intentionally block without generating a summary or retrying inference. Inspect `/memory`, send `/compact` for an explicit provider-backed bounded step, narrow the current input, or re-enable `runtime.context.autoCompact` in wizard. `/compact` accepts no arguments; busy chats ask you to wait. No eligible history makes no provider call. A failed/nonshrinking/stale/cancelled manual summary never claims success or silently queues continuation. Several explicit commands may be needed for a large backlog, and raw-source/irreducible-input bounds still apply.
+
 The context behavior below is part of the unpublished [v0.2.5 candidate](../releases/v0.2.5.md); existing `v0.2.4` packages retain their shipped behavior until explicitly updated.
 
 A smaller `maxRequestBytes` caps the prepared provider payload; raw-source reads/digest verification separately allow at least 32 MiB, or a larger supported request cap up to 64 MiB. Stored results within that allowance can reach bounded excerpt recovery without raising a 64 KiB wire cap. A raw-source read-limit error means an individual stored row is still too large: inspect `/memory`, use wizard to increase the explicit byte setting within supported bounds if appropriate, or request operator-assisted history repair. Original rows are preserved. Incomplete maintenance without safe progress now reports failure through the finite durable retry path instead of silently reporting success.

@@ -1,5 +1,7 @@
 # Codex Provider
 
+`0.2.5` context controls include manual `/compact` and `[runtime.context].autoCompact` (default true). Manual compaction uses this configured route/model for one bounded, tool-free older-history summary, preserving existing output/thinking settings and admission limits. Off disables automatic summaries/overflow repair/background maintenance; manual compaction remains available. See the [controls](../configuration/config-reference.md#runtimecontext).
+
 `0.2.5` candidate context admission prepares the full Codex baseline, lifted instructions, tools and admitted replay before accounting. OpenAI API capacities are not inherited by this account-login route. Without verified serving limits it uses a labeled 24,000-token fallback; configure provider `contextWindowTokens` only from known account/serving limits. Inspect `/status` or `openassist doctor`; use wizard for input cost caps. Existing Codex upstream/auth fields remain intact. See the [context engine](../architecture/context-engine.md).
 
 Use the Codex route when you want the separate OpenAI account-login path in OpenAssist.

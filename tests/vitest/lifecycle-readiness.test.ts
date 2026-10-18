@@ -70,6 +70,9 @@ describe("lifecycle readiness", () => {
     expect(context?.detail).toContain("window=1050000 (catalog");
     expect(context?.detail).toContain("cost cap=32000");
     expect(context?.detail).toContain("occupancy stale/not measured");
+    expect(context?.detail).toContain("auto-compaction=on; manual=/compact");
+    input.config!.runtime.context.autoCompact = false;
+    expect(buildLifecycleReport(input).sections.readyNow.find(item => item.id === "provider.context")?.detail).toContain("auto-compaction=off; manual=/compact");
   });
   it("groups validation issues into guided repair buckets", () => {
     const buckets = groupValidationIssuesByLifecycleBucket([

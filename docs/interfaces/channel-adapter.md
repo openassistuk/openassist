@@ -1,5 +1,7 @@
 # Channel Adapter Interface
 
+Chat `/compact` routes through the common runtime and shared outbound renderer on all channels. It explicitly summarizes one bounded older-history chunk using the provider, preserves the current turn/audit scope and accepts no arguments. Busy chats ask the sender to wait. Inbound idempotency prevents duplicate delivery from starting another summary. `runtime.context.autoCompact` is installation-wide; mode is visible in local diagnostics. This command never supplies host tools or changes channel permissions.
+
 Context diagnostics are provider-independent local output and pass through the existing shared rendering/chunking path. `0.2.5` candidate `/status` adds a Context group; `/memory` exposes checkpoint coverage and failure state. No channel session, access, attachment or delivery boundary changes. See the [context engine](../architecture/context-engine.md).
 
 Isolated development instances start with channels disabled and no copied primary credentials. Test accounts must be configured explicitly; sharing one account across active instances can interfere with delivery. Application activation health does not claim live channel readiness.

@@ -1,5 +1,7 @@
 # OpenAI-compatible Provider
 
+`0.2.5` context controls include manual `/compact` and `[runtime.context].autoCompact` (default true). Manual compaction uses this configured route/model for one bounded, tool-free older-history summary, preserving existing output/thinking settings and admission limits. Off disables automatic summaries/overflow repair/background maintenance; manual compaction remains available. See the [controls](../configuration/config-reference.md#runtimecontext).
+
 `0.2.5` candidate context admission counts the prepared compatible payload as an estimate. Model-name similarity does not establish serving capacity or optional controls. The default unknown window is labeled 24,000 tokens; configure provider `contextWindowTokens` from your server settings, and optionally lower input cost through `[runtime.context]`. Wizard edits both; `/status`, `/memory` and doctor show provenance. See the [context engine](../architecture/context-engine.md).
 
 Use the OpenAI-compatible route when you are connecting OpenAssist to an API-compatible backend instead of the built-in OpenAI, Codex, Anthropic, or Azure Foundry integrations.

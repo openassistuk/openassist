@@ -1,5 +1,7 @@
 # Telegram Channel
 
+`0.2.5` adds `/compact` (no arguments) for one explicit older-history summary in this canonical chat. It uses the configured provider, can affect shared chat continuity, preserves original rows/current input and grants no host tools. Wait for an active provider turn to finish before invoking it. Automatic compaction can be switched off installation-wide with `runtime.context.autoCompact`; `/status` and `/memory` show the mode without using the provider.
+
 `0.2.5` candidate `/status` includes grouped context limits/occupancy, and `/memory` includes checkpoint/failure diagnostics without provider dependency. Replies still use shared channel rendering/chunking and existing session/access scope; context compaction does not change Telegram inline defaults. See the [context engine](../architecture/context-engine.md).
 
 Use Telegram when you want a bot that can work in private chats, group chats, and forum topics.

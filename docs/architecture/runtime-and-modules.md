@@ -162,7 +162,7 @@ Daemon HTTP endpoints map directly to these methods in `apps/openassistd/src/ind
 8. if user sends `/start` or `/help`, return runtime-owned welcome and capability primer without provider dependency
 9. if user sends `/capabilities`, return the live capability inventory without provider dependency
 10. if user sends `/grow`, return managed growth policy and asset status without provider dependency
-11. if user sends `/memory`, return rolling session summary plus actor-scoped durable-memory visibility without provider dependency
+11. if user sends `/memory`, return rolling session summary plus actor-scoped durable-memory visibility without provider dependency; `/compact` instead explicitly requests one bounded tool-free provider summary of older completed history in this canonical chat, with busy-turn protection and durable checkpoint adoption
 12. if user sends `/status`, return runtime diagnostics without provider dependency
 13. if user sends `/profile`, return persisted global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`)
 14. first-contact bootstrap prompt can be emitted for `/new` when enabled by config (`runtime.assistant.promptOnFirstContact=true`)

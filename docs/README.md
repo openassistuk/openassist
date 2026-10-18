@@ -1,5 +1,7 @@
 # OpenAssist Documentation
 
+The candidate also adds manual `/compact` and the default-on `runtime.context.autoCompact` switch, with setup-wizard and status/doctor visibility. Manual compaction uses the provider; `/status` and `/memory` remain provider-independent. See the [context engine](architecture/context-engine.md), [control reference](configuration/config-reference.md#runtimecontext) and [implementation/verification plan](execplans/manual-compaction-2026-10-18.md).
+
 Use this index by task, lifecycle stage, provider, channel, or config area.
 
 The [v0.2.5 candidate notes](releases/v0.2.5.md) collect model-aware context admission and recovery, with budgets, migration and rollback guidance. The [preparation plan](execplans/stable-0.2.5-release.md) separates candidate checks from later exact-main, signing and public-install verification. Signed `v0.2.4` remains public stable until publication.

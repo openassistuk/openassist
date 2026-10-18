@@ -171,6 +171,7 @@ const SESSION_HELP_COMMAND_PREFIX = "/help";
 const SESSION_CAPABILITIES_COMMAND_PREFIX = "/capabilities";
 const SESSION_GROW_COMMAND_PREFIX = "/grow";
 const SESSION_MEMORY_COMMAND_PREFIX = "/memory";
+const SESSION_COMPACT_COMMAND_PREFIX = "/compact";
 const PROFILE_FIELD_KEYS = new Set(["name", "persona", "prefs", "preferences"]);
 const PROFILE_FORCE_FIELD_KEYS = new Set(["force"]);
 
@@ -508,6 +509,7 @@ export class OpenAssistRuntime {
   private readonly oauthRefreshLocks = new Map<string, Promise<ProviderAuthHandle>>();
   private readonly policyEngine: DatabasePolicyEngine;
   private readonly contextManager: ModelContextManager;
+  private readonly activeContextTurns = new Map<string, number>();
   private readonly recoveryWorker: RecoveryWorker;
   private readonly skillRuntime: FileSkillRuntime;
   private execTool!: ExecTool;
@@ -599,6 +601,7 @@ export class OpenAssistRuntime {
       logger: this.logger,
       handlers: {
         context_maintenance: { run: async payload => {
+          if (!this.contextManager.autoCompactionEnabled()) return;
           const provider = this.providers.get(String(payload.providerId));
           if (!provider) throw new Error("Context maintenance provider is unavailable.");
           await this.contextManager.maintain(provider, String(payload.sessionId), String(payload.model));
@@ -2079,6 +2082,7 @@ export class OpenAssistRuntime {
       throw new Error(`No channel adapter found for id ${preparedInbound.envelope.channelId}`);
     }
 
+    let finishContextTurn: (() => void) | undefined;
     try {
       if (this.isWelcomeCommand(commandText)) {
         await this.handleWelcomeCommand(channel, preparedInbound.envelope, sessionId);
@@ -2097,6 +2101,11 @@ export class OpenAssistRuntime {
 
       if (this.isMemoryCommand(commandText)) {
         await this.handleMemoryCommand(channel, preparedInbound.envelope, sessionId);
+        return;
+      }
+
+      if (this.isCompactCommand(commandText)) {
+        await this.handleCompactCommand(channel, preparedInbound.envelope, sessionId);
         return;
       }
 
@@ -2133,6 +2142,7 @@ export class OpenAssistRuntime {
         return;
       }
 
+      finishContextTurn = this.trackContextTurn(sessionId);
       const profileResolution = await this.policyEngine.resolveProfile({
         sessionId,
         actorId: preparedInbound.envelope.senderId
@@ -2423,6 +2433,8 @@ export class OpenAssistRuntime {
           providerId: this.config.defaultProviderId
         }
       });
+    } finally {
+      finishContextTurn?.();
     }
   }
 
@@ -2964,6 +2976,8 @@ export class OpenAssistRuntime {
       "- /capabilities for the live capability inventory",
       "- /grow for managed skills, helper tools, and growth policy",
       "- /memory to inspect rolling session summary and durable actor memory",
+      "- /compact to summarize older completed history in this chat (uses the configured provider)",
+      `- Automatic compaction: ${this.contextManager.autoCompactionEnabled() ? "on" : "off"}; change it with openassist setup wizard`,
       "- /profile to view or update the main assistant identity"
     ].join("\n");
   }
@@ -2977,6 +2991,7 @@ export class OpenAssistRuntime {
       `- sender id: ${senderId}`,
       `- session id: ${sessionId}`,
       `- provider: ${this.config.defaultProviderId}`,
+      `- Context: automatic compaction ${this.contextManager.autoCompactionEnabled() ? "on" : "off"}; /compact explicitly summarizes older completed history using the provider, with no host tools`,
       `- chat surface: ${this.formatChannelSurfaceSummary(sessionId)}`,
       `- access: ${describeAccessMode(toolsStatus.profile)}`,
       `- access source: ${describeAccessSource(toolsStatus.profileSource)}`,
@@ -3040,9 +3055,11 @@ export class OpenAssistRuntime {
   }
 
   private contextStatusLines(status?: RuntimeContextStatus): string[] {
-    if (!status) return ["context limits unavailable; check provider configuration on the host"];
+    const mode = `automatic compaction: ${this.contextManager.autoCompactionEnabled() ? "on" : "off"}; manual /compact remains available (uses the provider)`;
+    if (!status) return [mode, "context limits unavailable; check provider configuration on the host"];
     const { limits, accounting } = status;
     return [
+      mode,
       `route/model: ${limits.route}/${limits.model}`,
       `context window: ${limits.contextWindowTokens} tokens (${limits.source}${limits.checkedAt ? `; checked ${limits.checkedAt}` : ""})`,
       `input ceiling: ${limits.maxInputTokens}; cost cap: ${limits.operatorInputCapTokens ?? "model default"}; output reserved: ${limits.reservedOutputTokens}; safety: ${limits.safetyMarginTokens}; usable input: ${limits.usableInputTokens}`,
@@ -3245,6 +3262,41 @@ export class OpenAssistRuntime {
     );
   }
 
+  private trackContextTurn(sessionId: string): () => void {
+    this.activeContextTurns.set(sessionId, (this.activeContextTurns.get(sessionId) ?? 0) + 1);
+    return () => {
+      const remaining = (this.activeContextTurns.get(sessionId) ?? 1) - 1;
+      if (remaining) this.activeContextTurns.set(sessionId, remaining);
+      else this.activeContextTurns.delete(sessionId);
+    };
+  }
+
+  private async handleCompactCommand(channel: ChannelAdapter, envelope: InboundEnvelope, sessionId: string): Promise<void> {
+    if ((envelope.text ?? "").trim().toLowerCase() !== SESSION_COMPACT_COMMAND_PREFIX) {
+      await this.sendRuntimeCommandMessage(channel, envelope, sessionId, "runtime.context.manual", "Usage: /compact (no arguments). Summarizes one bounded chunk of older completed history in this chat using the configured provider; original records and the current turn are preserved.");
+      return;
+    }
+    if (this.activeContextTurns.has(sessionId)) {
+      await this.sendRuntimeCommandMessage(channel, envelope, sessionId, "runtime.context.manual", "This chat has a provider turn or compaction in progress. Wait for it to finish, then send /compact again; no manual summary was started.");
+      return;
+    }
+    const finish = this.trackContextTurn(sessionId);
+    try {
+      const provider = this.providers.get(this.config.defaultProviderId);
+      const configured = this.config.providers.find(candidate => candidate.id === this.config.defaultProviderId);
+      if (!provider || !configured) throw new Error("Default provider is not configured for context compaction.");
+      const compacted = await this.contextManager.compactSession(provider, sessionId, configured.defaultModel);
+      const checkpoint = this.contextManager.checkpoint(sessionId);
+      await this.sendRuntimeCommandMessage(channel, envelope, sessionId, "runtime.context.manual", [
+        compacted
+          ? `Context compacted through message ${checkpoint.coveredThrough} (checkpoint revision ${checkpoint.revision}).`
+          : "No additional context checkpoint was adopted; there may be no older completed history to compact.",
+        "Original messages, tool audits and the current turn are preserved. No host actions were run.",
+        `Automatic compaction: ${this.contextManager.autoCompactionEnabled() ? "on" : "off"}. Inspect /memory; send /compact again if more older history needs a bounded step.`
+      ].join("\n"));
+    } finally { finish(); }
+  }
+
   private isOperationalStatusRequest(text: string | undefined): boolean {
     const normalized = (text ?? "").trim().toLowerCase();
     return (
@@ -3258,7 +3310,7 @@ export class OpenAssistRuntime {
 
   private classifyOperationalError(errorText: string): string {
     const normalized = errorText.toLowerCase();
-    if (normalized.includes("context")) return "context admission/compaction failed; history and completed tools are preserved. Inspect /memory, narrow the request or edit context budgets with openassist setup wizard";
+    if (normalized.includes("context")) return "context admission/compaction failed; history and completed tools are preserved. Inspect /memory, use /compact, narrow the request or edit context budgets with openassist setup wizard";
     if (normalized.includes("missing authentication") || normalized.includes("api key")) {
       return "provider authentication is missing or invalid";
     }
@@ -3285,6 +3337,12 @@ export class OpenAssistRuntime {
   private isMemoryCommand(text: string | undefined): boolean {
     const normalized = (text ?? "").trim().toLowerCase();
     return normalized === SESSION_MEMORY_COMMAND_PREFIX || normalized.startsWith(`${SESSION_MEMORY_COMMAND_PREFIX} `);
+  }
+
+  private isCompactCommand(text: string | undefined): boolean {
+    const normalized = (text ?? "").trim().toLowerCase();
+    return normalized === SESSION_COMPACT_COMMAND_PREFIX ||
+      (normalized.startsWith(SESSION_COMPACT_COMMAND_PREFIX) && /\s/u.test(normalized.charAt(SESSION_COMPACT_COMMAND_PREFIX.length)));
   }
 
   private isAccessCommand(text: string | undefined): boolean {

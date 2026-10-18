@@ -6,7 +6,7 @@ This living ExecPlan follows `.agents/PLANS.md`. Maintain Progress, Surprises & 
 ## Purpose / Big Picture
 
 
-Prepare the merged model-aware context engine and recovery fixes for packaged operators as `0.2.5`. Existing signed `v0.2.4` installations keep their shipped planner until explicitly updated. Align candidate versions, collect the release changelog, explain context/memory and rollback behavior, and reconcile all affected guides without claiming unpublished assets are available.
+Prepare the merged model-aware context engine and recovery fixes for packaged operators as `0.2.5`. Existing signed `v0.2.4` installations keep their shipped planner until explicitly updated. Align candidate versions, collect the release changelog, explain context/memory and rollback behavior, and reconcile all affected guides without claiming unpublished assets are available. The subsequent October 18 request extends this same PR with manual `/compact` and an automatic-compaction switch; follow [the controls plan](manual-compaction-2026-10-18.md) for implementation and fresh validation.
 
 Success for this task is a preparation PR with synchronized root/CLI/daemon versions, reviewed release notes, current README/AGENTS/docs and passing local/hosted checks. Public stable remains verified `v0.2.4`; the new preparation merge must receive its own exact-main checks before any separately authorized release.
 
@@ -20,6 +20,8 @@ Success for this task is a preparation PR with synchronized root/CLI/daemon vers
 - [x] (2026-10-18) Strengthen the existing release-doc contract for AGENTS linkage. Frozen installation/build pass with the lockfile unchanged; both executable versions print `0.2.5`. All 39 focused docs/version/publication contracts pass. Manual budget/byte bounds, CLI flags and workflow/coverage claims match their implementation sources.
 - [x] (2026-10-18 local gate) Commit candidate metadata as `dca3d5977df24716f37074c9984d9d21b0d5a151` and pass full `pnpm verify:all`: workflow lint, build/lint/typecheck, 668 Vitest passes/one existing skip, 245 Node passes/six existing skips, both unchanged coverage gates and zero production/full audit findings. Scoped Node coverage passes 126 tests/five existing skips. Final review corrects three guide headings, consolidates duplicate rollback guidance and closes PR #87 local evidence from its recorded validation; rerun focused docs truth after these documentation-only edits.
 - [x] (2026-10-18 delivery) Review final additions for accidental runtime changes, credential markers and misleading release claims; preserve the unchanged lockfile/gates. Push `codex/release-0.2.5`, open and attach [preparation PR #89](https://github.com/openassistuk/openassist/pull/89). Its Validation section is the living final actual-head record for local docs revalidation, CI, PR/full-branch CodeQL, native/signing/live-macOS checks, separate scanning refs and unresolved review threads; reconcile it before handoff without repeated evidence-only pushes.
+
+- [ ] (2026-10-18 scope extension) Implement and verify the separately authorized manual/automatic controls on this existing branch/PR under [the controls plan](manual-compaction-2026-10-18.md). Earlier metadata-head evidence remains historical and does not certify new runtime behavior.
 
 ## Surprises & Discoveries
 
@@ -47,7 +49,7 @@ Candidate versions, notes, changelog and affected live guides are aligned; root 
 ## Context and Orientation
 
 
-The only product changes since the v0.2.4 release target are the merged context work in PR #88, plus v0.2.4 availability documentation in PR #87. `packages/config/src/provider-models.ts` and `context-limits.ts` define route-specific capacities and cost/output budgets. `packages/core-runtime/src/context-manager.ts` admits prepared payloads, projects bounded tool results and generates smaller historical checkpoints. `packages/storage-sqlite/src/context.ts` preserves original rows and transactionally verifies revision, contiguous range and raw digest before checkpoint adoption. All five adapters prepare/count/send the same mapped content. Context compaction and actor memory extraction remain separate.
+The initial preparation collected merged context work in PR #88 and v0.2.4 availability documentation in PR #87. The newly authorized extension adds manual `/compact`, default-on `runtime.context.autoCompact`, wizard/status/doctor visibility and fresh regressions in this same PR. `packages/config/src/provider-models.ts` and `context-limits.ts` define route-specific capacities and cost/output budgets. `packages/core-runtime/src/context-manager.ts` admits prepared payloads, projects bounded tool results and generates smaller historical checkpoints. `packages/storage-sqlite/src/context.ts` preserves original rows and transactionally verifies revision, contiguous range and raw digest before checkpoint adoption. All five adapters prepare/count/send the same mapped content. Context compaction and actor memory extraction remain separate.
 
 Version manifests are `package.json`, `apps/openassist-cli/package.json` and `apps/openassistd/package.json`. Changelog history lives in `CHANGELOG.md`; release notes belong in `docs/releases/v0.2.5.md`. `tests/node/cli-docs-truth.test.ts` checks versions, executable output, note links, commands/workflows, coverage and testing inventory. `tests/node/runtime-version.test.ts` checks source/build identity, and `tests/node/release-publication-checks.test.ts` checks exact-main publication prerequisites.
 
@@ -73,12 +75,12 @@ Work from `C:\Users\dange\Coding\openassist` on `codex/release-0.2.5`. Use the e
     git diff --check
     pnpm verify:all
 
-Both executable versions must print `0.2.5`. Dependency resolutions, production behavior and security/coverage thresholds must remain unchanged. Commit the reviewed metadata before the full gate so clone-based tests inspect this candidate. Push the branch and open the normal PR to main, attach it to this chat and dispatch only a full branch CodeQL analysis in addition to automatic PR checks. Do not create a release tag or dispatch publication.
+Both executable versions must print `0.2.5`. Dependency resolutions and security/coverage thresholds remain unchanged; production behavior changes are limited to the separately authorized controls plan. Commit the reviewed metadata before the full gate so clone-based tests inspect this candidate. Push the branch and open the normal PR to main, attach it to this chat and dispatch only a full branch CodeQL analysis in addition to automatic PR checks. Do not create a release tag or dispatch publication.
 
 ## Validation and Acceptance
 
 
-All three manifests, built executable versions, versioned changelog and release-note links agree on candidate `0.2.5`. Root and operator guides distinguish this candidate from public v0.2.4, and current source context docs explain the additive state/rollback and independent byte/token limits accurately. Existing context regression suites run unchanged in the full gate; no new runtime implementation is required.
+All three manifests, built executable versions, versioned changelog and release-note links agree on candidate `0.2.5`. Root and operator guides distinguish this candidate from public v0.2.4, and current source context docs explain the additive state/rollback and independent byte/token limits accurately. The original metadata phase required no runtime implementation. The later controls extension adds runtime/config/command behavior and corresponding regressions; rerun the full gate and exact-head hosted checks rather than reusing earlier results.
 
 Full local `pnpm verify:all` must pass with unchanged Vitest gates (81% lines/statements/functions, 71% branches), Node gates (79% lines/statements, 80% functions, 70% branches), docs truth and production/full dependency audits. Hosted quality must pass Linux/macOS/Windows plus workflow lint, actual PR/full CodeQL, native four-platform packages, ephemeral signing and macOS LaunchAgent checks. Publication-only jobs are expected PR skips. Open scanner alerts and review threads are checked separately. Baseline/PR success does not certify the future exact-main release tag or live provider/channel sessions.
 
@@ -97,7 +99,7 @@ Baseline: PR #88 merge `f32a1e115d5d31e2c28fec1561cdf0c313a0e4aa`, [main CI 3914
 ## Interfaces and Dependencies
 
 
-No new runtime contract or production dependency is required. Keep existing Node 24.21.0, pnpm 12.5.1, model catalog/tuning, database compatibility version 1, install-state version 2, lifecycle JSON version 4, signed update manifests and `managed-one-shots-v1`. Candidate metadata must not implicitly activate new models, tools or account capabilities.
+The initial metadata phase required no new runtime contract. The controls extension adds backward-compatible optional `autoCompact` config/status fields; no new production dependency or storage version is required. Keep existing Node 24.21.0, pnpm 12.5.1, model catalog/tuning, database compatibility version 1, install-state version 2, lifecycle JSON version 4, signed update manifests and `managed-one-shots-v1`. Candidate metadata must not implicitly activate new models, tools or account capabilities.
 
 Revision note (2026-10-18): initialize 0.2.5 preparation from the verified context merge and actual public stable state, with complete documentation/version contracts and explicit limits on publication/live-testing authorization.
 

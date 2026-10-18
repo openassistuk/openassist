@@ -641,6 +641,7 @@ export function buildRuntimeAwarenessSystemMessage(snapshot: RuntimeAwarenessSna
     ...capabilityDomainLines,
     `- install context: method=${snapshot.maintenance.installationMethod ?? "unknown"}, version=${snapshot.maintenance.installedVersion ?? "unknown"}, repoBacked=${yesNo(snapshot.maintenance.repoBackedInstall)}, installDir=${snapshot.maintenance.installDir ?? "(not known)"}, config=${snapshot.maintenance.configPath ?? "(not known)"}, envFile=${snapshot.maintenance.envFilePath ?? "(not known)"}, trackedRef=${snapshot.maintenance.trackedRef ?? "(not known)"}, lastKnownGood=${snapshot.maintenance.lastKnownGoodCommit ?? "(not known)"}`,
     `- update status: ${snapshot.maintenance.updateStatus ?? "not checked"}; updates are operator-initiated`,
+    "- context controls: /compact explicitly summarizes older completed history in this chat using the configured provider, with no host tools. /status and /memory show auto-compaction mode; change the installation-wide switch with openassist setup wizard. Admission limits remain enforced when automatic compaction is off.",
     `- growth: mode=${snapshot.growth.defaultMode}, fullRootCanGrowNow=${yesNo(snapshot.growth.fullRootCanGrowNow)}, skills=${snapshot.growth.installedSkillCount}, helpers=${snapshot.growth.managedHelperCount}, skillsDir=${snapshot.growth.skillsDirectory}, helperToolsDir=${snapshot.growth.helperToolsDirectory}`,
     `- update-safe growth note: ${snapshot.growth.updateSafetyNote}`,
     "- docs map:",

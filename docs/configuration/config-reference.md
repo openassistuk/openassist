@@ -40,6 +40,7 @@ Core fields:
 
 | Field | Type | Default / Bounds |
 | --- | --- | --- |
+| `autoCompact` | boolean | `true`; false disables automatic foreground/overflow/background summary generation and adoption; `/compact` remains available and byte/token guards stay enforced |
 | `maxInputTokens` | optional integer | input cost ceiling, `1024..2000000`; omitted uses serving limits |
 | `reservedOutputTokens` | optional integer | minimum reservation, `1..128000`; cannot reduce actual output allowance; does not change generation settings |
 | `compactAtRatio` | number | `0.85`, range `0.5..0.95` |
@@ -47,6 +48,8 @@ Core fields:
 | `maxRequestBytes` | integer | prepared provider-payload cap, default `33554432`, range `65536..67108864`; pre-mapping guard remains twice this cap; raw-source reads/digest verification separately allow `max(33554432, maxRequestBytes)` bytes, up to 64 MiB |
 | `summaryMaxTokens` | integer | `8192`, range `256..16384`; effective output/validation is capped by exact catalog maxima and applicable Anthropic output settings, preserving valid thinking headroom |
 | `summarySourceTokens` | integer | `32768`, range `1024..65536`; aggregate source-record ceiling, also limited by available input headroom; historical excerpts disclose omissions |
+
+`/compact` accepts no arguments and explicitly attempts one bounded checkpoint chunk in the current canonical chat. It uses the configured provider (normal quota/cost/auth applies), retains original records and the latest turn, and does not change this setting or actor memory. Busy chats ask you to wait. A command may report no eligible progress or fail; repeat explicitly for further catch-up. Quickstart preserves the saved switch, and wizard edits it. `/status`, `/memory`, health and doctor show the effective automatic mode.
 
 Every provider also accepts optional `contextWindowTokens` (`4096..2000000`) as a verified serving-window override. Known native windows remain an upper bound. Codex, compatible/custom endpoints and unknown exact models default to a labeled 24,000-token fallback. Azure needs an explicit cataloged `underlyingModel`. Impossible reservations are rejected; caps never enlarge vendor limits. Quickstart preserves saved settings; wizard edits these advanced controls.
 

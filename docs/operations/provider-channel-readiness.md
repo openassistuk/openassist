@@ -1,5 +1,7 @@
 # Provider, authentication and channel readiness
 
+The `0.2.5` candidate now includes manual `/compact` and default-on `runtime.context.autoCompact` across the common provider/channel runtime. Manual commands consume normal provider quota for bounded tool-free summaries; auto-off preserves guards and prevents automatic foreground/overflow/maintenance summaries. Offline command/scope/restart tests and new actual-head gates are recorded in the [controls plan](../execplans/manual-compaction-2026-10-18.md), separately from paid/live certification.
+
 Checked on 2026-09-27 for [PR #61](https://github.com/openassistuk/openassist/pull/61), merged as `0ac0921`. Package versions were compared with npm registry tags and upstream release notes during that implementation. This is a dated record of implemented compatibility, not live account certification or a claim that registry versions never change.
 
 ## October 18 context candidate

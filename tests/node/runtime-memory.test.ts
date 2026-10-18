@@ -21,6 +21,7 @@ import type {
 import { OpenAssistRuntime } from "../../packages/core-runtime/src/runtime.js";
 import { OpenAssistDatabase, contextSourceDigest } from "../../packages/storage-sqlite/src/index.js";
 import { createLogger } from "../../packages/observability/src/index.js";
+import { DEFAULT_CONTEXT_CONFIG } from "../../packages/config/src/context-limits.js";
 
 class MemoryAwareProvider implements ProviderAdapter {
   public requests: ChatRequest[] = [];
@@ -46,6 +47,12 @@ class MemoryAwareProvider implements ProviderAdapter {
 
   async chat(req: ChatRequest, _auth: ProviderAuthHandle | ApiKeyAuth): Promise<ChatResponse> {
     this.requests.push(req);
+    if (req.metadata.source === "runtime.context.summary") {
+      return {
+        output: { role: "assistant", content: JSON.stringify({ goals: "Retain original task", constraints: "No new approval", decisions: "", openWork: "", completedActions: "", evidence: "Retain original references" }) },
+        usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20 }
+      };
+    }
     if (req.metadata.source === "runtime.memory.sidecar") {
       this.sidecarCalls += 1;
       return {
@@ -221,6 +228,137 @@ afterEach(() => {
 });
 
 describe("runtime memory behavior", () => {
+  it("routes /compact to one tool-free summary in the current chat with auto-compaction and permanent memory off", async () => {
+    const root = tempDir("openassist-manual-context-"); roots.push(root);
+    const logger = createLogger({ service: "test" });
+    const db = new OpenAssistDatabase({ dbPath: path.join(root,"openassist.db"), logger });
+    const provider = new MemoryAwareProvider(); const channel = new MockChannel();
+    const config = buildConfig(root, { memory: { enabled: false } });
+    config.context = { ...DEFAULT_CONTEXT_CONFIG, autoCompact: false };
+    config.defaultPolicyProfile = "restricted";
+    for (const sessionId of ["telegram-mock:chat-1", "telegram-mock:chat-2"]) {
+      db.recordAssistantMessage(sessionId, sessionId.split(":")[1]!, { role: "user", content: `${sessionId} completed task ` + "x".repeat(6000) });
+      db.recordAssistantMessage(sessionId, sessionId.split(":")[1]!, { role: "assistant", content: "completed response" });
+    }
+    const original = db.context.history("telegram-mock:chat-1").messages;
+    const other = db.context.history("telegram-mock:chat-2").messages;
+    db.setSetting("memory.extraction.telegram-mock:chat-1", "1");
+    const runtime = new OpenAssistRuntime(config, { db, logger }, { providers: [provider], channels: [channel] });
+    runtime.setProviderApiKey("mock-provider", "key"); await runtime.start();
+    try {
+      const command = inbound("chat-1", "u1", "/compact", "manual-1");
+      await channel.emit(command);
+      assert.match(channel.sent.at(-1)?.text ?? "", /Context compacted through message/);
+      assert.match(channel.sent.at(-1)?.text ?? "", /Automatic compaction: off/);
+      assert.equal(provider.requests.length, 1); assert.equal(provider.requests[0]!.metadata.source, "runtime.context.summary");
+      assert.deepEqual(provider.requests[0]!.tools, []);
+      assert.ok(provider.requests[0]!.sessionId.startsWith("telegram-mock:chat-1::context::"));
+      assert.equal(JSON.parse(provider.requests[0]!.messages[1]!.content).records.some((record: { content: string }) => record.content.includes("chat-2")), false);
+      const checkpoint = db.context.checkpoint("telegram-mock:chat-1")!;
+      assert.equal(checkpoint.coveredThrough, Number(original.at(-1)!.id));
+      assert.equal(checkpoint.sourceDigest, contextSourceDigest(original));
+      assert.deepEqual(db.context.history("telegram-mock:chat-1").messages.slice(0, original.length), original);
+      assert.deepEqual(db.context.history("telegram-mock:chat-2").messages, other);
+      assert.equal(db.context.checkpoint("telegram-mock:chat-2"), null);
+      assert.equal(db.getSetting("memory.extraction.telegram-mock:chat-1"), "1");
+      const sent = channel.sent.length;
+      await channel.emit(command);
+      assert.equal(provider.requests.length, 1); assert.equal(channel.sent.length, sent);
+      await channel.emit(inbound("chat-1", "u1", "/memory", "manual-memory"));
+      assert.match(channel.sent.at(-1)?.text ?? "", /automatic compaction: off/);
+      const statusStart = channel.sent.length;
+      await channel.emit(inbound("chat-1", "u1", "/status", "manual-status"));
+      assert.match(channel.sent.slice(statusStart).map(message => message.text).join("\n"), /automatic compaction: off/);
+      const helpStart = channel.sent.length;
+      await channel.emit(inbound("chat-1", "u1", "/help", "manual-help"));
+      assert.match(channel.sent.slice(helpStart).map(message => message.text).join("\n"), /\/compact/);
+      const capabilitiesStart = channel.sent.length;
+      await channel.emit(inbound("chat-1", "u1", "/capabilities", "manual-capabilities"));
+      assert.match(channel.sent.slice(capabilitiesStart).map(message => message.text).join("\n"), /automatic compaction off; \/compact/);
+      assert.equal(provider.requests.length, 1);
+      assert.equal(db.countQueuedJobs(), 0);
+    } finally { await runtime.stop(); db.close(); }
+  });
+
+  for (const command of ["/compact", "/compact now", "/compact\nnow"]) {
+    it(`handles ${command} without provider work for an empty chat or invalid arguments`, async () => {
+      const root = tempDir("openassist-manual-context-empty-"); roots.push(root);
+      const logger = createLogger({ service: "test" }); const db = new OpenAssistDatabase({ dbPath: path.join(root,"openassist.db"), logger });
+      const provider = new MemoryAwareProvider(); const channel = new MockChannel();
+      const runtime = new OpenAssistRuntime(buildConfig(root, { memory: { enabled: false } }), { db, logger }, { providers: [provider], channels: [channel] });
+      await runtime.start();
+      try {
+        await channel.emit(inbound("chat-empty", "u1", command, "manual-empty"));
+        assert.equal(provider.requests.length, 0);
+        assert.match(channel.sent.at(-1)?.text ?? "", command === "/compact" ? /No additional context checkpoint/ : /Usage: \/compact/);
+        assert.equal(db.context.checkpoint("telegram-mock:chat-empty"), null);
+      } finally { await runtime.stop(); db.close(); }
+    });
+  }
+
+  it("refuses manual compaction while this chat has an unfinished provider turn", async () => {
+    const root = tempDir("openassist-manual-context-busy-"); roots.push(root);
+    const logger = createLogger({ service: "test" }); const db = new OpenAssistDatabase({ dbPath: path.join(root,"openassist.db"), logger });
+    const provider = new MemoryAwareProvider(); const channel = new MockChannel();
+    let release!: () => void; let started!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    const began = new Promise<void>(resolve => { started = resolve; });
+    const chat = provider.chat.bind(provider);
+    provider.chat = async (request, auth) => { started(); await blocked; return chat(request, auth); };
+    const runtime = new OpenAssistRuntime(buildConfig(root, { memory: { enabled: false } }), { db, logger }, { providers: [provider], channels: [channel] });
+    runtime.setProviderApiKey("mock-provider", "key"); await runtime.start();
+    const running = channel.emit(inbound("busy", "u1", "unfinished task " + "x".repeat(6000), "manual-busy-turn"));
+    try {
+      await began;
+      await channel.emit(inbound("busy", "u1", "/compact", "manual-busy-command"));
+      assert.match(channel.sent.at(-1)?.text ?? "", /turn or compaction in progress/);
+      assert.equal(db.context.checkpoint("telegram-mock:busy"), null);
+      await channel.emit(inbound("other", "u1", "/compact", "manual-other-chat"));
+      assert.match(channel.sent.at(-1)?.text ?? "", /No additional context checkpoint/);
+      release(); await running;
+      assert.equal(provider.requests.length, 1); assert.notEqual(provider.requests[0]!.metadata.source, "runtime.context.summary");
+    } finally { release(); await running; await runtime.stop(); db.close(); }
+  });
+
+  it("reports explicit summary failure without claiming progress or enqueueing automatic work", async () => {
+    const root = tempDir("openassist-manual-context-failure-"); roots.push(root);
+    const logger = createLogger({ service: "test" }); const db = new OpenAssistDatabase({ dbPath: path.join(root,"openassist.db"), logger });
+    const provider = new MemoryAwareProvider(); const channel = new MockChannel();
+    provider.chat = async request => { provider.requests.push(request); return { output: { role: "assistant", content: "invalid JSON" }, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } }; };
+    const runtime = new OpenAssistRuntime(buildConfig(root, { memory: { enabled: false } }), { db, logger }, { providers: [provider], channels: [channel] });
+    db.recordAssistantMessage("telegram-mock:failure", "failure", { role: "user", content: "old task " + "x".repeat(6000) });
+    db.recordAssistantMessage("telegram-mock:failure", "failure", { role: "assistant", content: "done" });
+    const original = db.context.history("telegram-mock:failure").messages;
+    runtime.setProviderApiKey("mock-provider", "key"); await runtime.start();
+    try {
+      await channel.emit(inbound("failure", "u1", "/compact", "manual-failure"));
+      assert.match(channel.sent.at(-1)?.text ?? "", /could not complete/);
+      assert.doesNotMatch(channel.sent.at(-1)?.text ?? "", /Context compacted through/);
+      assert.equal(provider.requests.length, 1); assert.equal(db.countQueuedJobs(), 0);
+      assert.equal(db.context.checkpoint("telegram-mock:failure"), null);
+      assert.deepEqual(db.context.history("telegram-mock:failure").messages.slice(0, original.length), original);
+    } finally { await runtime.stop(); db.close(); }
+  });
+
+  it("skips resumed pending context intent and queued maintenance when automatic compaction is off", async () => {
+    const root = tempDir("openassist-context-off-restart-"); roots.push(root);
+    const logger = createLogger({ service: "test" }); const db = new OpenAssistDatabase({ dbPath: path.join(root,"openassist.db"), logger });
+    const provider = new MemoryAwareProvider(); const channel = new MockChannel();
+    const config = buildConfig(root, { memory: { enabled: false } }); config.context = { ...DEFAULT_CONTEXT_CONFIG, autoCompact: false };
+    const sessionId = "telegram-mock:pending";
+    db.recordAssistantMessage(sessionId, "pending", { role: "user", content: "old task " + "x".repeat(6000) });
+    db.recordAssistantMessage(sessionId, "pending", { role: "assistant", content: "done" });
+    const source = db.context.history(sessionId).messages;
+    db.context.begin({ sessionId, expectedRevision: 0, afterMessageId: 0, throughMessageId: Number(source.at(-1)!.id), sourceDigest: contextSourceDigest(source), scope: "mock-provider:x" });
+    db.enqueueJob("context_maintenance", { sessionId, providerId: "removed-provider", model: "old-model" }, { maxAttempts: 3, initialDelayMs: 1, maxDelayMs: 100 });
+    const runtime = new OpenAssistRuntime(config, { db, logger }, { providers: [provider], channels: [channel] });
+    await runtime.start();
+    try {
+      for (let attempt=0; attempt<100 && db.countQueuedJobs(); attempt++) await new Promise(resolve => setTimeout(resolve, 20));
+      assert.equal(db.countQueuedJobs(), 0); assert.equal(provider.requests.length, 0);
+      assert.equal(db.context.checkpoint(sessionId), null); assert.deepEqual(db.context.history(sessionId).messages, source);
+    } finally { await runtime.stop(); db.close(); }
+  });
   for (const state of ["context checkpoint", "legacy summary", "saved extraction cursor"]) {
     it(`keeps initial extraction independent of ${state}`, async () => {
       const root = tempDir("openassist-memory-cursor-"); roots.push(root);

@@ -28,6 +28,8 @@ Reuse runtime occurrence-based tool reconciliation after bounded history hydrati
 
 Keep raw-source hydration/digest verification bounded independently of smaller prepared-payload byte caps: use at least the existing 32 MiB allowance, or a larger supported request cap up to 64 MiB. Original oversized results must reach bounded runtime projection without skipping rows or weakening raw digests. Individually larger raw rows fail explicitly; incomplete maintenance without progress must not report success. Maintenance must check prepared bytes as well as tokens. Cover small-cap recovery/reopen, stale digests, mandatory input and the raw-source resource limit.
 
+Gate automatic context summaries consistently across foreground admission, overflow repair, durable/restarted maintenance and late adoption with `runtime.context.autoCompact` (default true). Auto-off never bypasses input/byte guards or discards checkpoints. `/compact` is an explicit one-chunk, tool-free provider operation for this canonical chat; preserve current input, original rows/digests and actor extraction cursors, respect busy in-flight turns, report actual adoption and never silently queue manual failures. Keep wizard, help/capabilities, status/doctor, config docs and failure/restart/concurrency fixtures aligned.
+
 1. No secret leakage in logs, tests, docs, or error text.
 2. No implicit privilege escalation.
 3. No replay/idempotency regressions without explicit migration notes.

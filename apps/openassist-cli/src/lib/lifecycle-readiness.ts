@@ -554,7 +554,7 @@ export function buildLifecycleReport(input: LifecycleReportInput): LifecycleRepo
             contextOutputAllowance(configured));
           const active = Object.values(input.context ?? {}).find(status => status.limits.route === configured.type && status.limits.model === configured.defaultModel);
           uniquePush(readyNow, createItem("provider.context", "first-reply", "Provider context",
-            `window=${limits.contextWindowTokens} (${limits.source}${limits.checkedAt ? `; ${limits.checkedAt}` : ""}); cost cap=${limits.operatorInputCapTokens ?? "model default"}; input ceiling=${limits.maxInputTokens}; reserved output=${limits.reservedOutputTokens}; usable input=${limits.usableInputTokens}; ` +
+            `auto-compaction=${input.config!.runtime.context.autoCompact !== false ? "on" : "off"}; manual=/compact (provider required); window=${limits.contextWindowTokens} (${limits.source}${limits.checkedAt ? `; ${limits.checkedAt}` : ""}); cost cap=${limits.operatorInputCapTokens ?? "model default"}; input ceiling=${limits.maxInputTokens}; reserved output=${limits.reservedOutputTokens}; usable input=${limits.usableInputTokens}; ` +
             (active?.accounting ? `last input=${active.accounting.inputTokens} (${active.accounting.source}), bytes=${active.accounting.bytes}; state=${active.state}; checkpoint=${active.checkpointRevision}, through=${active.coveredThrough}${active.failure ? `; ${active.failure}` : ""}` : "occupancy stale/not measured")));
         } catch {
           uniquePush(needsActionBeforeFirstReply, createItem("provider.context", "first-reply", "Provider context", "Context/output reservations leave no usable input.", undefined, "openassist setup wizard"));

@@ -73,6 +73,10 @@ export class ModelContextManager {
   stop(): void { this.cancellation.abort(); }
   signal(): AbortSignal { return this.cancellation.signal; }
   policy(): RuntimeContextConfig { return { ...DEFAULT_CONTEXT_CONFIG, ...this.config().context }; }
+  autoCompactionEnabled(): boolean { return this.policy().autoCompact !== false; }
+  private enqueueAutomatic(payload: Record<string,unknown>): void {
+    if (this.autoCompactionEnabled() && !this.cancellation.signal.aborted) this.enqueue(payload);
+  }
   private sourceReadBytes(): number {
     // Raw audit verification needs its own finite allowance, independent of a smaller wire cap.
     return Math.min(67_108_864, Math.max(DEFAULT_CONTEXT_CONFIG.maxRequestBytes, this.policy().maxRequestBytes));
@@ -84,17 +88,17 @@ export class ModelContextManager {
   }
   status(sessionId: string): RuntimeContextStatus | undefined {
     const active = this.statuses.get(sessionId);
-    if (active) return active;
+    if (active) return { ...active, autoCompact: this.autoCompactionEnabled() };
     const provider = this.config().providers.find(candidate => candidate.id === this.config().defaultProviderId);
     if (!provider) return undefined;
     const checkpoint = this.checkpoint(sessionId);
     try {
-      return { limits: resolveContextLimits(provider, provider.defaultModel, this.policy(), contextOutputAllowance(provider)),
+      return { autoCompact: this.autoCompactionEnabled(), limits: resolveContextLimits(provider, provider.defaultModel, this.policy(), contextOutputAllowance(provider)),
         state: "stale", retainedMessages: 0, checkpointRevision: checkpoint.revision, coveredThrough: checkpoint.coveredThrough };
     } catch { return undefined; }
   }
   snapshot(): Record<string, RuntimeContextStatus> {
-    if (this.statuses.size) return Object.fromEntries(this.statuses);
+    if (this.statuses.size) return Object.fromEntries([...this.statuses.keys()].map(sessionId => [sessionId, this.status(sessionId)!]));
     const status = this.status("default");
     return status ? { default: status } : {};
   }
@@ -133,7 +137,7 @@ export class ModelContextManager {
         ...messages.filter(message => message.role !== "system" && (!message.id || (!loadedIds.has(message.id) && Number(message.id) > Number(history.messages.at(-1)?.id ?? 0))))];
       incomplete = !history.complete;
     }
-    if (request.metadata.contextHistoryIncomplete === "true" || request.metadata.source === "runtime.context.maintenance") {
+    if (request.metadata.contextHistoryIncomplete === "true" || request.metadata.source === "runtime.context.maintenance" || request.metadata.source === "runtime.context.manual") {
       messages = reconcileToolConversation(messages).messages;
     }
     const firstConversation = messages.findIndex(message => message.role !== "system");
@@ -204,6 +208,7 @@ export class ModelContextManager {
       request = this.projectTools(request, preliminaryLimits.usableInputTokens);
       const summaryCall = request.metadata.source === "runtime.context.summary" || request.metadata.source === "runtime.memory.sidecar" || request.metadata.source === "scheduler";
       if (this.preparationBytes(provider, request) > policy.maxRequestBytes * 2) {
+        if (!this.autoCompactionEnabled()) throw new ContextAdmissionError("Context preparation exceeds the resource bound while automatic compaction is off. Use /compact, narrow the input or adjust context settings; original history is preserved.");
         if (!summaryCall) {
           const checkpoint = this.checkpoint(request.sessionId);
           this.remember(request.sessionId, { limits: preliminaryLimits, state: "blocked", retainedMessages: request.messages.length,
@@ -214,7 +219,7 @@ export class ModelContextManager {
               request = this.project(request); continue;
             }
           }
-          if (recoveryCount >= 2) this.enqueue({ sessionId: request.sessionId, providerId: provider.id(), model: request.model });
+          if (recoveryCount >= 2) this.enqueueAutomatic({ sessionId: request.sessionId, providerId: provider.id(), model: request.model });
         }
         throw new ContextAdmissionError(PREPARATION_FAILURE);
       }
@@ -229,13 +234,13 @@ export class ModelContextManager {
         catch { failure = "Provider token counting unavailable; admission uses a conservative estimate."; }
       }
       const checkpoint = this.checkpoint(request.sessionId);
-      const status: RuntimeContextStatus = { limits, accounting, state: "ready", retainedMessages: request.messages.length,
+      const status: RuntimeContextStatus = { autoCompact: this.autoCompactionEnabled(), limits, accounting, state: "ready", retainedMessages: request.messages.length,
         retainedTurns: conversationSegments(request.messages.filter(message => message.role !== "system")).length,
         checkpointRevision: checkpoint.revision, coveredThrough: checkpoint.coveredThrough, ...(failure ? { failure } : {}) };
       const exceeds = accounting.inputTokens > limits.usableInputTokens || accounting.bytes > policy.maxRequestBytes;
       const pressure = exceeds || accounting.inputTokens >= limits.usableInputTokens * policy.compactAtRatio || request.metadata.contextHistoryIncomplete === "true";
       if (!summaryCall) this.remember(request.sessionId, status);
-      if (pressure && !summaryCall && recoveryCount < 2) {
+      if (pressure && !summaryCall && this.autoCompactionEnabled() && recoveryCount < 2) {
         status.state = "compacting";
         let compacted = false;
         try { compacted = await this.compact(provider, request, policy, limits.usableInputTokens); }
@@ -252,9 +257,11 @@ export class ModelContextManager {
         status.state = "ready";
       }
       if (exceeds || request.metadata.contextHistoryIncomplete === "true") {
-        if (recoveryCount >= 2) this.enqueue({ sessionId: request.sessionId, providerId: provider.id(), model: request.model });
+        if (recoveryCount >= 2) this.enqueueAutomatic({ sessionId: request.sessionId, providerId: provider.id(), model: request.model });
         status.state = "blocked";
-        status.failure = "The complete request does not fit the context or byte budget. History and completed tool results are preserved; narrow the input or adjust the explicit context settings.";
+        status.failure = this.autoCompactionEnabled()
+          ? "The complete request does not fit the context or byte budget. History and completed tool results are preserved; narrow the input or adjust the explicit context settings."
+          : "The complete request does not fit the context or byte budget while automatic compaction is off. Use /compact, narrow the input or adjust context settings; history and completed tools are preserved.";
         throw new ContextAdmissionError(status.failure);
       }
       // Execute exactly the candidate that was counted. No payload is reconstructed here.
@@ -263,6 +270,7 @@ export class ModelContextManager {
   }
 
   async repair(provider: ProviderAdapter, original: ChatRequest, auth: ProviderAuth, rejected: PreparedChatRequest): Promise<PreparedChatRequest> {
+    if (!this.autoCompactionEnabled()) throw new ContextAdmissionError("Provider rejected the context size while automatic compaction is off. Use /compact, narrow the input or adjust context settings; no submission was retried.");
     if (original.metadata.source === "runtime.context.summary" || original.metadata.source === "runtime.memory.sidecar" || original.metadata.source === "scheduler" ||
       !this.db.context.reject(original.sessionId, rejected.accounting.fingerprint))
       throw new ContextAdmissionError("Provider rejected the context size; no unchanged submission was retried. Narrow the input or configure a smaller context cap.");
@@ -279,7 +287,24 @@ export class ModelContextManager {
     } finally { this.db.context.repaired(original.sessionId, rejected.accounting.fingerprint, success); }
   }
 
-  private async compact(provider: ProviderAdapter, request: ChatRequest, policy: RuntimeContextConfig, usableInput: number): Promise<boolean> {
+  async compactSession(provider: ProviderAdapter, sessionId: string, model: string): Promise<boolean> {
+    this.cancellation.signal.throwIfAborted();
+    const configured = this.config().providers.find(candidate => candidate.id === provider.id());
+    if (!configured) throw new ContextAdmissionError("Manual context compaction requires a configured provider.");
+    const history = this.history(sessionId, this.checkpoint(sessionId).coveredThrough);
+    const latest = this.db.getRecentMessages(sessionId, 1)[0];
+    if (!history.complete && latest && !history.messages.some(message => message.id === latest.id)) history.messages.push(latest);
+    const policy = this.policy();
+    const limits = resolveContextLimits(configured, model, policy, contextOutputAllowance(configured));
+    const request = this.projectTools(this.project({ sessionId, model, messages: history.messages, tools: [],
+      metadata: { source: "runtime.context.manual", contextHistoryIncomplete: String(!history.complete) } }), limits.usableInputTokens);
+    const compacted = await this.compact(provider, request, policy, limits.usableInputTokens, "manual");
+    if (compacted) this.statuses.delete(sessionId); // The old occupancy no longer describes the adopted projection.
+    return compacted;
+  }
+
+  private async compact(provider: ProviderAdapter, request: ChatRequest, policy: RuntimeContextConfig, usableInput: number, mode: "automatic" | "manual" = "automatic"): Promise<boolean> {
+    if (mode === "automatic" && !this.autoCompactionEnabled()) return false;
     const segments = conversationSegments(request.messages.filter(message => message.role !== "system"));
     const eligible = segments.slice(0, -1).flat();
     const through = Math.max(0, ...eligible.map(message => Number(message.id) || 0));
@@ -357,13 +382,14 @@ export class ModelContextManager {
           throw new ContextAdmissionError("Context summary did not reduce the prepared request.");
       }
       signal.throwIfAborted();
+      if (mode === "automatic" && !this.autoCompactionEnabled()) throw new ContextAdmissionError("Automatic context compaction was disabled before adoption.");
       const adopted = this.db.context.finish(job, referencedSummary, this.sourceReadBytes());
       if (!adopted) this.db.context.fail(job.id);
       return Boolean(adopted);
     } catch {
       this.db.context.fail(job.id);
-      if (request.metadata.source !== "runtime.context.maintenance" && !this.cancellation.signal.aborted)
-        this.enqueue({ sessionId: request.sessionId, providerId: provider.id(), model: request.model });
+      if (mode === "automatic" && request.metadata.source !== "runtime.context.maintenance")
+        this.enqueueAutomatic({ sessionId: request.sessionId, providerId: provider.id(), model: request.model });
       const status = this.statuses.get(request.sessionId);
       if (status) { status.state = "blocked"; status.failure = "Context compaction failed; the previous checkpoint and all original history are preserved."; }
       throw new ContextAdmissionError("Context compaction failed; history and completed tool results are preserved. Retry with a narrower request or inspect /memory.");
@@ -373,6 +399,7 @@ export class ModelContextManager {
   async maintain(provider: ProviderAdapter, sessionId: string, model: string): Promise<void> {
     const policy = this.policy();
     for (let attempt = 0; attempt < 2; attempt++) {
+      if (!this.autoCompactionEnabled()) return;
       this.cancellation.signal.throwIfAborted();
       const checkpoint = this.checkpoint(sessionId);
       const history = this.history(sessionId, checkpoint.coveredThrough);

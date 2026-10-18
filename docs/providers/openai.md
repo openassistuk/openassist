@@ -1,6 +1,8 @@
 # OpenAI Provider
 
-Source/unreleased context admission uses exact OpenAI API catalog limits on the canonical endpoint: current GPT-6.1 Sol, GPT-6 Astra/Sol/Luna and GPT-5.6 Sol/Terra/Luna have 1,050,000-token windows. OpenAI Responses uses native counting near budget pressure; cached input is already part of input usage. Custom endpoints use a labeled fallback or verified override. Output capacity is reserved independently of input cost caps. See the [context engine](../architecture/context-engine.md).
+`0.2.5` context controls include manual `/compact` and `[runtime.context].autoCompact` (default true). Manual compaction uses this configured route/model for one bounded, tool-free older-history summary, preserving existing output/thinking settings and admission limits. Off disables automatic summaries/overflow repair/background maintenance; manual compaction remains available. See the [controls](../configuration/config-reference.md#runtimecontext).
+
+`0.2.5` candidate context admission uses exact OpenAI API catalog limits on the canonical endpoint: current GPT-6.1 Sol, GPT-6 Astra/Sol/Luna and GPT-5.6 Sol/Terra/Luna have 1,050,000-token windows. OpenAI Responses uses native counting near budget pressure; cached input is already part of input usage. Custom endpoints use a labeled fallback or verified override. Output capacity is reserved independently of input cost caps. See the [context engine](../architecture/context-engine.md).
 
 Use the OpenAI route when you want the standard OpenAI API-key path in OpenAssist.
 

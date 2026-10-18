@@ -1534,6 +1534,7 @@ export function validateSetupWizardState(state: SetupWizardState): void {
 export async function editContextBudgets(state: SetupWizardState, prompts: PromptAdapter): Promise<void> {
   const context = state.config.runtime.context;
   console.log("Context budgets: blank optional caps use the verified model default, or the labeled 24,000-token fallback for unknown serving limits.");
+  context.autoCompact = await prompts.confirm("Automatically compact older conversation under context pressure? (/compact remains available when off)", context.autoCompact !== false);
   const input = await promptOptionalInteger(prompts, "Input cost cap (tokens; blank clears)", { min: 1024, max: 2_000_000 });
   const output = await promptOptionalInteger(prompts, "Minimum output reservation (tokens; blank clears; does not change generation limits)", { min: 1, max: 128_000 });
   context.maxInputTokens = input;

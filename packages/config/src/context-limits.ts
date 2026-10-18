@@ -1,10 +1,11 @@
 import type { ProviderConfig, ResolvedContextLimits, RuntimeContextConfig } from "@openassist/core-types";
 import { modelCapabilities } from "./provider-models.js";
 
-export const DEFAULT_CONTEXT_CONFIG: RuntimeContextConfig = {
+export const DEFAULT_CONTEXT_CONFIG = {
+  autoCompact: true,
   compactAtRatio: 0.85, targetRatio: 0.60, maxRequestBytes: 33_554_432,
   summaryMaxTokens: 8192, summarySourceTokens: 32_768
-};
+} satisfies RuntimeContextConfig;
 
 export function contextOutputAllowance(provider: ProviderConfig): number | undefined {
   return provider.type === "anthropic" ? provider.maxOutputTokens ?? Math.max(

@@ -269,6 +269,7 @@ export interface RuntimeMemoryStatus {
 }
 
 export interface RuntimeContextConfig {
+  autoCompact?: boolean;
   maxInputTokens?: number;
   reservedOutputTokens?: number;
   compactAtRatio: number;
@@ -279,6 +280,7 @@ export interface RuntimeContextConfig {
 }
 
 export interface RuntimeContextStatus {
+  autoCompact?: boolean;
   limits: import("./provider.js").ResolvedContextLimits;
   accounting?: import("./provider.js").ContextAccounting;
   state: "ready" | "compacting" | "blocked" | "stale";

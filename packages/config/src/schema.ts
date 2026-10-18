@@ -361,6 +361,7 @@ const runtimeSchema = z.object({
     })
     .prefault({}),
   context: z.object({
+    autoCompact: z.boolean().default(true),
     maxInputTokens: z.number().int().min(1024).max(2_000_000).optional(),
     reservedOutputTokens: z.number().int().min(1).max(128_000).optional(),
     compactAtRatio: z.number().min(0.5).max(0.95).default(0.85),

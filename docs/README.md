@@ -1,12 +1,16 @@
 # OpenAssist Documentation
 
+The candidate also adds manual `/compact` and the default-on `runtime.context.autoCompact` switch, with setup-wizard and status/doctor visibility. Manual compaction uses the provider; `/status` and `/memory` remain provider-independent. See the [context engine](architecture/context-engine.md), [control reference](configuration/config-reference.md#runtimecontext) and [implementation/verification plan](execplans/manual-compaction-2026-10-18.md).
+
 Use this index by task, lifecycle stage, provider, channel, or config area.
+
+The [v0.2.5 candidate notes](releases/v0.2.5.md) collect model-aware context admission and recovery, with budgets, migration and rollback guidance. The [preparation plan](execplans/stable-0.2.5-release.md) separates candidate checks from later exact-main, signing and public-install verification. Signed `v0.2.4` remains public stable until publication.
 
 Raw-source reads/digest verification use a finite allowance independent of a smaller prepared-request cap, so oversized stored results can reach bounded excerpt recovery. See the [context engine](architecture/context-engine.md), [configuration reference](configuration/config-reference.md#runtimecontext) and [test matrix](testing/test-matrix.md) for limits and explicit failure behavior.
 
 The October 18 context repair reconciles orphan tool frames after bounded history reloads and during maintenance, preserving raw contiguous digests and complete current input. See the [context engine](architecture/context-engine.md) and [regression inventory](testing/test-matrix.md).
 
-Source context-review repairs cover large tool-result compaction, image-capability accounting, late cancellation and independent permanent-memory cursors. See the [context engine](architecture/context-engine.md), [rollout guidance](operations/config-rollout-and-rollback.md) and [test matrix](testing/test-matrix.md) for behavior, compatibility and regression evidence.
+The `0.2.5` candidate context-review repairs cover large tool-result compaction, image-capability accounting, late cancellation and independent permanent-memory cursors. See the [context engine](architecture/context-engine.md), [rollout guidance](operations/config-rollout-and-rollback.md) and [test matrix](testing/test-matrix.md) for behavior, compatibility and regression evidence.
 
 The follow-up also covers aggregate completed-turn source budgets, bounded recovery of oversized old image history and model-aware summary output. Historical excerpts disclose omissions; original records and the complete current turn remain intact. See [troubleshooting](operations/common-troubleshooting.md) for irreducible framing or incompatible output/thinking settings.
 
@@ -177,6 +181,7 @@ Current housekeeping and release-evidence records:
 - [v0.2.2 stable release evidence](execplans/stable-0.2.2-release.md): model refresh, reviewed main/tag, exact-main CI/CodeQL, protected signing, independent production signatures/digests and four-target public installation; retain the initial Mac network failure and successful verification-only retry separately.
 - [v0.2.3 patch release evidence](execplans/stable-0.2.3-release.md): merged PR #82/main, exact tag, successful main CI/full CodeQL, protected signing, independent production signatures/digests and four-target public installation in run 38076780488.
 - [v0.2.4 publication evidence](execplans/stable-0.2.4-release.md): PR #86/main/tag 78b3e40, exact-main checks, protected signing, independent signatures/digests and all four public-install targets in run 38921925528; preserve the initial Apple Silicon setup cancellation and successful retry separately.
+- [v0.2.5 preparation evidence](execplans/stable-0.2.5-release.md): candidate versions, context/rollback documentation and local/hosted gates; publication and live certification remain separate.
 - [Deterministic setup test and publication prerequisites](execplans/release-ci-gates-2026-10-01.md): scoped bind-probe isolation and automated exact-commit CI/CodeQL verification.
 - [October 4 CI audit and workflow lint repair](execplans/ci-braces-workflow-lint-2026-10-04.md): remove unused development-only glob dependencies affected by an unpatched braces advisory, reject unmatched lint targets, enforce policy on actual glob matches, preserve native/Docker option operands and reconcile the exact documented coverage scope.
 - [October 6 source-map tooling audit repair](execplans/ci-source-map-audit-2026-10-06.md): resolve development-only source-map-js to patched `1.2.2`, enforce its lockfile regression floor and retain unchanged audit/coverage gates with separate local and hosted evidence.
@@ -241,8 +246,9 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 ## Managed release lifecycle
 
 - [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
-- [v0.2.3 patch notes](releases/v0.2.3.md): earlier immutable media-security/maintenance patch with dated four-target public verification. v0.2.4 retains those repairs and adds Anthropic fixes; saved provider settings remain unchanged.
+- [v0.2.5 candidate notes](releases/v0.2.5.md): model-aware context admission, durable bounded compaction, independent permanent-memory extraction and explicit compatibility/rollback limits; not yet published.
 - [v0.2.4 stable notes](releases/v0.2.4.md): current signed Anthropic reliability/dependency patch, with four-target public installation and explicit stable/exact-version update guidance. Live Anthropic account testing remains deferred.
+- [v0.2.3 patch notes](releases/v0.2.3.md): earlier immutable media-security/maintenance patch with dated four-target public verification. v0.2.4 retains those repairs and adds Anthropic fixes; saved provider settings remain unchanged.
 - [v0.2.2 stable notes](releases/v0.2.2.md): earlier immutable model-refresh release, full OpenAI/Anthropic catalogs, fresh setup recommendations, route-specific compatibility and dated four-target public-install evidence.
 - [v0.2.1 security patch notes](releases/v0.2.1.md): the earlier immutable security patch, delivered Axios repair, stable-track update guidance, dated four-target verification and live-testing limits.
 - [v0.2.0 release notes](releases/v0.2.0.md): the older immutable stable release, lifecycle/reminder fixes and dated verification; its packages retain affected Axios and should be updated to the current stable release.

@@ -1,6 +1,8 @@
 # Install on Linux
 
-Source/unreleased setup uses model-aware context defaults. Inspect serving limits and occupancy with `openassist doctor`; advanced input cost caps and verified serving overrides are in `openassist setup wizard`. See the [context engine](../architecture/context-engine.md). Immutable `v0.2.4` installs retain their shipped planner.
+For the `0.2.5` candidate, automatic compaction defaults on. Quickstart preserves existing `runtime.context.autoCompact`; change it in `openassist setup wizard` → **Context budgets and compaction**, then inspect doctor or `/status`. `/compact` explicitly uses the provider for one bounded older-history chunk even when auto is off. It does not publish a release, change access or bypass request limits.
+
+`0.2.5` candidate setup uses model-aware context defaults. Inspect serving limits and occupancy with `openassist doctor`; advanced input cost caps and verified serving overrides are in `openassist setup wizard`. See the [context engine](../architecture/context-engine.md). Immutable `v0.2.4` installs retain their shipped planner.
 
 Signed [v0.2.4](../releases/v0.2.4.md) delivers the Anthropic tool/replay/Haiku improvements and routine SDK updates while retaining prior security repairs. Existing installations need an explicit stable or exact-version update; old pins do not advance automatically.
 

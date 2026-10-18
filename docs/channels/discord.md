@@ -1,6 +1,8 @@
 # Discord Channel
 
-Source/unreleased `/status` includes grouped context limits/occupancy, and `/memory` includes checkpoint/failure diagnostics without provider dependency. Context compaction preserves the canonical Discord session and existing access/delivery boundaries; channel rendering/chunking remains shared. See the [context engine](../architecture/context-engine.md).
+`0.2.5` adds `/compact` (no arguments) for one explicit older-history summary in this canonical chat. It uses the configured provider, can affect shared chat continuity, preserves original rows/current input and grants no host tools. Wait for an active provider turn to finish before invoking it. Automatic compaction can be switched off installation-wide with `runtime.context.autoCompact`; `/status` and `/memory` show the mode without using the provider.
+
+`0.2.5` candidate `/status` includes grouped context limits/occupancy, and `/memory` includes checkpoint/failure diagnostics without provider dependency. Context compaction preserves the canonical Discord session and existing access/delivery boundaries; channel rendering/chunking remains shared. See the [context engine](../architecture/context-engine.md).
 
 Use Discord when you want OpenAssist in guild text channels, thread channels, or carefully allow-listed DMs.
 

@@ -1,10 +1,12 @@
 # Tool Calling Interface
 
+`/compact` is a runtime chat command, not a model tool: it uses one bounded, tool-free provider summary for older completed history in this chat and never executes/retries host actions. Busy in-flight provider/tool turns ask the sender to wait. `runtime.context.autoCompact = false` prevents automatic summaries and overflow repair/maintenance, but preserves tool-result projections, prior checkpoints, original audits and final admission guards. It grants no tools to restricted/operator sessions; explicit manual summaries remain available within ordinary admitted chat scope.
+
 Stored results larger than a small prepared-payload cap can reach excerpting through a separate finite raw-source allowance of at least 32 MiB, up to 64 MiB with a larger supported request cap. Transactional verification uses that same allowance and hashes original rows, not excerpts. Results beyond the raw bound fail explicitly without skipping records or rerunning actions. Current input and final prepared byte/token admission remain intact.
 
 Tool-frame reconciliation is shared by the normal runtime, bounded history reloads, maintenance and summary-source segmentation. An orphan restored by hydration cannot merge later completed turns into one unsettled segment. Matching remains occurrence-based for repeated call IDs. Exclusions affect model projections only; digests cover every original row in the selected contiguous range and evidence does not treat excluded frames as completed actions. Recovery never retries those actions.
 
-Source/unreleased: every tool continuation passes model-aware admission after results settle. Compaction preserves whole call/result segments and cannot reset the 12-round default or grant tools. Large result projections carry explicit excerpts, receipts and audit references; original outputs remain durable and context repair never re-executes actions. Provider overflow permits one persisted smaller-projection retry. See the [context engine](../architecture/context-engine.md).
+`0.2.5` candidate: every tool continuation passes model-aware admission after results settle. Compaction preserves whole call/result segments and cannot reset the 12-round default or grant tools. Large result projections carry explicit excerpts, receipts and audit references; original outputs remain durable and context repair never re-executes actions. When automatic compaction is enabled, provider overflow permits one persisted smaller-projection retry. See the [context engine](../architecture/context-engine.md).
 
 Lifecycle modernization adds no tool schemas or privilege escalation. Runtime awareness identifies packaged/source/isolated installs and protects managed application directories. Use host-side lifecycle commands for update/recovery/uninstall; direct edits to retained release files are not a durable growth mechanism.
 
@@ -87,6 +89,7 @@ Provider-independent chat command:
 - `/grow` returns managed growth policy, asset inventory, and safe next actions
 - `/status` returns operational diagnostics without using the provider
 - `/memory` returns rolling session summary plus actor-scoped durable-memory visibility without using the provider
+- `/compact` explicitly uses the configured provider for one bounded checkpoint chunk of older completed history, with no model/host tools; it remains available when automatic compaction is off
 - `/profile` returns or updates the global assistant identity without using the provider
 - `/access` shows the current sender's access, source, and whether chat-side changes are allowed
 - `/access full` sets `full-root` for that sender in the current chat only

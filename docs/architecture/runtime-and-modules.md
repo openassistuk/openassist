@@ -2,6 +2,8 @@
 
 Release/source/isolated installation identity flows through daemon install context into bounded runtime awareness. Packaged installs do not require Git probing. Lifecycle operations remain host-side CLI work; they do not introduce new model tool privileges or scheduled shell actions. Database compatibility is checked before initialization and activation.
 
+The unpublished [v0.2.5 candidate](../releases/v0.2.5.md) adds common provider-call context admission and durable compaction; see the [context engine](context-engine.md) for boundaries and recovery. Published `v0.2.4` retains its shipped planner.
+
 Primary orchestrator: `OpenAssistRuntime` in `packages/core-runtime/src/runtime.ts`.
 
 ## Runtime Composition
@@ -160,7 +162,7 @@ Daemon HTTP endpoints map directly to these methods in `apps/openassistd/src/ind
 8. if user sends `/start` or `/help`, return runtime-owned welcome and capability primer without provider dependency
 9. if user sends `/capabilities`, return the live capability inventory without provider dependency
 10. if user sends `/grow`, return managed growth policy and asset status without provider dependency
-11. if user sends `/memory`, return rolling session summary plus actor-scoped durable-memory visibility without provider dependency
+11. if user sends `/memory`, return rolling session summary plus actor-scoped durable-memory visibility without provider dependency; `/compact` instead explicitly requests one bounded tool-free provider summary of older completed history in this canonical chat, with busy-turn protection and durable checkpoint adoption
 12. if user sends `/status`, return runtime diagnostics without provider dependency
 13. if user sends `/profile`, return persisted global assistant profile memory without provider dependency; updates require explicit force (`/profile force=true; ...`)
 14. first-contact bootstrap prompt can be emitted for `/new` when enabled by config (`runtime.assistant.promptOnFirstContact=true`)

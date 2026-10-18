@@ -6,6 +6,12 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-10-18
+
+- Add manual chat `/compact` and default-on `runtime.context.autoCompact` control in config/setup wizard. Explicit compaction uses the configured provider for one bounded older-history chunk without host tools, automatic background continuation or permanent-memory changes; busy chats ask the sender to wait. Auto-off stops foreground, overflow-repair and queued/restarted maintenance summaries, including late adoption after a toggle, while enforcing all byte/token bounds and preserving prior checkpoints/raw audits. Surface mode in help/capabilities, `/status`, `/memory`, health and doctor; add command/idempotency/scope, disabled-path, failure/cancellation/concurrency, reopen/hydration and wizard/config regressions.
+
+- Prepare `0.2.5` for the model-aware context engine and bounded recovery fixes below. Align root/CLI/daemon versions, release notes, README/AGENTS, provider/config/channel/lifecycle/security guidance and release-doc regression checks. Published stable remains `v0.2.4`; exact-main verification, protected signing/publication and four-target public installation remain separate pending release steps. Offline/hosted checks do not certify live provider or replacement-host behavior.
+
 - 2026-10-18: Fix a stored 120 KB tool result stranding context recovery under a valid 64 KiB payload cap. Separate finite raw-source hydration and digest-verification allowance from the smaller prepared-payload cap, consistently across chat, compaction and maintenance. Preserve original rows/digests and current input; maintenance checks both tokens and bytes and fails explicitly when incomplete history cannot advance. Add recovery/reopen, stale-digest, mandatory-input and raw-bound regressions without changing schema, durability, test deadlines or privileges.
 
 - 2026-10-18: Fix bounded history reloads restoring orphan tool frames and blocking compaction of long chats. Share runtime reconciliation across hydrated admission, maintenance and summary-source selection; preserve valid call/result occurrences, complete current input and original rows in contiguous checkpoint digests. Add row/byte-bound foreground/maintenance regressions and repeated-ID controls. Excluded frames never prove action completion, trigger retries or grant privileges; no schema, durability or test-deadline changes.

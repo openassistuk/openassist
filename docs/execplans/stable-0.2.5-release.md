@@ -18,17 +18,17 @@ Success for this task is a preparation PR with synchronized root/CLI/daemon vers
 - [x] (2026-10-18) Align candidate root/CLI/daemon versions at `0.2.5`, collect the six context entries under a dated versioned changelog and write `docs/releases/v0.2.5.md`.
 - [x] (2026-10-18) Update README, AGENTS, docs index and all affected context/provider/config/channel/lifecycle/security/testing guides. Retain v0.2.4 public availability and dated historical evidence. Reconcile PR #87/#88 actual merges/checks separately from release certification.
 - [x] (2026-10-18) Strengthen the existing release-doc contract for AGENTS linkage. Frozen installation/build pass with the lockfile unchanged; both executable versions print `0.2.5`. All 39 focused docs/version/publication contracts pass. Manual budget/byte bounds, CLI flags and workflow/coverage claims match their implementation sources.
-- [ ] Commit candidate metadata and run full `pnpm verify:all`, retaining every runtime, coverage and audit gate.
+- [x] (2026-10-18 local gate) Commit candidate metadata as `dca3d5977df24716f37074c9984d9d21b0d5a151` and pass full `pnpm verify:all`: workflow lint, build/lint/typecheck, 668 Vitest passes/one existing skip, 245 Node passes/six existing skips, both unchanged coverage gates and zero production/full audit findings. Scoped Node coverage passes 126 tests/five existing skips. Final review corrects three guide headings, consolidates duplicate rollback guidance and closes PR #87 local evidence from its recorded validation; rerun focused docs truth after these documentation-only edits.
 - [ ] Review the final diff for accidental edits, secrets and misleading release claims. Push/open/attach the preparation PR and check actual-head CI, PR/full-branch CodeQL, native/signing/live-macOS checks, separate scanning refs and unresolved review threads. Record final actual-head evidence in the PR validation section at handoff.
 
 ## Surprises & Discoveries
 
 
-The release version contract is dynamic: root, CLI and daemon must agree, built CLI/daemon `--version` must match, and current release notes must be linked from root/index/maintenance docs. Full integration tests can clone committed HEAD, so candidate metadata must be committed before the full gate. Package-lock dependency content need not change merely for these private manifest versions.
+The release version contract is dynamic: root, CLI and daemon must agree, built CLI/daemon `--version` must match, and current release notes must be linked from root/index/maintenance docs. Full integration tests can clone committed HEAD, so candidate metadata must be committed before the full gate. The `pnpm-lock.yaml` dependency content need not change merely for these private manifest versions.
 
 PR #88 changes defaults and persistence behavior across five provider routes without changing database compatibility version 1. Source documentation already covers the implementation but uses broad unreleased wording; preparation must identify the candidate and preserve the distinction from published v0.2.4. Context checkpoints use additive tables and a legacy mirror, while permanent extraction has its own cursor. Downgrade/re-upgrade after an older binary processes more conversation requires matching-backup guidance, not an implied automatic database rollback.
 
-The v0.2.4 availability plan still has an unclosed reconciliation step. GitHub confirms PR #87 merged as `b03c40b` on October 16 after all thirteen applicable PR checks passed; its actual-main CI/CodeQL evidence is independently recorded. Preserve the earlier cancelled publication attempt and immutable release target `78b3e40` while recording this later documentation merge.
+The v0.2.4 availability plan had an unclosed reconciliation step, now closed from the actual PR record. GitHub confirms PR #87 merged as `b03c40b` on October 16 after all thirteen applicable PR checks passed; its actual-main CI/CodeQL evidence is independently recorded. Preserve the earlier cancelled publication attempt and immutable release target `78b3e40` while recording this later documentation merge.
 
 ## Decision Log
 
@@ -42,7 +42,7 @@ Decision (2026-10-18): update affected live guides to say `0.2.5 candidate`, whi
 ## Outcomes & Retrospective
 
 
-Candidate versions, notes, changelog and affected live guides are aligned; root AGENTS linkage is covered by the existing dynamic release contract. PR #87/#88 actual merge/main evidence is reconciled without changing old release targets. Frozen installation/build and all 39 focused contracts pass; both executables report `0.2.5`. Full local verification and PR evidence remain pending. Baseline main checks are evidence for the merged feature only; they do not certify the future preparation merge, signed artifacts or live provider/account behavior.
+Candidate versions, notes, changelog and affected live guides are aligned; root AGENTS linkage is covered by the existing dynamic release contract. PR #87/#88 actual merge/main evidence is reconciled without changing old release targets. Frozen installation/build and all 39 focused contracts pass; both executables report `0.2.5`. Full local `pnpm verify:all` passes on metadata commit `dca3d59`: 668 Vitest passes/one skip, 245 Node passes/six skips, Vitest coverage 84.57% statements / 76.24% branches / 87.20% functions / 85.50% lines and Node coverage 79.93% statements/lines / 73.76% branches / 85.60% functions, with zero production/full audit findings. Only final documentation corrections/evidence and focused docs revalidation follow that gate; PR delivery and actual-head hosted evidence remain pending. Baseline main checks are evidence for the merged feature only; they do not certify the future preparation merge, signed artifacts or live provider/account behavior.
 
 ## Context and Orientation
 
@@ -92,7 +92,7 @@ After later maintainer review/merge and explicit release authorization, the prep
 ## Artifacts and Notes
 
 
-Baseline: PR #88 merge `f32a1e115d5d31e2c28fec1561cdf0c313a0e4aa`, [main CI 39143902526](https://github.com/openassistuk/openassist/actions/runs/39143902526) and [full CodeQL 39143902610](https://github.com/openassistuk/openassist/actions/runs/39143902610), both attempt 1. Latest main analysis `1976239545` has zero results. Public stable [v0.2.4](https://github.com/openassistuk/openassist/releases/tag/v0.2.4) remains immutable at its reviewed release target `78b3e40`.
+Baseline: PR #88 merge `f32a1e115d5d31e2c28fec1561cdf0c313a0e4aa`, [main CI 39143902526](https://github.com/openassistuk/openassist/actions/runs/39143902526) and [full CodeQL 39143902610](https://github.com/openassistuk/openassist/actions/runs/39143902610), both attempt 1. Latest main analysis `1976239545` has zero results. Local full verification log is `C:\Users\dange\AppData\Local\Temp\openassist-release-0.2.5-verify.log`; final actual-head hosted run links, scanning refs and review-thread reconciliation belong in the preparation PR validation record. Public stable [v0.2.4](https://github.com/openassistuk/openassist/releases/tag/v0.2.4) remains immutable at its reviewed release target `78b3e40`.
 
 ## Interfaces and Dependencies
 

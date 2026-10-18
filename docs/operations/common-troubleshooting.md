@@ -1,6 +1,6 @@
-#The context behavior below is part of the unpublished [v0.2.5 candidate](../releases/v0.2.5.md); existing `v0.2.4` packages retain their shipped behavior until explicitly updated.
+# Common Troubleshooting
 
- Common Troubleshooting
+The context behavior below is part of the unpublished [v0.2.5 candidate](../releases/v0.2.5.md); existing `v0.2.4` packages retain their shipped behavior until explicitly updated.
 
 A smaller `maxRequestBytes` caps the prepared provider payload; raw-source reads/digest verification separately allow at least 32 MiB, or a larger supported request cap up to 64 MiB. Stored results within that allowance can reach bounded excerpt recovery without raising a 64 KiB wire cap. A raw-source read-limit error means an individual stored row is still too large: inspect `/memory`, use wizard to increase the explicit byte setting within supported bounds if appropriate, or request operator-assisted history repair. Original rows are preserved. Incomplete maintenance without safe progress now reports failure through the finite durable retry path instead of silently reporting success.
 

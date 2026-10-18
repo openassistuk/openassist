@@ -1,6 +1,6 @@
 # Restart and Recovery
 
-Source/unreleased context checkpoints persist contiguous message coverage, revision and source digest atomically. Restart reuses the validated checkpoint and original completed tool results; pending/failed summary generation cannot move the frontier or replay host actions. Durable context maintenance retries are bounded independently of chat/tool execution. Occupancy is marked stale until a new prepared request; inspect `/memory` for the durable frontier. See the [context engine](../architecture/context-engine.md).
+`0.2.5` candidate context checkpoints persist contiguous message coverage, revision and source digest atomically. Restart reuses the validated checkpoint and original completed tool results; pending/failed summary generation cannot move the frontier or replay host actions. Durable context maintenance retries are bounded independently of chat/tool execution. Occupancy is marked stale until a new prepared request; inspect `/memory` for the durable frontier. See the [context engine](../architecture/context-engine.md).
 
 Anthropic replay uses complete native tool turns only when every call has a retained result in the reconciled turn. After interrupted multi-tool execution, it falls back to completed normalized history without replaying unmatched calls or automatically executing unfinished work. Tool-limit explanations carry no tool-turn metadata, and older explanations with duplicate metadata retain their text on continuation. Durable audit rows and database compatibility remain unchanged.
 

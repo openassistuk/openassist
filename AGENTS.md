@@ -478,6 +478,8 @@ A change is done only when all are true:
 
 ## Node runtime discipline
 
+Candidate root/CLI/daemon versions are `0.2.5`; keep [candidate notes](docs/releases/v0.2.5.md), the versioned changelog and all affected guides aligned, including root README/AGENTS links enforced by docs truth tests. [Preparation evidence](docs/execplans/stable-0.2.5-release.md) starts from PR #88/main `f32a1e1` with first-attempt main CI/full CodeQL. Candidate, eventual preparation-main, protected publication and public-install checks are separate; do not infer release or live-provider certification from the implementation merge. Published stable remains `v0.2.4` until separately authorized, verified publication.
+
 Published root/CLI/daemon versions are `0.2.4`; [release notes](docs/releases/v0.2.4.md) and [evidence](docs/execplans/stable-0.2.4-release.md) record reviewed PR #86/main `78b3e40`, its exact annotated tag, successful main CI/full CodeQL, native candidate quality/zero audits, protected signing and all four public-install targets in run 38921925528. Both production signatures and all sixteen asset digests independently verify. Retain cancelled attempt 1's unresponsive Apple Silicon Node setup separately from successful attempt 2; no signing/publication occurred before the retry. Only exact v0.2.4 was added to the environment allowlist, with reviewers unchanged. Preserve required main review, immutable tags/assets and separate live-provider certification.
 
 Keep `@types/node` on 24.x; Dependabot must ignore its major version updates while allowing minor/patch updates. Setup readiness must reject invalid bind addresses before network availability probes; test this without relying on host DNS timing.

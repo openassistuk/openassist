@@ -1,6 +1,6 @@
 # Channel Adapter Interface
 
-Context diagnostics are provider-independent local output and pass through the existing shared rendering/chunking path. Source/unreleased `/status` adds a Context group; `/memory` exposes checkpoint coverage and failure state. No channel session, access, attachment or delivery boundary changes. See the [context engine](../architecture/context-engine.md).
+Context diagnostics are provider-independent local output and pass through the existing shared rendering/chunking path. `0.2.5` candidate `/status` adds a Context group; `/memory` exposes checkpoint coverage and failure state. No channel session, access, attachment or delivery boundary changes. See the [context engine](../architecture/context-engine.md).
 
 Isolated development instances start with channels disabled and no copied primary credentials. Test accounts must be configured explicitly; sharing one account across active instances can interfere with delivery. Application activation health does not claim live channel readiness.
 

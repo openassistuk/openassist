@@ -648,7 +648,7 @@ describe("docs truth", () => {
     }
     const notesPath = `docs/releases/v${version}.md`;
     assert.ok(readText(notesPath).startsWith(`# OpenAssist v${version} `));
-    for (const file of ["README.md", "docs/README.md", "docs/operations/release-maintenance.md"]) {
+    for (const file of ["README.md", "AGENTS.md", "docs/README.md", "docs/operations/release-maintenance.md"]) {
       assert.ok(readText(file).includes(`releases/v${version}.md`), `${file} must link the current release notes`);
     }
     assert.ok(readText("CHANGELOG.md").includes(`## [${version}]`));

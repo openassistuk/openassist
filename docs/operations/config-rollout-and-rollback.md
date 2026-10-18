@@ -1,4 +1,6 @@
-# Config Rollout and Rollback
+#The context behavior below is part of the unpublished [v0.2.5 candidate](../releases/v0.2.5.md); existing `v0.2.4` packages retain their shipped behavior until explicitly updated.
+
+ Config Rollout and Rollback
 
 The oversized-row repair keeps the same config/schema and raw digest representation. The prepared-payload `maxRequestBytes` cap remains unchanged; raw-source reads/digest verification separately allow at least 32 MiB (up to 64 MiB with a larger supported request cap). Small wire caps no longer block stored result excerpting. Preserve original rows and checkpoints across rollout; older binaries can still encounter the small-cap reader failure. Maintenance now checks prepared bytes and fails incomplete no-progress work explicitly; existing finite retry limits remain unchanged.
 

@@ -1,6 +1,6 @@
 # Context Engine
 
-Source changes described here are unreleased; immutable `v0.2.4` installations retain their shipped planner until explicitly updated.
+`0.2.5` candidate behavior is described here; immutable `v0.2.4` installations retain their shipped planner until explicitly updated.
 
 `ModelContextManager` in `packages/core-runtime/src/context-manager.ts` admits every runtime provider submission: normal replies, each tool continuation, scheduler prompts, context summaries and permanent-memory extraction. There is no runtime eight-message cutoff. History is read in 200-row pages, up to 10,000 messages and a finite raw-source byte allowance; an incomplete read cannot be represented as complete history.
 

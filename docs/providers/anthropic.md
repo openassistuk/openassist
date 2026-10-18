@@ -1,6 +1,6 @@
 # Anthropic Provider
 
-Source/unreleased context admission uses the 1,000,000-token windows of current Opus/Sonnet/Haiku 5.5 and Fable/Mythos 5.1. Native count-tokens runs near budget pressure against the prepared request, including system/tools/images/thinking. Observed input adds cache-read and cache-creation tokens once. The normal 16,384 output limit and saved thinking budgets remain intact; reservation is separate from an optional input cost cap. Custom endpoints need verified overrides or the labeled fallback. See the [context engine](../architecture/context-engine.md).
+`0.2.5` candidate context admission uses the 1,000,000-token windows of current Opus/Sonnet/Haiku 5.5 and Fable/Mythos 5.1. Native count-tokens runs near budget pressure against the prepared request, including system/tools/images/thinking. Observed input adds cache-read and cache-creation tokens once. The normal 16,384 output limit and saved thinking budgets remain intact; reservation is separate from an optional input cost cap. Custom endpoints need verified overrides or the labeled fallback. See the [context engine](../architecture/context-engine.md).
 
 Use the Anthropic route when you want the standard Anthropic API-key path in OpenAssist.
 

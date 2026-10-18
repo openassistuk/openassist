@@ -1,6 +1,6 @@
 # Install on macOS
 
-Source/unreleased setup uses model-aware context defaults. Inspect serving limits and occupancy with `openassist doctor`; advanced input cost caps and verified serving overrides are in `openassist setup wizard`. See the [context engine](../architecture/context-engine.md). Immutable `v0.2.4` installs retain their shipped planner.
+`0.2.5` candidate setup uses model-aware context defaults. Inspect serving limits and occupancy with `openassist doctor`; advanced input cost caps and verified serving overrides are in `openassist setup wizard`. See the [context engine](../architecture/context-engine.md). Immutable `v0.2.4` installs retain their shipped planner.
 
 Signed [v0.2.4](../releases/v0.2.4.md) delivers the Anthropic tool/replay/Haiku improvements and routine SDK updates while retaining prior security repairs. Existing installations need an explicit stable or exact-version update; old pins do not advance automatically.
 

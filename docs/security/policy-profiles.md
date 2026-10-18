@@ -1,4 +1,6 @@
-# Policy Profiles
+#The context behavior below is part of the unpublished [v0.2.5 candidate](../releases/v0.2.5.md); existing `v0.2.4` packages retain their shipped behavior until explicitly updated.
+
+ Policy Profiles
 
 Separating bounded raw-source reads from smaller prepared-payload caps changes no tool permission or retry authority. Raw digest checks cover untouched rows; oversized mandatory input and rows beyond the finite raw-source limit fail explicitly. Maintenance cannot treat incomplete history without progress as success or bypass final byte/token admission.
 

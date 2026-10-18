@@ -1,6 +1,6 @@
 # Azure Foundry Provider
 
-Source/unreleased context limits use only an explicit, exact cataloged `underlyingModel` on a recognized Azure endpoint. Deployment names never imply capacity. Recent 1,050,000-token models have a separate 922,000-token input ceiling and 128,000 output maximum. Requests use estimated prepared-payload accounting; native counting is not assumed available on Azure. Unknown/custom serving limits use the labeled fallback or verified `contextWindowTokens`. See the [context engine](../architecture/context-engine.md).
+`0.2.5` candidate context limits use only an explicit, exact cataloged `underlyingModel` on a recognized Azure endpoint. Deployment names never imply capacity. Recent 1,050,000-token models have a separate 922,000-token input ceiling and 128,000 output maximum. Requests use estimated prepared-payload accounting; native counting is not assumed available on Azure. Unknown/custom serving limits use the labeled fallback or verified `contextWindowTokens`. See the [context engine](../architecture/context-engine.md).
 
 Use the Azure Foundry route when you want Azure resource-style `/openai/v1/` endpoints in OpenAssist.
 

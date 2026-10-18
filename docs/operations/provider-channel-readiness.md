@@ -2,6 +2,10 @@
 
 Checked on 2026-09-27 for [PR #61](https://github.com/openassistuk/openassist/pull/61), merged as `0ac0921`. Package versions were compared with npm registry tags and upstream release notes during that implementation. This is a dated record of implemented compatibility, not live account certification or a claim that registry versions never change.
 
+## October 18 context candidate
+
+The unpublished [v0.2.5 candidate](../releases/v0.2.5.md) collects PR #88's common context admission across all five routes, native OpenAI Responses/Anthropic counting where supported, explicit unknown serving limits and bounded durable recovery. Implementation merge `f32a1e1` passes its own main CI/full CodeQL; candidate packages, later publication/public installation and live provider/account/channel checks remain separate in the [preparation plan](../execplans/stable-0.2.5-release.md). Saved models/tuning and all profile, attachment and delivery boundaries remain intact. Signed v0.2.4 stays public stable until publication.
+
 ## October 16 source integration update
 
 Merged PR #84 moves source builds to OpenAI SDK `7.31.0`, Anthropic SDK `0.132.1`, cron-parser `5.10.2` and Inquirer prompts `8.7.3`. The follow-up Anthropic maintenance uses SDK `0.135.0`, verified as npm's stable tag on October 16, and adds Haiku 5.5 to the shared catalog. OpenAssist does not invoke the new managed-agent or speed APIs; SDK tracing/logging are explicitly disabled. Signed v0.2.4 delivers these changes with four-target public-install verification; older immutable v0.2.3 retains SDK `0.131.0` and the earlier catalog. Existing installations must update explicitly.

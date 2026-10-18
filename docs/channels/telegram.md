@@ -1,6 +1,6 @@
 # Telegram Channel
 
-Source/unreleased `/status` includes grouped context limits/occupancy, and `/memory` includes checkpoint/failure diagnostics without provider dependency. Replies still use shared channel rendering/chunking and existing session/access scope; context compaction does not change Telegram inline defaults. See the [context engine](../architecture/context-engine.md).
+`0.2.5` candidate `/status` includes grouped context limits/occupancy, and `/memory` includes checkpoint/failure diagnostics without provider dependency. Replies still use shared channel rendering/chunking and existing session/access scope; context compaction does not change Telegram inline defaults. See the [context engine](../architecture/context-engine.md).
 
 Use Telegram when you want a bot that can work in private chats, group chats, and forum topics.
 

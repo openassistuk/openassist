@@ -15,11 +15,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@azure/identity": "^4.13.3",
+    "@azure/identity": "^4.14.0",
     "@openassist/core-types": "workspace:*",
     "@openassist/providers-openai-shared": "workspace:*",
-    "openai": "^7.31.0",
-    "zod": "^4.6.5",
+    "openai": "^7.34.0",
+    "zod": "^4.6.7",
     "@openassist/config": "workspace:*",
     "@openassist/providers-shared": "workspace:*"
   }

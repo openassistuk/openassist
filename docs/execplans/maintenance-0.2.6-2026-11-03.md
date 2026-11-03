@@ -17,7 +17,8 @@ Restore trustworthy maintenance checks and prepare the next patch release withou
 - [x] (2026-11-03) Commit the initial candidate as `273119c` for clone-based tests. The first full gate passes build/lint/typecheck, 690 Vitest tests (one skip), 255 Node tests (six skips) and Vitest coverage before being interrupted during Node coverage after the user authorizes decoder migration; this incomplete run is not a full pass.
 - [x] (2026-11-03) Complete explicitly authorized optional decoder migration with pinned alias, exact-version Baileys patch, scoped peer rule and no build-permission expansion. Eight focused security/media cases pass; zero production/full audits and frozen installation pass without the deprecated package. Production deployment relocated outside the repo passes waveform and all four lazy codec/WASM initializations.
 - [x] (2026-11-03) Commit the decoder extension as `ed554d7`. Full `pnpm verify:all` exits zero on local Windows/Node 24.22.1/pnpm 12.5.1: workflow lint, build, lint/typecheck, 690 Vitest passes/one existing skip, 257 Node passes/six existing skips, both unchanged coverage gates and zero production/full audits. Node coverage separately passes 126 cases/five existing skips. Review final code, dependencies, docs, patch/peer scope and secret/debug markers; `git diff main..HEAD --check` passes.
-- [ ] Obtain authorization for external branch/PR writes; reconcile actual-head hosted checks, full branch CodeQL and open alerts/reviews before release approval. Publication and protected-environment changes require separate explicit authorization.
+- [x] (2026-11-03) The user explicitly authorizes pushing the maintenance branch, opening its PR and running hosted checks. Preserve normal review and protected-publication boundaries.
+- [ ] Open the maintenance PR; reconcile actual-head CI/native/lifecycle checks, full branch CodeQL and open alerts/reviews before release approval. Publication and protected-environment changes require separate explicit authorization.
 
 ## Surprises & Discoveries
 
@@ -36,6 +37,8 @@ Complete daily-run inspection also found an Ubuntu unit-test timeout in `4030674
 ## Decision Log
 
 Decision (2026-11-03): user authorization covers investigation, safe local repairs and maintenance-release preparation, not publication, protected environment changes, PR merges or paid provider tests. Work singly and ask only after a concrete locally verified candidate exists for external writes.
+
+Decision (2026-11-03, hosted continuation): the user answers "proceed" to pushing the branch, opening the maintenance PR and running hosted checks. Carry those steps through, fix any in-scope failures and revalidate the final actual head. This authorizes the normal branch/PR/check workflow, not merging, release tagging/publication, protected-environment changes or paid provider calls.
 
 Decision (2026-11-03): incorporate the seven package updates proposed in open PR #92 locally, advance Azure Identity to the patched 4.14.1 parent and keep Vitest/coverage-v8 paired. Use narrowly scoped overrides where parent ranges cannot select patched dependencies. Do not migrate Baileys, Node majors or provider contracts.
 
@@ -107,3 +110,5 @@ Revision note (2026-11-03): extend historical failure reconciliation through all
 Revision note (2026-11-03): incorporate the user's explicit decoder-migration decision, document its actual API change and narrow patch/peer wiring, preserve the interrupted first gate as incomplete, and record focused/isolated-deployment evidence before the final full gate.
 
 Revision note (2026-11-03): record successful complete final quality/coverage/audit evidence on `ed554d7`, fresh alert state, decoder negative control and remaining hosted/publication gates. Local work is reviewable; external branch/PR/workflow actions await authorization under the user's external-write rule.
+
+Revision note (2026-11-03): record explicit user authorization for the branch/PR/hosted-check continuation before external writes; publication and review protections remain separate.

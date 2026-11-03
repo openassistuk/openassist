@@ -261,10 +261,17 @@ describe("staged lifecycle recovery",()=>{
     atomicWriteJson(file,{...valid,checkedAt:Date.now()+60_000});expect(cachedUpdateStatus()).toBeUndefined();
   });
   it("stages an immutable source revision with the pinned toolchain and private runtime",async()=>{
+    // Process execution is mocked here; native lifecycle smoke copies the real binary.
+    const copy=vi.spyOn(fs,"copyFileSync").mockImplementation((source,target)=>{
+      expect(source).toBe(process.execPath);
+      fs.writeFileSync(target,"fixture private runtime");
+    });
     const candidate=await prepareSource(defaultManagedInstallDir(),"refs/pull/7/head");
     expect(candidate.ref).toBe("refs/pull/7/head");expect(candidate.build.commit).toBe("a".repeat(40));
     expect(candidate.build.sourceRef).toBe("refs/pull/7/head");
     expect(fs.existsSync(candidate.nodePath)).toBe(true);
+    expect(copy).toHaveBeenCalledExactlyOnceWith(process.execPath,candidate.nodePath);
+    expect(fs.readFileSync(candidate.nodePath,"utf8")).toBe("fixture private runtime");
     expect(controls.events.some(event=>event==="git checkout --detach FETCH_HEAD")).toBe(true);
     expect(controls.events).toContain("pnpm install --frozen-lockfile");
     expect(fs.readFileSync(path.join(candidate.path,".git","info","exclude"),"utf8")).toContain("/runtime/");

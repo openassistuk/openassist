@@ -12,24 +12,28 @@ test("the resolved tree covers the Dependabot snapshot and subsequent CI audit a
   const lock = fs.readFileSync("pnpm-lock.yaml", "utf8");
   // Patched floors for the 72-alert snapshot and subsequent dependency audits.
   const floors: Record<string, string> = {
+    "@azure/msal-node": "7.1.0",
     "@protobufjs/utf8": "1.1.1",
     "@vitest/mocker": "4.1.11",
     "@whiskeysockets/baileys": "6.7.22",
     axios: "1.20.0",
     "brace-expansion": "5.0.12",
     esbuild: "0.28.1",
-    "follow-redirects": "1.16.0",
+    "follow-redirects": "1.16.2",
     "form-data": "4.0.6",
+    glob: "14.0.2",
+    minimatch: "11.0.1",
     "music-metadata": "11.16.0",
     nanoid: "3.3.12",
     postcss: "8.5.23",
     protobufjs: "7.6.5",
     sharp: "0.35.5",
     "source-map-js": "1.2.2",
-    undici: "6.28.1",
-    vite: "6.4.3",
+    undici: "6.29.1",
+    vite: "8.3.3",
     vitest: "4.1.11",
-    ws: "8.21.0"
+    ws: "8.21.0",
+    zod: "4.6.7"
   };
   for (const [name, floor] of Object.entries(floors)) {
     const versions = resolvedVersions(lock, name);

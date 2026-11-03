@@ -346,6 +346,8 @@ Quickstart preserves compatible Anthropic thinking settings when changing models
 
 ## Development and release readiness
 
+Source [PR #94](https://github.com/openassistuk/openassist/pull/94) advances OpenAI SDK to `7.47.0`, Discord.js to `14.28.0` and Inquirer prompts to `8.7.5`. Provider/auth/model/tool contracts, Discord access boundaries and setup TTY checks stay intact; new upstream helper APIs are not enabled. These updates need a future release and are absent from immutable signed v0.2.6. See the [review and validation plan](docs/execplans/dependabot-pr-94-2026-11-03.md) and [source readiness notes](docs/operations/provider-channel-readiness.md).
+
 The merged foundation includes Node 24 support, dependency audits, shared model capabilities, bounded durable Responses replay and concurrent OAuth refresh handling. See [Contributing](CONTRIBUTING.md) for local development and [AGENTS.md](AGENTS.md) for engineering requirements.
 
 Automated regression and hosted workflow results establish development readiness. Live provider/channel certification and real existing-install Node migration/rollback evidence remain separate release checks. Record beta testing by commit, OS, route/model, channel and observed behavior using the [readiness evidence checklist](docs/operations/provider-channel-readiness.md#verification-and-live-checks); a successful beta reply alone does not certify every integration.

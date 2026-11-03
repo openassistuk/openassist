@@ -177,6 +177,7 @@ Current housekeeping and release-evidence records:
 - [Documentation reconciliation](execplans/documentation-readiness-2026-09.md)
 - [Merged model, harness and auth refresh](execplans/current-provider-models-2026-09.md)
 - [Completed Dependabot follow-up](execplans/dependabot-follow-up-2026-09.md)
+- [PR #94 routine dependency review](execplans/dependabot-pr-94-2026-11-03.md): OpenAI SDK 7.47.0, Discord.js 14.28.0 and Inquirer prompts 8.7.5; preserved provider/channel/setup contracts, separate runner-capacity evidence and final-head validation. These source updates are outside immutable v0.2.6.
 - [CI #391 and CodeQL #42 repair](execplans/ci-391-dependency-audit-2026-09-30.md): patched Undici `6.28.1` and brace-expansion `5.0.12`, account-link fixture allocation and path-only instance identity checks, with local and hosted verification evidence.
 - [Post-release Axios audit repair](execplans/post-release-axios-audit-2026-09-30.md): Axios `1.20.0`, seven production dependency advisories, actual release-documentation merges and the boundary between source fixes and unchanged published packages.
 - [v0.2.1 patch release evidence](execplans/stable-0.2.1-release.md): reviewed main/tag, shell-free Windows source commands, protected signing, four-target public installation and independent production-signature verification.

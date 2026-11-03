@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- Update source OpenAI SDK `7.43.0` to `7.47.0` across OpenAI, Codex, Azure Foundry and compatible routes; Discord.js `14.27.0` to `14.28.0`; and Inquirer prompts `8.7.4` to `8.7.5` in PR #94. Bring in prompt startup-input and empty-password cursor fixes while preserving TTY validation, provider auth/request/replay contracts, shared model choices and Discord intents/DM/attachment policy. New upstream agent, automation, WebSocket and invite/permission helpers are not activated. Retain security overrides, build permissions and coverage/audit gates; these changes require a future release and do not alter immutable signed v0.2.6 assets.
+
 ## [0.2.6] - 2026-11-03
 
 - Prepare the `0.2.6` maintenance candidate; align root/CLI/daemon versions and release/operator/contributor notes. Signed `v0.2.5` remains published stable until separately reviewed exact-main verification, protected signing/publication and four-target public installation succeed. Existing packages require an explicit update; older tags/assets remain immutable.

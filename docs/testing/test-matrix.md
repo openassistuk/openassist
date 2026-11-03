@@ -1,5 +1,7 @@
 # Test Matrix
 
+The [PR #94 dependency review](../execplans/dependabot-pr-94-2026-11-03.md) validates OpenAI SDK 7.47.0, Discord.js 14.28.0 and Inquirer prompts 8.7.5 through existing provider local-HTTP/auth/replay/tool contracts, Codex SSE/session fixtures, channel rendering/delivery boundaries and setup prompt/TTY cases. Frozen installation and the unchanged full quality/coverage/audit gate remain required. Preserve the original unassigned macOS runner failure separately from successful attempt 2; original-head checks do not certify documentation or dependency changes on a newer head. These source results are separate from immutable v0.2.6 publication and live account/provider certification.
+
 `whatsapp-media-compatibility.test.ts` also checks the optional `@audio/decode@4.2.0` alias and patched Baileys waveform output using synthetic PCM, file and stream inputs, malformed audio in a bounded worker, and lazy MP3/FLAC/Opus/Vorbis WASM initialization. Portable artifact smoke runs the same production-graph decoder check after deployment/relocation. `dependency-security-overrides.test.ts` rejects the deprecated package name and requires the tested replacement version. These checks do not certify every codec or live WhatsApp delivery.
 
 The lifecycle-engine source-staging unit case substitutes a tiny executable fixture at the file-copy boundary and asserts the real Node source and private-runtime destination. Native hosted lifecycle smoke retains actual Node copying and activation; the unit deadline remains unchanged.

@@ -1,28 +1,12 @@
 # OpenAssist
 
-Signed `0.2.6` is the maintenance release for dependency security repairs and reliable release/startup checks. It updates Zod, Azure Identity/MSAL, Undici and follow-redirects in production, plus Vite and coverage glob dependencies in development; audit and coverage gates remain mandatory. It replaces the deprecated optional WhatsApp decoder with pinned `@audio/decode` and a tested Baileys waveform compatibility patch. See the [release notes](docs/releases/v0.2.6.md), [maintenance evidence](docs/execplans/maintenance-0.2.6-2026-11-03.md) and [publication evidence](docs/execplans/stable-0.2.6-release.md). Existing installations need an explicit update; older signed packages remain immutable.
-
-`0.2.5` adds `/compact` for an explicit, tool-free provider summary of one bounded chunk of older completed history in this chat. It works below the trigger and when `[runtime.context].autoCompact = false`; automatic compaction defaults to true. Change the installation-wide switch in `openassist setup wizard` → **Context budgets and compaction**. Off disables automatic foreground/overflow/background summaries while retaining byte/token limits, bounded projections and existing checkpoints. Original rows and the current turn remain intact; summaries may omit historical details. A busy chat asks you to wait; further catch-up may need another `/compact`. See the [control reference](docs/configuration/config-reference.md#runtimecontext).
-
-`0.2.5`: model-aware context admission covers all five provider routes and every tool continuation. Verified model windows replace the eight-message runtime cutoff; unknown serving limits stay explicit. Inspect `/status`, `/memory` or `openassist doctor`, and set cost caps in `openassist setup wizard`. See the [context engine](docs/architecture/context-engine.md) for accounting, durable compaction, bounds and rollback. Older installations retain their shipped behavior until explicitly updated. The [v0.2.5 release notes](docs/releases/v0.2.5.md) describe the shipped scope, budgets and rollback; [release evidence](docs/execplans/stable-0.2.5-release.md) records exact-main checks, protected publication and public verification separately.
-
-Context summary parsing uses linear string operations and rejects raw provider output above 128 KiB before JSON parsing; malformed or oversized summaries preserve the previous checkpoint and original history.
-
-Source compaction uses bounded tool-result excerpts with original audit references, so a large completed result can still be summarized. Image preparation bounds count binaries only for image-capable adapters. Cancellation is checked immediately before checkpoint adoption, and permanent-memory extraction starts independently of context summary progress while preserving its saved cursor.
-
-Bounded history reloads and maintenance reuse runtime tool-frame reconciliation before segmentation: old orphan calls/results cannot strand otherwise completed turns. Original rows remain intact and included in contiguous checkpoint digests; reconciliation never retries unfinished actions.
-
-Raw-source hydration and digest verification have a separate finite allowance of at least 32 MiB (up to 64 MiB with a larger request setting). A smaller `maxRequestBytes` still caps the prepared provider payload, so large stored results can reach bounded excerpting and compaction. Individually larger raw rows and incomplete maintenance without progress fail explicitly; current input is never clipped to recover space.
-
-Summary sources are budgeted across whole completed turns; oversized historical text/arguments are explicitly marked as excerpts with original references. Older image backlogs can compact in strictly shrinking bounded chunks before full preparation, while the complete current turn and final token/byte guards remain intact. Summary output respects exact catalog limits and compatible Anthropic output/thinking settings.
+OpenAssist is a local-first machine assistant built around one daemon, `openassistd`, and one operator CLI, `openassist`.
 
 [![CI](https://github.com/openassistuk/openassist/actions/workflows/ci.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/codeql.yml)
 [![macOS Live Launchd](https://github.com/openassistuk/openassist/actions/workflows/macos-live-launchd.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/macos-live-launchd.yml)
 [![Service Smoke](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/service-smoke.yml)
 [![Lifecycle E2E Smoke](https://github.com/openassistuk/openassist/actions/workflows/lifecycle-e2e-smoke.yml/badge.svg)](https://github.com/openassistuk/openassist/actions/workflows/lifecycle-e2e-smoke.yml)
-
-OpenAssist is a local-first machine assistant built around one daemon, `openassistd`, and one operator CLI, `openassist`.
 
 It is designed for real operator workflows on a real host:
 
@@ -97,15 +81,7 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-**Current availability:** signed [v0.2.6 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.6) is published from maintainer-merged PR #93/main `2d3c498` with sixteen assets. The default installer selects this maintenance release; stable/exact-version installation and data-preserving uninstall passed on Linux/macOS x64/arm64. The [release evidence](docs/execplans/stable-0.2.6-release.md) records exact-main CI/full CodeQL and zero audits, protected signing, independent verification of both signatures/all asset digests, and all four public targets. Publication completed on attempt 2 after an unassigned Apple Silicon queue was cancelled; no source/test failure or asset replacement occurred. Live provider/account and replacement-host testing remain separate and unverified.
-
-Earlier signed [v0.2.5](docs/releases/v0.2.5.md), [v0.2.4](docs/releases/v0.2.4.md) and [v0.2.3](docs/releases/v0.2.3.md) remain immutable. Existing installations need an explicit stable or exact-version update to receive v0.2.6; exact pins do not advance automatically.
-
-The [v0.2.6 release notes](docs/releases/v0.2.6.md) cover dependency repairs, optional decoder compatibility and maintenance checks. This release retains model-aware admission, bounded compaction, manual `/compact`, automatic-compaction controls and Anthropic reliability/security repairs. Saved models, compatible tuning and original history remain intact; use setup wizard for deliberate changes and retain [matching-backup rollback guidance](docs/operations/config-rollout-and-rollback.md).
-
-The [earlier v0.2.2 notes](docs/releases/v0.2.2.md) cover the retained OpenAI/Anthropic model refresh, GPT-6.1 Sol with xhigh and Opus 5.5 setup recommendations, Azure/generic compatibility and stronger publication prerequisites. Its [dated evidence](docs/execplans/stable-0.2.2-release.md) retains the initial Apple Silicon download timeout and successful verification-only retry against unchanged assets. Saved model IDs/tuning remain intact until explicitly edited. Additional fresh-host provider/channel retesting remains unverified.
-
-The [post-release repair](docs/execplans/post-release-axios-audit-2026-09-30.md) resolves Axios `1.20.0`, covering five high and two moderate advisories through WhatsApp/Baileys. Signed `v0.2.1` delivered this repair and later stable patches retain it. Older immutable `v0.2.0` and `v0.2.0-rc.1` packages retain affected Axios `1.18.0`. Immutable `v0.2.2` packages retain the older media dependencies repaired in `v0.2.3`; update existing installations to receive those fixes. Inspect `openassist update --release --channel stable --dry-run`, then run `openassist update --release --channel stable`. Exact-version pins do not advance automatically.
+Current stable: [v0.2.6](https://github.com/openassistuk/openassist/releases/tag/v0.2.6). See the [release notes](docs/releases/v0.2.6.md) for changes and update guidance; existing installations need an explicit update.
 
 ### Install the packaged stable release
 
@@ -280,6 +256,8 @@ Configuration:
 Architecture, interfaces, security, and testing:
 
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
+- Conversation context and memory: [`docs/architecture/context-engine.md`](docs/architecture/context-engine.md)
+- Release history: [`CHANGELOG.md`](CHANGELOG.md)
 - [`docs/interfaces/provider-adapter.md`](docs/interfaces/provider-adapter.md)
 - [`docs/interfaces/channel-adapter.md`](docs/interfaces/channel-adapter.md)
 - [`docs/security/policy-profiles.md`](docs/security/policy-profiles.md)
@@ -346,7 +324,7 @@ Quickstart preserves compatible Anthropic thinking settings when changing models
 
 ## Development and release readiness
 
-Source [PR #94](https://github.com/openassistuk/openassist/pull/94) advances OpenAI SDK to `7.47.0`, Discord.js to `14.28.0` and Inquirer prompts to `8.7.5`. Provider/auth/model/tool contracts, Discord access boundaries and setup TTY checks stay intact; new upstream helper APIs are not enabled. These updates need a future release and are absent from immutable signed v0.2.6. See the [review and validation plan](docs/execplans/dependabot-pr-94-2026-11-03.md) and [source readiness notes](docs/operations/provider-channel-readiness.md).
+Unreleased dependency updates are documented in the [changelog](CHANGELOG.md#unreleased) and [provider/channel readiness guide](docs/operations/provider-channel-readiness.md).
 
 The merged foundation includes Node 24 support, dependency audits, shared model capabilities, bounded durable Responses replay and concurrent OAuth refresh handling. See [Contributing](CONTRIBUTING.md) for local development and [AGENTS.md](AGENTS.md) for engineering requirements.
 

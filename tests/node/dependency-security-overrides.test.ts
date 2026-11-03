@@ -47,6 +47,8 @@ test("the resolved tree covers the Dependabot snapshot and subsequent CI audit a
   }
   // Parent upgrades removed the vulnerable UUID dependency entirely.
   assert.deepEqual(resolvedVersions(lock, "uuid"), []);
+  assert.deepEqual(resolvedVersions(lock, "audio-decode"), [], "Deprecated optional decoder name must be absent");
+  assert.deepEqual(resolvedVersions(lock, "@audio/decode"), ["4.2.0"]);
   // PR #54 left coverage-v8 on 2.x; the modernization upgrades both together.
   assert.deepEqual(resolvedVersions(lock, "@vitest/coverage-v8"), resolvedVersions(lock, "vitest"));
 });

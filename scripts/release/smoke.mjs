@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { verifyAudioDecoder } from './audio-smoke.mjs';
 const source=path.resolve(process.argv[2]);
 const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'openassist-portable-'));
 const app=path.join(temporary,'relocated');
@@ -37,6 +38,7 @@ try {
   const media=createRequire(baileys.resolve('@whiskeysockets/baileys'));
   const sharp=media('sharp');
   await sharp({create:{width:2,height:2,channels:3,background:'#ffffff'}}).png().toBuffer();
+  await verifyAudioDecoder(baileys.resolve('@whiskeysockets/baileys'));
   child=spawn(node,[daemon,'run','--config',file],{env,cwd:temporary,stdio:['ignore','ignore','inherit']});
   let healthy=false;
   for(let i=0;i<30;i++){

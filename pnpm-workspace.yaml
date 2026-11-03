@@ -35,3 +35,11 @@ overrides:
 
 minimumReleaseAgeExclude:
   - '@anthropic-ai/sdk@0.135.0'
+
+patchedDependencies:
+  '@whiskeysockets/baileys@6.7.24': patches/@whiskeysockets__baileys@6.7.24.patch
+
+# This exact peer version is supported by the tested waveform compatibility patch.
+peerDependencyRules:
+  allowedVersions:
+    '@whiskeysockets/baileys@6.7.24>audio-decode': '4.2.0'

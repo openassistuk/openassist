@@ -314,6 +314,8 @@ When touching channel/runtime/provider attachment behavior:
 
 ## Documentation Sync Rules
 
+Keep the root README focused on what OpenAssist does and how to install and use it. Update the existing release pointer and relevant operator guidance instead of prepending per-change paragraphs. Detailed release history, dependency changes, CI incidents and context implementation belong in the changelog, release notes, architecture docs and ExecPlans, linked from the README where useful.
+
 Every behavior change must update docs in the same change.
 
 Update primary field lists, setup choice descriptions and examples alongside any compatibility appendix. Model controls must be checked against `packages/config/src/provider-models.ts` per route, not generalized from a vendor/model name. Structural docs-truth checks do not replace manual review of prose and command flags. Preserve dated changelog/ExecPlan evidence and add explicit final merge/check reconciliations; never infer live certification from a merged PR.

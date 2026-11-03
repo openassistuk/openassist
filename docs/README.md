@@ -22,7 +22,7 @@ For packaged shell PATH setup, see the platform installation guides. For dedicat
 
 Recommended operator flow:
 
-1. Follow the [README installation commands](../README.md#install-and-first-reply), including the current release-availability notice.
+1. Start with the [README quickstart](../README.md#start-here) for installation and first reply. Detailed changes are in the [changelog](../CHANGELOG.md) and [release notes](releases/v0.2.6.md).
 2. Run bare `openassist setup` and choose `First-time setup`.
 3. Confirm `openassist doctor` and `openassist service health`.
 4. Use `openassist setup wizard` only for advanced changes.

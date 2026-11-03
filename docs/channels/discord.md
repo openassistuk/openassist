@@ -144,6 +144,8 @@ Provider modernization retains guild/thread/DM boundaries and approved operator 
 
 Dependency readiness (2026-09-27): Discord.js 14.27.0 is current stable. The adapter now listens to clientReady rather than the deprecated ready event. Bot tokens, gateway intents, DM approval and attachment limits are unchanged. See [readiness audit](../operations/provider-channel-readiness.md).
 
+Source follow-up (2026-11-03, PR #94): Discord.js 14.28.0 keeps the same clientReady, configured intents, bot-token and bounded attachment/delivery paths. Its new invite and channel-permission helpers do not grant OpenAssist new capabilities or alter DM/operator approval. The [dependency review](../execplans/dependabot-pr-94-2026-11-03.md) covers existing channel contracts and native smoke. These newer dependencies are absent from immutable signed v0.2.6 and require a future release; the September baseline above remains historical.
+
 Installation note: packaged releases include the runtime and adapter dependencies; existing provider/channel configuration stays in operator state across updates. For isolated developer testing, use dedicated test credentials and enable channels explicitly. See [developer testing](../operations/developer-testing.md) and [upgrade/recovery](../operations/upgrade-and-rollback.md).
 
 ## Native reminders

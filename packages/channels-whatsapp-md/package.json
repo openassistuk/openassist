@@ -14,10 +14,13 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "optionalDependencies": {
+    "audio-decode": "npm:@audio/decode@4.2.0"
+  },
   "dependencies": {
     "@openassist/core-types": "workspace:*",
     "@whiskeysockets/baileys": "6.7.24",
     "pino": "^10.4.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   }
 }

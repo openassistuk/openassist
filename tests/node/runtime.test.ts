@@ -368,6 +368,7 @@ class FailingStartChannel extends MockChannel {
 }
 
 class BlockingStartChannel extends MockChannel {
+  public startCompleted = false;
   private readonly blocker: Promise<void>;
   private releaseBlocker: (() => void) | null = null;
 
@@ -381,6 +382,7 @@ class BlockingStartChannel extends MockChannel {
   async start(handler: (msg: InboundEnvelope) => Promise<void>): Promise<void> {
     await super.start(handler);
     await this.blocker;
+    this.startCompleted = true;
   }
 
   async stop(): Promise<void> {
@@ -456,7 +458,7 @@ afterEach(() => {
 });
 
 describe("OpenAssistRuntime", () => {
-  it("does not block runtime start when a channel start hangs", async () => {
+  it("does not block runtime start when a channel start hangs", { timeout: 15_000 }, async () => {
     const root = tempDir("openassist-runtime-channel-start-block-");
     roots.push(root);
 
@@ -511,20 +513,21 @@ describe("OpenAssistRuntime", () => {
       { providers: [new MockProvider()], channels: [blockingChannel] }
     );
     runtime.setProviderApiKey("mock-provider", "test-key");
-
-    const startBegin = Date.now();
-    await runtime.start();
-    const elapsedMs = Date.now() - startBegin;
-    assert.ok(
-      elapsedMs < 500,
-      `runtime.start() should not block on channel start, but took ${elapsedMs}ms`
-    );
-
-    const status = runtime.getStatus();
-    assert.equal(status.modules["telegram-mock"], "running");
-
-    await runtime.stop();
-    db.close();
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        runtime.start(),
+        new Promise<never>((_, reject) => {
+          deadline = setTimeout(() => reject(new Error("runtime startup waited for the hanging channel")), 10_000);
+        })
+      ]);
+      assert.equal(blockingChannel.startCompleted, false, "channel startup must still be pending");
+      const status = runtime.getStatus();
+      assert.equal(status.modules["telegram-mock"], "running");
+    } finally {
+      clearTimeout(deadline);
+      try { await runtime.stop(); } finally { db.close(); }
+    }
   });
 
   it("keeps runtime online when one channel fails to start", async () => {

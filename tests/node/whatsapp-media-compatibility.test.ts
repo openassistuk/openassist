@@ -7,11 +7,41 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
+import { verifyAudioDecoder, waveformFixture } from "../../scripts/release/audio-smoke.mjs";
 
 const require = createRequire(path.resolve("packages/channels-whatsapp-md/package.json"));
 const baileysEntry = require.resolve("@whiskeysockets/baileys");
 const baileysRequire = createRequire(baileysEntry);
 const mediaUrl = pathToFileURL(path.join(path.dirname(baileysEntry), "Utils/messages-media.js")).href;
+
+test("renamed optional decoder preserves Baileys waveforms and deployed codec assets", { timeout: 15_000 }, async () => {
+  await verifyAudioDecoder(baileysEntry);
+  const { getAudioWaveform } = await import(mediaUrl);
+  const wav = waveformFixture();
+  const expected = Uint8Array.from({ length: 64 }, (_, i) => i % 2 ? 100 : 33);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openassist-waveform-compat-"));
+  try {
+    const file = path.join(root, "synthetic.wav");
+    fs.writeFileSync(file, wav);
+    for (const input of [file, Readable.from([wav], { objectMode: false })]) {
+      assert.deepEqual(await getAudioWaveform(input), expected);
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("malformed waveform input degrades without unbounded decoding", () => {
+  const script = `
+    import assert from "node:assert/strict";
+    import { getAudioWaveform } from ${JSON.stringify(mediaUrl)};
+    const failures = [];
+    const logger = { debug: message => failures.push(message) };
+    for (const input of [Buffer.alloc(0), Buffer.from("not audio"), Buffer.from("RIFF\\x00\\x00\\x00\\x00WAVE")]) {
+      assert.equal(await getAudioWaveform(input, logger), undefined);
+    }
+    assert.equal(failures.length, 3);
+  `;
+  execFileSync(process.execPath, ["--input-type=module", "-e", script], { timeout: 10_000, shell: false });
+});
 
 test("Baileys image thumbnails use patched librsvg and preserve normal SVG and PNG dimensions", async () => {
   const sharp = baileysRequire("sharp");

@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import net from 'node:net';
 import {spawnSync} from 'node:child_process';
+import { loadRollbackFixture } from './published-fixture.mjs';
 
 // Run only on a disposable root-owned Linux hosted runner, never an operator host.
 if (process.platform !== 'linux' || process.getuid() !== 0 || process.env.GITHUB_ACTIONS !== 'true') throw new Error('Live lifecycle smoke requires a disposable hosted Linux root context.');
@@ -42,7 +43,7 @@ try {
     return target;
   };
   // Use the immutable published rc.1 application and its updater, not a relabelled candidate.
-  const published=await release.resolveRelease({version:'0.2.0-rc.1',channel:'preview'});
+  const published=await loadRollbackFixture(release);
   const artifact=release.platformArtifact(published.manifest);
   const bytes=await release.download(`${published.baseUrl}/${artifact.file}`,artifact.bytes,120_000);
   assert.equal(bytes.length,artifact.bytes);assert.equal(release.sha256(bytes),artifact.sha256);

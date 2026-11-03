@@ -1,5 +1,7 @@
 # Main, branch, PR and local testing
 
+The [0.2.6 maintenance candidate](../releases/v0.2.6.md) requires frozen installation and the unchanged `pnpm verify:all` gate after dependency updates. Its coverage dependency overrides are scoped to test-exclude 8 and tested through CommonJS source selection. Hosted Linux rollback smoke loads fixed signed rc.1 metadata directly and still exercises the old application/updater. Runner acquisition failures remain infrastructure evidence and need a successful hosted run; local Windows tests do not replace native Linux/macOS checks. See the [maintenance plan](../execplans/maintenance-0.2.6-2026-11-03.md).
+
 Source routes use Git, Node >=24.21.0 <25 and pnpm 12.5.1. Source code and dependency scripts execute as your user: an isolated instance is not a sandbox for untrusted code.
 
 ## Isolated instances

@@ -1,5 +1,11 @@
 # Test Matrix
 
+`whatsapp-media-compatibility.test.ts` also checks the optional `@audio/decode@4.2.0` alias and patched Baileys waveform output using synthetic PCM, file and stream inputs, malformed audio in a bounded worker, and lazy MP3/FLAC/Opus/Vorbis WASM initialization. Portable artifact smoke runs the same production-graph decoder check after deployment/relocation. `dependency-security-overrides.test.ts` rejects the deprecated package name and requires the tested replacement version. These checks do not certify every codec or live WhatsApp delivery.
+
+The lifecycle-engine source-staging unit case substitutes a tiny executable fixture at the file-copy boundary and asserts the real Node source and private-runtime destination. Native hosted lifecycle smoke retains actual Node copying and activation; the unit deadline remains unchanged.
+
+The [0.2.6 maintenance candidate](../releases/v0.2.6.md) strengthens dependency floors for the November 3 audits, keeps Vitest/coverage-v8 paired at 5.0.5, and checks c8's CommonJS glob/minimatch source selection under scoped patched overrides. `release-published-fixture.test.ts` verifies fixed signed rc.1 metadata, exact identity and fatal failures without public-catalogue discovery. The hanging-channel startup case checks that initialization is still pending when runtime startup completes, with a finite deadline and cleanup in `finally`; it no longer assumes a subsecond host speed. These source checks and the separate hosted runner-capacity incident are recorded in the [maintenance plan](../execplans/maintenance-0.2.6-2026-11-03.md). Published v0.2.5 evidence below remains historical, not candidate certification.
+
 Manual/automatic context-control regressions cover default/invalid/off config, both wizard choices and saved-false quickstart reload, near-trigger fitting requests, token/byte/preparation guards with auto off, overflow repair refusal, reopened/queued maintenance skips and late-toggle adoption rejection. Explicit-command cases cover below-trigger/off-mode progress, one-chunk catch-up, no eligible source, malformed/nonshrinking/stale/cancelled summaries, revision races, large-result reopen and row/byte hydration. Node runtime-memory cases cover current-chat scope, raw history/cursors, restricted access with no tools, durable duplicate suppression, invalid/empty commands, busy turns, local help/status/capabilities and restart skips. These offline fixtures do not certify live provider accounts.
 
 The signed `0.2.5` [release](../releases/v0.2.5.md) retains every context regression and coverage/audit gate below. Release-doc contracts require matching root/CLI/daemon and executable versions, a versioned changelog and current notes linked from README, AGENTS, the docs index and release maintenance. The [release plan](../execplans/stable-0.2.5-release.md) records local/PR checks, exact-main CI/full CodeQL, native/candidate/signing gates, independent signatures/digests and four successful public-install targets separately. Main CI passes unchanged-code attempt 2 after a Windows startup case measured 742 ms against its 500 ms assertion and left its runtime active until the 30-minute timeout. The isolated local case and full retry pass without code changes; publication/public verification passes attempt 1. These results do not certify live provider/account/channel behavior.
@@ -245,6 +251,7 @@ Current suite files under `tests/node/`:
 - `runtime.test.ts`
 - `runtime-version.test.ts`
 - `release-publication-checks.test.ts`
+- `release-published-fixture.test.ts`
 - `whatsapp-signal-compatibility.test.ts`
 - `whatsapp-media-compatibility.test.ts`
 - `observability-logger.test.ts`

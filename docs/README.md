@@ -1,5 +1,7 @@
 # OpenAssist Documentation
 
+The [0.2.6 maintenance candidate](releases/v0.2.6.md) repairs dependency audits and release/startup tests. Its [living maintenance plan](execplans/maintenance-0.2.6-2026-11-03.md) separates local evidence, pending hosted checks and future protected publication. Signed `v0.2.5` remains published stable; source fixes do not change immutable installed packages.
+
 OpenAssist `0.2.5` adds manual `/compact` and the default-on `runtime.context.autoCompact` switch, with setup-wizard and status/doctor visibility. Manual compaction uses the provider; `/status` and `/memory` remain provider-independent. See the [context engine](architecture/context-engine.md), [control reference](configuration/config-reference.md#runtimecontext) and [implementation/verification plan](execplans/manual-compaction-2026-10-18.md).
 
 Use this index by task, lifecycle stage, provider, channel, or config area.

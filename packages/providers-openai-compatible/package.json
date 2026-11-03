@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@openassist/core-types": "workspace:*",
-    "openai": "^7.31.0",
-    "zod": "^4.6.5",
+    "openai": "^7.43.0",
+    "zod": "^4.6.7",
     "@openassist/providers-shared": "workspace:*"
   }
 }

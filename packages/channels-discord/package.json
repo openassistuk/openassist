@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@openassist/core-types": "workspace:*",
-    "zod": "^4.6.5",
+    "zod": "^4.6.7",
     "discord.js": "^14.27.0"
   }
 }

@@ -8,15 +8,15 @@ Source context byte caps apply to prepared provider payloads. Raw history and di
 
 Source recovery can compact oversized older image history in bounded chunks while preserving the full current request. Summary sources use aggregate historical excerpt budgets, and generation respects exact model output limits and compatible saved thinking settings. Repair irreducible budget failures through wizard and the [troubleshooting runbook](common-troubleshooting.md).
 
-Signed [v0.2.5](../releases/v0.2.5.md) delivers model-aware context, manual `/compact` and automatic-compaction controls while retaining earlier Anthropic and security repairs. Saved model choices remain intact. The [release evidence](../execplans/stable-0.2.5-release.md) confirms protected publication, independent signatures/digests and public installation on all four supported targets; live provider/account and replacement-host testing remain unverified separately.
+Signed [v0.2.6](../releases/v0.2.6.md) delivers dependency/decoder/CI maintenance while retaining model-aware context, manual `/compact`, automatic-compaction controls and earlier Anthropic/security repairs. Saved model choices remain intact. The [release evidence](../execplans/stable-0.2.6-release.md) confirms protected publication, independent signatures/digests and public installation on all four supported targets; live provider/account and replacement-host testing remain unverified separately.
 
 After packaged installation, open a new shell so its saved PATH block takes effect. If `openassist` is not yet found, run `~/.local/bin/openassist setup`; the installer also prints this fallback. Existing or edited shell-profile blocks are preserved rather than overwritten.
 
-The signed [v0.2.5 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.5) is published and public installation passed on all four supported targets. The default installer selects this context release. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
+The signed [v0.2.6 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.6) is published and public installation passed on all four supported targets. The default installer selects this maintenance release. Packaged installation includes private Node, and signing verification is automatic. An unavailable release fails clearly and never silently selects main. See [release maintenance](release-maintenance.md).
 
 This is the canonical operator runbook for a public OpenAssist install.
 
-The [v0.2.5 stable notes](../releases/v0.2.5.md) describe context budgets/controls, retained history/model/lifecycle behavior, explicit preview/source migration and matching-backup rollback. Existing installations need an explicit stable update to receive it; exact pins and saved provider settings remain intact until explicitly changed. Public-install success does not certify fresh provider/channel sessions.
+The [v0.2.6 stable notes](../releases/v0.2.6.md) describe maintenance repairs, retained context/model/lifecycle behavior, explicit preview/source migration and matching-backup rollback. Existing installations need an explicit stable update to receive it; exact pins and saved provider settings remain intact until explicitly changed. Public-install success does not certify fresh provider/channel sessions.
 
 If something goes wrong while following this runbook, use `docs/operations/common-troubleshooting.md` for the beginner/intermediate repair commands that map to the symptoms you see here.
 
@@ -63,7 +63,7 @@ Install the published packaged stable release:
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin this release, use `bash -s -- --version 0.2.5` in the piped installer. For source development, explicitly build main instead:
+To pin this release, use `bash -s -- --version 0.2.6` in the piped installer. For source development, explicitly build main instead:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main

@@ -1,6 +1,6 @@
 # OpenAssist
 
-`0.2.6` is the maintenance candidate for dependency security repairs and reliable release/startup checks. It updates Zod, Azure Identity/MSAL, Undici and follow-redirects in production, plus Vite and coverage glob dependencies in development; audit and coverage gates remain mandatory. It replaces the deprecated optional WhatsApp decoder with pinned `@audio/decode` and a tested Baileys waveform compatibility patch. See the [candidate notes](docs/releases/v0.2.6.md) and [maintenance evidence](docs/execplans/maintenance-0.2.6-2026-11-03.md). Signed `v0.2.5` remains the published stable release; its immutable packages do not receive these source fixes automatically.
+Signed `0.2.6` is the maintenance release for dependency security repairs and reliable release/startup checks. It updates Zod, Azure Identity/MSAL, Undici and follow-redirects in production, plus Vite and coverage glob dependencies in development; audit and coverage gates remain mandatory. It replaces the deprecated optional WhatsApp decoder with pinned `@audio/decode` and a tested Baileys waveform compatibility patch. See the [release notes](docs/releases/v0.2.6.md), [maintenance evidence](docs/execplans/maintenance-0.2.6-2026-11-03.md) and [publication evidence](docs/execplans/stable-0.2.6-release.md). Existing installations need an explicit update; older signed packages remain immutable.
 
 `0.2.5` adds `/compact` for an explicit, tool-free provider summary of one bounded chunk of older completed history in this chat. It works below the trigger and when `[runtime.context].autoCompact = false`; automatic compaction defaults to true. Change the installation-wide switch in `openassist setup wizard` → **Context budgets and compaction**. Off disables automatic foreground/overflow/background summaries while retaining byte/token limits, bounded projections and existing checkpoints. Original rows and the current turn remain intact; summaries may omit historical details. A busy chat asks you to wait; further catch-up may need another `/compact`. See the [control reference](docs/configuration/config-reference.md#runtimecontext).
 
@@ -97,11 +97,11 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-**Current availability:** signed [v0.2.5 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.5) is published from reviewed PR #89/main `190727f` with sixteen assets. The default installer selects this context release; stable/exact-version installation and data-preserving uninstall passed on Linux/macOS x64/arm64. The [release evidence](docs/execplans/stable-0.2.5-release.md) records exact-main checks, protected signing, independent signatures/digests and all four public targets. Main Windows CI passed one unchanged-code retry after a timing-assertion timeout; publication itself passed attempt 1. Live provider/account and replacement-host testing remain separate and unverified.
+**Current availability:** signed [v0.2.6 stable](https://github.com/openassistuk/openassist/releases/tag/v0.2.6) is published from maintainer-merged PR #93/main `2d3c498` with sixteen assets. The default installer selects this maintenance release; stable/exact-version installation and data-preserving uninstall passed on Linux/macOS x64/arm64. The [release evidence](docs/execplans/stable-0.2.6-release.md) records exact-main CI/full CodeQL and zero audits, protected signing, independent verification of both signatures/all asset digests, and all four public targets. Publication completed on attempt 2 after an unassigned Apple Silicon queue was cancelled; no source/test failure or asset replacement occurred. Live provider/account and replacement-host testing remain separate and unverified.
 
-Earlier signed [v0.2.4](docs/releases/v0.2.4.md) and [v0.2.3](docs/releases/v0.2.3.md) remain immutable. Existing installations need an explicit stable or exact-version update to receive v0.2.5; exact pins do not advance automatically.
+Earlier signed [v0.2.5](docs/releases/v0.2.5.md), [v0.2.4](docs/releases/v0.2.4.md) and [v0.2.3](docs/releases/v0.2.3.md) remain immutable. Existing installations need an explicit stable or exact-version update to receive v0.2.6; exact pins do not advance automatically.
 
-The [v0.2.5 release notes](docs/releases/v0.2.5.md) cover model-aware admission, durable bounded compaction, manual `/compact`, the automatic-compaction switch and matching-backup rollback guidance. They retain v0.2.4's Anthropic tool/replay/Haiku and SDK repairs. Saved models, compatible tuning and original history remain intact; use setup wizard for deliberate changes.
+The [v0.2.6 release notes](docs/releases/v0.2.6.md) cover dependency repairs, optional decoder compatibility and maintenance checks. This release retains model-aware admission, bounded compaction, manual `/compact`, automatic-compaction controls and Anthropic reliability/security repairs. Saved models, compatible tuning and original history remain intact; use setup wizard for deliberate changes and retain [matching-backup rollback guidance](docs/operations/config-rollout-and-rollback.md).
 
 The [earlier v0.2.2 notes](docs/releases/v0.2.2.md) cover the retained OpenAI/Anthropic model refresh, GPT-6.1 Sol with xhigh and Opus 5.5 setup recommendations, Azure/generic compatibility and stronger publication prerequisites. Its [dated evidence](docs/execplans/stable-0.2.2-release.md) retains the initial Apple Silicon download timeout and successful verification-only retry against unchanged assets. Saved model IDs/tuning remain intact until explicitly edited. Additional fresh-host provider/channel retesting remains unverified.
 
@@ -119,7 +119,7 @@ Run this in a terminal on Linux or macOS, using your normal login account unless
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin the current published release, use the piped installer with `bash -s -- --version 0.2.5`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.5.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
+To pin the current published release, use the piped installer with `bash -s -- --version 0.2.6`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.6.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
 
 For unattended packaged installation without setup prompts or service installation:
 
@@ -354,7 +354,7 @@ Automated regression and hosted workflow results establish development readiness
 
 ## Packaged releases and developer testing
 
-See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.5 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.5) is published and its public installer passed on all four supported targets. Its [release notes](docs/releases/v0.2.5.md) describe testing limits. Use the default installer for stable packages or `--source --ref main` for development code; previews require explicit selection.
+See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.6 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.6) is published and its public installer passed on all four supported targets. Its [release notes](docs/releases/v0.2.6.md) describe testing limits. Use the default installer for stable packages or `--source --ref main` for development code; previews require explicit selection.
 
 ```bash
 openassist update check

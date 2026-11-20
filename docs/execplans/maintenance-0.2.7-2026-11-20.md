@@ -14,7 +14,9 @@ Deliver a signed, publicly installable maintenance release with reviewed depende
 - [x] (2026-11-20) Apply PR #99 routine updates and exact Anthropic SDK 1.6.0, remove its obsolete age exception, pair Vitest/coverage-v8 5.1.0 and advance pnpm 12.21.0. Synchronize bootstrap/workflows/current docs and 0.2.7 versions/notes. Hosted npm installs omit unnecessary --force.
 - [x] (2026-11-20) Initial full local verification passes before the runtime-security follow-up: 690 Vitest passes/one skip, all Node tests and coverage gates, zero production/full audits. Full logs remain separate from subsequent Node 24.22.3 verification.
 - [x] (2026-11-20) Advance bundled/CI/source Node minimum to security release 24.22.3; synchronize entry/preflight/bootstrap guards and current guidance. On checksum-verified 24.22.3, frozen install/build and 32 focused runtime/bootstrap/docs cases pass (three existing platform skips). Initial focused run exposed one stale escaped-version assertion, corrected before the successful rerun.
-- [ ] Pass the final full gate on Node 24.22.3 and fresh exact-head hosted checks.
+- [x] (2026-11-20) Final full local gate on checksum-verified Node 24.22.3 passes at bfd1475: 690 Vitest passes/one skip; 267 Node passes/six skips; unchanged coverage thresholds and zero production/full audits. No actionable compiler/dependency/deprecation warnings.
+- [x] (2026-11-20) Runtime head bfd1475 passes four native packages/signing contracts (44762189393), PR/full-branch CodeQL (44762189370/44762191512, analysis 2215427776, zero results), live macOS (44762189411) and Linux/macOS lifecycle E2E (44762203555). CI 44762189391 has Linux/macOS/workflow lint passing with Windows running; service 44762196856 has Linux passing and macOS unassigned.
+- [ ] Reconcile all fresh actual-head checks after this final documentation checkpoint in PR #100 Validation; do not infer success from earlier heads.
 - [ ] Open the release preparation PR and pass actual-head CI, full branch CodeQL, native/signing, live macOS, service and lifecycle checks. Obtain the existing required review and merge normally.
 - [ ] Pass exact-main CI/full CodeQL, create the immutable exact tag, authorize only that tag in the existing release environment, and complete protected signing/publication.
 - [ ] Independently verify both signatures/all sixteen asset digests and all four public-install targets; reconcile availability docs in a reviewed follow-up.
@@ -39,7 +41,7 @@ Decision (2026-11-20): the user's release request authorizes the normal branch/P
 
 ## Outcomes & Retrospective
 
-Candidate implementation and metadata, including Node 24.22.3 security maintenance, are prepared. Frozen installation and build succeed without dependency/compiler/deprecation warnings. Twenty-six focused Node contracts (docs, audits, dependency floors and deployed audio/media) pass; 77 focused provider/bootstrap cases pass, followed by 50 Anthropic cases after API-version assertions. Initial full verification passes (690 Vitest passes/one skip; 257 Node passes/six skips; Vitest statements 84.64%, branches 76.41%, functions 87.32%, lines 85.57%; Node statements/lines 79.93%, branches 73.73%, functions 85.60%; zero audits). Fresh full verification on Node 24.22.3 and exact-head hosted/publication gates remain pending. No new release or live provider certification is claimed.
+Candidate implementation and metadata, including Node 24.22.3 security maintenance, are prepared. Frozen installation and build succeed without dependency/compiler/deprecation warnings. Twenty-six focused Node contracts (docs, audits, dependency floors and deployed audio/media) pass; 77 focused provider/bootstrap cases pass, followed by 50 Anthropic cases after API-version assertions. Initial full verification passes (690 Vitest passes/one skip; 257 Node passes/six skips; Vitest statements 84.64%, branches 76.41%, functions 87.32%, lines 85.57%; Node statements/lines 79.93%, branches 73.73%, functions 85.60%; zero audits). Full verification on Node 24.22.3 also passes: 690 Vitest passes/one skip, 267 Node passes/six skips, Vitest branches 76.42% (other totals unchanged), unchanged Node coverage and zero audits. Runtime-head native/signing, PR/full CodeQL, live macOS and lifecycle E2E pass; remaining/final actual-head hosted checks, independent review and publication remain pending. No new release or live provider certification is claimed.
 
 ## Context and Orientation
 
@@ -55,7 +57,7 @@ Commit the reviewable candidate before clone-based lifecycle tests. Run full loc
 
 ## Concrete Steps
 
-Work in `C:\Users\dange\Coding\openassist` with supported Node 24 and the pinned pnpm. Keep local logs/snapshots in ignored `.git/maintenance-2026-11-20`.
+Work in `C:\Users\dange\Coding\openassist` with Node >=24.22.3 <25 and pinned pnpm 12.21.0. Keep local logs/snapshots in ignored `.git/maintenance-2026-11-20`.
 
     pnpm install --frozen-lockfile
     pnpm build
@@ -88,3 +90,5 @@ Revision note (2026-11-20): record reviewed dependency/tooling implementation, e
 Revision note (2026-11-20): record initial complete gate and the independently discovered Node runtime security gap; extend scope within the authorized maintenance release and require fresh runtime/native verification.
 
 Revision note (2026-11-20): record exact initial hosted successes and patched-runtime focused validation; final checks must target the upcoming runtime-security commit.
+
+Revision note (2026-11-20): record completed final patched-runtime full verification, actual native/security/lifecycle results and the separate remaining hosted review/publication gates. Final metadata-head reconciliation belongs in PR #100 Validation, avoiding an endless sequence of evidence-only commits.

@@ -12,7 +12,8 @@ Make malformed saved-source-selector rejection independent of repeated disk-flus
 - [x] (2026-11-20) Measure the original focused test with a temporary fsync spy: fourteen combinations perform twenty-eight synchronous disk flushes inside one test body. Retain the probe result under ignored `.git/windows-lifecycle-test-2026-11-20`; remove instrumentation from the final patch.
 - [x] (2026-11-20) Replace repeated fixture persistence with scoped install-state boundary spies for all fourteen combinations. Assert each unavailable result, exact sanitized cache payload and no fetch; retain both real saved-record shapes in a separate persistence case with raw cache and record-preservation checks.
 - [x] (2026-11-20) Temporary probes measure zero matrix-body disk flushes and four in the separate real-file case. A negative control bypassing validateSourceRef fails on fetch being called; restore production bytes exactly. All forty-four targeted lifecycle/discovery cases pass after restoration, and all probe code is removed.
-- [ ] Pass targeted lifecycle/discovery checks, the unchanged full quality/coverage/audit gate and actual-head hosted Windows coverage; review final changes.
+- [x] (2026-11-20) All forty-four targeted lifecycle/discovery cases and eleven docs-truth contracts pass. Complete pnpm verify:all passes on implementation commit 9ee7f5a: 691 Vitest passes/one existing skip, 267 Node passes/six existing platform skips, unchanged coverage thresholds and zero production/full audits.
+- [ ] Pass actual-head hosted Windows quality/coverage without a retry and reconcile all applicable final PR checks in its Validation section.
 
 ## Surprises & Discoveries
 
@@ -26,7 +27,7 @@ Decision (2026-11-20): mock only install-state loading and cache persistence for
 
 ## Outcomes & Retrospective
 
-The matrix's repeated disk flushes are eliminated, with real persistence retained separately. All forty-four targeted lifecycle/discovery cases pass. The bypassed-validation negative control fails on the expected network-request assertion, and restored production code passes. Testing guidance and the Unreleased changelog describe this source-only test repair. Full quality/coverage/audit and hosted Windows verification remain pending. No production code, dependency, workflow, timeout or release asset change is made.
+The matrix's repeated disk flushes are eliminated, with real persistence retained separately. All forty-four targeted lifecycle/discovery cases pass. The bypassed-validation negative control fails on the expected network-request assertion, and restored production code passes. Testing guidance and the Unreleased changelog describe this source-only test repair. The full local quality/coverage/audit gate passes on 9ee7f5a: Vitest statements/branches/functions/lines 84.64/76.42/87.32/85.57%; Node 79.93/73.73/85.60/79.93%; zero audits. Hosted Windows and final PR verification remain pending. No production code, dependency, workflow, timeout or release asset change is made.
 
 ## Context and Orientation
 
@@ -35,6 +36,10 @@ The matrix's repeated disk flushes are eliminated, with real persistence retaine
 ## Plan of Work
 
 Keep the existing fourteen-input matrix in the lifecycle test, replacing its repeated installation-record writes with a loadInstallState spy and capturing atomicWriteJson calls. Assert unavailable results, the exact sanitized cache contract and no fetch for each combination. Add one real-file case covering both saved-record shapes with a representative malformed selector, actual cache reading and original-record preservation. Update the existing testing guide and Unreleased changelog; do not alter operator behavior or release availability.
+
+## Milestones
+
+The first milestone measures the old matrix's twenty-eight flushes. The second removes those flushes while retaining all selector/record combinations and real-file integration, demonstrated by zero/four-flush probes and the failing validation-bypass control. The third passes the complete local gate and actual-head hosted Windows coverage on the first attempt; record the final remote results in PR Validation rather than create an endless sequence of evidence-only commits.
 
 ## Concrete Steps
 
@@ -66,3 +71,5 @@ No production API or dependency change. Use existing Vitest vi.spyOn boundaries 
 Revision note (2026-11-20): record measured I/O, the authorized targeted repair and explicit security/durability/timeout acceptance criteria before validation.
 
 Revision note (2026-11-20): record zero/four-flush measurements, real saved-record/cache coverage, the failing validation-bypass control and forty-four passing targeted cases before the full quality gate.
+
+Revision note (2026-11-20): record complete local verification/coverage/audit evidence and the remaining first-attempt hosted Windows gate before publishing the final reviewable head.

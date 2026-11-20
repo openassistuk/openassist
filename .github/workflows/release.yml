@@ -71,7 +71,7 @@ jobs:
           node-version: 24.21.0
           package-manager-cache: false
       - name: Install build toolchain
-        run: npm install --global --force --allow-scripts=pnpm pnpm@12.21.0
+        run: npm install --global --allow-scripts=pnpm pnpm@12.21.0
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Package exact build

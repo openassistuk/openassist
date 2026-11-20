@@ -11,7 +11,7 @@ const tar = require('tar');
 const output = path.resolve(process.argv[2] ?? 'coverage/release');
 const target = `${process.platform}-${process.arch}`;
 if (!['linux-x64','linux-arm64','darwin-x64','darwin-arm64'].includes(target)) throw new Error('Package on a native supported Linux/macOS architecture.');
-if (process.versions.node !== '24.21.0') throw new Error('Release packaging requires the pinned Node 24.21.0 runtime.');
+if (process.versions.node !== '24.22.3') throw new Error('Release packaging requires the pinned Node 24.22.3 runtime.');
 const run = (cmd,args) => { const r = spawnSync(cmd,args,{cwd:root,stdio:'inherit'}); if(r.status !== 0) throw new Error(`${cmd} failed`); };
 const commit = spawnSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).stdout.trim();
 if (!/^[a-f0-9]{40,64}$/.test(commit)) throw new Error('Packaging requires an immutable Git commit.');

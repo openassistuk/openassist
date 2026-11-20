@@ -12,12 +12,16 @@ Deliver a signed, publicly installable maintenance release with reviewed depende
 - [x] (2026-11-20) Frozen baseline installation succeeds; production/full audits both report zero vulnerabilities. Default and both pending PR code-scanning alert listings are empty; Dependabot and secret-scanning listings are empty.
 - [x] (2026-11-20) Diagnose November 18 audit failure from retained coverage artifact: development picomatch 4.0.7, GHSA-fc5q-39xc-vjpf, withdrawn 2026-11-18 15:38:56 UTC. Diagnose November 17 lifecycle failure as macOS hosted runner acquisition failure with no executed steps; Linux passes.
 - [x] (2026-11-20) Apply PR #99 routine updates and exact Anthropic SDK 1.6.0, remove its obsolete age exception, pair Vitest/coverage-v8 5.1.0 and advance pnpm 12.21.0. Synchronize bootstrap/workflows/current docs and 0.2.7 versions/notes. Hosted npm installs omit unnecessary --force.
-- [ ] Pass frozen installation, targeted regressions and the unchanged full local verification/coverage/audit gate; review final diff.
+- [x] (2026-11-20) Initial full local verification passes before the runtime-security follow-up: 690 Vitest passes/one skip, all Node tests and coverage gates, zero production/full audits. Full logs remain separate from subsequent Node 24.22.3 verification.
+- [x] (2026-11-20) Advance bundled/CI/source Node minimum to security release 24.22.3; synchronize entry/preflight/bootstrap guards and current guidance. On checksum-verified 24.22.3, frozen install/build and 32 focused runtime/bootstrap/docs cases pass (three existing platform skips). Initial focused run exposed one stale escaped-version assertion, corrected before the successful rerun.
+- [ ] Pass the final full gate on Node 24.22.3 and fresh exact-head hosted checks.
 - [ ] Open the release preparation PR and pass actual-head CI, full branch CodeQL, native/signing, live macOS, service and lifecycle checks. Obtain the existing required review and merge normally.
 - [ ] Pass exact-main CI/full CodeQL, create the immutable exact tag, authorize only that tag in the existing release environment, and complete protected signing/publication.
 - [ ] Independently verify both signatures/all sixteen asset digests and all four public-install targets; reconcile availability docs in a reviewed follow-up.
 
 ## Surprises & Discoveries
+
+The official Node distribution index identifies 24.22.3 as the newest Node 24 release and marks it security-related. Its release notes list HTTP/TLS/parser/buffer-lifetime security fixes that npm dependency audits do not inspect. The repository still pins bundled/CI Node 24.21.0; advance runtime and minimum together, retain historical records and validate the exact shipped runtime. A local official Windows archive is checksum-verified against Node SHASUMS and extracted only under ignored Git evidence storage.
 
 The historical high advisory is withdrawn, rather than fixed by a source change. Current audits correctly return zero without suppression. Historical CI failures remain evidence, not current vulnerabilities. The macOS failure annotation says the job was not acquired by a hosted runner; no product fix can certify that execution.
 
@@ -27,13 +31,15 @@ Main is protected by an active ruleset requiring an approving review and seven c
 
 ## Decision Log
 
+Decision (2026-11-20): include Node 24.22.3 security maintenance in the authorized warning/release scope. Reject old patch levels rather than shipping a repaired package with permissive vulnerable source guards. Revalidate all native artifacts on the new exact head; earlier successful checks do not certify this follow-up.
+
 Decision (2026-11-20): work on `codex/maintenance-0.2.7` from clean current main, incorporate reviewed pending dependency changes, and preserve existing policy, auth, replay, model and codec contracts. Do not dismiss alerts or weaken quality/coverage/security checks.
 
 Decision (2026-11-20): the user's release request authorizes the normal branch/PR/tag/release workflow. Existing independent review and environment approval requirements remain effective; do not bypass them or retrieve signing secrets.
 
 ## Outcomes & Retrospective
 
-Candidate implementation and metadata are prepared. Frozen installation and build succeed without dependency/compiler/deprecation warnings. Twenty-six focused Node contracts (docs, audits, dependency floors and deployed audio/media) pass; 77 focused provider/bootstrap cases pass, followed by 50 Anthropic cases after API-version assertions. Full verification and hosted/publication gates remain pending. No new release or live provider certification is claimed.
+Candidate implementation and metadata, including Node 24.22.3 security maintenance, are prepared. Frozen installation and build succeed without dependency/compiler/deprecation warnings. Twenty-six focused Node contracts (docs, audits, dependency floors and deployed audio/media) pass; 77 focused provider/bootstrap cases pass, followed by 50 Anthropic cases after API-version assertions. Initial full verification passes (690 Vitest passes/one skip; 257 Node passes/six skips; Vitest statements 84.64%, branches 76.41%, functions 87.32%, lines 85.57%; Node statements/lines 79.93%, branches 73.73%, functions 85.60%; zero audits). Fresh full verification on Node 24.22.3 and exact-head hosted/publication gates remain pending. No new release or live provider certification is claimed.
 
 ## Context and Orientation
 
@@ -69,7 +75,7 @@ Preserve original tags/assets and operator state. Never force-push main or bypas
 
 ## Artifacts and Notes
 
-Baseline CI latest success: 44743558561. Historical audit failure: 44312004808; lifecycle runner failure: 44129234025. Current published stable is v0.2.6. Initial branch/PR scanning and all audit/security listings are clean. Full raw evidence remains ignored under the Git directory.
+[Preparation PR #100](https://github.com/openassistuk/openassist/pull/100) is draft. Initial pre-runtime head e897acc passes PR CodeQL 44761306712, full branch CodeQL 44761302449, native/signing 44761307012, live macOS 44761306883 and lifecycle E2E 44761312980. These do not certify the subsequent runtime update. Initial service smoke 44761307497 remained queued and may be superseded deliberately. Baseline CI latest success: 44743558561. Historical audit failure: 44312004808; lifecycle runner failure: 44129234025. Current published stable is v0.2.6. Initial branch/PR scanning and all audit/security listings are clean. Full raw evidence remains ignored under the Git directory.
 
 ## Interfaces and Dependencies
 
@@ -78,3 +84,7 @@ No new runtime privilege, configuration/database compatibility version, provider
 Revision note (2026-11-20): record the authorized scope, actual baseline evidence, historical failure diagnosis and release acceptance gates before implementation.
 
 Revision note (2026-11-20): record reviewed dependency/tooling implementation, explicit SDK-version compatibility and successful focused checks before the committed full gate.
+
+Revision note (2026-11-20): record initial complete gate and the independently discovered Node runtime security gap; extend scope within the authorized maintenance release and require fresh runtime/native verification.
+
+Revision note (2026-11-20): record exact initial hosted successes and patched-runtime focused validation; final checks must target the upcoming runtime-security commit.

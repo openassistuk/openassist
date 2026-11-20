@@ -241,7 +241,7 @@ Historical ExecPlans retain dated decisions, checks and unresolved certification
 
 Setup readiness rejects malformed bind addresses before network probing; see [invalid bind address repair](operations/common-troubleshooting.md#invalid-bind-address). The [Dependabot follow-up ExecPlan](execplans/dependabot-follow-up-2026-09.md) tracks Node 24 type policy and post-modernization updates.
 
-OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+OpenAssist requires Node.js `>=24.22.3 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
 
 pnpm 12.21.0 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 

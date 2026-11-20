@@ -350,9 +350,9 @@ async function runPreflight(
   dependencies: SetupQuickstartDependencies
 ): Promise<void> {
   stage("Preflight", "Checking tools, writable paths, and service manager readiness.");
-  const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
-  if (nodeMajor !== 24 || nodeMinor! < 21) {
-    throw new Error(`Node.js >=24.21.0 <25 is required (found ${process.version}).`);
+  const [nodeMajor, nodeMinor, nodePatch] = process.versions.node.split(".").map(Number);
+  if (nodeMajor !== 24 || nodeMinor! < 22 || (nodeMinor === 22 && nodePatch! < 3)) {
+    throw new Error(`Node.js >=24.22.3 <25 is required (found ${process.version}).`);
   }
 
   if (options.preflightCommandChecks !== false && installationSummary(state.installDir, state.configPath).installationMethod !== "release") {

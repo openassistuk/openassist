@@ -27,7 +27,7 @@
     "openassist": "dist/index.js"
   },
   "engines": {
-    "node": ">=24.21.0 <25"
+    "node": ">=24.22.3 <25"
   },
   "files": [
     "dist"

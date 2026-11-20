@@ -20,7 +20,7 @@ Earlier [v0.2.2](../releases/v0.2.2.md) remains immutable: its [publication 3687
 
 Release archive validation resolves link chains against the complete entry list before extraction, rejecting escapes, cycles and excessive chains while retaining internal production-dependency symlinks and direct regular-file hardlinks. Hardlinks to symlinks or other aliases are rejected. Native artifact/lifecycle gates verify relocation and candidate identity while the previous installation record is still committed. Packaged bootstrap owns only its recorded shell PATH blocks; uninstall preserves modified or unrecognized profile content.
 
-Packaged installations support Linux glibc and macOS on x64 and arm64. Artifacts contain the compiled CLI/daemon, production dependencies, local docs, service templates and Node 24.21.0. Normal operators do not need Git, pnpm or system Node. Source builds retain the pinned development toolchain.
+Packaged installations support Linux glibc and macOS on x64 and arm64. Artifacts contain the compiled CLI/daemon, production dependencies, local docs, service templates and private Node (24.22.3 for the 0.2.7 candidate; immutable 0.2.6 carries 24.21.0). Normal operators do not need Git, pnpm or system Node. Source builds retain the pinned development toolchain.
 
 The [0.2.7 maintenance candidate](../releases/v0.2.7.md) updates the reviewed provider/channel dependencies, pairs Vitest/coverage-v8 at 5.1.0 and pins pnpm 12.21.0. Anthropic counting/inference retain API version 2023-06-01 and existing auth/replay/telemetry boundaries. See the [maintenance/release evidence](../execplans/maintenance-0.2.7-2026-11-20.md); public stable remains v0.2.6 until independent publication and public verification.
 

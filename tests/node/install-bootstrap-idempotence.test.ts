@@ -65,9 +65,9 @@ describe("bootstrap installer idempotence contract", () => {
     assert.ok(script.includes("brew install git"));
     assert.ok(script.includes("brew install node@24"));
     assert.ok(script.includes("deb.nodesource.com/setup_24.x"));
-    assert.ok(script.includes("Node.js is outside >=24.21.0 <25 after package install; attempting fallback install via npm+n"));
+    assert.ok(script.includes("Node.js is outside >=24.22.3 <25 after package install; attempting fallback install via npm+n"));
     assert.ok(script.includes("npm install -g n"));
-    assert.ok(script.includes("n 24.21.0"));
+    assert.ok(script.includes("n 24.22.3"));
     assert.ok(script.includes('PINNED_PNPM_VERSION="12.21.0"'));
     assert.ok(script.includes('npm install -g --force --allow-scripts=pnpm "pnpm@${PINNED_PNPM_VERSION}"'));
     assert.ok(script.includes("git -C \"${INSTALL_DIR}\" status --porcelain"));

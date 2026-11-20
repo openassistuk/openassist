@@ -4,7 +4,7 @@ Thanks for contributing. OpenAssist is operator-facing software and changes are 
 
 ## Prerequisites
 
-- Node.js `>=24.21.0 <25`
+- Node.js `>=24.22.3 <25`
 - pnpm `12.21.0`
 - Git
 

@@ -5,7 +5,7 @@
   "description": "Lean, modular, restart-safe AI gateway",
   "type": "module",
   "engines": {
-    "node": ">=24.21.0 <25"
+    "node": ">=24.22.3 <25"
   },
   "packageManager": "pnpm@12.21.0",
   "scripts": {

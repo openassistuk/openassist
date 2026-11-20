@@ -74,7 +74,9 @@ Discovery is limited to ten seconds overall, ten pages of 100 release/tag entrie
 
 ## Node 24 runtime migration
 
-Source installs require Node >=24.21.0 <25 and pnpm 12.21.0. Update shell and service runtimes before using the new source CLI. Back up the service definition, checkout, config, credentials and database. Entrypoint guards reject unsupported Node before provider/storage imports. Packaged releases carry the tested runtime and retain it for rollback.
+Candidate 0.2.7 raises the minimum to Node 24.22.3 for upstream security fixes. Existing source hosts on 24.21.x or 24.22.0–24.22.2 must update shell and service runtimes first. Packaged 0.2.7 carries its own 24.22.3 runtime after verified publication; older immutable packages retain their shipped runtime.
+
+Source installs require Node >=24.22.3 <25 and pnpm 12.21.0. Update shell and service runtimes before using the new source CLI. Back up the service definition, checkout, config, credentials and database. Entrypoint guards reject unsupported Node before provider/storage imports. Packaged releases carry the tested runtime and retain it for rollback.
 
 After migration check `openassist service health`, `openassist doctor`, existing conversations and channel sessions. Local tests are distinct from live Linux/macOS certification. See [developer testing](developer-testing.md), [uninstall](uninstall.md), and [common troubleshooting](common-troubleshooting.md).
 

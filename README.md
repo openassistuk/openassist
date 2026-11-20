@@ -115,7 +115,7 @@ For source development or testing the latest main revision:
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main
 ```
 
-This downloads source into `~/openassist`, builds it, and starts guided setup on an interactive terminal. Source builds use Git, Node `>=24.21.0 <25` and pnpm `12.21.0`; bootstrap checks for these and can install missing prerequisites, which may require elevated permission. For branches, PRs and isolated local changes, see [developer testing](docs/operations/developer-testing.md).
+This downloads source into `~/openassist`, builds it, and starts guided setup on an interactive terminal. Source builds use Git, Node `>=24.22.3 <25` and pnpm `12.21.0`; bootstrap checks for these and can install missing prerequisites, which may require elevated permission. For branches, PRs and isolated local changes, see [developer testing](docs/operations/developer-testing.md).
 
 ### Finish setup and send a message
 
@@ -313,7 +313,7 @@ Setup readiness rejects malformed bind addresses before attempting network probe
 
 ## Node 24 runtime migration
 
-OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](docs/operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+OpenAssist requires Node.js `>=24.22.3 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](docs/operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
 
 
 pnpm 12.21.0 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.

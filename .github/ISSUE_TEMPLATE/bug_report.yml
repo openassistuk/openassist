@@ -42,7 +42,7 @@ body:
       description: Include OS, Node version, pnpm version, and install mode.
       placeholder: |
         OS: Ubuntu 24.04
-        Node: 24.21.0
+        Node: 24.22.3
         pnpm: 12.5.1
         Install: bootstrap script / source checkout
     validations:

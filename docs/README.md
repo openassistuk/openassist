@@ -1,8 +1,8 @@
 # OpenAssist Documentation
 
-The [0.2.7 maintenance candidate](releases/v0.2.7.md) updates the reviewed provider/channel dependencies, pairs Vitest/coverage-v8 at 5.1.0 and pins pnpm 12.21.0. Anthropic counting/inference retain API version 2023-06-01 and existing auth/replay/telemetry boundaries. See the [maintenance/release evidence](execplans/maintenance-0.2.7-2026-11-20.md); public stable remains v0.2.6 until independent publication and public verification.
+The signed [0.2.7 maintenance release](releases/v0.2.7.md) delivers private Node 24.22.3 security fixes, reviewed SDK/channel updates, paired Vitest/coverage-v8 5.1.0 and pnpm 12.21.0. Anthropic counting/inference retain API version 2023-06-01 and existing auth/replay/telemetry boundaries. The [publication evidence](execplans/stable-0.2.7-release.md) records exact-main CI/full CodeQL and zero audits, protected signing, both independent signatures/all sixteen digests and all four public-install targets in 44787107926 attempt 1. The default installer selects v0.2.7; older signed assets remain immutable and live account/provider certification remains separate.
 
-The signed [0.2.6 maintenance release](releases/v0.2.6.md) delivers dependency audit repairs, optional decoder compatibility and reliable release/startup tests. Its [maintenance plan](execplans/maintenance-0.2.6-2026-11-03.md) and [publication evidence](execplans/stable-0.2.6-release.md) separate local/PR checks, exact-main CI/full CodeQL, protected signing, independent signatures/digests and all four public-install targets. The default installer selects v0.2.6; older signed packages remain immutable and existing installations need an explicit update. Live provider/account and replacement-host testing remain separate and unverified.
+The earlier signed [0.2.6 maintenance release](releases/v0.2.6.md) delivers dependency audit repairs, optional decoder compatibility and reliable release/startup tests. Its [maintenance plan](execplans/maintenance-0.2.6-2026-11-03.md) and [publication evidence](execplans/stable-0.2.6-release.md) separate local/PR checks, exact-main CI/full CodeQL, protected signing, independent signatures/digests and all four public-install targets. The default installer selected v0.2.6 until verified v0.2.7 publication; older signed packages remain immutable and existing installations need an explicit update. Live provider/account and replacement-host testing remain separate and unverified.
 
 OpenAssist `0.2.5` adds manual `/compact` and the default-on `runtime.context.autoCompact` switch, with setup-wizard and status/doctor visibility. Manual compaction uses the provider; `/status` and `/memory` remain provider-independent. See the [context engine](architecture/context-engine.md), [control reference](configuration/config-reference.md#runtimecontext) and [implementation/verification plan](execplans/manual-compaction-2026-10-18.md).
 
@@ -24,7 +24,7 @@ For packaged shell PATH setup, see the platform installation guides. For dedicat
 
 Recommended operator flow:
 
-1. Start with the [README quickstart](../README.md#start-here) for installation and first reply. Detailed changes are in the [changelog](../CHANGELOG.md) and [release notes](releases/v0.2.6.md).
+1. Start with the [README quickstart](../README.md#start-here) for installation and first reply. Detailed changes are in the [changelog](../CHANGELOG.md) and [release notes](releases/v0.2.7.md).
 2. Run bare `openassist setup` and choose `First-time setup`.
 3. Confirm `openassist doctor` and `openassist service health`.
 4. Use `openassist setup wizard` only for advanced changes.
@@ -188,6 +188,7 @@ Current housekeeping and release-evidence records:
 - [v0.2.4 publication evidence](execplans/stable-0.2.4-release.md): PR #86/main/tag 78b3e40, exact-main checks, protected signing, independent signatures/digests and all four public-install targets in run 38921925528; preserve the initial Apple Silicon setup cancellation and successful retry separately.
 - [v0.2.5 publication evidence](execplans/stable-0.2.5-release.md): reviewed PR #89/main/tag `190727f`, exact-main checks, protected signing, independent signatures/digests and four-target public installation. Retain the initial main Windows timing timeout separately from the unchanged-code retry; release publication passes attempt 1. Live certification remains separate.
 - [v0.2.6 publication evidence](execplans/stable-0.2.6-release.md): PR #93/main/tag `2d3c498`, exact-main checks and zero audits, protected signing, both independent signatures/all sixteen digests, and four public-install targets in run `41689000939` attempt 2. Preserve the initial unassigned Apple Silicon queue cancellation separately.
+- [v0.2.7 publication evidence](execplans/stable-0.2.7-release.md): PR #100/main/tag b6ef8a7, exact-main checks/zero audits, protected publication 44787107926, both independent signatures/all sixteen digests and all four public-install targets.
 - [Deterministic setup test and publication prerequisites](execplans/release-ci-gates-2026-10-01.md): scoped bind-probe isolation and automated exact-commit CI/CodeQL verification.
 - [October 4 CI audit and workflow lint repair](execplans/ci-braces-workflow-lint-2026-10-04.md): remove unused development-only glob dependencies affected by an unpatched braces advisory, reject unmatched lint targets, enforce policy on actual glob matches, preserve native/Docker option operands and reconcile the exact documented coverage scope.
 - [October 6 source-map tooling audit repair](execplans/ci-source-map-audit-2026-10-06.md): resolve development-only source-map-js to patched `1.2.2`, enforce its lockfile regression floor and retain unchanged audit/coverage gates with separate local and hosted evidence.
@@ -252,7 +253,8 @@ Provider/authentication/channel maintenance: [current dependency and harness rea
 ## Managed release lifecycle
 
 - [Release maintenance](operations/release-maintenance.md): signed packaging, private runtime, publication prerequisites and four-platform verification.
-- [v0.2.6 maintenance notes](releases/v0.2.6.md): current signed dependency/decoder/CI maintenance release, retained context/auth/lifecycle contracts, explicit update/rollback guidance and four-target public verification.
+- [v0.2.7 maintenance notes](releases/v0.2.7.md): current signed Node security/SDK/tooling maintenance release, explicit update/rollback guidance and four-target public verification.
+- [v0.2.6 maintenance notes](releases/v0.2.6.md): earlier signed dependency/decoder/CI maintenance release, retained context/auth/lifecycle contracts, explicit update/rollback guidance and four-target public verification.
 - [v0.2.5 release notes](releases/v0.2.5.md): earlier immutable context release, manual `/compact`, automatic-compaction control, independent permanent-memory extraction and explicit compatibility/rollback limits; public installation passes all four targets.
 - [v0.2.4 patch notes](releases/v0.2.4.md): earlier immutable Anthropic reliability/dependency patch, with dated four-target public installation and explicit update guidance. Live Anthropic account testing remains deferred.
 - [v0.2.3 patch notes](releases/v0.2.3.md): earlier immutable media-security/maintenance patch with dated four-target public verification. v0.2.4 retains those repairs and adds Anthropic fixes; saved provider settings remain unchanged.

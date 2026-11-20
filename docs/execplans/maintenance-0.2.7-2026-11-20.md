@@ -4,7 +4,7 @@ This living ExecPlan follows `.agents/PLANS.md`. Keep Progress, Surprises & Disc
 
 ## Purpose / Big Picture
 
-Deliver a signed, publicly installable maintenance release with reviewed dependency updates and clean quality, audit and security checks. Existing packaged operators receive changes only through an explicit update. Version 0.2.6 remains the published stable release until 0.2.7 publication and all four public installation checks succeed.
+Deliver a signed, publicly installable maintenance release with reviewed dependency updates and clean quality, audit and security checks. Existing packaged operators receive changes only through an explicit update. Signed v0.2.7 is now the published stable release after protected publication and all four public installation checks; older v0.2.6 remains immutable.
 
 ## Progress
 
@@ -16,10 +16,12 @@ Deliver a signed, publicly installable maintenance release with reviewed depende
 - [x] (2026-11-20) Advance bundled/CI/source Node minimum to security release 24.22.3; synchronize entry/preflight/bootstrap guards and current guidance. On checksum-verified 24.22.3, frozen install/build and 32 focused runtime/bootstrap/docs cases pass (three existing platform skips). Initial focused run exposed one stale escaped-version assertion, corrected before the successful rerun.
 - [x] (2026-11-20) Final full local gate on checksum-verified Node 24.22.3 passes at bfd1475: 690 Vitest passes/one skip; 267 Node passes/six skips; unchanged coverage thresholds and zero production/full audits. No actionable compiler/dependency/deprecation warnings.
 - [x] (2026-11-20) Runtime head bfd1475 passes four native packages/signing contracts (44762189393), PR/full-branch CodeQL (44762189370/44762191512, analysis 2215427776, zero results), live macOS (44762189411) and Linux/macOS lifecycle E2E (44762203555). CI 44762189391 has Linux/macOS/workflow lint passing with Windows running; service 44762196856 has Linux passing and macOS unassigned.
-- [ ] Reconcile all fresh actual-head checks after this final documentation checkpoint in PR #100 Validation; do not infer success from earlier heads.
-- [ ] Open the release preparation PR and pass actual-head CI, full branch CodeQL, native/signing, live macOS, service and lifecycle checks. Obtain the existing required review and merge normally.
-- [ ] Pass exact-main CI/full CodeQL, create the immutable exact tag, authorize only that tag in the existing release environment, and complete protected signing/publication.
-- [ ] Independently verify both signatures/all sixteen asset digests and all four public-install targets; reconcile availability docs in a reviewed follow-up.
+- [x] (2026-11-20) Final preparation head 987578c passes all seven workflows and thirteen applicable PR checks, reconciled in PR #100 Validation. Preserve the initial unassigned Apple Silicon queue delay; attempt 1 acquired a runner and passed without a retry.
+- [x] (2026-11-20) Maintainer confirms merging PR #100 at 17:40:26 UTC as b6ef8a7. The earlier normal agent merge was refused by the review rule; no agent bypass/protection change occurred. Verify actual main and close #98/#99 as superseded under explicit authorization.
+- [x] (2026-11-20) Exact-main CI 44785542154/full CodeQL 44785542181 pass attempt 1 with zero audits/results. Annotated v0.2.7 targets b6ef8a7; preflight passes and only exact v0.2.7 is added to the unchanged protected environment.
+- [x] (2026-11-20) Protected publication 44787107926 and all four public-install targets pass attempt 1. Signed v0.2.7 is published at 17:55:38 UTC from exact main/tag b6ef8a7 with sixteen assets; see the [release plan](stable-0.2.7-release.md).
+- [x] (2026-11-20) Independently verify both signatures, all sixteen GitHub asset sizes/digests, signed stable/private Node 24.22.3 identity and unchanged v0.2.6 tag/assets. Final environment comparison preserves all older policies/reviewers and adds only exact v0.2.7.
+- [ ] Deliver reconciled availability/evidence docs through the separate reviewed follow-up and record its actual final-head checks.
 
 ## Surprises & Discoveries
 
@@ -41,7 +43,7 @@ Decision (2026-11-20): the user's release request authorizes the normal branch/P
 
 ## Outcomes & Retrospective
 
-Candidate implementation and metadata, including Node 24.22.3 security maintenance, are prepared. Frozen installation and build succeed without dependency/compiler/deprecation warnings. Twenty-six focused Node contracts (docs, audits, dependency floors and deployed audio/media) pass; 77 focused provider/bootstrap cases pass, followed by 50 Anthropic cases after API-version assertions. Initial full verification passes (690 Vitest passes/one skip; 257 Node passes/six skips; Vitest statements 84.64%, branches 76.41%, functions 87.32%, lines 85.57%; Node statements/lines 79.93%, branches 73.73%, functions 85.60%; zero audits). Full verification on Node 24.22.3 also passes: 690 Vitest passes/one skip, 267 Node passes/six skips, Vitest branches 76.42% (other totals unchanged), unchanged Node coverage and zero audits. Runtime-head native/signing, PR/full CodeQL, live macOS and lifecycle E2E pass; remaining/final actual-head hosted checks, independent review and publication remain pending. No new release or live provider certification is claimed.
+Candidate implementation and metadata, including Node 24.22.3 security maintenance, are prepared. Frozen installation and build succeed without dependency/compiler/deprecation warnings. Twenty-six focused Node contracts (docs, audits, dependency floors and deployed audio/media) pass; 77 focused provider/bootstrap cases pass, followed by 50 Anthropic cases after API-version assertions. Initial full verification passes (690 Vitest passes/one skip; 257 Node passes/six skips; Vitest statements 84.64%, branches 76.41%, functions 87.32%, lines 85.57%; Node statements/lines 79.93%, branches 73.73%, functions 85.60%; zero audits). Full verification on Node 24.22.3 also passes: 690 Vitest passes/one skip, 267 Node passes/six skips, Vitest branches 76.42% (other totals unchanged), unchanged Node coverage and zero audits. Final preparation-head workflows all pass, and the maintainer merged #100 as b6ef8a7. Fresh exact-main CI/full CodeQL also pass with zero audits/results; exact v0.2.7 is tagged/authorized and publication 44787107926 succeeds on attempt 1, including protected signing and all four public-install targets. Signed v0.2.7 is public stable with sixteen assets; both signatures/digests, unchanged v0.2.6 and preserved environment rules independently verify. Availability/evidence docs are prepared for their separate reviewed follow-up, with all eleven focused docs-truth checks passing. Live provider/account/channel certification remains unverified.
 
 ## Context and Orientation
 
@@ -77,7 +79,7 @@ Preserve original tags/assets and operator state. Never force-push main or bypas
 
 ## Artifacts and Notes
 
-[Preparation PR #100](https://github.com/openassistuk/openassist/pull/100) is draft. Initial pre-runtime head e897acc passes PR CodeQL 44761306712, full branch CodeQL 44761302449, native/signing 44761307012, live macOS 44761306883 and lifecycle E2E 44761312980. These do not certify the subsequent runtime update. Initial service smoke 44761307497 remained queued and may be superseded deliberately. Baseline CI latest success: 44743558561. Historical audit failure: 44312004808; lifecycle runner failure: 44129234025. Current published stable is v0.2.6. Initial branch/PR scanning and all audit/security listings are clean. Full raw evidence remains ignored under the Git directory.
+[Preparation PR #100](https://github.com/openassistuk/openassist/pull/100) is maintainer-merged as b6ef8a7, with its final 987578c head fully checked in PR Validation. Initial pre-runtime head e897acc passes PR CodeQL 44761306712, full branch CodeQL 44761302449, native/signing 44761307012, live macOS 44761306883 and lifecycle E2E 44761312980. These do not certify the subsequent runtime update. Initial service smoke 44761307497 remained queued and may be superseded deliberately. Baseline CI latest success: 44743558561. Historical audit failure: 44312004808; lifecycle runner failure: 44129234025. Current published stable is verified v0.2.7; v0.2.6 remains immutable. Initial branch/PR scanning and all audit/security listings are clean. Full raw evidence remains ignored under the Git directory.
 
 ## Interfaces and Dependencies
 
@@ -92,3 +94,7 @@ Revision note (2026-11-20): record initial complete gate and the independently d
 Revision note (2026-11-20): record exact initial hosted successes and patched-runtime focused validation; final checks must target the upcoming runtime-security commit.
 
 Revision note (2026-11-20): record completed final patched-runtime full verification, actual native/security/lifecycle results and the separate remaining hosted review/publication gates. Final metadata-head reconciliation belongs in PR #100 Validation, avoiding an endless sequence of evidence-only commits.
+
+Revision note (2026-11-20): reconcile the final PR head, actual maintainer merge, superseded dependency closure and fresh exact-main/tag evidence; retain production publication/public verification as separate pending gates.
+
+Revision note (2026-11-20): close production/public-verification milestones with exact run/time/signature/digest evidence and preserve the separate availability-documentation review gate.

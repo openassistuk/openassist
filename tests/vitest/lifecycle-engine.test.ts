@@ -6,6 +6,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { defaultManagedInstallDir, defaultConfigPath, defaultEnvFilePath, writeDefaultConfig } from "../../packages/config/src/index.js";
 import { defaultInstallStatePath, cachedUpdateStatus, readUpdateCache } from "../../packages/config/src/index.js";
 import { saveInstallState, loadInstallState, atomicWriteJson } from "../../apps/openassist-cli/src/lib/install-state.js";
+import * as installStateStore from "../../apps/openassist-cli/src/lib/install-state.js";
 import { executeUpdate, recoverUpdate, readLifecycleJournal, pruneLifecycleHistory, prepareSource, buildSource } from "../../apps/openassist-cli/src/lib/lifecycle-engine.js";
 import { randomUUID } from "node:crypto";
 import { uninstallApplication } from "../../apps/openassist-cli/src/lib/lifecycle-uninstall.js";
@@ -164,12 +165,36 @@ describe("staged lifecycle recovery",()=>{
   });
   it("rejects malformed recorded source refs before sending any request",async()=>{
     const original=loadInstallState()!;
+    // Test every selector/record shape without repeating durable filesystem writes.
+    // The next case exercises real saved records and cache persistence.
+    const state=vi.spyOn(installStateStore,"loadInstallState");
+    const persist=vi.spyOn(installStateStore,"atomicWriteJson").mockImplementation(()=>{});
     const fetch=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({sha:"b".repeat(40)})));
     for(const ref of ["", "main\nPRIVATE_TOKEN=example", "main\n", "main?token=example", "https://example.test/private", "main%0Aprivate", "-option"]){
       for(const active of [undefined,{...original.active!,method:"source" as const,ref}]){
-        atomicWriteJson(defaultInstallStatePath(),{...original,active,trackedRef:ref});
+        state.mockReturnValue({...original,active,trackedRef:ref});
         expect(await checkForUpdate(true)).toMatchObject({status:"unavailable"});
+        expect(persist).toHaveBeenLastCalledWith(path.join(path.dirname(defaultConfigPath()),"update-check.json"),{
+          schemaVersion:1,checkedAt:expect.any(Number),status:"unavailable",requiresExplicitTarget:false
+        });
+        expect(fetch).not.toHaveBeenCalled();
       }
+    }
+    expect(persist).toHaveBeenCalledTimes(14);
+  });
+  it("persists sanitized unavailable status for malformed saved source selectors",async()=>{
+    const original=loadInstallState()!;
+    const ref="main\nPRIVATE_TOKEN=example";
+    const fetch=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({sha:"b".repeat(40)})));
+    for(const active of [undefined,{...original.active!,method:"source" as const,ref}]){
+      atomicWriteJson(defaultInstallStatePath(),{...original,active,trackedRef:ref});
+      const saved=loadInstallState();
+      expect(await checkForUpdate(true)).toMatchObject({status:"unavailable"});
+      expect(readUpdateCache()).toEqual({schemaVersion:1,checkedAt:expect.any(Number),status:"unavailable",requiresExplicitTarget:false});
+      const cache=fs.readFileSync(path.join(path.dirname(defaultConfigPath()),"update-check.json"),"utf8");
+      expect(JSON.parse(cache)).toEqual(readUpdateCache());
+      expect(cache).not.toContain("PRIVATE_TOKEN");
+      expect(loadInstallState()).toEqual(saved);
     }
     expect(fetch).not.toHaveBeenCalled();
   });

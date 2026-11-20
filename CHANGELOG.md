@@ -6,6 +6,8 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+- Stabilize the Windows lifecycle malformed-source-selector regression without increasing its five-second timeout: replace twenty-eight matrix-body disk flushes with scoped install-state boundary spies, preserve all fourteen rejection/no-fetch/cache-contract combinations, and retain real saved-state/cache checks for both record formats in a separate case. Production durability, coverage/audit gates and immutable v0.2.7 assets are unchanged; document the test split and measured I/O evidence.
+
 ## [0.2.7] - 2026-11-20
 
 - Publish signed stable v0.2.7 from maintainer-merged PR #100/main b6ef8a7 with sixteen immutable assets. Exact-main CI/full CodeQL and all platform audits pass. Protected publication 44787107926 attempt 1, native/candidate quality/live lifecycle/signing gates, both independent signatures/all sixteen digests and all four public stable/exact-version installs with data-preserving uninstall pass. Only the exact new tag is authorized; older policies/reviewers and v0.2.6 tag/assets remain unchanged. Existing installations must explicitly update; live account/provider certification remains separate.

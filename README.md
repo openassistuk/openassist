@@ -81,7 +81,7 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-Current stable: [v0.2.6](https://github.com/openassistuk/openassist/releases/tag/v0.2.6). See the [release notes](docs/releases/v0.2.6.md) for changes and update guidance; existing installations need an explicit update. The [0.2.7 maintenance candidate](docs/releases/v0.2.7.md) is awaiting publication.
+Current stable: [v0.2.7](https://github.com/openassistuk/openassist/releases/tag/v0.2.7). See the [release notes](docs/releases/v0.2.7.md) for changes and update guidance; existing installations need an explicit update.
 
 ### Install the packaged stable release
 
@@ -95,7 +95,7 @@ Run this in a terminal on Linux or macOS, using your normal login account unless
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash
 ```
 
-To pin the current published release, use the piped installer with `bash -s -- --version 0.2.6`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.6.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
+To pin the current published release, use the piped installer with `bash -s -- --version 0.2.7`. Exact-version installations stay pinned until you explicitly change their track. See the [stable release notes](docs/releases/v0.2.7.md) for limits and migration guidance. The older rc.1 preview remains available with `--channel preview`.
 
 For unattended packaged installation without setup prompts or service installation:
 
@@ -332,7 +332,7 @@ Automated regression and hosted workflow results establish development readiness
 
 ## Packaged releases and developer testing
 
-See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.6 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.6) is published and its public installer passed on all four supported targets. Its [release notes](docs/releases/v0.2.6.md) describe testing limits. Use the default installer for stable packages or `--source --ref main` for development code; previews require explicit selection.
+See [Install and First Reply](#install-and-first-reply) for copy-and-paste commands. The signed [v0.2.7 stable release](https://github.com/openassistuk/openassist/releases/tag/v0.2.7) is published and its public installer passed on all four supported targets. Its [release notes](docs/releases/v0.2.7.md) describe testing limits. Use the default installer for stable packages or `--source --ref main` for development code; previews require explicit selection.
 
 ```bash
 openassist update check

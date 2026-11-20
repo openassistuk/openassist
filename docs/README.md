@@ -1,5 +1,7 @@
 # OpenAssist Documentation
 
+The [0.2.7 maintenance candidate](releases/v0.2.7.md) updates the reviewed provider/channel dependencies, pairs Vitest/coverage-v8 at 5.1.0 and pins pnpm 12.21.0. Anthropic counting/inference retain API version 2023-06-01 and existing auth/replay/telemetry boundaries. See the [maintenance/release evidence](execplans/maintenance-0.2.7-2026-11-20.md); public stable remains v0.2.6 until independent publication and public verification.
+
 The signed [0.2.6 maintenance release](releases/v0.2.6.md) delivers dependency audit repairs, optional decoder compatibility and reliable release/startup tests. Its [maintenance plan](execplans/maintenance-0.2.6-2026-11-03.md) and [publication evidence](execplans/stable-0.2.6-release.md) separate local/PR checks, exact-main CI/full CodeQL, protected signing, independent signatures/digests and all four public-install targets. The default installer selects v0.2.6; older signed packages remain immutable and existing installations need an explicit update. Live provider/account and replacement-host testing remain separate and unverified.
 
 OpenAssist `0.2.5` adds manual `/compact` and the default-on `runtime.context.autoCompact` switch, with setup-wizard and status/doctor visibility. Manual compaction uses the provider; `/status` and `/memory` remain provider-independent. See the [context engine](architecture/context-engine.md), [control reference](configuration/config-reference.md#runtimecontext) and [implementation/verification plan](execplans/manual-compaction-2026-10-18.md).
@@ -241,7 +243,7 @@ Setup readiness rejects malformed bind addresses before network probing; see [in
 
 OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
 
-pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
+pnpm 12.21.0 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 
 Current provider choices, route-specific reasoning modes, Claude output budgets and verified source dates are documented in [model compatibility](providers/model-compatibility.md). The [current-model ExecPlan](execplans/current-provider-models-2026-09.md) records the implementation and verification evidence.
 

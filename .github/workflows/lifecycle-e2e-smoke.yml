@@ -34,7 +34,7 @@ jobs:
 
       - name: Setup pnpm
         run: |
-          npm install --global --force --allow-scripts=pnpm pnpm@12.5.1
+          npm install --global --force --allow-scripts=pnpm pnpm@12.21.0
           pnpm --version
 
       - name: Prepare temp HOME and install paths

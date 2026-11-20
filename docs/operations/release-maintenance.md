@@ -22,6 +22,8 @@ Release archive validation resolves link chains against the complete entry list 
 
 Packaged installations support Linux glibc and macOS on x64 and arm64. Artifacts contain the compiled CLI/daemon, production dependencies, local docs, service templates and Node 24.21.0. Normal operators do not need Git, pnpm or system Node. Source builds retain the pinned development toolchain.
 
+The [0.2.7 maintenance candidate](../releases/v0.2.7.md) updates the reviewed provider/channel dependencies, pairs Vitest/coverage-v8 at 5.1.0 and pins pnpm 12.21.0. Anthropic counting/inference retain API version 2023-06-01 and existing auth/replay/telemetry boundaries. See the [maintenance/release evidence](../execplans/maintenance-0.2.7-2026-11-20.md); public stable remains v0.2.6 until independent publication and public verification.
+
 ## Publication prerequisites
 
 OpenAssist packages are signed with RSA/SHA-256 and verified against the public key in `release-public.pem`. Operators do not need a signing key. Signature or checksum failures stop installation; an unavailable release never falls back to main or an unsigned download. Explicit `--source --ref main` remains available.

@@ -22,7 +22,7 @@ Explicit source bootstrap can install missing prerequisites automatically with H
 
 - Git
 - Node `>=24.21.0 <25`
-- pnpm `12.5.1` (the repository-pinned version)
+- pnpm `12.21.0` (the repository-pinned version)
 
 For source builds, if Homebrew is not already available, install it first from `https://brew.sh`.
 

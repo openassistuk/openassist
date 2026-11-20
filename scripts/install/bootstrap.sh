@@ -31,7 +31,7 @@ ALLOW_DIRTY=0
 AUTO_INSTALL_PREREQS=1
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 GLOBAL_BIN_DIR="${OPENASSIST_GLOBAL_BIN_DIR:-/usr/local/bin}"
-PINNED_PNPM_VERSION="12.5.1"
+PINNED_PNPM_VERSION="12.21.0"
 
 # When this script is piped from curl in an interactive shell, stdin is often
 # a pipe instead of a TTY. Reattach stdin to /dev/tty so interactive setup can

@@ -1,6 +1,6 @@
 {
   "name": "@openassist/openassist-cli",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,15 +13,15 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "@inquirer/prompts": "^8.7.5",
+    "@inquirer/prompts": "^8.8.0",
     "@openassist/config": "workspace:*",
     "@openassist/core-runtime": "workspace:*",
     "@openassist/core-types": "workspace:*",
     "@openassist/migration-openclaw": "workspace:*",
     "@openassist/observability": "workspace:*",
     "@openassist/storage-sqlite": "workspace:*",
-    "commander": "^15.0.0",
-    "tar": "^7.5.22"
+    "commander": "^15.1.0",
+    "tar": "^7.5.23"
   },
   "bin": {
     "openassist": "dist/index.js"

@@ -24,7 +24,7 @@ Explicit source bootstrap can install missing development prerequisites automati
 
 - Git
 - Node `>=24.21.0 <25`
-- pnpm `12.5.1` (the repository-pinned version)
+- pnpm `12.21.0` (the repository-pinned version)
 
 Common Linux notes:
 

@@ -45,7 +45,7 @@ Packaged installation needs Bash, curl, OpenSSL, gzip and standard Unix utilitie
 Optional source-development prerequisites (packaged releases include Node):
 
 - Node `>=24.21.0 <25`
-- pnpm `12.5.1` (the repository-pinned version)
+- pnpm `12.21.0` (the repository-pinned version)
 - Git
 
 Platform notes:

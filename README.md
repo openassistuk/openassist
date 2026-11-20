@@ -81,7 +81,7 @@ Channel replies render with channel-safe formatting, long replies are chunked cl
 
 ## Install and First Reply
 
-Current stable: [v0.2.6](https://github.com/openassistuk/openassist/releases/tag/v0.2.6). See the [release notes](docs/releases/v0.2.6.md) for changes and update guidance; existing installations need an explicit update.
+Current stable: [v0.2.6](https://github.com/openassistuk/openassist/releases/tag/v0.2.6). See the [release notes](docs/releases/v0.2.6.md) for changes and update guidance; existing installations need an explicit update. The [0.2.7 maintenance candidate](docs/releases/v0.2.7.md) is awaiting publication.
 
 ### Install the packaged stable release
 
@@ -115,7 +115,7 @@ For source development or testing the latest main revision:
 curl -fsSL https://raw.githubusercontent.com/openassistuk/openassist/main/install.sh | bash -s -- --source --ref main
 ```
 
-This downloads source into `~/openassist`, builds it, and starts guided setup on an interactive terminal. Source builds use Git, Node `>=24.21.0 <25` and pnpm `12.5.1`; bootstrap checks for these and can install missing prerequisites, which may require elevated permission. For branches, PRs and isolated local changes, see [developer testing](docs/operations/developer-testing.md).
+This downloads source into `~/openassist`, builds it, and starts guided setup on an interactive terminal. Source builds use Git, Node `>=24.22.3 <25` and pnpm `12.21.0`; bootstrap checks for these and can install missing prerequisites, which may require elevated permission. For branches, PRs and isolated local changes, see [developer testing](docs/operations/developer-testing.md).
 
 ### Finish setup and send a message
 
@@ -313,10 +313,10 @@ Setup readiness rejects malformed bind addresses before attempting network probe
 
 ## Node 24 runtime migration
 
-OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](docs/operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+OpenAssist requires Node.js `>=24.22.3 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](docs/operations/upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
 
 
-pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
+pnpm 12.21.0 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 
 Windows source command launches and readiness probes reject an unsupported first `pnpm.cmd` shim or missing pnpm on the selected PATH. They do not search again for another executable; install the checkout's pinned npm-managed pnpm to repair that prerequisite. Windows operator/service parity remains out of scope.
 

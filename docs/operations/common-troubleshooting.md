@@ -534,7 +534,7 @@ If setup or doctor reports `runtime.bind_address_invalid`, enter a valid IP addr
 
 ## Node 24 runtime migration
 
-OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+OpenAssist requires Node.js `>=24.22.3 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
 
 
 ## Retired models and thinking validation

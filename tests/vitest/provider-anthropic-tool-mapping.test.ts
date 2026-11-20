@@ -69,8 +69,10 @@ afterEach(() => {
 describe("anthropic provider tool mapping", () => {
   it("counts prepared system/tools/messages and includes cached input in context usage exactly once", async () => {
     const payloads: any[] = [];
+    const versions: Array<string | null> = [];
     vi.spyOn(globalThis,"fetch").mockImplementation(async (_url,options) => {
       payloads.push(JSON.parse(options?.body as string));
+      versions.push(new Headers(options?.headers).get("anthropic-version"));
       return new Response(JSON.stringify(payloads.length === 1 ? { input_tokens: 60 } : {
         id: "fixture", type: "message", role: "assistant", model: "claude-sonnet-4-6", content: [{ type: "text", text: "done" }], stop_reason: "end_turn",
         usage: { input_tokens: 10, cache_read_input_tokens: 20, cache_creation_input_tokens: 30, output_tokens: 2 }
@@ -81,6 +83,7 @@ describe("anthropic provider tool mapping", () => {
     expect(prepared.outputTokens).toBe(4096);
     expect(await prepared.countTokens!({ apiKey: "fixture" })).toBe(60);
     const result = await prepared.send({ apiKey: "fixture" });
+    expect(versions).toEqual(["2023-06-01", "2023-06-01"]);
     for (const field of ["system","messages","tools","thinking"]) expect(payloads[0][field]).toEqual(payloads[1][field]);
     expect(result.usage).toEqual({ inputTokens: 60, outputTokens: 2, totalTokens: 62 });
   });

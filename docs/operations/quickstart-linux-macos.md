@@ -44,8 +44,8 @@ Packaged installation needs Bash, curl, OpenSSL, gzip and standard Unix utilitie
 
 Optional source-development prerequisites (packaged releases include Node):
 
-- Node `>=24.21.0 <25`
-- pnpm `12.5.1` (the repository-pinned version)
+- Node `>=24.22.3 <25`
+- pnpm `12.21.0` (the repository-pinned version)
 - Git
 
 Platform notes:
@@ -455,7 +455,7 @@ Setup readiness rejects invalid bind addresses before network probing. If this b
 
 ## Node 24 runtime migration
 
-OpenAssist requires Node.js `>=24.21.0 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
+OpenAssist requires Node.js `>=24.22.3 <25`. Existing Node 22 installs must update their shell and service runtime before upgrading OpenAssist. Follow the [backup, service verification and rollback procedure](upgrade-and-rollback.md#node-24-runtime-migration); saved configuration, model IDs, credentials and conversations are preserved.
 
 
 ## Modernization compatibility

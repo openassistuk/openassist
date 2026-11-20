@@ -31,7 +31,7 @@ ALLOW_DIRTY=0
 AUTO_INSTALL_PREREQS=1
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 GLOBAL_BIN_DIR="${OPENASSIST_GLOBAL_BIN_DIR:-/usr/local/bin}"
-PINNED_PNPM_VERSION="12.5.1"
+PINNED_PNPM_VERSION="12.21.0"
 
 # When this script is piped from curl in an interactive shell, stdin is often
 # a pipe instead of a TTY. Reattach stdin to /dev/tty so interactive setup can
@@ -414,7 +414,7 @@ node_major() {
 }
 
 node_supported() {
-  node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major === 24 && minor >= 21 ? 0 : 1)' >/dev/null 2>&1
+  node -e 'const [major, minor, patch] = process.versions.node.split(".").map(Number); process.exit(major === 24 && (minor > 22 || (minor === 22 && patch >= 3)) ? 0 : 1)' >/dev/null 2>&1
 }
 
 pnpm_major() {
@@ -513,18 +513,18 @@ install_node_runtime() {
       fi
 
       if ! node_supported; then
-        echo "Node.js is outside >=24.21.0 <25 after package install; attempting fallback install via npm+n..."
+        echo "Node.js is outside >=24.22.3 <25 after package install; attempting fallback install via npm+n..."
         if command -v npm >/dev/null 2>&1; then
           if [[ "$(id -u)" -eq 0 ]]; then
-            if ! (npm install -g n && n 24.21.0); then
+            if ! (npm install -g n && n 24.22.3); then
               echo "Fallback install via npm+n failed (root mode)."
             fi
           elif command -v sudo >/dev/null 2>&1; then
-            if ! (sudo npm install -g n && sudo n 24.21.0); then
+            if ! (sudo npm install -g n && sudo n 24.22.3); then
               echo "Fallback install via npm+n failed (sudo mode)."
             fi
           else
-            if ! (npm install -g n && n 24.21.0); then
+            if ! (npm install -g n && n 24.22.3); then
               echo "Fallback install via npm+n failed (user mode)."
             fi
           fi
@@ -580,10 +580,10 @@ collect_missing_prereqs() {
   fi
 
   if ! command -v node >/dev/null 2>&1; then
-    MISSING_PREREQS+=("node>=24.21.0 <25")
+    MISSING_PREREQS+=("node>=24.22.3 <25")
   else
     if ! node_supported; then
-      MISSING_PREREQS+=("node>=24.21.0 <25")
+      MISSING_PREREQS+=("node>=24.22.3 <25")
     fi
   fi
 

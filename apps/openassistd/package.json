@@ -1,6 +1,6 @@
 {
   "name": "@openassist/openassistd",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,13 +25,13 @@
     "@openassist/storage-sqlite": "workspace:*",
     "@openassist/channels-whatsapp-md": "workspace:*",
     "@openassist/providers-openai": "workspace:*",
-    "commander": "^15.0.0"
+    "commander": "^15.1.0"
   },
   "bin": {
     "openassistd": "dist/index.js"
   },
   "engines": {
-    "node": ">=24.21.0 <25"
+    "node": ">=24.22.3 <25"
   },
   "files": [
     "dist"

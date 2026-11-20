@@ -27,12 +27,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24.21.0
+          node-version: 24.22.3
           package-manager-cache: false
 
       - name: Setup pnpm
         run: |
-          npm install --global --force --allow-scripts=pnpm pnpm@12.5.1
+          npm install --global --allow-scripts=pnpm pnpm@12.21.0
           pnpm --version
 
       - name: Install dependencies
@@ -58,12 +58,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24.21.0
+          node-version: 24.22.3
           package-manager-cache: false
 
       - name: Setup pnpm
         run: |
-          npm install --global --force --allow-scripts=pnpm pnpm@12.5.1
+          npm install --global --allow-scripts=pnpm pnpm@12.21.0
           pnpm --version
 
       - name: Install dependencies

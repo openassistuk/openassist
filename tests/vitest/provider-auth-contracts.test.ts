@@ -123,13 +123,14 @@ describe("Anthropic workspace and credential selection", () => {
 
   it.each(["api-key", "oauth"])("isolates %s endpoint, credentials and workspace from SDK environment headers", async (kind) => {
     vi.stubEnv("ANTHROPIC_BASE_URL", "https://ambient-endpoint.invalid");
-    vi.stubEnv("ANTHROPIC_CUSTOM_HEADERS", "x-api-key: ambient-key\nAuthorization: Bearer ambient-token\nanthropic-workspace-id: wrkspc_ambient");
+    vi.stubEnv("ANTHROPIC_CUSTOM_HEADERS", "x-api-key: ambient-key\nAuthorization: Bearer ambient-token\nanthropic-workspace-id: wrkspc_ambient\nanthropic-version: 2026-10-21");
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "reply", content: [{ type: "text", text: "ok" }], usage: { input_tokens: 1, output_tokens: 1 } }), { headers: { "content-type": "application/json" } }));
     await new AnthropicProviderAdapter({ id: "test", defaultModel: "claude-sonnet-5" }).chat(
       { ...request, model: "claude-sonnet-5" }, kind === "api-key" ? { providerId: "test", apiKey: "fixture-key" } : { providerId: "test", accountId: "test", accessToken: "fixture-token" }
     );
     expect(String(fetch.mock.calls[0][0])).toBe("https://api.anthropic.com/v1/messages");
     const headers = new Headers(fetch.mock.calls[0][1]?.headers);
+    expect(headers.get("anthropic-version")).toBe("2023-06-01");
     expect(headers.get("x-api-key")).toBe(kind === "api-key" ? "fixture-key" : null);
     expect(headers.get("authorization")).toBe(kind === "oauth" ? "Bearer fixture-token" : null);
     expect(headers.has("anthropic-workspace-id")).toBe(false);

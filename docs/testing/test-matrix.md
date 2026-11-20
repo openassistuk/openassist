@@ -1,5 +1,7 @@
 # Test Matrix
 
+The [0.2.7 maintenance candidate](../releases/v0.2.7.md) updates the reviewed provider/channel dependencies, pairs Vitest/coverage-v8 at 5.1.0 and pins pnpm 12.21.0. Anthropic counting/inference retain API version 2023-06-01 and existing auth/replay/telemetry boundaries. See the [maintenance/release evidence](../execplans/maintenance-0.2.7-2026-11-20.md); public stable remains v0.2.6 until independent publication and public verification.
+
 The [PR #94 dependency review](../execplans/dependabot-pr-94-2026-11-03.md) validates OpenAI SDK 7.47.0, Discord.js 14.28.0 and Inquirer prompts 8.7.5 through existing provider local-HTTP/auth/replay/tool contracts, Codex SSE/session fixtures, channel rendering/delivery boundaries and setup prompt/TTY cases. Frozen installation and the unchanged full quality/coverage/audit gate remain required. Preserve the original unassigned macOS runner failure separately from successful attempt 2; original-head checks do not certify documentation or dependency changes on a newer head. These source results are separate from immutable v0.2.6 publication and live account/provider certification.
 
 `whatsapp-media-compatibility.test.ts` also checks the optional `@audio/decode@4.2.0` alias and patched Baileys waveform output using synthetic PCM, file and stream inputs, malformed audio in a bounded worker, and lazy MP3/FLAC/Opus/Vorbis WASM initialization. Portable artifact smoke runs the same production-graph decoder check after deployment/relocation. `dependency-security-overrides.test.ts` rejects the deprecated package name and requires the tested replacement version. These checks do not certify every codec or live WhatsApp delivery.
@@ -404,13 +406,13 @@ The wildcard health-URL case in `setup-quickstart-branches.test.ts` simulates se
 
 Node runtime rejection is exercised by `tests/node/runtime-version.test.ts` for both CLI and daemon before application imports.
 
-Dependency maintenance uses pnpm 12.5.1 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
+Dependency maintenance uses pnpm 12.21.0 with `allowBuilds` and narrowly scoped security overrides in `pnpm-workspace.yaml`. `pnpm verify:all` includes `pnpm audit:dependencies`: production and full reports are retained under `coverage/audit`, high/critical findings fail verification, and registry failures never count as success. Weekly Dependabot updates group minor/patch releases while keeping major migrations separate.
 
 `tests/node/whatsapp-signal-compatibility.test.ts` verifies real Baileys/libsignal encryption and decryption across a persisted-session reload without a network account.
 
 - `tests/vitest/provider-model-catalog.test.ts`: current defaults, saved/retired IDs, exact capability matching, reasoning prompts, adaptive/manual validation, and actual SDK request payloads with mocked transport.
 
-pnpm 12.5.1 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
+pnpm 12.21.0 ships a native executable. Bootstrap and CI install it through npm with `--allow-scripts=pnpm`; Corepack is no longer used. Workspace build permissions remain explicitly listed in `pnpm-workspace.yaml` under `allowBuilds`. Dependency audits invoke the package-manager executable directly on Linux, macOS and Windows and retain both complete JSON reports under `coverage/audit`.
 
 `tests/vitest/provider-auth-contracts.test.ts` covers OpenAI/Anthropic callback and PKCE exchange, token metadata, missing credentials, malformed responses and error redaction, plus compatible-endpoint auth boundaries. `config-security-schema.test.ts` checks Zod 4 channel secret arrays, operator IDs, rejection paths and nested security defaults.
 

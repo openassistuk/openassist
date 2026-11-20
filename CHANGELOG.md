@@ -6,6 +6,14 @@ The format follows Keep a Changelog conventions. Release preparation and actual 
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-11-20
+
+- Advance bundled/CI Node and the enforced source minimum to 24.22.3 for upstream HTTP/TLS/parser/memory security fixes. Reject older patch levels before loading application/provider/storage modules; synchronize bootstrap fallback, runtime guards, workflow pins and migration guidance. Existing signed 0.2.6 assets remain unchanged and require an explicit update; source operators must update their shell/service runtime.
+
+- Prepare 0.2.7 with OpenAI SDK 7.56.0, exact Anthropic SDK 1.6.0, Discord.js 14.28.1, Inquirer prompts 8.8.0, Commander 15.1.0, tar 7.5.23 and cron-parser 5.10.5. Preserve Anthropic API version 2023-06-01 for counting/inference and both auth kinds, configured credentials, disabled telemetry/logging, bounded replay and existing tool/channel policy. New vendor helpers remain unused; no schema, model-default or privilege changes.
+- Pair Vitest/coverage-v8 at 5.1.0 and pin pnpm 12.21.0 across bootstrap, CI and current development docs; remove unnecessary hosted npm --force warnings and the obsolete Anthropic 0.135.0 age exception. Preserve dependency/coverage gates, security overrides, build permissions and codec patch/alias/peer wiring.
+- Retain the November 18 withdrawn picomatch advisory and November 17 unassigned macOS runner failure as historical evidence, separate from fresh candidate checks. Signed v0.2.6 remains public stable until independent protected publication and four-target installer verification; old tags/assets remain immutable.
+
 - Restore the root README's product overview and setup path ahead of release history and context implementation details. Keep concise release/update pointers and link to the existing changelog, release notes and context architecture; contributor guidance now prevents per-change paragraphs from accumulating at the top.
 
 - Update source OpenAI SDK `7.43.0` to `7.47.0` across OpenAI, Codex, Azure Foundry and compatible routes; Discord.js `14.27.0` to `14.28.0`; and Inquirer prompts `8.7.4` to `8.7.5` in PR #94. Bring in prompt startup-input and empty-password cursor fixes while preserving TTY validation, provider auth/request/replay contracts, shared model choices and Discord intents/DM/attachment policy. New upstream agent, automation, WebSocket and invite/permission helpers are not activated. Retain security overrides, build permissions and coverage/audit gates; these changes require a future release and do not alter immutable signed v0.2.6 assets.
